@@ -13,6 +13,8 @@ import {
 } from "@/lib/validators/autopack";
 import { getFieldErrors } from "@/lib/validators/utils";
 
+export const runtime = "nodejs";
+
 const JOB_DESCRIPTION_MAX = 12000;
 const ACHIEVEMENTS_MAX = 10000;
 const RATE_LIMIT_SECONDS = 30;
@@ -125,19 +127,16 @@ export async function POST(request: Request) {
   }
 
   try {
-    const allowNoCredits =
-      process.env.CVFORGE_ALLOW_NO_CREDITS === "true";
+    const allowNoCredits = process.env.CVFORGE_ALLOW_NO_CREDITS === "true";
+    const credits = await getUserCredits(supabase, user.id);
 
-    if (!allowNoCredits) {
-      const credits = await getUserCredits(supabase, user.id);
-      if (credits <= 0) {
-        return NextResponse.json(
-          {
-            error: "You're out of credits. Top up to generate a new pack.",
-          },
-          { status: 402 }
-        );
-      }
+    if (credits <= 0 && !allowNoCredits) {
+      return NextResponse.json(
+        {
+          error: "You're out of credits. Top up to generate a new pack.",
+        },
+        { status: 402 }
+      );
     }
 
     const lastGenerate = await fetchLatestAuditLog(
@@ -309,6 +308,16 @@ export async function POST(request: Request) {
 
     await insertAuditLog(supabase, {
       user_id: user.id,
+      action: "credits.deduct_attempt",
+      meta: {
+        applicationId: application.id,
+        autopackId: insertedAutopack.id,
+        version: insertedAutopack.version,
+      },
+    });
+
+    await insertAuditLog(supabase, {
+      user_id: user.id,
       action: "autopack.generate",
       meta: {
         applicationId: application.id,
@@ -317,28 +326,40 @@ export async function POST(request: Request) {
       },
     });
 
-    if (!allowNoCredits) {
+    const skipDeduction = allowNoCredits && credits <= 0;
+
+    if (!skipDeduction) {
+      let serviceClient: ReturnType<typeof createServiceRoleClient> | null =
+        null;
+
       try {
-        const serviceClient = createServiceRoleClient();
+        serviceClient = createServiceRoleClient();
         await deductCreditForAutopack(
           user.id,
           insertedAutopack.id,
           serviceClient
         );
+        await insertAuditLog(serviceClient, {
+          user_id: user.id,
+          action: "credits.deduct_success",
+          meta: {
+            autopackId: insertedAutopack.id,
+          },
+        });
       } catch (error) {
         console.error("[credits.deduct_failed]", error);
-        let serviceClient: ReturnType<typeof createServiceRoleClient> | null =
-          null;
+        const errorMessage =
+          error instanceof Error ? error.message : "Unknown error";
         let auditLogged = false;
 
         try {
-          serviceClient = createServiceRoleClient();
-          await insertAuditLog(serviceClient, {
+          const auditClient = serviceClient ?? createServiceRoleClient();
+          await insertAuditLog(auditClient, {
             user_id: user.id,
             action: "credits.deduct_failed",
             meta: {
               autopackId: insertedAutopack.id,
-              error: error instanceof Error ? error.message : "Unknown error",
+              error: errorMessage,
             },
           });
           auditLogged = true;
@@ -353,8 +374,7 @@ export async function POST(request: Request) {
               action: "credits.deduct_failed",
               meta: {
                 autopackId: insertedAutopack.id,
-                error:
-                  error instanceof Error ? error.message : "Unknown error",
+                error: errorMessage,
               },
             });
           } catch (auditError) {
@@ -363,19 +383,12 @@ export async function POST(request: Request) {
         }
 
         try {
-          if (serviceClient) {
-            await serviceClient
-              .from("autopacks")
-              .delete()
-              .eq("id", insertedAutopack.id)
-              .eq("user_id", user.id);
-          } else {
-            await supabase
-              .from("autopacks")
-              .delete()
-              .eq("id", insertedAutopack.id)
-              .eq("user_id", user.id);
-          }
+          const deleteClient = serviceClient ?? supabase;
+          await deleteClient
+            .from("autopacks")
+            .delete()
+            .eq("id", insertedAutopack.id)
+            .eq("user_id", user.id);
         } catch (deleteError) {
           console.error("[autopack rollback failed]", deleteError);
         }
