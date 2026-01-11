@@ -240,6 +240,10 @@ export default function AchievementsSection({
 }: AchievementsSectionProps) {
   const [isAdding, setIsAdding] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedMetrics, setExpandedMetrics] = useState<Record<string, boolean>>(
+    {}
+  );
+  const metricsPreviewLimit = 80;
 
   const formattedAchievements = useMemo(
     () =>
@@ -278,6 +282,14 @@ export default function AchievementsSection({
         </Button>
       </div>
 
+      <div className="rounded-2xl border border-black/10 bg-white/70 p-4 text-sm text-[rgb(var(--muted))]">
+        <span className="font-semibold text-[rgb(var(--ink))]">
+          Achievements are your evidence bank.
+        </span>{" "}
+        Focus on outcomes, metrics, and the actions you personally owned so the
+        generator can ground every claim.
+      </div>
+
       {isAdding ? (
         <AchievementForm
           mode="create"
@@ -307,9 +319,29 @@ export default function AchievementsSection({
                     Added {achievement.createdLabel}
                   </p>
                   {achievement.metrics ? (
-                    <p className="mt-2 text-sm text-[rgb(var(--muted))]">
-                      Metrics: {achievement.metrics}
-                    </p>
+                    <div className="mt-2 text-sm text-[rgb(var(--muted))]">
+                      <span className="font-medium text-[rgb(var(--ink))]">
+                        Metrics:
+                      </span>{" "}
+                      {achievement.metrics.length > metricsPreviewLimit &&
+                      !expandedMetrics[achievement.id]
+                        ? `${achievement.metrics.slice(0, metricsPreviewLimit).trim()}…`
+                        : achievement.metrics}
+                      {achievement.metrics.length > metricsPreviewLimit ? (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setExpandedMetrics((prev) => ({
+                              ...prev,
+                              [achievement.id]: !prev[achievement.id],
+                            }))
+                          }
+                          className="ml-2 text-xs font-semibold text-[rgb(var(--accent))] hover:underline"
+                        >
+                          {expandedMetrics[achievement.id] ? "Hide" : "View"}
+                        </button>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
                 <div className="flex items-center gap-3">
