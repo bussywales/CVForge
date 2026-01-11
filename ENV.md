@@ -7,6 +7,6 @@
 - `STRIPE_SECRET_KEY`: Stripe secret key from the Developers dashboard.
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Stripe publishable key (client-side use later).
 - `STRIPE_WEBHOOK_SECRET`: Signing secret for the Stripe webhook endpoint.
-- `STRIPE_CREDITS_PRICE_ID`: Stripe Price ID for the credits pack.
+- `STRIPE_CREDITS_PRICE_ID`: Stripe Price ID for the credits pack (£9 → 10 credits).
 - `OPENAI_API_KEY`: OpenAI API key for autopack generation.
 - `CVFORGE_ALLOW_NO_CREDITS`: Set to `true` to bypass credit checks in development.

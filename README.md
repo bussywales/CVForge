@@ -52,6 +52,8 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 ## Stripe
 - Create a webhook endpoint at `/api/stripe/webhook` and add the signing secret.
 - Use a Price ID for the credits pack in `STRIPE_CREDITS_PRICE_ID`.
+- Credit pack rule: £9 → 10 credits.
+- Test card: `4242 4242 4242 4242` (any future date, any CVC).
 
 ## OpenAI (Phase 2)
 - Set `OPENAI_API_KEY` to enable autopack generation.

@@ -7,6 +7,7 @@ const navItems = [
   { href: "/app", label: "Dashboard" },
   { href: "/app/profile", label: "Profile" },
   { href: "/app/applications", label: "Applications" },
+  { href: "/app/billing", label: "Billing" },
 ];
 
 export default function AppLayout({

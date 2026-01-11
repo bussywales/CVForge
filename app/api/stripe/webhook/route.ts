@@ -67,30 +67,56 @@ export async function POST(request: Request) {
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const userId = session.metadata?.user_id ?? session.client_reference_id;
     const customerId =
       typeof session.customer === "string" ? session.customer : null;
 
-    if (userId) {
-      if (customerId) {
-        await supabaseAdmin.from("stripe_customers").upsert(
-          {
-            user_id: userId,
-            stripe_customer_id: customerId,
-          },
-          { onConflict: "user_id" }
-        );
-      }
+    let userId = session.client_reference_id ?? null;
 
-      const credits = Number(session.metadata?.credits ?? 1);
-      const delta =
-        Number.isFinite(credits) && credits > 0 ? Math.floor(credits) : 1;
+    if (!userId && customerId) {
+      const { data: mappedCustomer } = await supabaseAdmin
+        .from("stripe_customers")
+        .select("user_id")
+        .eq("stripe_customer_id", customerId)
+        .maybeSingle();
 
+      userId = mappedCustomer?.user_id ?? null;
+    }
+
+    if (!userId) {
+      console.warn("[stripe webhook] missing user mapping", {
+        sessionId: session.id,
+      });
+      return NextResponse.json({ received: true });
+    }
+
+    if (customerId) {
+      await supabaseAdmin.from("stripe_customers").upsert(
+        {
+          user_id: userId,
+          stripe_customer_id: customerId,
+        },
+        { onConflict: "user_id" }
+      );
+    }
+
+    const lineItems = await stripe.checkout.sessions.listLineItems(
+      session.id,
+      { limit: 10 }
+    );
+    const priceId = lineItems.data[0]?.price?.id ?? null;
+    const creditsPriceId = process.env.STRIPE_CREDITS_PRICE_ID ?? null;
+
+    if (priceId && creditsPriceId && priceId === creditsPriceId) {
       await supabaseAdmin.from("credit_ledger").insert({
         user_id: userId,
-        delta,
-        reason: "stripe_checkout",
+        delta: 10,
+        reason: "stripe.checkout",
         ref: session.id,
+      });
+    } else {
+      console.warn("[stripe webhook] unknown price id", {
+        sessionId: session.id,
+        priceId,
       });
     }
   }

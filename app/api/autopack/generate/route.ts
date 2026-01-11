@@ -124,13 +124,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const stripeConfigured = Boolean(
-      process.env.STRIPE_SECRET_KEY && process.env.STRIPE_CREDITS_PRICE_ID
-    );
     const allowNoCredits =
       process.env.CVFORGE_ALLOW_NO_CREDITS === "true";
 
-    if (stripeConfigured && !allowNoCredits) {
+    if (!allowNoCredits) {
       const credits = await getUserCredits(supabase, user.id);
       if (credits <= 0) {
         return NextResponse.json(
@@ -318,6 +315,15 @@ export async function POST(request: Request) {
         version: insertedAutopack.version,
       },
     });
+
+    if (!allowNoCredits) {
+      await supabase.from("credit_ledger").insert({
+        user_id: user.id,
+        delta: -1,
+        reason: "autopack.generate",
+        ref: insertedAutopack.id,
+      });
+    }
 
     return NextResponse.json({
       autopackId: insertedAutopack.id,
