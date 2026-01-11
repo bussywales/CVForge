@@ -1,0 +1,39 @@
+{
+  "name": "cvforge",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@supabase/ssr": "0.5.2",
+    "@supabase/supabase-js": "2.43.4",
+    "dotenv": "^16.4.5",
+    "next": "13.4.19",
+    "react": "18.2.0",
+    "react-dom": "18.2.0",
+    "stripe": "^20.1.2",
+    "zod": "^4.3.5"
+  },
+  "devDependencies": {
+    "@next/eslint-plugin-next": "^13.4.19",
+    "@types/node": "18.18.14",
+    "@types/react": "18.2.37",
+    "@types/react-dom": "18.2.15",
+    "autoprefixer": "10.4.19",
+    "es-abstract": "^1.23.3",
+    "eslint": "8.57.0",
+    "eslint-config-next": "13.4.19",
+    "eslint-plugin-import": "^2.29.1",
+    "eslint-plugin-jsx-a11y": "^6.7.1",
+    "eslint-plugin-react": "^7.32.2",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "postcss": "8.4.38",
+    "tailwindcss": "3.4.13",
+    "typescript": "5.2.2"
+  }
+}
