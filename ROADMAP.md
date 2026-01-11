@@ -6,14 +6,13 @@
 - Baseline schema and docs.
 
 ## v0.2.0
-- Profile editor and achievement library.
-- Application tracker CRUD.
-- Basic credit balance view.
+- ✅ Phase 1 complete: profile editor + achievement library.
+- ✅ Phase 1 complete: application tracker CRUD.
 
 ## v0.3.0
-- Autopack generation pipeline.
-- CV + cover letter drafting UI.
-- Credit consumption per output.
+- Phase 2 next: autopack generation pipeline.
+- Phase 2 next: CV + cover letter drafting UI.
+- Phase 2 next: credit consumption per output.
 
 ## v0.4.0
 - Template library and version comparison.

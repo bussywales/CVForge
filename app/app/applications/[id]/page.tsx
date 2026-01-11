@@ -1,0 +1,81 @@
+import Link from "next/link";
+import Section from "@/components/Section";
+import { fetchApplication } from "@/lib/data/applications";
+import { getSupabaseUser } from "@/lib/data/supabase";
+import { deleteApplicationAction, updateApplicationAction } from "../actions";
+import ApplicationForm from "../application-form";
+import DeleteApplicationForm from "../delete-application-form";
+
+type ApplicationPageProps = {
+  params: { id: string };
+  searchParams?: { created?: string };
+};
+
+export default async function ApplicationPage({
+  params,
+  searchParams,
+}: ApplicationPageProps) {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return (
+      <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+        Your session expired. Please sign in again.
+      </div>
+    );
+  }
+
+  const application = await fetchApplication(supabase, user.id, params.id);
+
+  if (!application) {
+    return (
+      <div className="space-y-4">
+        <Link
+          href="/app/applications"
+          className="text-sm text-[rgb(var(--muted))]"
+        >
+          ← Back to applications
+        </Link>
+        <div className="rounded-3xl border border-black/10 bg-white/80 p-6 text-sm text-[rgb(var(--muted))]">
+          This application was not found or you do not have access.
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      <Link href="/app/applications" className="text-sm text-[rgb(var(--muted))]">
+        ← Back to applications
+      </Link>
+
+      {searchParams?.created ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+          Application created. You can keep refining the details here.
+        </div>
+      ) : null}
+
+      <Section
+        title="Edit application"
+        description="Update the role details and keep status current."
+      >
+        <ApplicationForm
+          mode="edit"
+          initialValues={application}
+          action={updateApplicationAction}
+        />
+      </Section>
+
+      <Section
+        title="Danger zone"
+        description="Delete the application if you no longer need it."
+      >
+        <DeleteApplicationForm
+          id={application.id}
+          deleteAction={deleteApplicationAction}
+          label="Delete application"
+        />
+      </Section>
+    </div>
+  );
+}

@@ -2,11 +2,11 @@
 
 ## MVP
 - Email magic link auth with Supabase SSR sessions.
-- Dashboard with placeholders for profile, applications, and autopacks.
+- Profile, achievements, and applications CRUD with server-side validation.
 - Stripe checkout + webhook to ledger credits and store event history.
 - Audit-friendly data model for CV achievements and application history.
 
-## Non-goals (Phase 0)
+## Non-goals (Phase 1)
 - No AI generation or scoring yet.
 - No team collaboration, recruiters, or job board integrations.
 - No complex billing (subscriptions, invoices, coupons) beyond a single credits pack.

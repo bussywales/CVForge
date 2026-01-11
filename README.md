@@ -24,6 +24,22 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 - `npm run typecheck` - TypeScript check
 - `npm run build` - production build
 
+## How to use (Phase 1)
+1. Sign in with a magic link at `/login`.
+2. Visit `/app/profile` to update your profile and add achievements.
+3. Create a new application at `/app/applications/new`.
+4. Edit or delete applications from `/app/applications`.
+
+## Phase 1 smoke test checklist
+- `npm run lint`
+- `npm run typecheck`
+- `npm run build`
+- Sign in via magic link and reach `/app`.
+- Update profile fields and confirm the success banner.
+- Add, edit, and delete an achievement.
+- Create a new application and confirm redirect to the detail page.
+- Edit an application and delete it from the list.
+
 ## Supabase
 - Run the SQL migration by following `supabase/README.md`.
 - Configure auth redirect URLs to include your site URL and `/app`.
