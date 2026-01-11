@@ -3,6 +3,7 @@ import Section from "@/components/Section";
 import { fetchAutopack } from "@/lib/data/autopacks";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import AutopackEditorForm from "@/app/app/applications/autopack-editor-form";
+import AutopackGeneratedBanner from "@/app/app/applications/autopack-generated-banner";
 
 type AutopackPageProps = {
   params: { id: string; autopackId: string };
@@ -53,6 +54,7 @@ export default async function AutopackEditorPage({
   const generatedMessage = creditUsed
     ? `Autopack generated — 1 credit used (${remainingLabel})`
     : `Autopack generated — credit bypass enabled (${remainingLabel})`;
+  const clearPath = `/app/applications/${params.id}/autopacks/${params.autopackId}`;
 
   return (
     <div className="space-y-6">
@@ -64,9 +66,10 @@ export default async function AutopackEditorPage({
       </Link>
 
       {showGenerated ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-          {generatedMessage}
-        </div>
+        <AutopackGeneratedBanner
+          message={generatedMessage}
+          clearPath={clearPath}
+        />
       ) : null}
 
       <Section

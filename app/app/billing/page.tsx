@@ -1,6 +1,7 @@
 import Section from "@/components/Section";
 import { getUserCredits, listCreditActivity } from "@/lib/data/credits";
 import { getSupabaseUser } from "@/lib/data/supabase";
+import CreditActivityTable from "./credit-activity-table";
 import CheckoutButton from "./checkout-button";
 
 export const dynamic = "force-dynamic";
@@ -23,6 +24,22 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const credits = await getUserCredits(supabase, user.id);
   const activity = await listCreditActivity(supabase, user.id, 20);
 
+  const formatUKDateTime = (value: string) => {
+    const date = new Date(value);
+    const datePart = date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    });
+    const timePart = date.toLocaleTimeString("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+
+    return `${datePart}, ${timePart}`;
+  };
+
   const getReasonLabel = (reason?: string | null) => {
     if (reason === "stripe.checkout") {
       return "Credit pack purchase";
@@ -32,6 +49,23 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     }
     return reason ?? "Unknown";
   };
+
+  const activityRows = activity.map((entry) => {
+    const deltaValue = entry.delta ?? 0;
+    const deltaLabel = deltaValue > 0 ? `+${deltaValue}` : `${deltaValue}`;
+    const deltaTone: "positive" | "negative" | "neutral" =
+      deltaValue > 0 ? "positive" : deltaValue < 0 ? "negative" : "neutral";
+
+    return {
+      id: entry.id,
+      createdLabel: formatUKDateTime(entry.created_at),
+      deltaLabel,
+      deltaTone,
+      reasonLabel: getReasonLabel(entry.reason),
+      ref: entry.ref,
+      refShort: entry.ref ? entry.ref.slice(0, 8) : "—",
+    };
+  });
 
   return (
     <div className="space-y-6">
@@ -86,52 +120,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             No credit activity yet.
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-black/10 bg-white/70">
-            <table className="w-full border-collapse text-left text-sm">
-              <thead className="bg-white/80 text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
-                <tr className="border-b border-black/10">
-                  <th className="px-4 py-3 font-medium">Date</th>
-                  <th className="px-4 py-3 font-medium">Delta</th>
-                  <th className="px-4 py-3 font-medium">Reason</th>
-                  <th className="px-4 py-3 font-medium">Ref</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-black/5">
-                {activity.map((entry) => {
-                  const deltaValue = entry.delta ?? 0;
-                  const deltaLabel =
-                    deltaValue > 0 ? `+${deltaValue}` : `${deltaValue}`;
-                  const deltaTone =
-                    deltaValue > 0
-                      ? "text-emerald-600"
-                      : deltaValue < 0
-                        ? "text-rose-600"
-                        : "text-[rgb(var(--muted))]";
-                  const refShort = entry.ref ? entry.ref.slice(0, 8) : "—";
-
-                  return (
-                    <tr key={entry.id} className="align-top">
-                      <td className="px-4 py-3 text-sm text-[rgb(var(--ink))]">
-                        {new Date(entry.created_at).toLocaleString(undefined, {
-                          dateStyle: "medium",
-                          timeStyle: "short",
-                        })}
-                      </td>
-                      <td className={`px-4 py-3 text-sm font-semibold ${deltaTone}`}>
-                        {deltaLabel}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-[rgb(var(--ink))]">
-                        {getReasonLabel(entry.reason)}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-[rgb(var(--muted))]">
-                        {refShort}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <CreditActivityTable rows={activityRows} />
         )}
       </Section>
     </div>

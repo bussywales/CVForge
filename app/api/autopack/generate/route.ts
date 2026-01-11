@@ -127,13 +127,19 @@ export async function POST(request: Request) {
   }
 
   try {
-    const allowNoCredits = process.env.CVFORGE_ALLOW_NO_CREDITS === "true";
+    const isProduction =
+      process.env.VERCEL_ENV === "production" ||
+      process.env.NODE_ENV === "production";
+    const allowNoCredits =
+      !isProduction && process.env.CVFORGE_ALLOW_NO_CREDITS === "true";
     const credits = await getUserCredits(supabase, user.id);
 
     if (credits <= 0 && !allowNoCredits) {
       return NextResponse.json(
         {
-          error: "You're out of credits. Top up to generate a new pack.",
+          error:
+            "You're out of credits. Visit billing to top up and generate a new pack.",
+          billingUrl: "/app/billing",
         },
         { status: 402 }
       );

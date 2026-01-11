@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import Button from "@/components/Button";
 
 type AutopackGenerateButtonProps = {
@@ -11,6 +12,7 @@ type AutopackGenerateButtonProps = {
 type GenerateState = {
   status: "idle" | "loading" | "error";
   message?: string;
+  billingUrl?: string;
 };
 
 export default function AutopackGenerateButton({
@@ -39,6 +41,7 @@ export default function AutopackGenerateButton({
           status: "error",
           message:
             payload?.error ?? "Unable to generate an autopack right now.",
+          billingUrl: payload?.billingUrl,
         });
         return;
       }
@@ -83,7 +86,17 @@ export default function AutopackGenerateButton({
         {state.status === "loading" ? "Generating..." : "Generate Autopack"}
       </Button>
       {state.status === "error" && state.message ? (
-        <p className="text-xs text-red-600">{state.message}</p>
+        <div className="space-y-1 text-xs text-red-600">
+          <p>{state.message}</p>
+          {state.billingUrl ? (
+            <Link
+              href={state.billingUrl}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 underline-offset-2 hover:underline"
+            >
+              Go to billing
+            </Link>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );
