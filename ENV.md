@@ -10,3 +10,4 @@
 - `STRIPE_CREDITS_PRICE_ID`: Stripe Price ID for the credits pack (£9 → 10 credits).
 - `OPENAI_API_KEY`: OpenAI API key for autopack generation.
 - `CVFORGE_ALLOW_NO_CREDITS`: Set to `true` to bypass credit checks in development.
+- DOCX exports run server-side and do not require any additional env vars.

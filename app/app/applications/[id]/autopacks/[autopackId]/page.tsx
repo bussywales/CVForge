@@ -4,6 +4,7 @@ import { fetchAutopack } from "@/lib/data/autopacks";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import AutopackEditorForm from "@/app/app/applications/autopack-editor-form";
 import AutopackGeneratedBanner from "@/app/app/applications/autopack-generated-banner";
+import AutopackExportButtons from "@/app/app/applications/autopack-export-buttons";
 
 type AutopackPageProps = {
   params: { id: string; autopackId: string };
@@ -76,7 +77,10 @@ export default async function AutopackEditorPage({
         title={`Autopack v${autopack.version}`}
         description="Edit the CV, cover letter, and STAR answers."
       >
-        <AutopackEditorForm autopack={autopack} />
+        <div className="space-y-4">
+          <AutopackExportButtons autopackId={autopack.id} />
+          <AutopackEditorForm autopack={autopack} />
+        </div>
       </Section>
     </div>
   );

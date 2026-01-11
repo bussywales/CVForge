@@ -31,6 +31,7 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 4. Edit or delete applications from `/app/applications`.
 5. Open an application and generate an autopack.
 6. Edit the autopack content and save changes.
+7. Download the CV or cover letter DOCX from the autopack editor.
 
 ## Phase 2 smoke test checklist
 - `npm run lint`
@@ -58,3 +59,6 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 ## OpenAI (Phase 2)
 - Set `OPENAI_API_KEY` to enable autopack generation.
 - Optional: set `CVFORGE_ALLOW_NO_CREDITS=true` to bypass credit checks in development.
+
+## DOCX export
+- DOCX exports are generated server-side from autopacks; no additional env vars required.
