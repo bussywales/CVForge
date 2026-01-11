@@ -39,16 +39,30 @@ function AchievementForm({
 }: AchievementFormProps) {
   const [state, setState] = useState(initialActionState);
   const [isPending, startTransition] = useTransition();
+  const [metrics, setMetrics] = useState(initialValues?.metrics ?? "");
   const formRef = useRef<HTMLFormElement | null>(null);
+  const metricsLength = metrics.length;
+  const isMetricsOverLimit = metricsLength > 120;
+  const metricsCounterClass =
+    metricsLength > 120
+      ? "text-red-600"
+      : metricsLength >= 100
+        ? "text-amber-600"
+        : "text-[rgb(var(--muted))]";
 
   useEffect(() => {
     if (state.status === "success") {
       onSuccess?.();
       if (mode === "create") {
         formRef.current?.reset();
+        setMetrics("");
       }
     }
   }, [state.status, onSuccess, mode]);
+
+  useEffect(() => {
+    setMetrics(initialValues?.metrics ?? "");
+  }, [initialValues?.metrics]);
 
   return (
     <form
@@ -156,18 +170,24 @@ function AchievementForm({
         error={state.fieldErrors?.metrics}
         hint="Optional numbers to quantify impact."
       >
-        <input
-          id={`${mode}-metrics`}
-          name="metrics"
-          defaultValue={initialValues?.metrics ?? ""}
-          className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
-        />
+        <div className="space-y-2">
+          <input
+            id={`${mode}-metrics`}
+            name="metrics"
+            value={metrics}
+            onChange={(event) => setMetrics(event.target.value)}
+            className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
+          />
+          <div className={`text-right text-xs ${metricsCounterClass}`}>
+            {metricsLength} / 120
+          </div>
+        </div>
       </FormField>
 
       <div className="flex flex-wrap items-center gap-3">
         <SubmitButton
           label={mode === "create" ? "Add achievement" : "Save changes"}
-          pending={isPending}
+          pending={isPending || isMetricsOverLimit}
         />
         {onCancel ? (
           <Button type="button" variant="ghost" onClick={onCancel}>
