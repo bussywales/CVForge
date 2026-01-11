@@ -14,8 +14,10 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
 
   const emailRedirectTo = useMemo(() => {
-    const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-    return `${base.replace(/\/$/, "")}/app`;
+    const base =
+      process.env.NEXT_PUBLIC_SITE_URL ??
+      (typeof window !== "undefined" ? window.location.origin : "");
+    return `${base.replace(/\/$/, "")}/auth/callback?next=/app`;
   }, []);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {

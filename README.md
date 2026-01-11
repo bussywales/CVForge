@@ -43,6 +43,7 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 ## Supabase
 - Run the SQL migration by following `supabase/README.md`.
 - Configure auth redirect URLs to include your site URL and `/app`.
+- Magic-link auth completes at `/auth/callback`, so ensure `${NEXT_PUBLIC_SITE_URL}/auth/callback` is in your redirect allowlist.
 
 ## Stripe
 - Create a webhook endpoint at `/api/stripe/webhook` and add the signing secret.
