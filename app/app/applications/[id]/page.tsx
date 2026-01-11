@@ -1,9 +1,11 @@
 import Link from "next/link";
 import Section from "@/components/Section";
 import { fetchApplication } from "@/lib/data/applications";
+import { listAutopacks } from "@/lib/data/autopacks";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { deleteApplicationAction, updateApplicationAction } from "../actions";
 import ApplicationForm from "../application-form";
+import AutopacksSection from "../autopacks-section";
 import DeleteApplicationForm from "../delete-application-form";
 
 type ApplicationPageProps = {
@@ -43,6 +45,8 @@ export default async function ApplicationPage({
     );
   }
 
+  const autopacks = await listAutopacks(supabase, user.id, application.id);
+
   return (
     <div className="space-y-6">
       <Link href="/app/applications" className="text-sm text-[rgb(var(--muted))]">
@@ -65,6 +69,8 @@ export default async function ApplicationPage({
           action={updateApplicationAction}
         />
       </Section>
+
+      <AutopacksSection applicationId={application.id} autopacks={autopacks} />
 
       <Section
         title="Danger zone"

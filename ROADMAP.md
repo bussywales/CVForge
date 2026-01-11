@@ -10,9 +10,9 @@
 - ✅ Phase 1 complete: application tracker CRUD.
 
 ## v0.3.0
-- Phase 2 next: autopack generation pipeline.
-- Phase 2 next: CV + cover letter drafting UI.
-- Phase 2 next: credit consumption per output.
+- ✅ Phase 2 complete: autopack generation pipeline.
+- ✅ Phase 2 complete: CV + cover letter drafting UI.
+- ✅ Phase 2 complete: autopack versioning + editor UI.
 
 ## v0.4.0
 - Template library and version comparison.
