@@ -5,7 +5,8 @@ import { ensureProfile } from "@/lib/data/profile";
 import { listAchievements } from "@/lib/data/achievements";
 import { fetchLatestAutopackVersion } from "@/lib/data/autopacks";
 import { fetchLatestAuditLog, insertAuditLog } from "@/lib/data/audit-log";
-import { getUserCredits } from "@/lib/data/credits";
+import { deductCreditForAutopack, getUserCredits } from "@/lib/data/credits";
+import { createServiceRoleClient } from "@/lib/supabase/service";
 import {
   autopackAiOutputSchema,
   generateAutopackSchema,
@@ -317,12 +318,76 @@ export async function POST(request: Request) {
     });
 
     if (!allowNoCredits) {
-      await supabase.from("credit_ledger").insert({
-        user_id: user.id,
-        delta: -1,
-        reason: "autopack.generate",
-        ref: insertedAutopack.id,
-      });
+      try {
+        const serviceClient = createServiceRoleClient();
+        await deductCreditForAutopack(
+          user.id,
+          insertedAutopack.id,
+          serviceClient
+        );
+      } catch (error) {
+        console.error("[credits.deduct_failed]", error);
+        let serviceClient: ReturnType<typeof createServiceRoleClient> | null =
+          null;
+        let auditLogged = false;
+
+        try {
+          serviceClient = createServiceRoleClient();
+          await insertAuditLog(serviceClient, {
+            user_id: user.id,
+            action: "credits.deduct_failed",
+            meta: {
+              autopackId: insertedAutopack.id,
+              error: error instanceof Error ? error.message : "Unknown error",
+            },
+          });
+          auditLogged = true;
+        } catch (auditError) {
+          console.error("[credits.deduct_failed audit]", auditError);
+        }
+
+        if (!auditLogged) {
+          try {
+            await insertAuditLog(supabase, {
+              user_id: user.id,
+              action: "credits.deduct_failed",
+              meta: {
+                autopackId: insertedAutopack.id,
+                error:
+                  error instanceof Error ? error.message : "Unknown error",
+              },
+            });
+          } catch (auditError) {
+            console.error("[credits.deduct_failed audit fallback]", auditError);
+          }
+        }
+
+        try {
+          if (serviceClient) {
+            await serviceClient
+              .from("autopacks")
+              .delete()
+              .eq("id", insertedAutopack.id)
+              .eq("user_id", user.id);
+          } else {
+            await supabase
+              .from("autopacks")
+              .delete()
+              .eq("id", insertedAutopack.id)
+              .eq("user_id", user.id);
+          }
+        } catch (deleteError) {
+          console.error("[autopack rollback failed]", deleteError);
+        }
+
+        return NextResponse.json(
+          {
+            error:
+              "Unable to finalize credits for this autopack. Please try again.",
+          },
+          { status: 500 }
+        );
+      }
     }
 
     return NextResponse.json({

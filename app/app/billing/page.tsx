@@ -3,6 +3,8 @@ import { getUserCredits } from "@/lib/data/credits";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import CheckoutButton from "./checkout-button";
 
+export const dynamic = "force-dynamic";
+
 type BillingPageProps = {
   searchParams?: { success?: string; canceled?: string };
 };
