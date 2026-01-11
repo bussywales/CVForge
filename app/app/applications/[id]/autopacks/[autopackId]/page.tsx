@@ -6,10 +6,12 @@ import AutopackEditorForm from "@/app/app/applications/autopack-editor-form";
 
 type AutopackPageProps = {
   params: { id: string; autopackId: string };
+  searchParams?: { generated?: string; remaining?: string; used?: string };
 };
 
 export default async function AutopackEditorPage({
   params,
+  searchParams,
 }: AutopackPageProps) {
   const { supabase, user } = await getSupabaseUser();
 
@@ -39,6 +41,19 @@ export default async function AutopackEditorPage({
     );
   }
 
+  const showGenerated = Boolean(searchParams?.generated);
+  const remainingCredits = searchParams?.remaining
+    ? Number.parseInt(searchParams.remaining, 10)
+    : null;
+  const creditUsed = searchParams?.used !== "0";
+  const remainingLabel =
+    typeof remainingCredits === "number" && Number.isFinite(remainingCredits)
+      ? `${remainingCredits} remaining`
+      : "balance updating";
+  const generatedMessage = creditUsed
+    ? `Autopack generated — 1 credit used (${remainingLabel})`
+    : `Autopack generated — credit bypass enabled (${remainingLabel})`;
+
   return (
     <div className="space-y-6">
       <Link
@@ -47,6 +62,12 @@ export default async function AutopackEditorPage({
       >
         ← Back to application
       </Link>
+
+      {showGenerated ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
+          {generatedMessage}
+        </div>
+      ) : null}
 
       <Section
         title={`Autopack v${autopack.version}`}

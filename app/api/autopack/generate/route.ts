@@ -403,9 +403,15 @@ export async function POST(request: Request) {
       }
     }
 
+    const creditsRemaining = skipDeduction
+      ? credits
+      : Math.max(credits - 1, 0);
+
     return NextResponse.json({
       autopackId: insertedAutopack.id,
       version: insertedAutopack.version,
+      creditsRemaining,
+      creditUsed: !skipDeduction,
     });
   } catch (error) {
     console.error("[autopack.generate]", error);
