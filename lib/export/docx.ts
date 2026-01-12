@@ -1,5 +1,8 @@
-import type { Document } from "docx";
-import * as docx from "docx";
+import type {
+  Document as DocxDocument,
+  Paragraph as DocxParagraph,
+} from "docx";
+import { createRequire } from "module";
 import type { ProfileRecord } from "@/lib/data/profile";
 
 type ParsedSection = {
@@ -15,6 +18,18 @@ type ParsedCv = {
   remainingSections: Array<{ title?: string; paragraphs: string[] }>;
 };
 
+type DocxModule = typeof import("docx");
+
+const require = createRequire(import.meta.url);
+let docxModule: DocxModule | null = null;
+
+function getDocxModule() {
+  if (!docxModule) {
+    docxModule = require("docx") as DocxModule;
+  }
+  return docxModule;
+}
+
 type HeadingValue =
   | "Heading1"
   | "Heading2"
@@ -24,10 +39,19 @@ type HeadingValue =
   | "Heading5"
   | "Heading6";
 
-const Heading = (docx as unknown as { HeadingLevel?: Record<string, string> })
-  .HeadingLevel;
-const titleHeading = (Heading?.TITLE ?? Heading?.HEADING_1 ?? "Heading1") as HeadingValue;
-const sectionHeading = (Heading?.HEADING_2 ?? Heading?.HEADING_1 ?? "Heading2") as HeadingValue;
+function resolveHeadingLevels() {
+  const docx = getDocxModule();
+  const heading = (docx as unknown as { HeadingLevel?: Record<string, string> })
+    .HeadingLevel;
+  const titleHeading = (heading?.TITLE ??
+    heading?.HEADING_1 ??
+    "Heading1") as HeadingValue;
+  const sectionHeading = (heading?.HEADING_2 ??
+    heading?.HEADING_1 ??
+    "Heading2") as HeadingValue;
+
+  return { titleHeading, sectionHeading };
+}
 
 const SUMMARY_KEYS = [
   "profile",
@@ -302,14 +326,16 @@ function parseCoverLetter(text: string) {
 }
 
 function makeParagraph(text: string, spacing = 160) {
-  return new docx.Paragraph({
+  const { Paragraph } = getDocxModule();
+  return new Paragraph({
     text,
     spacing: { after: spacing },
   });
 }
 
-export async function packDoc(doc: Document) {
-  return docx.Packer.toBuffer(doc);
+export async function packDoc(doc: DocxDocument) {
+  const { Packer } = getDocxModule();
+  return Packer.toBuffer(doc);
 }
 
 export function buildCvDocx(
@@ -317,7 +343,9 @@ export function buildCvDocx(
   cvText: string
 ) {
   const parsed = parseCvText(cvText);
-  const children: docx.Paragraph[] = [];
+  const { Document, Paragraph } = getDocxModule();
+  const { titleHeading, sectionHeading } = resolveHeadingLevels();
+  const children: DocxParagraph[] = [];
 
   const name = profile?.full_name?.trim();
   const headline = profile?.headline?.trim();
@@ -325,7 +353,7 @@ export function buildCvDocx(
 
   if (name) {
     children.push(
-      new docx.Paragraph({
+      new Paragraph({
         text: name,
         heading: titleHeading,
         spacing: { after: 200 },
@@ -343,7 +371,7 @@ export function buildCvDocx(
 
   if (parsed.summaryParagraphs.length > 0) {
     children.push(
-      new docx.Paragraph({
+      new Paragraph({
         text: "Profile summary",
         heading: sectionHeading,
       })
@@ -355,14 +383,14 @@ export function buildCvDocx(
 
   if (parsed.achievements.length > 0) {
     children.push(
-      new docx.Paragraph({
+      new Paragraph({
         text: "Key achievements",
         heading: sectionHeading,
       })
     );
     parsed.achievements.forEach((item) => {
       children.push(
-        new docx.Paragraph({
+        new Paragraph({
           text: item,
           bullet: { level: 0 },
           spacing: { after: 80 },
@@ -375,7 +403,7 @@ export function buildCvDocx(
   parsed.remainingSections.forEach((section) => {
     if (section.title) {
       children.push(
-        new docx.Paragraph({
+        new Paragraph({
           text: section.title,
           heading: sectionHeading,
         })
@@ -390,7 +418,7 @@ export function buildCvDocx(
     children.push(makeParagraph("CV content unavailable."));
   }
 
-  return new docx.Document({
+  return new Document({
     sections: [
       {
         children,
@@ -406,7 +434,9 @@ export function buildCoverLetterDocx(
 ) {
   const { employerLines, bodyParagraphs, signOff } =
     parseCoverLetter(coverLetter);
-  const children: docx.Paragraph[] = [];
+  const { Document, Paragraph } = getDocxModule();
+  const { titleHeading } = resolveHeadingLevels();
+  const children: DocxParagraph[] = [];
 
   const name = profile?.full_name?.trim();
   const headline = profile?.headline?.trim();
@@ -414,7 +444,7 @@ export function buildCoverLetterDocx(
 
   if (name) {
     children.push(
-      new docx.Paragraph({
+      new Paragraph({
         text: name,
         heading: titleHeading,
         spacing: { after: 120 },
@@ -464,7 +494,7 @@ export function buildCoverLetterDocx(
     children.push(makeParagraph("Cover letter content unavailable."));
   }
 
-  return new docx.Document({
+  return new Document({
     sections: [
       {
         children,
