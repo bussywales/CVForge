@@ -1,4 +1,5 @@
-import { Document, HeadingLevel, Paragraph, Packer } from "docx";
+import type { Document } from "docx";
+import * as docx from "docx";
 import type { ProfileRecord } from "@/lib/data/profile";
 
 type ParsedSection = {
@@ -13,6 +14,20 @@ type ParsedCv = {
   achievements: string[];
   remainingSections: Array<{ title?: string; paragraphs: string[] }>;
 };
+
+type HeadingValue =
+  | "Heading1"
+  | "Heading2"
+  | "Title"
+  | "Heading3"
+  | "Heading4"
+  | "Heading5"
+  | "Heading6";
+
+const Heading = (docx as unknown as { HeadingLevel?: Record<string, string> })
+  .HeadingLevel;
+const titleHeading = (Heading?.TITLE ?? Heading?.HEADING_1 ?? "Heading1") as HeadingValue;
+const sectionHeading = (Heading?.HEADING_2 ?? Heading?.HEADING_1 ?? "Heading2") as HeadingValue;
 
 const SUMMARY_KEYS = [
   "profile",
@@ -287,14 +302,14 @@ function parseCoverLetter(text: string) {
 }
 
 function makeParagraph(text: string, spacing = 160) {
-  return new Paragraph({
+  return new docx.Paragraph({
     text,
     spacing: { after: spacing },
   });
 }
 
 export async function packDoc(doc: Document) {
-  return Packer.toBuffer(doc);
+  return docx.Packer.toBuffer(doc);
 }
 
 export function buildCvDocx(
@@ -302,7 +317,7 @@ export function buildCvDocx(
   cvText: string
 ) {
   const parsed = parseCvText(cvText);
-  const children: Paragraph[] = [];
+  const children: docx.Paragraph[] = [];
 
   const name = profile?.full_name?.trim();
   const headline = profile?.headline?.trim();
@@ -310,9 +325,9 @@ export function buildCvDocx(
 
   if (name) {
     children.push(
-      new Paragraph({
+      new docx.Paragraph({
         text: name,
-        heading: HeadingLevel.TITLE,
+        heading: titleHeading,
         spacing: { after: 200 },
       })
     );
@@ -328,9 +343,9 @@ export function buildCvDocx(
 
   if (parsed.summaryParagraphs.length > 0) {
     children.push(
-      new Paragraph({
+      new docx.Paragraph({
         text: "Profile summary",
-        heading: HeadingLevel.HEADING_2,
+        heading: sectionHeading,
       })
     );
     parsed.summaryParagraphs.forEach((paragraph) => {
@@ -340,14 +355,14 @@ export function buildCvDocx(
 
   if (parsed.achievements.length > 0) {
     children.push(
-      new Paragraph({
+      new docx.Paragraph({
         text: "Key achievements",
-        heading: HeadingLevel.HEADING_2,
+        heading: sectionHeading,
       })
     );
     parsed.achievements.forEach((item) => {
       children.push(
-        new Paragraph({
+        new docx.Paragraph({
           text: item,
           bullet: { level: 0 },
           spacing: { after: 80 },
@@ -360,9 +375,9 @@ export function buildCvDocx(
   parsed.remainingSections.forEach((section) => {
     if (section.title) {
       children.push(
-        new Paragraph({
+        new docx.Paragraph({
           text: section.title,
-          heading: HeadingLevel.HEADING_2,
+          heading: sectionHeading,
         })
       );
     }
@@ -375,7 +390,7 @@ export function buildCvDocx(
     children.push(makeParagraph("CV content unavailable."));
   }
 
-  return new Document({
+  return new docx.Document({
     sections: [
       {
         children,
@@ -391,7 +406,7 @@ export function buildCoverLetterDocx(
 ) {
   const { employerLines, bodyParagraphs, signOff } =
     parseCoverLetter(coverLetter);
-  const children: Paragraph[] = [];
+  const children: docx.Paragraph[] = [];
 
   const name = profile?.full_name?.trim();
   const headline = profile?.headline?.trim();
@@ -399,9 +414,9 @@ export function buildCoverLetterDocx(
 
   if (name) {
     children.push(
-      new Paragraph({
+      new docx.Paragraph({
         text: name,
-        heading: HeadingLevel.TITLE,
+        heading: titleHeading,
         spacing: { after: 120 },
       })
     );
@@ -449,7 +464,7 @@ export function buildCoverLetterDocx(
     children.push(makeParagraph("Cover letter content unavailable."));
   }
 
-  return new Document({
+  return new docx.Document({
     sections: [
       {
         children,
