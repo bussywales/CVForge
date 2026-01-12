@@ -12,6 +12,11 @@ import {
   generateAutopackSchema,
 } from "@/lib/validators/autopack";
 import { getFieldErrors } from "@/lib/validators/utils";
+import {
+  sanitizeInlineText,
+  sanitizeJsonStrings,
+  sanitizeTextContent,
+} from "@/lib/utils/autopack-sanitize";
 
 export const runtime = "nodejs";
 
@@ -281,6 +286,20 @@ export async function POST(request: Request) {
       throw new Error("OpenAI output failed validation.");
     }
 
+    const sanitizedCvText = sanitizeTextContent(parsedOutput.data.cv_text);
+    const sanitizedCoverLetter = sanitizeTextContent(
+      parsedOutput.data.cover_letter
+    );
+    const sanitizedAnswers = sanitizeJsonStrings(
+      parsedOutput.data.answers_json
+    );
+    const sanitizedChangeLog = parsedOutput.data.change_log
+      .map((entry) => sanitizeInlineText(entry))
+      .filter(Boolean);
+    const sanitizedAssumptions = (parsedOutput.data.assumptions ?? [])
+      .map((entry) => sanitizeInlineText(entry))
+      .filter(Boolean);
+
     const latestVersion = await fetchLatestAutopackVersion(
       supabase,
       user.id,
@@ -289,10 +308,12 @@ export async function POST(request: Request) {
     const nextVersion = latestVersion + 1;
 
     const answersPayload = {
-      requirements: parsedOutput.data.answers_json,
-      change_log: parsedOutput.data.change_log,
-      assumptions: parsedOutput.data.assumptions ?? [],
+      requirements: sanitizedAnswers,
+      change_log: sanitizedChangeLog,
       extracted_requirements: extractedRequirements,
+      ...(sanitizedAssumptions.length > 0
+        ? { assumptions: sanitizedAssumptions }
+        : {}),
     };
 
     const { data: insertedAutopack, error: insertError } = await supabase
@@ -301,8 +322,8 @@ export async function POST(request: Request) {
         application_id: application.id,
         user_id: user.id,
         version: nextVersion,
-        cv_text: parsedOutput.data.cv_text,
-        cover_letter: parsedOutput.data.cover_letter,
+        cv_text: sanitizedCvText,
+        cover_letter: sanitizedCoverLetter,
         answers_json: answersPayload,
       })
       .select("id, version")

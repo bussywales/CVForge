@@ -4,6 +4,7 @@ import type {
 } from "docx";
 import { createRequire } from "module";
 import type { ProfileRecord } from "@/lib/data/profile";
+import { sanitizeInlineText } from "@/lib/utils/autopack-sanitize";
 
 type ParsedSection = {
   key: string;
@@ -15,7 +16,11 @@ type ParsedSection = {
 type ParsedCv = {
   summaryParagraphs: string[];
   achievements: string[];
-  remainingSections: Array<{ title?: string; paragraphs: string[] }>;
+  remainingSections: Array<{
+    title?: string;
+    paragraphs: string[];
+    bullets: string[];
+  }>;
 };
 
 type DocxModule = typeof import("docx");
@@ -93,6 +98,11 @@ const SIGN_OFF_PREFIXES = [
   "yours faithfully",
   "sincerely",
 ];
+
+const PHONE_REGEX = /(\+?\d[\d\s().-]{7,}\d)/g;
+const PHONE_LABEL_REGEX = /\b(phone|mobile|tel|telephone|cell)\b/i;
+const LINKEDIN_REGEX =
+  /(https?:\/\/)?(www\.)?linkedin\.com\/[^\s)]+/i;
 
 function normalizeHeading(value: string) {
   return value
@@ -241,15 +251,19 @@ function parseCvText(cvText: string): ParsedCv {
   const achievementsFromBody =
     !achievementKey && bodySection && bodySection.bullets.length > 0;
 
-  const remainingSections: Array<{ title?: string; paragraphs: string[] }> = [];
+  const remainingSections: Array<{
+    title?: string;
+    paragraphs: string[];
+    bullets: string[];
+  }> = [];
 
   if (remainingBodyParagraphs.length > 0 || (!achievementsFromBody && bodySection?.bullets.length)) {
-    const bodyExtras = [
-      ...remainingBodyParagraphs,
-      ...(!achievementsFromBody ? bodySection?.bullets ?? [] : []),
-    ];
-    if (bodyExtras.length > 0) {
-      remainingSections.push({ paragraphs: bodyExtras });
+    const bodyBullets = !achievementsFromBody ? bodySection?.bullets ?? [] : [];
+    if (remainingBodyParagraphs.length > 0 || bodyBullets.length > 0) {
+      remainingSections.push({
+        paragraphs: remainingBodyParagraphs,
+        bullets: bodyBullets,
+      });
     }
   }
 
@@ -260,14 +274,15 @@ function parseCvText(cvText: string): ParsedCv {
     if (section.key === summaryKey || section.key === achievementKey) {
       return;
     }
-    const paragraphs = [
-      ...splitParagraphs(section.lines),
-      ...section.bullets,
-    ].filter(Boolean);
-    if (paragraphs.length === 0) {
+    const paragraphs = splitParagraphs(section.lines);
+    if (paragraphs.length === 0 && section.bullets.length === 0) {
       return;
     }
-    remainingSections.push({ title: section.title, paragraphs });
+    remainingSections.push({
+      title: section.title,
+      paragraphs,
+      bullets: section.bullets,
+    });
   });
 
   return {
@@ -325,6 +340,53 @@ function parseCoverLetter(text: string) {
   return { employerLines, bodyParagraphs, signOff };
 }
 
+function isLikelyPhoneNumber(value: string) {
+  const digits = value.replace(/\D/g, "");
+  return digits.length >= 8 && digits.length <= 16;
+}
+
+function extractPhone(text: string) {
+  const lines = text.split(/\r?\n/);
+  for (const line of lines) {
+    if (!PHONE_LABEL_REGEX.test(line)) {
+      continue;
+    }
+    const matches = line.match(PHONE_REGEX);
+    if (!matches) {
+      continue;
+    }
+    const candidate = matches.find(isLikelyPhoneNumber);
+    if (candidate) {
+      return candidate.replace(/\s+/g, " ").trim();
+    }
+  }
+
+  const matches = text.match(PHONE_REGEX) ?? [];
+  const candidate = matches.find(isLikelyPhoneNumber);
+  return candidate ? candidate.replace(/\s+/g, " ").trim() : null;
+}
+
+function extractLinkedIn(text: string) {
+  const match = text.match(LINKEDIN_REGEX);
+  if (!match) {
+    return null;
+  }
+  return match[0].replace(/[.,;]+$/, "").trim();
+}
+
+function buildContactLine(parts: Array<string | null | undefined>) {
+  const cleaned = parts
+    .map((part) => (part ? sanitizeInlineText(part) : ""))
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (cleaned.length === 0) {
+    return null;
+  }
+
+  return cleaned.join(" | ");
+}
+
 function makeParagraph(text: string, spacing = 160) {
   const { Paragraph } = getDocxModule();
   return new Paragraph({
@@ -338,9 +400,15 @@ export async function packDoc(doc: DocxDocument) {
   return Packer.toBuffer(doc);
 }
 
+type DocxContactOptions = {
+  email?: string | null;
+  contactText?: string | null;
+};
+
 export function buildCvDocx(
   profile: ProfileRecord | null,
-  cvText: string
+  cvText: string,
+  options?: DocxContactOptions
 ) {
   const parsed = parseCvText(cvText);
   const { Document, Paragraph } = getDocxModule();
@@ -350,23 +418,31 @@ export function buildCvDocx(
   const name = profile?.full_name?.trim();
   const headline = profile?.headline?.trim();
   const location = profile?.location?.trim();
+  const phone = extractPhone(cvText);
+  const linkedIn = extractLinkedIn(cvText);
+  const contactLine = buildContactLine([
+    location,
+    options?.email ?? null,
+    phone,
+    linkedIn,
+  ]);
 
   if (name) {
     children.push(
       new Paragraph({
         text: name,
         heading: titleHeading,
-        spacing: { after: 200 },
+        spacing: { after: 120 },
       })
     );
   }
 
   if (headline) {
-    children.push(makeParagraph(headline, 120));
+    children.push(makeParagraph(headline, 100));
   }
 
-  if (location) {
-    children.push(makeParagraph(location, 240));
+  if (contactLine) {
+    children.push(makeParagraph(contactLine, 200));
   }
 
   if (parsed.summaryParagraphs.length > 0) {
@@ -393,11 +469,11 @@ export function buildCvDocx(
         new Paragraph({
           text: item,
           bullet: { level: 0 },
-          spacing: { after: 80 },
+          spacing: { after: 60 },
         })
       );
     });
-    children.push(makeParagraph("", 120));
+    children.push(makeParagraph("", 80));
   }
 
   parsed.remainingSections.forEach((section) => {
@@ -411,6 +487,15 @@ export function buildCvDocx(
     }
     section.paragraphs.forEach((paragraph) => {
       children.push(makeParagraph(paragraph));
+    });
+    section.bullets.forEach((bullet) => {
+      children.push(
+        new Paragraph({
+          text: bullet,
+          bullet: { level: 0 },
+          spacing: { after: 60 },
+        })
+      );
     });
   });
 
@@ -430,7 +515,7 @@ export function buildCvDocx(
 export function buildCoverLetterDocx(
   profile: ProfileRecord | null,
   coverLetter: string,
-  email?: string | null
+  options?: DocxContactOptions
 ) {
   const { employerLines, bodyParagraphs, signOff } =
     parseCoverLetter(coverLetter);
@@ -439,8 +524,18 @@ export function buildCoverLetterDocx(
   const children: DocxParagraph[] = [];
 
   const name = profile?.full_name?.trim();
-  const headline = profile?.headline?.trim();
   const location = profile?.location?.trim();
+  const contactSource = options?.contactText
+    ? `${coverLetter}\n${options.contactText}`
+    : coverLetter;
+  const phone = extractPhone(contactSource);
+  const linkedIn = extractLinkedIn(contactSource);
+  const contactLine = buildContactLine([
+    location,
+    options?.email ?? null,
+    phone,
+    linkedIn,
+  ]);
 
   if (name) {
     children.push(
@@ -452,16 +547,8 @@ export function buildCoverLetterDocx(
     );
   }
 
-  if (headline) {
-    children.push(makeParagraph(headline, 80));
-  }
-
-  if (location) {
-    children.push(makeParagraph(location, 80));
-  }
-
-  if (email) {
-    children.push(makeParagraph(email, 200));
+  if (contactLine) {
+    children.push(makeParagraph(contactLine, 160));
   }
 
   const dateLabel = new Date().toLocaleDateString("en-GB", {

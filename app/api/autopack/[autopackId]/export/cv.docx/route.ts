@@ -1,11 +1,38 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { fetchAutopack } from "@/lib/data/autopacks";
+import { fetchApplication } from "@/lib/data/applications";
 import { fetchProfile } from "@/lib/data/profile";
 import { buildCvDocx, packDoc } from "@/lib/export/docx";
+import { sanitizeTextContent } from "@/lib/utils/autopack-sanitize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function sanitizeFilenamePart(value: string) {
+  return value
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 60);
+}
+
+function buildFilename(
+  name: string,
+  role: string | null,
+  typeLabel: string
+) {
+  const safeName = sanitizeFilenamePart(name) || "User";
+  const safeRole = role ? sanitizeFilenamePart(role) : "";
+  const parts = ["CVForge", safeName];
+
+  if (safeRole) {
+    parts.push(safeRole);
+  }
+
+  parts.push(typeLabel);
+  return `${parts.join(" - ")}.docx`;
+}
 
 export async function GET(
   request: Request,
@@ -42,9 +69,26 @@ export async function GET(
     }
 
     const profile = await fetchProfile(supabase, user.id);
-    const doc = buildCvDocx(profile, autopack.cv_text);
+    const application = await fetchApplication(
+      supabase,
+      user.id,
+      autopack.application_id
+    );
+    const sanitizedCvText = sanitizeTextContent(autopack.cv_text);
+    const fallbackName =
+      profile?.full_name?.trim() ||
+      user.email?.split("@")[0] ||
+      "User";
+    const filename = buildFilename(
+      fallbackName,
+      application?.job_title ?? null,
+      "CV"
+    );
+
+    const doc = buildCvDocx(profile, sanitizedCvText, {
+      email: user.email ?? null,
+    });
     const buffer = await packDoc(doc);
-    const filename = `cvforge-cv-${autopack.id.slice(0, 8)}.docx`;
 
     return new Response(buffer, {
       headers: {

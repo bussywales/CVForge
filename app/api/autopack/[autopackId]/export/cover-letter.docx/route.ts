@@ -1,11 +1,38 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { fetchAutopack } from "@/lib/data/autopacks";
+import { fetchApplication } from "@/lib/data/applications";
 import { fetchProfile } from "@/lib/data/profile";
 import { buildCoverLetterDocx, packDoc } from "@/lib/export/docx";
+import { sanitizeTextContent } from "@/lib/utils/autopack-sanitize";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function sanitizeFilenamePart(value: string) {
+  return value
+    .replace(/[<>:"/\\|?*\x00-\x1F]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 60);
+}
+
+function buildFilename(
+  name: string,
+  role: string | null,
+  typeLabel: string
+) {
+  const safeName = sanitizeFilenamePart(name) || "User";
+  const safeRole = role ? sanitizeFilenamePart(role) : "";
+  const parts = ["CVForge", safeName];
+
+  if (safeRole) {
+    parts.push(safeRole);
+  }
+
+  parts.push(typeLabel);
+  return `${parts.join(" - ")}.docx`;
+}
 
 export async function GET(
   request: Request,
@@ -42,13 +69,32 @@ export async function GET(
     }
 
     const profile = await fetchProfile(supabase, user.id);
-    const doc = buildCoverLetterDocx(
-      profile,
-      autopack.cover_letter,
-      user.email ?? null
+    const application = await fetchApplication(
+      supabase,
+      user.id,
+      autopack.application_id
     );
+    const sanitizedCoverLetter = sanitizeTextContent(
+      autopack.cover_letter
+    );
+    const sanitizedCvText = autopack.cv_text
+      ? sanitizeTextContent(autopack.cv_text)
+      : "";
+    const fallbackName =
+      profile?.full_name?.trim() ||
+      user.email?.split("@")[0] ||
+      "User";
+    const filename = buildFilename(
+      fallbackName,
+      application?.job_title ?? null,
+      "Cover Letter"
+    );
+
+    const doc = buildCoverLetterDocx(profile, sanitizedCoverLetter, {
+      email: user.email ?? null,
+      contactText: sanitizedCvText,
+    });
     const buffer = await packDoc(doc);
-    const filename = `cvforge-cover-letter-${autopack.id.slice(0, 8)}.docx`;
 
     return new Response(buffer, {
       headers: {
