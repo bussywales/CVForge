@@ -262,7 +262,7 @@ export default function AchievementsSection({
   );
 
   return (
-    <div className="space-y-6">
+    <div id="achievements" className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold">Achievements</h3>

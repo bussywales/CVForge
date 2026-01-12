@@ -126,6 +126,11 @@ export default async function ApplicationPage({
         result={roleFit}
         hasJobDescription={hasJobDescription}
         hasEvidence={hasEvidence}
+        achievements={achievements.map((achievement) => ({
+          id: achievement.id,
+          title: achievement.title,
+          metrics: achievement.metrics,
+        }))}
       />
 
       <AutopacksSection applicationId={application.id} autopacks={autopacks} />
