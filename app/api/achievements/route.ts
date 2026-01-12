@@ -17,6 +17,11 @@ const createAchievementDraftSchema = z.object({
     .trim()
     .min(20, "Action must be at least 20 characters.")
     .max(1000, "Action must be 1000 characters or fewer."),
+  metrics: z
+    .string()
+    .trim()
+    .max(120, "Metrics must be 120 characters or fewer.")
+    .optional(),
 });
 
 export async function POST(request: Request) {
@@ -46,7 +51,7 @@ export async function POST(request: Request) {
       task: "",
       action: parsed.data.action,
       result: "",
-      metrics: "",
+      metrics: parsed.data.metrics ?? "",
     });
 
     return NextResponse.json({ id: record.id });

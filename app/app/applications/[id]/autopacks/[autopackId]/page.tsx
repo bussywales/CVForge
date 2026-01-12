@@ -2,8 +2,16 @@ import Link from "next/link";
 import Section from "@/components/Section";
 import { fetchAutopack } from "@/lib/data/autopacks";
 import { fetchApplication } from "@/lib/data/applications";
+import { listAchievements } from "@/lib/data/achievements";
+import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
-import { hasPlaceholderTokens } from "@/lib/utils/autopack-sanitize";
+import {
+  calculateKeywordCoverage,
+  checkCoverConsistency,
+  countMetricBullets,
+  detectMissingSections,
+  detectPlaceholders,
+} from "@/lib/submission-quality";
 import AutopackEditorForm from "@/app/app/applications/autopack-editor-form";
 import AutopackGeneratedBanner from "@/app/app/applications/autopack-generated-banner";
 import AutopackExportButtons from "@/app/app/applications/autopack-export-buttons";
@@ -51,6 +59,8 @@ export default async function AutopackEditorPage({
     user.id,
     autopack.application_id
   );
+  const profile = await fetchProfile(supabase, user.id);
+  const achievements = await listAchievements(supabase, user.id);
 
   const showGenerated = Boolean(searchParams?.generated);
   const remainingCredits = searchParams?.remaining
@@ -69,56 +79,35 @@ export default async function AutopackEditorPage({
   const cvText = autopack.cv_text ?? "";
   const coverLetter = autopack.cover_letter ?? "";
   const combinedText = [cvText, coverLetter].join("\n");
-  const hasPlaceholders = hasPlaceholderTokens(combinedText);
-  const hasExperienceSection = /(^|\n)\s*(experience|employment)\b/i.test(
-    cvText
-  );
-  const hasSkillsSection = /(^|\n)\s*(skills|key skills)\b/i.test(cvText);
+  const hasPlaceholders = detectPlaceholders(combinedText);
+  const sections = detectMissingSections(cvText);
+  const metricsCoverage = countMetricBullets(cvText);
   const companyName = application?.company?.trim() ?? "";
   const roleName = application?.job_title?.trim() ?? "";
-  const coverLower = coverLetter.toLowerCase();
-  const hasCompany = companyName
-    ? coverLower.includes(companyName.toLowerCase())
-    : false;
-  const hasRole = roleName
-    ? coverLower.includes(roleName.toLowerCase())
-    : false;
-  const hasGenericCover = /as advertised|your company|your organisation|your organization|the role|the position/i.test(
-    coverLower
+  const coverConsistency = checkCoverConsistency(
+    coverLetter,
+    companyName,
+    roleName
   );
-  const coverPersonalised = coverLetter
-    ? companyName
-      ? hasCompany
-      : hasRole || !hasGenericCover
-    : false;
-  const checklistItems = [
-    {
-      label: "No placeholders detected",
-      ok: !hasPlaceholders,
-      hint: hasPlaceholders
-        ? "Remove bracketed placeholders or TODO notes before export."
-        : undefined,
-    },
-    {
-      label: "CV includes Experience section",
-      ok: hasExperienceSection,
-      hint: hasExperienceSection
-        ? undefined
-        : "Add an Experience or Employment heading.",
-    },
-    {
-      label: "CV includes Skills section",
-      ok: hasSkillsSection,
-      hint: hasSkillsSection ? undefined : "Add a Skills section heading.",
-    },
-    {
-      label: "Cover letter personalised",
-      ok: coverPersonalised,
-      hint: coverPersonalised
-        ? undefined
-        : "Reference the company or role explicitly.",
-    },
-  ];
+  const evidence = [
+    profile?.headline,
+    ...achievements.map((achievement) =>
+      [
+        achievement.title,
+        achievement.action,
+        achievement.result,
+        achievement.metrics,
+      ]
+        .filter(Boolean)
+        .join(" ")
+    ),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  const keywordCoverage = calculateKeywordCoverage(
+    application?.job_description ?? "",
+    evidence
+  );
 
   return (
     <div className="space-y-6">
@@ -141,7 +130,19 @@ export default async function AutopackEditorPage({
         description="Edit the CV, cover letter, and STAR answers."
       >
         <div className="space-y-4">
-          <SubmissionChecklist items={checklistItems} />
+          <SubmissionChecklist
+            keywordCoveragePct={keywordCoverage.coveragePct}
+            keywordMatched={keywordCoverage.matchedCount}
+            keywordTotal={keywordCoverage.totalCount}
+            metricCount={metricsCoverage.metricCount}
+            bulletCount={metricsCoverage.bulletCount}
+            longBullets={metricsCoverage.longBullets}
+            hasExperience={sections.hasExperience}
+            hasSkills={sections.hasSkills}
+            hasPlaceholders={hasPlaceholders}
+            coverOk={coverConsistency.ok}
+            coverHint={coverConsistency.hint}
+          />
           <AutopackExportButtons autopackId={autopack.id} />
           <AutopackEditorForm autopack={autopack} />
         </div>

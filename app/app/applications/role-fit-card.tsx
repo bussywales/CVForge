@@ -118,6 +118,47 @@ export default function RoleFitCard({
     }
   };
 
+  const handleCreateFallbackAchievement = async (
+    gap: RoleFitResult["gapSignals"][number]
+  ) => {
+    const action = gap.primaryAction || gap.actionSuggestions[0];
+    if (!action) {
+      return;
+    }
+    setPendingGapId(gap.id);
+    try {
+      const response = await fetch("/api/achievements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          title: `Evidence for ${gap.label}`,
+          action,
+          metrics: gap.metricSuggestions[0] ?? "",
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setToast({
+          message: payload?.error ?? "Unable to add the achievement right now.",
+        });
+        return;
+      }
+      setToast({
+        message: "Achievement added.",
+        href: "/app/profile#achievements",
+        actionLabel: "Open achievements",
+      });
+      setOpenGapId(null);
+      router.refresh();
+    } catch (error) {
+      console.error("[role-fit.add-fallback]", error);
+      setToast({ message: "Unable to add the achievement right now." });
+    } finally {
+      setPendingGapId(null);
+    }
+  };
+
   const handleInsert = async (
     gap: RoleFitResult["gapSignals"][number],
     achievementId: string
@@ -284,6 +325,17 @@ export default function RoleFitCard({
                               Insert into action…
                             </Button>
                           </div>
+                        ) : gap.source === "fallback" ? (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            onClick={() => handleCreateFallbackAchievement(gap)}
+                            disabled={pendingGapId === gap.id}
+                          >
+                            {pendingGapId === gap.id
+                              ? "Adding..."
+                              : "Create draft achievement"}
+                          </Button>
                         ) : null}
                       </div>
 

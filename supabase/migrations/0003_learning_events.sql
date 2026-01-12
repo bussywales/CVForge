@@ -12,11 +12,12 @@ create table if not exists public.role_fit_learning_events (
   matched_signals text[] not null default '{}',
   missing_signals text[] not null default '{}',
   top_terms text[] not null default '{}',
+  created_day date not null default (current_date),
   created_at timestamptz not null default now()
 );
 
 create unique index if not exists role_fit_learning_events_unique
-  on public.role_fit_learning_events (user_id, application_id, (date_trunc('day', created_at)));
+  on public.role_fit_learning_events (user_id, application_id, created_day);
 
 alter table public.role_fit_learning_events enable row level security;
 

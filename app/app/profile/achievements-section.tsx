@@ -6,6 +6,7 @@ import FormField from "@/components/FormField";
 import type { ActionState } from "@/lib/actions/types";
 import { initialActionState } from "@/lib/actions/types";
 import type { AchievementRecord } from "@/lib/data/achievements";
+import MetricsHelperModal from "./metrics-helper-modal";
 
 type AchievementsSectionProps = {
   achievements: AchievementRecord[];
@@ -40,6 +41,7 @@ function AchievementForm({
   const [state, setState] = useState(initialActionState);
   const [isPending, startTransition] = useTransition();
   const [metrics, setMetrics] = useState(initialValues?.metrics ?? "");
+  const [isHelperOpen, setIsHelperOpen] = useState(false);
   const formRef = useRef<HTMLFormElement | null>(null);
   const metricsLength = metrics.length;
   const isMetricsOverLimit = metricsLength > 120;
@@ -178,6 +180,16 @@ function AchievementForm({
             onChange={(event) => setMetrics(event.target.value)}
             className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
           />
+          <div className="flex items-center justify-between text-xs text-[rgb(var(--muted))]">
+            <span>Need help shaping the numbers?</span>
+            <button
+              type="button"
+              onClick={() => setIsHelperOpen(true)}
+              className="font-semibold text-[rgb(var(--ink))] underline-offset-2 hover:underline"
+            >
+              Open metrics helper
+            </button>
+          </div>
           <div className={`text-right text-xs ${metricsCounterClass}`}>
             {metricsLength} / 120
           </div>
@@ -195,6 +207,15 @@ function AchievementForm({
           </Button>
         ) : null}
       </div>
+
+      <MetricsHelperModal
+        isOpen={isHelperOpen}
+        onClose={() => setIsHelperOpen(false)}
+        onApply={(value) => {
+          setMetrics(value);
+          setIsHelperOpen(false);
+        }}
+      />
     </form>
   );
 }
