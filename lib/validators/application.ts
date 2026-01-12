@@ -8,6 +8,28 @@ export const applicationStatusSchema = z.enum([
   "rejected",
 ]);
 
+const hasSchemeRegex = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
+
+function normalizeJobUrl(value: string) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return "";
+  }
+  if (!hasSchemeRegex.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+}
+
+function isValidHttpUrl(value: string) {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export const applicationSchema = z.object({
   job_title: z
     .string()
@@ -25,6 +47,16 @@ export const applicationSchema = z.object({
     .trim()
     .min(200, "Job description must be at least 200 characters.")
     .max(5000, "Job description must be 5000 characters or fewer."),
+  job_url: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .transform((value) => normalizeJobUrl(value ?? ""))
+    .refine((value) => value === "" || isValidHttpUrl(value), {
+      message: "Job advert link must be a valid URL.",
+    })
+    .transform((value) => (value === "" ? null : value)),
   status: applicationStatusSchema,
 });
 

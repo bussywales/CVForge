@@ -12,13 +12,14 @@ export type ApplicationRecord = {
   user_id: string;
   job_title: string;
   company: string | null;
+  job_url: string | null;
   job_description: string;
   status: ApplicationStatus | string;
   created_at: string;
 };
 
 const applicationSelect =
-  "id, user_id, job_title, company, job_description, status, created_at";
+  "id, user_id, job_title, company, job_url, job_description, status, created_at";
 
 export async function listApplications(
   supabase: SupabaseClient,

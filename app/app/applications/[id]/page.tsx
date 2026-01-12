@@ -46,6 +46,21 @@ export default async function ApplicationPage({
   }
 
   const autopacks = await listAutopacks(supabase, user.id, application.id);
+  const jobUrl = application.job_url?.trim() ?? "";
+  let safeJobUrl: string | null = null;
+  let jobHost = "";
+
+  if (jobUrl) {
+    try {
+      const parsed = new URL(jobUrl);
+      if (parsed.protocol === "http:" || parsed.protocol === "https:") {
+        safeJobUrl = parsed.toString();
+        jobHost = parsed.host;
+      }
+    } catch {
+      safeJobUrl = null;
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -68,6 +83,39 @@ export default async function ApplicationPage({
           initialValues={application}
           action={updateApplicationAction}
         />
+      </Section>
+
+      <Section
+        title="Job advert"
+        description="Keep the original listing link handy."
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/10 bg-white/70 px-4 py-3 text-sm text-[rgb(var(--muted))]">
+          {safeJobUrl ? (
+            <>
+              <span className="text-[rgb(var(--ink))]">
+                {jobHost || "Open advert"}
+              </span>
+              <a
+                href={safeJobUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-full border border-black/10 bg-white/80 px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
+              >
+                Open advert
+              </a>
+            </>
+          ) : (
+            <>
+              <span>Not added</span>
+              <Link
+                href={`/app/applications/${application.id}#job_url`}
+                className="rounded-full border border-black/10 bg-white/80 px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
+              >
+                Add link
+              </Link>
+            </>
+          )}
+        </div>
       </Section>
 
       <AutopacksSection applicationId={application.id} autopacks={autopacks} />

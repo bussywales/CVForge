@@ -27,6 +27,7 @@ export async function createApplicationAction(
   const values = {
     job_title: getFormString(formData, "job_title"),
     company: getFormString(formData, "company"),
+    job_url: getFormString(formData, "job_url"),
     job_description: getFormString(formData, "job_description"),
     status: getFormString(formData, "status"),
   };
@@ -45,6 +46,7 @@ export async function createApplicationAction(
     const created = await createApplication(supabase, user.id, {
       job_title: parsed.data.job_title,
       company: toNullable(parsed.data.company ?? ""),
+      job_url: parsed.data.job_url ?? null,
       job_description: parsed.data.job_description,
       status: parsed.data.status,
     });
@@ -86,6 +88,7 @@ export async function updateApplicationAction(
   const values = {
     job_title: getFormString(formData, "job_title"),
     company: getFormString(formData, "company"),
+    job_url: getFormString(formData, "job_url"),
     job_description: getFormString(formData, "job_description"),
     status: getFormString(formData, "status"),
   };
@@ -104,6 +107,7 @@ export async function updateApplicationAction(
     await updateApplication(supabase, user.id, id, {
       job_title: parsed.data.job_title,
       company: toNullable(parsed.data.company ?? ""),
+      job_url: parsed.data.job_url ?? null,
       job_description: parsed.data.job_description,
       status: parsed.data.status,
     });

@@ -28,6 +28,7 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 1. Sign in with a magic link at `/login`.
 2. Visit `/app/profile` to update your profile and add achievements.
 3. Create a new application at `/app/applications/new`.
+   - Optional: add a job advert link for quick reference.
 4. Edit or delete applications from `/app/applications`.
 5. Open an application and generate an autopack.
 6. Edit the autopack content and save changes.
@@ -47,6 +48,7 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 
 ## Supabase
 - Run the SQL migration by following `supabase/README.md`.
+- Apply `supabase/migrations/0002_job_url.sql` to add the optional job advert link.
 - Configure auth redirect URLs to include your site URL and `/app`.
 - Magic-link auth completes at `/auth/callback`, so ensure `${NEXT_PUBLIC_SITE_URL}/auth/callback` is in your redirect allowlist.
 

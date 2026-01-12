@@ -103,6 +103,21 @@ export default function ApplicationForm({
       </div>
 
       <FormField
+        label="Job advert link (optional)"
+        htmlFor="job_url"
+        error={state.fieldErrors?.job_url}
+        hint="Paste the advert URL (Indeed, LinkedIn, company site...)."
+      >
+        <input
+          id="job_url"
+          name="job_url"
+          defaultValue={initialValues?.job_url ?? ""}
+          placeholder="https://"
+          className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
+        />
+      </FormField>
+
+      <FormField
         label="Status"
         htmlFor="status"
         error={state.fieldErrors?.status}
