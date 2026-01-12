@@ -48,18 +48,28 @@ export default function RoleFitCard({
 
   const guidance = !hasJobDescription
     ? "Add a job description to get a role-fit score."
-    : result.totalWeight === 0
-      ? "Add more detail to the job description to surface role-fit signals."
+    : result.availableCount === 0
+      ? "Add more detail or paste the person spec to surface role-fit signals."
     : !hasEvidence
       ? "Add achievements or a profile headline to improve your score."
       : null;
 
   const coverageLabel = useMemo(() => {
-    if (!hasJobDescription || result.relevantCount === 0) {
-      return "Coverage: 0 / 0 signals";
+    if (!hasJobDescription || result.availableCount === 0) {
+      return "Coverage: 0 / 0 signals (0%)";
     }
-    return `Coverage: ${result.matchedSignals.length} / ${result.relevantCount} signals`;
-  }, [hasJobDescription, result.matchedSignals.length, result.relevantCount]);
+    return `Coverage: ${result.matchedCount} / ${result.availableCount} signals (${result.coveragePct}%)`;
+  }, [
+    hasJobDescription,
+    result.availableCount,
+    result.coveragePct,
+    result.matchedCount,
+  ]);
+
+  const packLabel = useMemo(() => {
+    const base = result.appliedPacks.map((pack) => pack.label).join(" + ");
+    return result.fallbackUsed ? `${base} + JD terms` : base;
+  }, [result.appliedPacks, result.fallbackUsed]);
 
   const handleCopy = async (value: string) => {
     try {
@@ -183,9 +193,10 @@ export default function RoleFitCard({
               </span>
               <span className="text-sm text-[rgb(var(--muted))]">/ 100</span>
             </div>
-            <p className="mt-1 text-xs text-[rgb(var(--muted))]">
-              {coverageLabel}
-            </p>
+            <div className="mt-1 space-y-1 text-xs text-[rgb(var(--muted))]">
+              <p>{coverageLabel}</p>
+              {packLabel ? <p>Using: {packLabel}</p> : null}
+            </div>
           </div>
           <p className="max-w-xs text-xs text-[rgb(var(--muted))]">
             Heuristic score — improve by adding evidence in Achievements.
@@ -198,7 +209,7 @@ export default function RoleFitCard({
           </div>
         ) : null}
 
-        {hasJobDescription && result.totalWeight > 0 ? (
+        {hasJobDescription && result.availableCount > 0 ? (
           <div className="grid gap-4 md:grid-cols-2">
             <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
               <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
@@ -209,9 +220,14 @@ export default function RoleFitCard({
                   {result.matchedSignals.map((signal) => (
                     <span
                       key={signal.id}
-                      className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700"
+                      className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                        signal.source === "fallback"
+                          ? "border-slate-200 bg-slate-50 text-slate-600"
+                          : "border-emerald-200 bg-emerald-50 text-emerald-700"
+                      }`}
                     >
                       {signal.label}
+                      {signal.source === "fallback" ? " · JD term" : ""}
                     </span>
                   ))}
                 </div>
@@ -239,31 +255,36 @@ export default function RoleFitCard({
                             className="mt-2 h-1.5 w-1.5 rounded-full bg-amber-500"
                             aria-hidden
                           />
-                          <span className="font-semibold">{gap.label}</span>
+                          <span className="font-semibold">
+                            {gap.label}
+                            {gap.source === "fallback" ? " · JD term" : ""}
+                          </span>
                         </div>
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => handleAddAchievement(gap)}
-                            disabled={pendingGapId === gap.id}
-                          >
-                            {pendingGapId === gap.id
-                              ? "Adding..."
-                              : "Add as achievement"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            onClick={() =>
-                              setOpenGapId((current) =>
-                                current === gap.id ? null : gap.id
-                              )
-                            }
-                          >
-                            Insert into action…
-                          </Button>
-                        </div>
+                        {gap.allowActions ? (
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={() => handleAddAchievement(gap)}
+                              disabled={pendingGapId === gap.id}
+                            >
+                              {pendingGapId === gap.id
+                                ? "Adding..."
+                                : "Add as achievement"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() =>
+                                setOpenGapId((current) =>
+                                  current === gap.id ? null : gap.id
+                                )
+                              }
+                            >
+                              Insert into action…
+                            </Button>
+                          </div>
+                        ) : null}
                       </div>
 
                       <div className="space-y-3 text-xs text-[rgb(var(--muted))]">
@@ -273,12 +294,20 @@ export default function RoleFitCard({
                           </p>
                           <ul className="mt-2 space-y-1">
                             {gap.actionSuggestions.map((suggestion) => (
-                              <li key={suggestion} className="flex gap-2">
-                                <span
-                                  className="mt-2 h-1 w-1 rounded-full bg-slate-300"
-                                  aria-hidden
-                                />
-                                <span>{suggestion}</span>
+                              <li
+                                key={suggestion}
+                                className="flex flex-wrap items-start justify-between gap-2"
+                              >
+                                <span className="flex-1 text-xs text-[rgb(var(--muted))]">
+                                  {suggestion}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopy(suggestion)}
+                                  className="rounded-full border border-black/10 bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] transition hover:bg-white"
+                                >
+                                  Copy
+                                </button>
                               </li>
                             ))}
                           </ul>
@@ -310,7 +339,7 @@ export default function RoleFitCard({
                         </div>
                       </div>
 
-                      {openGapId === gap.id ? (
+                      {gap.allowActions && openGapId === gap.id ? (
                         <div className="rounded-2xl border border-black/10 bg-white/80 p-3">
                           <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
                             Insert into achievement
