@@ -1,262 +1,319 @@
-const STOPWORDS = new Set([
-  "a",
-  "an",
-  "the",
-  "and",
-  "or",
-  "but",
-  "if",
-  "then",
-  "than",
-  "with",
-  "within",
-  "without",
-  "for",
-  "from",
-  "to",
-  "of",
-  "in",
-  "on",
-  "at",
-  "by",
-  "as",
-  "is",
-  "are",
-  "was",
-  "were",
-  "be",
-  "been",
-  "being",
-  "this",
-  "that",
-  "these",
-  "those",
-  "it",
-  "its",
-  "they",
-  "them",
-  "their",
-  "we",
-  "our",
-  "you",
-  "your",
-  "i",
-  "me",
-  "my",
-  "he",
-  "she",
-  "his",
-  "her",
-  "not",
-  "no",
-  "yes",
-  "do",
-  "does",
-  "did",
-  "done",
-  "can",
-  "could",
-  "should",
-  "would",
-  "may",
-  "might",
-  "must",
-  "will",
-  "shall",
-  "also",
-  "other",
-  "etc",
-  "etc.",
-  "such",
-  "using",
-  "use",
-  "used",
-  "via",
-  "per",
-  "over",
-  "under",
-  "into",
-  "across",
-  "up",
-  "down",
-  "out",
-  "about",
-  "including",
-  "include",
-  "includes",
-  "included",
-  "role",
-  "responsibilities",
-  "requirements",
-  "skills",
-  "skill",
-  "experience",
-  "experienced",
-  "knowledge",
-  "ability",
-  "abilities",
-  "team",
-  "teams",
-  "work",
-  "working",
-  "develop",
-  "development",
-  "deliver",
-  "delivery",
-  "project",
-  "projects",
-  "support",
-  "supporting",
-  "manage",
-  "management",
-  "stakeholders",
-  "stakeholder",
-  "business",
-  "systems",
-  "service",
-  "services",
-  "looking",
-  "seeking",
-  "candidate",
-  "ideal",
-  "day",
-  "days",
-  "year",
-  "years",
-  "month",
-  "months",
-  "week",
-  "weeks",
-]);
+export type RoleFitSignal = {
+  id: string;
+  label: string;
+  keywords: string[];
+  weight: number;
+  suggestions: string[];
+  category?: string;
+};
 
-const ACRONYMS = new Set([
-  "siem",
-  "iam",
-  "mttr",
-  "cab",
-  "cis",
-  "ncsc",
-  "aws",
-  "sla",
-  "itil",
-  "hld",
-  "lld",
-  "vpn",
-  "uk",
-]);
+export type RoleFitSignalMatch = {
+  id: string;
+  label: string;
+  weight: number;
+};
 
-const MAX_TERMS = 60;
-const MAX_TERM_LENGTH = 30;
-const MIN_TERM_LENGTH = 3;
+export type RoleFitSignalGap = RoleFitSignalMatch & {
+  suggestions: string[];
+};
 
 export type RoleFitResult = {
   score: number;
-  matchedTerms: string[];
-  gapSuggestions: string[];
-  matchedCount: number;
-  totalTerms: number;
+  matchedSignals: RoleFitSignalMatch[];
+  gapSignals: RoleFitSignalGap[];
+  matchedWeight: number;
+  totalWeight: number;
+  relevantCount: number;
 };
+
+const ROLE_FIT_SIGNALS: RoleFitSignal[] = [
+  {
+    id: "cab-change-control",
+    label: "CAB / Change Control",
+    keywords: [
+      "cab",
+      "change control",
+      "itil",
+      "rfc",
+      "change advisory",
+      "change advisory board",
+    ],
+    weight: 10,
+    suggestions: [
+      "Led CAB change control, documenting risk and securing approvals for network changes.",
+      "Improved RFC quality to reduce change-related incidents and failed implementations.",
+    ],
+  },
+  {
+    id: "itil-service-management",
+    label: "ITIL Service Management",
+    keywords: [
+      "itil",
+      "incident",
+      "problem",
+      "change",
+      "service management",
+      "problem management",
+    ],
+    weight: 6,
+    suggestions: [
+      "Applied ITIL practices across incident and change management to improve service stability.",
+      "Standardised service management workflows and strengthened incident/problem processes.",
+    ],
+  },
+  {
+    id: "siem-detection-engineering",
+    label: "SIEM / Detection Engineering",
+    keywords: [
+      "siem",
+      "splunk",
+      "sentinel",
+      "qradar",
+      "qrader",
+      "use case",
+      "rule tuning",
+      "alert",
+      "alerting",
+    ],
+    weight: 10,
+    suggestions: [
+      "Built SIEM detections and tuned rules to reduce false positives and improve alert fidelity.",
+      "Created new SIEM use cases to expand threat coverage and improve detection quality.",
+    ],
+  },
+  {
+    id: "incident-response",
+    label: "Incident Response",
+    keywords: [
+      "incident response",
+      "triage",
+      "mttr",
+      "containment",
+      "post-incident",
+      "post incident",
+      "tabletop",
+    ],
+    weight: 7,
+    suggestions: [
+      "Led incident response triage and containment to restore critical services faster.",
+      "Ran post-incident reviews and improved playbooks to prevent repeat issues.",
+    ],
+  },
+  {
+    id: "vulnerability-management",
+    label: "Vulnerability Management",
+    keywords: [
+      "vulnerability",
+      "cve",
+      "scan",
+      "scanning",
+      "qualys",
+      "nessus",
+      "tenable",
+    ],
+    weight: 9,
+    suggestions: [
+      "Owned vulnerability scanning and triage, prioritising CVEs with clear remediation plans.",
+      "Reduced critical exposure by driving vulnerability management across teams.",
+    ],
+  },
+  {
+    id: "patching-remediation-sla",
+    label: "Patching / Remediation SLA",
+    keywords: [
+      "patch",
+      "patching",
+      "remediation",
+      "sla",
+      "time-to-remediate",
+      "time to remediate",
+      "critical findings",
+    ],
+    weight: 9,
+    suggestions: [
+      "Managed patching cadence against remediation SLAs for critical vulnerabilities.",
+      "Coordinated remediation to meet agreed SLAs and reduce time-to-remediate.",
+    ],
+  },
+  {
+    id: "zero-trust",
+    label: "Zero Trust",
+    keywords: ["zero trust", "zero-trust", "zta"],
+    weight: 8,
+    suggestions: [
+      "Delivered Zero Trust controls with least privilege and continuous verification.",
+      "Implemented Zero Trust access patterns to tighten security without disrupting users.",
+    ],
+  },
+  {
+    id: "network-segmentation",
+    label: "Network Segmentation",
+    keywords: [
+      "segmentation",
+      "microsegmentation",
+      "micro-segmentation",
+      "zones",
+      "east-west",
+      "east west",
+    ],
+    weight: 8,
+    suggestions: [
+      "Designed network segmentation zones to limit east-west movement and reduce blast radius.",
+      "Implemented microsegmentation to separate critical workloads and improve security posture.",
+    ],
+  },
+  {
+    id: "firewall-policy-governance",
+    label: "Firewall Policy Governance",
+    keywords: [
+      "firewall",
+      "rulebase",
+      "rule base",
+      "policy governance",
+      "rule review",
+      "exceptions",
+    ],
+    weight: 8,
+    suggestions: [
+      "Governed firewall rulebase changes, reviewing exceptions and removing unused rules.",
+      "Implemented firewall policy reviews to tighten rules and reduce shadow access.",
+    ],
+  },
+  {
+    id: "vpn-remote-access",
+    label: "VPN / Secure Remote Access",
+    keywords: [
+      "vpn",
+      "remote access",
+      "zscaler",
+      "prisma",
+      "conditional access",
+      "ztna",
+    ],
+    weight: 6,
+    suggestions: [
+      "Delivered secure remote access via VPN/ZTNA with conditional access policies.",
+      "Hardened remote access controls to reduce unauthorised connections.",
+    ],
+  },
+  {
+    id: "cloud-connectivity",
+    label: "Azure / AWS Connectivity & Networking",
+    keywords: [
+      "azure",
+      "aws",
+      "vpc",
+      "vnet",
+      "transit gateway",
+      "expressroute",
+      "express route",
+      "direct connect",
+      "directconnect",
+    ],
+    weight: 7,
+    suggestions: [
+      "Built secure cloud connectivity (VPC/VNet, peering, ExpressRoute/Direct Connect).",
+      "Implemented cloud networking for AWS/Azure workloads with secure routing.",
+    ],
+  },
+  {
+    id: "design-authority",
+    label: "HLD / LLD / Design Authority",
+    keywords: [
+      "hld",
+      "lld",
+      "design authority",
+      "tda",
+      "architecture review",
+      "design forum",
+    ],
+    weight: 7,
+    suggestions: [
+      "Produced HLD/LLD designs and led architecture reviews for network changes.",
+      "Presented designs at governance forums and secured design authority sign-off.",
+    ],
+  },
+];
+
+const MAX_GAPS = 6;
+const MAX_MATCHED = 10;
 
 export function calculateRoleFit(
   jobDescription: string,
   evidence: string
 ): RoleFitResult {
-  const termFrequency = buildTermFrequency(jobDescription);
-  const termEntries = Array.from(termFrequency.entries());
-  const totalTerms = Math.min(termEntries.length, MAX_TERMS);
+  const jdCorpus = normalizeText(jobDescription);
+  const evidenceCorpus = normalizeText(evidence);
 
-  if (totalTerms === 0) {
+  const relevantSignals = ROLE_FIT_SIGNALS.filter((signal) =>
+    matchesAnyKeyword(jdCorpus, signal.keywords)
+  );
+  const totalWeight = sumWeights(relevantSignals);
+
+  if (totalWeight === 0) {
     return {
       score: 0,
-      matchedTerms: [],
-      gapSuggestions: [],
-      matchedCount: 0,
-      totalTerms: 0,
+      matchedSignals: [],
+      gapSignals: [],
+      matchedWeight: 0,
+      totalWeight: 0,
+      relevantCount: 0,
     };
   }
 
-  const evidenceCorpus = normalizeText(evidence);
-  const matched: Array<[string, number]> = [];
-  const unmatched: Array<[string, number]> = [];
-
-  for (const [term, count] of termEntries) {
-    if (matchesTerm(evidenceCorpus, term)) {
-      matched.push([term, count]);
-    } else {
-      unmatched.push([term, count]);
-    }
-  }
-
-  const matchedCount = matched.length;
-  const score = clamp(
-    Math.round((matchedCount / totalTerms) * 100),
-    0,
-    100
+  const matchedSignals = relevantSignals.filter((signal) =>
+    matchesAnyKeyword(evidenceCorpus, signal.keywords)
+  );
+  const gapSignals = relevantSignals.filter(
+    (signal) => !matchesAnyKeyword(evidenceCorpus, signal.keywords)
   );
 
-  const matchedTerms = matched
-    .sort(sortByFrequency)
-    .slice(0, 6)
-    .map(([term]) => formatTerm(term));
+  const matchedWeight = sumWeights(matchedSignals);
+  const score = clamp(Math.round((matchedWeight / totalWeight) * 100), 0, 100);
 
-  const gapTerms = unmatched
-    .sort(sortByFrequency)
-    .slice(0, 6)
-    .map(([term]) => term);
+  const matchedOutput = matchedSignals
+    .slice()
+    .sort(sortByWeight)
+    .slice(0, MAX_MATCHED)
+    .map(toMatch);
 
-  const gapSuggestions = buildGapSuggestions(gapTerms);
+  const gapOutput = gapSignals
+    .slice()
+    .sort(sortByWeight)
+    .slice(0, MAX_GAPS)
+    .map(toGap);
 
   return {
     score,
-    matchedTerms,
-    gapSuggestions,
-    matchedCount,
-    totalTerms,
+    matchedSignals: matchedOutput,
+    gapSignals: gapOutput,
+    matchedWeight,
+    totalWeight,
+    relevantCount: relevantSignals.length,
   };
 }
 
-function buildTermFrequency(text: string): Map<string, number> {
-  const tokens = extractTokens(text);
-  const frequencies = new Map<string, number>();
-
-  for (const token of tokens) {
-    frequencies.set(token, (frequencies.get(token) ?? 0) + 1);
+function matchesAnyKeyword(corpus: string, keywords: string[]): boolean {
+  if (!corpus) {
+    return false;
   }
-
-  for (let index = 0; index < tokens.length - 1; index += 1) {
-    const bigram = `${tokens[index]} ${tokens[index + 1]}`;
-    if (bigram.length > MAX_TERM_LENGTH) {
-      continue;
-    }
-    frequencies.set(bigram, (frequencies.get(bigram) ?? 0) + 1);
-  }
-
-  return frequencies;
+  return keywords.some((keyword) => matchesKeyword(corpus, keyword));
 }
 
-function extractTokens(text: string): string[] {
-  const normalized = normalizeText(text);
-  if (!normalized) {
-    return [];
-  }
-
-  return normalized
-    .split(" ")
-    .filter(Boolean)
-    .filter(isUsableToken);
-}
-
-function isUsableToken(token: string): boolean {
-  if (token.length < MIN_TERM_LENGTH || token.length > MAX_TERM_LENGTH) {
+function matchesKeyword(corpus: string, keyword: string): boolean {
+  const normalisedKeyword = normalizeText(keyword);
+  if (!normalisedKeyword) {
     return false;
   }
-  if (/^\d+$/.test(token)) {
-    return false;
+  if (
+    normalisedKeyword.includes(" ") ||
+    normalisedKeyword.includes("/") ||
+    normalisedKeyword.includes("-")
+  ) {
+    return corpus.includes(normalisedKeyword);
   }
-  if (STOPWORDS.has(token)) {
-    return false;
-  }
-  return true;
+  const pattern = new RegExp(`\\b${escapeRegExp(normalisedKeyword)}\\b`, "i");
+  return pattern.test(corpus);
 }
 
 function normalizeText(text: string): string {
@@ -267,98 +324,36 @@ function normalizeText(text: string): string {
     .trim();
 }
 
-function matchesTerm(corpus: string, term: string): boolean {
-  if (!corpus) {
-    return false;
-  }
-  if (term.includes(" ") || term.includes("/") || term.includes("-")) {
-    return corpus.includes(term);
-  }
-  const pattern = new RegExp(`\\b${escapeRegExp(term)}\\b`, "i");
-  return pattern.test(corpus);
-}
-
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-function sortByFrequency(
-  [termA, countA]: [string, number],
-  [termB, countB]: [string, number]
-): number {
-  if (countB !== countA) {
-    return countB - countA;
-  }
-  return termA.localeCompare(termB);
+function sumWeights(signals: RoleFitSignal[]): number {
+  return signals.reduce((total, signal) => total + signal.weight, 0);
 }
 
-function buildGapSuggestions(gapTerms: string[]): string[] {
-  const suggestions: string[] = [];
-  const seen = new Set<string>();
-
-  for (const term of gapTerms) {
-    const suggestion = suggestionForTerm(term);
-    if (seen.has(suggestion)) {
-      continue;
-    }
-    suggestions.push(suggestion);
-    seen.add(suggestion);
+function sortByWeight(a: RoleFitSignal, b: RoleFitSignal): number {
+  if (b.weight !== a.weight) {
+    return b.weight - a.weight;
   }
-
-  return suggestions;
+  return a.label.localeCompare(b.label);
 }
 
-function suggestionForTerm(term: string): string {
-  const lower = term.toLowerCase();
-
-  if (/(incident|major incident|mttr|response|triage)/.test(lower)) {
-    return "Highlight incident response experience (major incidents, triage, MTTR).";
-  }
-  if (/(change|cab|governance|itil)/.test(lower)) {
-    return "Mention change governance (CAB/ITIL approvals) and impact.";
-  }
-  if (/(vulnerability|patch|cis|ncsc|hardening)/.test(lower)) {
-    return "Add evidence of vulnerability management or patching (CIS/NCSC hardening).";
-  }
-  if (/(firewall|vpn|segmentation|zero trust)/.test(lower)) {
-    return "Include network security controls (firewalls, segmentation, Zero Trust, VPN).";
-  }
-  if (/(siem|logging|detection|alerting)/.test(lower)) {
-    return "Call out monitoring or detection outcomes (SIEM, logging, alerting).";
-  }
-  if (/(azure|aws|cloud)/.test(lower)) {
-    return "Show cloud platform experience (Azure/AWS) and scope.";
-  }
-  if (/(documentation|documenting|hld|lld)/.test(lower)) {
-    return "Add design documentation evidence (HLD/LLD).";
-  }
-  if (/(sla|uptime)/.test(lower)) {
-    return "Add SLA/uptime metrics and outcomes.";
-  }
-
-  return `Add evidence for: ${formatTerm(term)} (tool used, scope, or measurable result).`;
+function toMatch(signal: RoleFitSignal): RoleFitSignalMatch {
+  return {
+    id: signal.id,
+    label: signal.label,
+    weight: signal.weight,
+  };
 }
 
-function formatTerm(term: string): string {
-  return term
-    .split(" ")
-    .map((segment) => formatSegment(segment))
-    .join(" ");
-}
-
-function formatSegment(segment: string): string {
-  const parts = segment.split(/([/-])/);
-  return parts
-    .map((part) => {
-      if (part === "/" || part === "-") {
-        return part;
-      }
-      if (ACRONYMS.has(part)) {
-        return part.toUpperCase();
-      }
-      return part.charAt(0).toUpperCase() + part.slice(1);
-    })
-    .join("");
+function toGap(signal: RoleFitSignal): RoleFitSignalGap {
+  return {
+    id: signal.id,
+    label: signal.label,
+    weight: signal.weight,
+    suggestions: signal.suggestions.slice(0, 2),
+  };
 }
 
 function clamp(value: number, min: number, max: number): number {

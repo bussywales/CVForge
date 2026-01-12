@@ -55,9 +55,7 @@ export default async function ApplicationPage({
   const achievements = await listAchievements(supabase, user.id);
   const jobDescription = application.job_description ?? "";
   const evidenceParts = [
-    profile?.full_name,
     profile?.headline,
-    profile?.location,
     ...achievements.map((achievement) =>
       [achievement.title, achievement.metrics].filter(Boolean).join(" ")
     ),
