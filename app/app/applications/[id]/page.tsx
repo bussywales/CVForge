@@ -1,13 +1,17 @@
 import Link from "next/link";
 import Section from "@/components/Section";
+import { listAchievements } from "@/lib/data/achievements";
 import { fetchApplication } from "@/lib/data/applications";
 import { listAutopacks } from "@/lib/data/autopacks";
+import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
+import { calculateRoleFit } from "@/lib/role-fit";
 import { deleteApplicationAction, updateApplicationAction } from "../actions";
 import ApplicationForm from "../application-form";
 import AutopacksSection from "../autopacks-section";
 import DeleteApplicationForm from "../delete-application-form";
 import JobAdvertCard from "../job-advert-card";
+import RoleFitCard from "../role-fit-card";
 
 type ApplicationPageProps = {
   params: { id: string };
@@ -47,6 +51,21 @@ export default async function ApplicationPage({
   }
 
   const autopacks = await listAutopacks(supabase, user.id, application.id);
+  const profile = await fetchProfile(supabase, user.id);
+  const achievements = await listAchievements(supabase, user.id);
+  const jobDescription = application.job_description ?? "";
+  const evidenceParts = [
+    profile?.full_name,
+    profile?.headline,
+    profile?.location,
+    ...achievements.map((achievement) =>
+      [achievement.title, achievement.metrics].filter(Boolean).join(" ")
+    ),
+  ].filter(Boolean) as string[];
+  const evidence = evidenceParts.join(" ").trim();
+  const hasJobDescription = Boolean(jobDescription.trim());
+  const hasEvidence = Boolean(evidence);
+  const roleFit = calculateRoleFit(jobDescription, evidence);
   const jobUrl = application.job_url?.trim() ?? "";
   let safeJobUrl: string | null = null;
   let jobHost = "";
@@ -104,6 +123,12 @@ export default async function ApplicationPage({
           </div>
         )}
       </Section>
+
+      <RoleFitCard
+        result={roleFit}
+        hasJobDescription={hasJobDescription}
+        hasEvidence={hasEvidence}
+      />
 
       <AutopacksSection applicationId={application.id} autopacks={autopacks} />
 
