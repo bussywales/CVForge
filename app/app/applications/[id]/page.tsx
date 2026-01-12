@@ -3,9 +3,13 @@ import Section from "@/components/Section";
 import { listAchievements } from "@/lib/data/achievements";
 import { fetchApplication } from "@/lib/data/applications";
 import { listAutopacks } from "@/lib/data/autopacks";
+import { listActiveDomainPacks } from "@/lib/data/domain-packs";
+import { logLearningEvent } from "@/lib/data/learning";
 import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
+import { inferDomainGuess } from "@/lib/jd-learning";
 import { calculateRoleFit } from "@/lib/role-fit";
+import type { RoleFitPack } from "@/lib/role-fit";
 import { deleteApplicationAction, updateApplicationAction } from "../actions";
 import ApplicationForm from "../application-form";
 import AutopacksSection from "../autopacks-section";
@@ -54,6 +58,14 @@ export default async function ApplicationPage({
   const profile = await fetchProfile(supabase, user.id);
   const achievements = await listAchievements(supabase, user.id);
   const jobDescription = application.job_description ?? "";
+  let dynamicPacks: RoleFitPack[] = [];
+
+  try {
+    dynamicPacks = await listActiveDomainPacks(supabase);
+  } catch (error) {
+    console.error("[role-fit.packs]", error);
+  }
+
   const evidenceParts = [
     profile?.headline,
     ...achievements.map((achievement) =>
@@ -63,7 +75,21 @@ export default async function ApplicationPage({
   const evidence = evidenceParts.join(" ").trim();
   const hasJobDescription = Boolean(jobDescription.trim());
   const hasEvidence = Boolean(evidence);
-  const roleFit = calculateRoleFit(jobDescription, evidence);
+  const domainGuess = inferDomainGuess(
+    application.job_title ?? "",
+    jobDescription
+  );
+  const roleFit = calculateRoleFit(jobDescription, evidence, {
+    dynamicPacks,
+    domainGuess,
+  });
+  await logLearningEvent({
+    supabase,
+    userId: user.id,
+    application,
+    roleFit,
+    telemetryOptIn: Boolean(profile?.telemetry_opt_in),
+  });
   const jobUrl = application.job_url?.trim() ?? "";
   let safeJobUrl: string | null = null;
   let jobHost = "";

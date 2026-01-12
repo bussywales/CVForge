@@ -5,10 +5,12 @@ export type ProfileRecord = {
   full_name: string | null;
   headline: string | null;
   location: string | null;
+  telemetry_opt_in: boolean | null;
   created_at: string;
 };
 
-const profileSelect = "user_id, full_name, headline, location, created_at";
+const profileSelect =
+  "user_id, full_name, headline, location, telemetry_opt_in, created_at";
 
 export async function fetchProfile(
   supabase: SupabaseClient,

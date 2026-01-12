@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getUserCredits } from "@/lib/data/credits";
 import { createServerClient } from "@/lib/supabase/server";
+import TelemetryBanner from "./telemetry-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +17,7 @@ export default async function AppPage() {
 
   let credits = 0;
   let applicationCount = 0;
+  let telemetryOptIn = false;
 
   try {
     credits = await getUserCredits(supabase, user.id);
@@ -38,8 +40,25 @@ export default async function AppPage() {
     console.error("[dashboard applications]", error);
   }
 
+  try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("telemetry_opt_in")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error) {
+      throw error;
+    }
+
+    telemetryOptIn = Boolean(data?.telemetry_opt_in);
+  } catch (error) {
+    console.error("[dashboard telemetry]", error);
+  }
+
   return (
     <div className="space-y-6">
+      <TelemetryBanner telemetryOptIn={telemetryOptIn} />
       <div className="rounded-3xl border border-black/10 bg-white/80 p-6 shadow-sm">
         <p className="text-xs uppercase tracking-[0.3em] text-[rgb(var(--muted))]">
           Dashboard

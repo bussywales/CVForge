@@ -7,6 +7,7 @@ import {
   deleteAchievementAction,
   updateAchievementAction,
   updateProfileAction,
+  updateTelemetryAction,
 } from "./actions";
 import AchievementsSection from "./achievements-section";
 import CvImportModal from "./cv-import-modal";
@@ -55,6 +56,41 @@ export default async function ProfilePage() {
           completeness={completeness}
           updateAction={updateProfileAction}
         />
+      </Section>
+
+      <Section
+        title="Privacy & improvement"
+        description="Control whether anonymised job advert signals are used to improve Role Fit packs."
+      >
+        <form
+          id="privacy"
+          action={updateTelemetryAction}
+          className="space-y-3 text-sm text-[rgb(var(--ink))]"
+        >
+          <label className="flex items-start gap-3 rounded-2xl border border-black/10 bg-white/70 p-4">
+            <input
+              type="checkbox"
+              name="telemetry_opt_in"
+              defaultChecked={Boolean(profile.telemetry_opt_in)}
+            />
+            <span>
+              Help improve CVForge by contributing anonymised job advert signals
+              (job adverts only; no CV/profile content).
+            </span>
+          </label>
+          <p className="text-xs text-[rgb(var(--muted))]">
+            We store terms/phrases only, with PII redacted. You can opt out at
+            any time.
+          </p>
+          <div>
+            <button
+              type="submit"
+              className="rounded-2xl border border-black/10 bg-white/80 px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
+            >
+              Save preference
+            </button>
+          </div>
+        </form>
       </Section>
 
       <div className="rounded-3xl border border-black/10 bg-white/80 p-6 shadow-sm">

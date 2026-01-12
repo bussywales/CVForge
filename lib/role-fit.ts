@@ -46,10 +46,10 @@ type RoleFitSignalDefinition = Omit<
   "packId" | "packLabel" | "source"
 >;
 
-type RoleFitPack = {
+export type RoleFitPack = {
   id: string;
   label: string;
-  keywords: string[];
+  keywords?: string[];
   signals: RoleFitSignalDefinition[];
 };
 
@@ -724,7 +724,7 @@ const PROJECT_DELIVERY_PACK: RoleFitPack = {
   ],
 };
 
-const PACKS = [CORE_PACK, NETWORK_SECURITY_PACK, PROJECT_DELIVERY_PACK];
+const BUILT_IN_PACKS = [NETWORK_SECURITY_PACK, PROJECT_DELIVERY_PACK];
 
 const DETECTION_THRESHOLD = 3;
 const MAX_DOMAIN_PACKS = 2;
@@ -922,26 +922,66 @@ const ACRONYMS = new Set([
   "azure",
 ]);
 
-export function detectRoleFitPacks(jobDescription: string): RoleFitPack[] {
+type DetectPackOptions = {
+  dynamicPacks?: RoleFitPack[];
+  domainGuess?: string;
+};
+
+export function detectRoleFitPacks(
+  jobDescription: string,
+  options: DetectPackOptions = {}
+): RoleFitPack[] {
   const corpus = normalizeText(jobDescription);
-  const scored = PACKS.filter((pack) => pack.id !== "core")
+  const dynamicPacks = options.dynamicPacks ?? [];
+  const domainGuess = normalizeSlug(options.domainGuess ?? "");
+  const detectedDynamic = dynamicPacks.filter((pack) =>
+    domainGuess ? matchesDomainGuess(pack, domainGuess) : false
+  );
+  const candidatePacks = [...BUILT_IN_PACKS, ...dynamicPacks];
+  const scored = candidatePacks
     .map((pack) => ({
       pack,
-      score: scoreKeywords(corpus, pack.keywords),
+      score: scoreKeywords(corpus, pack.keywords ?? []),
     }))
     .filter((entry) => entry.score >= DETECTION_THRESHOLD)
     .sort((a, b) => b.score - a.score)
     .slice(0, MAX_DOMAIN_PACKS)
     .map((entry) => entry.pack);
 
-  return [CORE_PACK, ...scored];
+  const seen = new Set<string>();
+  const result: RoleFitPack[] = [];
+
+  const pushPack = (pack: RoleFitPack) => {
+    if (seen.has(pack.id)) {
+      return false;
+    }
+    seen.add(pack.id);
+    result.push(pack);
+    return true;
+  };
+
+  pushPack(CORE_PACK);
+  detectedDynamic.forEach(pushPack);
+
+  let remainingSlots = Math.max(0, MAX_DOMAIN_PACKS - (result.length - 1));
+  scored.forEach((pack) => {
+    if (remainingSlots <= 0) {
+      return;
+    }
+    if (pushPack(pack)) {
+      remainingSlots -= 1;
+    }
+  });
+
+  return result;
 }
 
 export function calculateRoleFit(
   jobDescription: string,
-  evidence: string
+  evidence: string,
+  options: DetectPackOptions = {}
 ): RoleFitResult {
-  const appliedPacks = detectRoleFitPacks(jobDescription);
+  const appliedPacks = detectRoleFitPacks(jobDescription, options);
   const evidenceCorpus = normalizeText(evidence);
   let availableSignals = buildSignalsForPacks(appliedPacks);
 
@@ -1108,6 +1148,15 @@ function scoreKeywords(corpus: string, keywords: string[]) {
   );
 }
 
+function matchesDomainGuess(pack: RoleFitPack, domainGuess: string) {
+  const packSlug = normalizeSlug(pack.id);
+  const packLabel = normalizeSlug(pack.label);
+  if (!domainGuess) {
+    return false;
+  }
+  return domainGuess === packSlug || domainGuess === packLabel;
+}
+
 function matchesAnyAlias(corpus: string, aliases: string[]): boolean {
   if (!corpus) {
     return false;
@@ -1157,6 +1206,13 @@ function normalizeText(text: string): string {
     .replace(/[^a-z0-9/\-\s]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function normalizeSlug(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "");
 }
 
 function escapeRegExp(value: string): string {

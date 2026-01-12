@@ -8,7 +8,7 @@ import {
   deleteAchievement,
   updateAchievement,
 } from "@/lib/data/achievements";
-import { upsertProfile } from "@/lib/data/profile";
+import { ensureProfile, upsertProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { achievementSchema } from "@/lib/validators/achievement";
 import { profileSchema } from "@/lib/validators/profile";
@@ -200,6 +200,49 @@ export async function deleteAchievementAction(
     return {
       status: "error",
       message: "Unable to remove the achievement right now.",
+    };
+  }
+}
+
+export async function updateTelemetryAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to update your preferences.",
+    };
+  }
+
+  const telemetryOptIn = formData.get("telemetry_opt_in") === "on";
+
+  try {
+    await ensureProfile(supabase, user.id);
+    const { error } = await supabase
+      .from("profiles")
+      .update({ telemetry_opt_in: telemetryOptIn })
+      .eq("user_id", user.id);
+
+    if (error) {
+      throw error;
+    }
+
+    revalidatePath("/app/profile");
+    revalidatePath("/app");
+
+    return {
+      status: "success",
+      message: telemetryOptIn
+        ? "Thanks for contributing anonymised signals."
+        : "Telemetry preference updated.",
+    };
+  } catch (error) {
+    console.error("[updateTelemetryAction]", error);
+    return {
+      status: "error",
+      message: "Unable to update your preference right now.",
     };
   }
 }

@@ -49,6 +49,7 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 ## Supabase
 - Run the SQL migration by following `supabase/README.md`.
 - Apply `supabase/migrations/0002_job_url.sql` to add the optional job advert link.
+- Apply `supabase/migrations/0003_learning_events.sql` and `supabase/migrations/0004_domain_packs.sql` for Role Fit learning.
 - Configure auth redirect URLs to include your site URL and `/app`.
 - Magic-link auth completes at `/auth/callback`, so ensure `${NEXT_PUBLIC_SITE_URL}/auth/callback` is in your redirect allowlist.
 
@@ -68,3 +69,8 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 
 ## DOCX import
 - v0.5.9: DOCX CV import runs server-side for preview only; files are not stored.
+
+## Role Fit learning (v0.6.0)
+- Opt in from `/app/profile#privacy` to share anonymised job advert signals (job adverts only; no CV/profile content).
+- Admins review proposals at `/app/admin/learning` (set `CVFORGE_ADMIN_EMAILS`).
+- Stored signals are redacted terms/phrases only; raw job descriptions are not persisted.
