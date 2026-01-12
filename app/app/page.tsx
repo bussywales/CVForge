@@ -1,10 +1,42 @@
+import { redirect } from "next/navigation";
+import { getUserCredits } from "@/lib/data/credits";
 import { createServerClient } from "@/lib/supabase/server";
+
+export const dynamic = "force-dynamic";
 
 export default async function AppPage() {
   const supabase = createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  let credits = 0;
+  let applicationCount = 0;
+
+  try {
+    credits = await getUserCredits(supabase, user.id);
+  } catch (error) {
+    console.error("[dashboard credits]", error);
+  }
+
+  try {
+    const { count, error } = await supabase
+      .from("applications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
+    if (error) {
+      throw error;
+    }
+
+    applicationCount = count ?? 0;
+  } catch (error) {
+    console.error("[dashboard applications]", error);
+  }
 
   return (
     <div className="space-y-6">
@@ -25,7 +57,7 @@ export default async function AppPage() {
           <h2 className="text-sm font-semibold text-[rgb(var(--ink))]">
             Credits
           </h2>
-          <p className="mt-2 text-3xl font-semibold">0</p>
+          <p className="mt-2 text-3xl font-semibold">{credits}</p>
           <p className="mt-1 text-sm text-[rgb(var(--muted))]">
             Purchase credit packs to generate CVs and cover letters.
           </p>
@@ -34,7 +66,7 @@ export default async function AppPage() {
           <h2 className="text-sm font-semibold text-[rgb(var(--ink))]">
             Applications
           </h2>
-          <p className="mt-2 text-3xl font-semibold">0</p>
+          <p className="mt-2 text-3xl font-semibold">{applicationCount}</p>
           <p className="mt-1 text-sm text-[rgb(var(--muted))]">
             Track everything from job targets to submission status.
           </p>
