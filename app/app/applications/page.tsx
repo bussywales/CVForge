@@ -1,16 +1,22 @@
 import Link from "next/link";
 import Section from "@/components/Section";
 import { listApplications } from "@/lib/data/applications";
+import {
+  applicationStatusLabels,
+  normaliseApplicationStatus,
+} from "@/lib/application-status";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { deleteApplicationAction } from "./actions";
 import DeleteApplicationForm from "./delete-application-form";
 
 const statusStyles: Record<string, string> = {
   draft: "bg-slate-100 text-slate-600",
+  ready: "bg-indigo-100 text-indigo-700",
   applied: "bg-blue-100 text-blue-700",
-  interview: "bg-amber-100 text-amber-700",
+  interviewing: "bg-amber-100 text-amber-700",
   offer: "bg-emerald-100 text-emerald-700",
   rejected: "bg-rose-100 text-rose-700",
+  on_hold: "bg-slate-200 text-slate-700",
 };
 
 export default async function ApplicationsPage() {
@@ -63,16 +69,23 @@ export default async function ApplicationsPage() {
                     {application.job_title}
                   </td>
                   <td className="px-3 py-3 text-sm text-[rgb(var(--muted))]">
-                    {application.company ?? "—"}
+                    {application.company_name ?? application.company ?? "—"}
                   </td>
                   <td className="px-3 py-3 text-sm">
+                    {(() => {
+                      const status = normaliseApplicationStatus(
+                        application.status
+                      );
+                      return (
                     <span
                       className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                        statusStyles[application.status] ?? "bg-slate-100"
+                        statusStyles[status] ?? "bg-slate-100"
                       }`}
                     >
-                      {application.status}
+                      {applicationStatusLabels[status]}
                     </span>
+                      );
+                    })()}
                   </td>
                   <td className="px-3 py-3 text-sm text-[rgb(var(--muted))]">
                     {new Date(application.created_at).toLocaleDateString(

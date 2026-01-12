@@ -1,21 +1,35 @@
 import Link from "next/link";
 import Section from "@/components/Section";
 import { listAchievements } from "@/lib/data/achievements";
+import { listApplicationActivities } from "@/lib/data/application-activities";
 import { fetchApplication } from "@/lib/data/applications";
 import { listAutopacks } from "@/lib/data/autopacks";
 import { listActiveDomainPacks } from "@/lib/data/domain-packs";
 import { logLearningEvent } from "@/lib/data/learning";
 import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
+import { buildFollowupTemplates } from "@/lib/followup-templates";
 import { inferDomainGuess } from "@/lib/jd-learning";
 import { calculateRoleFit } from "@/lib/role-fit";
 import type { RoleFitPack } from "@/lib/role-fit";
-import { deleteApplicationAction, updateApplicationAction } from "../actions";
+import {
+  createActivityAction,
+  createFollowupFromTemplateAction,
+  deleteActivityAction,
+  deleteApplicationAction,
+  logAppliedAction,
+  logFollowupAction,
+  updateApplicationAction,
+  updateTrackingAction,
+} from "../actions";
 import ApplicationForm from "../application-form";
 import AutopacksSection from "../autopacks-section";
 import DeleteApplicationForm from "../delete-application-form";
+import FollowupSection from "../followup-section";
 import JobAdvertCard from "../job-advert-card";
 import RoleFitCard from "../role-fit-card";
+import TrackingPanel from "../tracking-panel";
+import ActivityPanel from "../activity-panel";
 
 type ApplicationPageProps = {
   params: { id: string };
@@ -57,6 +71,11 @@ export default async function ApplicationPage({
   const autopacks = await listAutopacks(supabase, user.id, application.id);
   const profile = await fetchProfile(supabase, user.id);
   const achievements = await listAchievements(supabase, user.id);
+  const activities = await listApplicationActivities(
+    supabase,
+    user.id,
+    application.id
+  );
   const jobDescription = application.job_description ?? "";
   let dynamicPacks: RoleFitPack[] = [];
 
@@ -106,6 +125,18 @@ export default async function ApplicationPage({
     }
   }
 
+  const followupTemplates = buildFollowupTemplates({
+    contactName: application.contact_name,
+    companyName: application.company_name ?? application.company,
+    jobTitle: application.job_title,
+    appliedAt: application.applied_at,
+    jobUrl: application.job_url,
+    fullName: profile?.full_name,
+  });
+  const calendarUrl = application.next_followup_at
+    ? `/api/calendar/followup?applicationId=${application.id}`
+    : null;
+
   return (
     <div className="space-y-6">
       <Link href="/app/applications" className="text-sm text-[rgb(var(--muted))]">
@@ -146,6 +177,39 @@ export default async function ApplicationPage({
             </Link>
           </div>
         )}
+      </Section>
+
+      <Section
+        title="Tracking"
+        description="Keep key dates, contacts, and reminders in one place."
+      >
+        <TrackingPanel application={application} updateAction={updateTrackingAction} />
+      </Section>
+
+      <Section
+        title="Follow-up"
+        description="Copy templates and set the next reminder."
+      >
+        <FollowupSection
+          applicationId={application.id}
+          templates={followupTemplates}
+          createFollowupAction={createFollowupFromTemplateAction}
+          calendarUrl={calendarUrl}
+        />
+      </Section>
+
+      <Section
+        title="Activity"
+        description="Log each touchpoint and keep the timeline accurate."
+      >
+        <ActivityPanel
+          applicationId={application.id}
+          activities={activities}
+          createAction={createActivityAction}
+          deleteAction={deleteActivityAction}
+          logAppliedAction={logAppliedAction}
+          logFollowupAction={logFollowupAction}
+        />
       </Section>
 
       <RoleFitCard

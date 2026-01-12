@@ -7,14 +7,7 @@ import FormField from "@/components/FormField";
 import type { ActionState } from "@/lib/actions/types";
 import { initialActionState } from "@/lib/actions/types";
 import type { ApplicationRecord } from "@/lib/data/applications";
-
-const statusOptions = [
-  { value: "draft", label: "Draft" },
-  { value: "applied", label: "Applied" },
-  { value: "interview", label: "Interview" },
-  { value: "offer", label: "Offer" },
-  { value: "rejected", label: "Rejected" },
-];
+import { applicationStatusOptions } from "@/lib/application-status";
 
 type ApplicationFormProps = {
   mode: "create" | "edit";
@@ -140,7 +133,7 @@ export default function ApplicationForm({
           defaultValue={initialValues?.status ?? "draft"}
           className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
         >
-          {statusOptions.map((option) => (
+          {applicationStatusOptions.map((option) => (
             <option key={option.value} value={option.value}>
               {option.label}
             </option>

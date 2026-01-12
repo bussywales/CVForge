@@ -1,12 +1,7 @@
 import { z } from "zod";
+import { applicationStatusValues } from "@/lib/application-status";
 
-export const applicationStatusSchema = z.enum([
-  "draft",
-  "applied",
-  "interview",
-  "offer",
-  "rejected",
-]);
+export const applicationStatusSchema = z.enum(applicationStatusValues);
 
 const hasSchemeRegex = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
 const httpSchemeRegex = /^https?:/i;

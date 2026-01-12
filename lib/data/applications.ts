@@ -1,25 +1,43 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-
-export type ApplicationStatus =
-  | "draft"
-  | "applied"
-  | "interview"
-  | "offer"
-  | "rejected";
+import type { ApplicationStatusValue } from "@/lib/application-status";
 
 export type ApplicationRecord = {
   id: string;
   user_id: string;
   job_title: string;
   company: string | null;
+  company_name: string | null;
+  contact_name: string | null;
+  contact_email: string | null;
   job_url: string | null;
   job_description: string;
-  status: ApplicationStatus | string;
+  status: ApplicationStatusValue | string;
+  applied_at: string | null;
+  last_touch_at: string | null;
+  next_followup_at: string | null;
+  source: string | null;
   created_at: string;
 };
 
+export type ApplicationInsert = Pick<
+  ApplicationRecord,
+  "job_title" | "job_description" | "status"
+> & {
+  company?: string | null;
+  company_name?: string | null;
+  contact_name?: string | null;
+  contact_email?: string | null;
+  job_url?: string | null;
+  applied_at?: string | null;
+  last_touch_at?: string | null;
+  next_followup_at?: string | null;
+  source?: string | null;
+};
+
+export type ApplicationUpdate = Partial<ApplicationInsert>;
+
 const applicationSelect =
-  "id, user_id, job_title, company, job_url, job_description, status, created_at";
+  "id, user_id, job_title, company, company_name, contact_name, contact_email, job_url, job_description, status, applied_at, last_touch_at, next_followup_at, source, created_at";
 
 export async function listApplications(
   supabase: SupabaseClient,
@@ -60,7 +78,7 @@ export async function fetchApplication(
 export async function createApplication(
   supabase: SupabaseClient,
   userId: string,
-  payload: Omit<ApplicationRecord, "id" | "user_id" | "created_at">
+  payload: ApplicationInsert
 ): Promise<ApplicationRecord> {
   const { data, error } = await supabase
     .from("applications")
@@ -79,7 +97,7 @@ export async function updateApplication(
   supabase: SupabaseClient,
   userId: string,
   id: string,
-  payload: Partial<Omit<ApplicationRecord, "id" | "user_id" | "created_at">>
+  payload: ApplicationUpdate
 ): Promise<ApplicationRecord> {
   const { data, error } = await supabase
     .from("applications")
