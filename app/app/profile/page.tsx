@@ -9,6 +9,7 @@ import {
   updateProfileAction,
 } from "./actions";
 import AchievementsSection from "./achievements-section";
+import CvImportModal from "./cv-import-modal";
 import ProfileForm from "./profile-form";
 
 function calculateCompleteness(
@@ -46,6 +47,7 @@ export default async function ProfilePage() {
       <Section
         title="Profile"
         description="Keep your core story consistent across every CV and application."
+        action={<CvImportModal />}
       >
         <ProfileForm
           profile={profile}
