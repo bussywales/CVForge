@@ -37,6 +37,9 @@ export default function ApplicationForm({
 }: ApplicationFormProps) {
   const [state, setState] = useState(initialActionState);
   const [isPending, startTransition] = useTransition();
+  const [jobDescription, setJobDescription] = useState(
+    initialValues?.job_description ?? ""
+  );
   const router = useRouter();
 
   useEffect(() => {
@@ -111,6 +114,15 @@ export default function ApplicationForm({
         <input
           id="job_url"
           name="job_url"
+          onBlur={(event) => {
+            const value = event.currentTarget.value.trim();
+            if (!value) {
+              return;
+            }
+            if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value)) {
+              event.currentTarget.value = `https://${value}`;
+            }
+          }}
           defaultValue={initialValues?.job_url ?? ""}
           placeholder="https://"
           className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
@@ -140,7 +152,6 @@ export default function ApplicationForm({
         label="Job description"
         htmlFor="job_description"
         error={state.fieldErrors?.job_description}
-        hint="Paste the full JD here (minimum 200 characters)."
       >
         <textarea
           id="job_description"
@@ -148,8 +159,36 @@ export default function ApplicationForm({
           rows={8}
           required
           defaultValue={initialValues?.job_description ?? ""}
+          onChange={(event) => setJobDescription(event.currentTarget.value)}
           className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
         />
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+          {(() => {
+            const length = jobDescription.length;
+            if (length > 20000) {
+              return (
+                <span className="text-amber-600">
+                  Long adverts may be truncated for generation. Consider pasting key sections only.
+                </span>
+              );
+            }
+            if (length > 12000) {
+              return (
+                <span className="text-amber-600">
+                  Long adverts may be truncated for generation.
+                </span>
+              );
+            }
+            return (
+              <span className="text-[rgb(var(--muted))]">
+                Paste the full JD here (minimum 200 characters).
+              </span>
+            );
+          })()}
+          <span className="text-[rgb(var(--muted))]">
+            {jobDescription.length.toLocaleString("en-GB")} characters
+          </span>
+        </div>
       </FormField>
 
       <SubmitButton

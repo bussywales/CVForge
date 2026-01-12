@@ -9,6 +9,7 @@ export const applicationStatusSchema = z.enum([
 ]);
 
 const hasSchemeRegex = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
+const httpSchemeRegex = /^https?:/i;
 
 function normalizeJobUrl(value: string) {
   const trimmed = value.trim();
@@ -30,6 +31,46 @@ function isValidHttpUrl(value: string) {
   }
 }
 
+function validateJobUrl(value: string, ctx: z.RefinementCtx) {
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return;
+  }
+
+  if (!hasSchemeRegex.test(trimmed)) {
+    const normalized = normalizeJobUrl(trimmed);
+    if (isValidHttpUrl(normalized)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Add https:// (we'll accept http:// too).",
+      });
+      return;
+    }
+    if (!isValidHttpUrl(normalized)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Enter a valid web link (e.g., https://example.com).",
+      });
+    }
+    return;
+  }
+
+  if (!httpSchemeRegex.test(trimmed)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Only http:// or https:// links are allowed.",
+    });
+    return;
+  }
+
+  if (!isValidHttpUrl(trimmed)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Enter a valid web link (e.g., https://example.com).",
+    });
+  }
+}
+
 export const applicationSchema = z.object({
   job_title: z
     .string()
@@ -45,17 +86,16 @@ export const applicationSchema = z.object({
   job_description: z
     .string()
     .trim()
-    .min(200, "Job description must be at least 200 characters.")
-    .max(5000, "Job description must be 5000 characters or fewer."),
+    .min(200, "Job description must be at least 200 characters."),
   job_url: z
     .string()
     .trim()
     .optional()
     .or(z.literal(""))
-    .transform((value) => normalizeJobUrl(value ?? ""))
-    .refine((value) => value === "" || isValidHttpUrl(value), {
-      message: "Job advert link must be a valid URL.",
+    .superRefine((value, ctx) => {
+      validateJobUrl(value ?? "", ctx);
     })
+    .transform((value) => normalizeJobUrl(value ?? ""))
     .transform((value) => (value === "" ? null : value)),
   status: applicationStatusSchema,
 });

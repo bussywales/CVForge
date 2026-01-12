@@ -7,6 +7,7 @@ import { deleteApplicationAction, updateApplicationAction } from "../actions";
 import ApplicationForm from "../application-form";
 import AutopacksSection from "../autopacks-section";
 import DeleteApplicationForm from "../delete-application-form";
+import JobAdvertCard from "../job-advert-card";
 
 type ApplicationPageProps = {
   params: { id: string };
@@ -89,33 +90,19 @@ export default async function ApplicationPage({
         title="Job advert"
         description="Keep the original listing link handy."
       >
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/10 bg-white/70 px-4 py-3 text-sm text-[rgb(var(--muted))]">
-          {safeJobUrl ? (
-            <>
-              <span className="text-[rgb(var(--ink))]">
-                {jobHost || "Open advert"}
-              </span>
-              <a
-                href={safeJobUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="rounded-full border border-black/10 bg-white/80 px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
-              >
-                Open advert
-              </a>
-            </>
-          ) : (
-            <>
-              <span>Not added</span>
-              <Link
-                href={`/app/applications/${application.id}#job_url`}
-                className="rounded-full border border-black/10 bg-white/80 px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
-              >
-                Add link
-              </Link>
-            </>
-          )}
-        </div>
+        {safeJobUrl ? (
+          <JobAdvertCard url={safeJobUrl} host={jobHost} />
+        ) : (
+          <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-4 text-sm text-[rgb(var(--muted))]">
+            Not added yet.{" "}
+            <Link
+              href={`/app/applications/${application.id}#job_url`}
+              className="font-semibold text-[rgb(var(--ink))] underline-offset-2 hover:underline"
+            >
+              Add link
+            </Link>
+          </div>
+        )}
       </Section>
 
       <AutopacksSection applicationId={application.id} autopacks={autopacks} />
