@@ -13,7 +13,10 @@ export type ApplicationRecord = {
   job_description: string;
   status: ApplicationStatusValue | string;
   applied_at: string | null;
+  last_activity_at: string | null;
   last_touch_at: string | null;
+  next_action_type: string | null;
+  next_action_due: string | null;
   next_followup_at: string | null;
   source: string | null;
   created_at: string;
@@ -29,7 +32,10 @@ export type ApplicationInsert = Pick<
   contact_email?: string | null;
   job_url?: string | null;
   applied_at?: string | null;
+  last_activity_at?: string | null;
   last_touch_at?: string | null;
+  next_action_type?: string | null;
+  next_action_due?: string | null;
   next_followup_at?: string | null;
   source?: string | null;
 };
@@ -37,7 +43,7 @@ export type ApplicationInsert = Pick<
 export type ApplicationUpdate = Partial<ApplicationInsert>;
 
 const applicationSelect =
-  "id, user_id, job_title, company, company_name, contact_name, contact_email, job_url, job_description, status, applied_at, last_touch_at, next_followup_at, source, created_at";
+  "id, user_id, job_title, company, company_name, contact_name, contact_email, job_url, job_description, status, applied_at, last_activity_at, last_touch_at, next_action_type, next_action_due, next_followup_at, source, created_at";
 
 export async function listApplications(
   supabase: SupabaseClient,

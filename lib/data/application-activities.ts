@@ -12,6 +12,11 @@ export type ApplicationActivityRecord = {
   created_at: string;
 };
 
+export type ActivitySummary = {
+  application_id: string;
+  occurred_at: string;
+};
+
 const activitySelect =
   "id, user_id, application_id, type, channel, subject, body, occurred_at, created_at";
 
@@ -66,4 +71,27 @@ export async function deleteApplicationActivity(
   if (error) {
     throw error;
   }
+}
+
+export async function listLatestActivities(
+  supabase: SupabaseClient,
+  userId: string,
+  applicationIds: string[]
+): Promise<ActivitySummary[]> {
+  if (applicationIds.length === 0) {
+    return [];
+  }
+
+  const { data, error } = await supabase
+    .from("application_activities")
+    .select("application_id, occurred_at")
+    .eq("user_id", userId)
+    .in("application_id", applicationIds)
+    .order("occurred_at", { ascending: false });
+
+  if (error) {
+    throw error;
+  }
+
+  return data ?? [];
 }

@@ -84,6 +84,29 @@ export function buildFollowupTemplates(input: TemplateInput): FollowupTemplate[]
   ];
 }
 
+export function buildLinkedInTemplate(input: TemplateInput): FollowupTemplate {
+  const contactName = input.contactName?.trim();
+  const companyName = input.companyName?.trim();
+  const jobTitle = input.jobTitle?.trim() || "the role";
+
+  const greeting = contactName ? `Hi ${contactName},` : "Hi there,";
+  const companyLabel = companyName ? ` at ${companyName}` : "";
+
+  const body =
+    `${greeting}\n\n` +
+    `I applied for ${jobTitle}${companyLabel} and wanted to introduce myself. ` +
+    "If you're the right contact, I'd appreciate any update on next steps. " +
+    "Happy to share more detail if helpful.\n\n" +
+    "Thanks!";
+
+  return {
+    id: "linkedin-dm",
+    label: "LinkedIn DM",
+    subject: "LinkedIn DM",
+    body,
+  };
+}
+
 function safeHost(url: string) {
   try {
     const parsed = new URL(url);

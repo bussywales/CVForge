@@ -1,12 +1,13 @@
 import Section from "@/components/Section";
 import { listApplications } from "@/lib/data/applications";
+import { listLatestActivities } from "@/lib/data/application-activities";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import {
   applicationStatusLabels,
   applicationStatusOptions,
   normaliseApplicationStatus,
 } from "@/lib/application-status";
-import { isFollowupDue } from "@/lib/tracking-utils";
+import { deriveNeedsFollowUp, isDueToday, isOverdue } from "@/lib/tracking-utils";
 import { updateTrackingAction } from "../applications/actions";
 import PipelineBoard from "./pipeline-board";
 
@@ -29,20 +30,47 @@ export default async function PipelinePage() {
   }
 
   const applications = await listApplications(supabase, user.id);
+  let lastActivityById: Record<string, string> = {};
+  try {
+    const activitySummaries = await listLatestActivities(
+      supabase,
+      user.id,
+      applications.map((application) => application.id)
+    );
+    lastActivityById = activitySummaries.reduce(
+      (acc, activity) => {
+        if (!acc[activity.application_id]) {
+          acc[activity.application_id] = activity.occurred_at;
+        }
+        return acc;
+      },
+      {} as Record<string, string>
+    );
+  } catch (error) {
+    console.error("[pipeline.activities]", error);
+  }
 
   const counts = applications.reduce(
     (acc, app) => {
       const status = normaliseApplicationStatus(app.status);
       acc.total += 1;
       acc.byStatus[status] = (acc.byStatus[status] ?? 0) + 1;
-      if (isFollowupDue(app.next_followup_at)) {
+      if (deriveNeedsFollowUp(status, app.next_action_due)) {
         acc.needsFollowup += 1;
+      }
+      if (isDueToday(app.next_action_due)) {
+        acc.dueToday += 1;
+      }
+      if (isOverdue(app.next_action_due)) {
+        acc.overdue += 1;
       }
       return acc;
     },
     {
       total: 0,
       needsFollowup: 0,
+      dueToday: 0,
+      overdue: 0,
       byStatus: {} as Record<string, number>,
     }
   );
@@ -78,7 +106,13 @@ export default async function PipelinePage() {
           ))}
         </div>
 
-        <PipelineBoard applications={applications} onUpdateStatus={updateTrackingAction} />
+        <PipelineBoard
+          applications={applications}
+          lastActivityById={lastActivityById}
+          onUpdateStatus={updateTrackingAction}
+          dueTodayCount={counts.dueToday}
+          overdueCount={counts.overdue}
+        />
 
         <p className="text-xs text-[rgb(var(--muted))]">
           Status options: {applicationStatusOptions.map((opt) => applicationStatusLabels[opt.value]).join(", ")}.

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildFollowupTemplates } from "../lib/followup-templates";
+import {
+  buildFollowupTemplates,
+  buildLinkedInTemplate,
+} from "../lib/followup-templates";
 
 describe("follow-up templates", () => {
   it("fills templates with job details", () => {
@@ -19,5 +22,15 @@ describe("follow-up templates", () => {
       expect(template.body).not.toContain("[");
       expect(template.body).not.toContain("<");
     });
+  });
+
+  it("falls back when company and role are missing", () => {
+    const templates = buildFollowupTemplates({});
+    const linkedin = buildLinkedInTemplate({});
+
+    expect(templates[0].subject).toContain("the role");
+    expect(templates[0].body).toContain("the role");
+    expect(linkedin.body).toContain("the role");
+    expect(linkedin.body).not.toContain("undefined");
   });
 });

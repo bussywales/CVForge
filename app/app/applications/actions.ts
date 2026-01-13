@@ -17,8 +17,10 @@ import { applicationSchema } from "@/lib/validators/application";
 import {
   applicationActivitySchema,
   applicationTrackingSchema,
+  nextActionSchema,
 } from "@/lib/validators/application-tracking";
 import { getFieldErrors } from "@/lib/validators/utils";
+import type { ApplicationStatusValue } from "@/lib/application-status";
 
 export async function createApplicationAction(
   formData: FormData
@@ -310,6 +312,7 @@ export async function createActivityAction(
 
     await updateApplication(supabase, user.id, parsed.data.application_id, {
       last_touch_at: occurredAt,
+      last_activity_at: occurredAt,
     });
 
     revalidatePath(`/app/applications/${parsed.data.application_id}`);
@@ -390,6 +393,7 @@ export async function logAppliedAction(
       status: "applied",
       applied_at: now,
       last_touch_at: now,
+      last_activity_at: now,
     });
 
     revalidatePath(`/app/applications/${applicationId}`);
@@ -436,6 +440,7 @@ export async function logFollowupAction(
 
     await updateApplication(supabase, user.id, applicationId, {
       last_touch_at: now,
+      last_activity_at: now,
     });
 
     revalidatePath(`/app/applications/${applicationId}`);
@@ -474,6 +479,7 @@ export async function createFollowupFromTemplateAction(
   const now = new Date();
   const nextFollowup = new Date(now);
   nextFollowup.setDate(now.getDate() + 7);
+  const nextFollowupDate = nextFollowup.toISOString().slice(0, 10);
 
   try {
     await createApplicationActivity(supabase, user.id, {
@@ -487,7 +493,10 @@ export async function createFollowupFromTemplateAction(
 
     await updateApplication(supabase, user.id, applicationId, {
       last_touch_at: now.toISOString(),
+      last_activity_at: now.toISOString(),
       next_followup_at: nextFollowup.toISOString(),
+      next_action_type: "follow_up",
+      next_action_due: nextFollowupDate,
     });
 
     revalidatePath(`/app/applications/${applicationId}`);
@@ -503,6 +512,154 @@ export async function createFollowupFromTemplateAction(
   }
 }
 
+export async function updateNextActionAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to update the next action.",
+    };
+  }
+
+  const values = {
+    id: getFormString(formData, "id"),
+    next_action_type: getFormString(formData, "next_action_type"),
+    next_action_due: getFormString(formData, "next_action_due"),
+  };
+
+  const parsed = nextActionSchema.safeParse(values);
+
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: "Fix the highlighted fields to continue.",
+      fieldErrors: getFieldErrors(parsed.error),
+    };
+  }
+
+  const nextActionDue = parseDateOnly(parsed.data.next_action_due);
+  if (parsed.data.next_action_due && !nextActionDue) {
+    return {
+      status: "error",
+      message: "Fix the highlighted fields to continue.",
+      fieldErrors: { next_action_due: "Enter a valid date." },
+    };
+  }
+
+  try {
+    await updateApplication(supabase, user.id, parsed.data.id, {
+      next_action_type: toNullable(parsed.data.next_action_type ?? ""),
+      next_action_due: nextActionDue,
+    });
+
+    revalidatePath(`/app/applications/${parsed.data.id}`);
+    revalidatePath("/app/pipeline");
+
+    return { status: "success", message: "Next action updated." };
+  } catch (error) {
+    console.error("[updateNextActionAction]", error);
+    return {
+      status: "error",
+      message: "Unable to update the next action right now.",
+    };
+  }
+}
+
+export async function logPipelineActivityAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to log an activity.",
+    };
+  }
+
+  const applicationId = getFormString(formData, "application_id");
+  const type = getFormString(formData, "type");
+
+  if (!applicationId || !type) {
+    return { status: "error", message: "Missing activity details." };
+  }
+
+  const allowedTypes = new Set([
+    "applied",
+    "followup",
+    "call",
+    "interview",
+    "rejection",
+    "offer",
+  ]);
+
+  if (!allowedTypes.has(type)) {
+    return { status: "error", message: "Unsupported activity type." };
+  }
+
+  const now = new Date().toISOString();
+  const statusMap: Record<string, ApplicationStatusValue | null> = {
+    applied: "applied",
+    followup: null,
+    call: null,
+    interview: "interviewing",
+    rejection: "rejected",
+    offer: "offer",
+  };
+  const channelMap: Record<string, string | null> = {
+    applied: "portal",
+    followup: "email",
+    call: "phone",
+    interview: null,
+    rejection: "email",
+    offer: "email",
+  };
+
+  try {
+    await createApplicationActivity(supabase, user.id, {
+      application_id: applicationId,
+      type,
+      channel: channelMap[type],
+      subject: null,
+      body: null,
+      occurred_at: now,
+    });
+
+    const updatePayload: {
+      status?: ApplicationStatusValue;
+      applied_at?: string;
+      last_touch_at: string;
+      last_activity_at: string;
+    } = {
+      last_touch_at: now,
+      last_activity_at: now,
+    };
+
+    if (statusMap[type]) {
+      updatePayload.status = statusMap[type] as ApplicationStatusValue;
+    }
+    if (type === "applied") {
+      updatePayload.applied_at = now;
+    }
+
+    await updateApplication(supabase, user.id, applicationId, updatePayload);
+
+    revalidatePath(`/app/applications/${applicationId}`);
+    revalidatePath("/app/pipeline");
+
+    return { status: "success", message: "Activity logged." };
+  } catch (error) {
+    console.error("[logPipelineActivityAction]", error);
+    return {
+      status: "error",
+      message: "Unable to log the activity right now.",
+    };
+  }
+}
+
 function parseDateInput(value?: string | null) {
   const trimmed = (value ?? "").trim();
   if (!trimmed) {
@@ -514,4 +671,19 @@ function parseDateInput(value?: string | null) {
     return null;
   }
   return parsed.toISOString();
+}
+
+function parseDateOnly(value?: string | null) {
+  const trimmed = (value ?? "").trim();
+  if (!trimmed) {
+    return null;
+  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return null;
+  }
+  const parsed = new Date(`${trimmed}T00:00:00Z`);
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+  return trimmed;
 }

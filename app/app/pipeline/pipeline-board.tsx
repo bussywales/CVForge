@@ -8,24 +8,41 @@ import {
   applicationStatusOptions,
   normaliseApplicationStatus,
 } from "@/lib/application-status";
-import { formatDateUk, isFollowupDue } from "@/lib/tracking-utils";
+import {
+  deriveNeedsFollowUp,
+  formatDateUk,
+  formatUkDate,
+  isDueToday,
+  isOverdue,
+} from "@/lib/tracking-utils";
+import PipelineActionCentre from "./pipeline-action-centre";
 
 const statusValues = applicationStatusOptions.map((option) => option.value);
 
 type PipelineBoardProps = {
   applications: ApplicationRecord[];
+  lastActivityById: Record<string, string>;
   onUpdateStatus: (formData: FormData) => Promise<ActionState>;
+  dueTodayCount: number;
+  overdueCount: number;
 };
 
 export default function PipelineBoard({
   applications,
+  lastActivityById,
   onUpdateStatus,
+  dueTodayCount,
+  overdueCount,
 }: PipelineBoardProps) {
   const [selectedStatuses, setSelectedStatuses] = useState<string[]>(
     statusValues
   );
   const [search, setSearch] = useState("");
   const [needsFollowupOnly, setNeedsFollowupOnly] = useState(false);
+  const [quickFilter, setQuickFilter] = useState<"today" | "overdue" | null>(
+    null
+  );
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
   const filtered = useMemo(() => {
@@ -35,7 +52,13 @@ export default function PipelineBoard({
       if (!selectedStatuses.includes(status)) {
         return false;
       }
-      if (needsFollowupOnly && !isFollowupDue(app.next_followup_at)) {
+      if (needsFollowupOnly && !deriveNeedsFollowUp(status, app.next_action_due)) {
+        return false;
+      }
+      if (quickFilter === "today" && !isDueToday(app.next_action_due)) {
+        return false;
+      }
+      if (quickFilter === "overdue" && !isOverdue(app.next_action_due)) {
         return false;
       }
       if (term) {
@@ -48,7 +71,7 @@ export default function PipelineBoard({
       }
       return true;
     });
-  }, [applications, needsFollowupOnly, search, selectedStatuses]);
+  }, [applications, needsFollowupOnly, quickFilter, search, selectedStatuses]);
 
   const grouped = useMemo(() => {
     const map: Record<string, ApplicationRecord[]> = {};
@@ -86,50 +109,83 @@ export default function PipelineBoard({
   return (
     <div className="space-y-6">
       <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <div className="space-y-2">
-            <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
-              Filters
-            </p>
-            <div className="flex flex-wrap gap-2 text-xs">
-              {applicationStatusOptions.map((option) => (
-                <label
-                  key={option.value}
-                  className="flex items-center gap-2 rounded-full border border-black/10 bg-white/80 px-3 py-1"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedStatuses.includes(option.value)}
-                    onChange={(event) => {
-                      setSelectedStatuses((prev) => {
-                        if (event.target.checked) {
-                          return [...prev, option.value];
-                        }
-                        return prev.filter((status) => status !== option.value);
-                      });
-                    }}
-                  />
-                  <span>{option.label}</span>
-                </label>
-              ))}
-            </div>
+        <div className="space-y-4">
+          <div className="grid gap-2 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() =>
+                setQuickFilter((prev) => (prev === "today" ? null : "today"))
+              }
+              className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm ${
+                quickFilter === "today"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                  : "border-black/10 bg-white/80 text-[rgb(var(--ink))]"
+              }`}
+            >
+              <span>Due today</span>
+              <span className="text-xs font-semibold">{dueTodayCount}</span>
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setQuickFilter((prev) => (prev === "overdue" ? null : "overdue"))
+              }
+              className={`flex items-center justify-between rounded-2xl border px-4 py-3 text-sm ${
+                quickFilter === "overdue"
+                  ? "border-rose-200 bg-rose-50 text-rose-700"
+                  : "border-black/10 bg-white/80 text-[rgb(var(--ink))]"
+              }`}
+            >
+              <span>Overdue</span>
+              <span className="text-xs font-semibold">{overdueCount}</span>
+            </button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 text-xs text-[rgb(var(--muted))]">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="space-y-2">
+              <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+                Filters
+              </p>
+              <div className="flex flex-wrap gap-2 text-xs">
+                {applicationStatusOptions.map((option) => (
+                  <label
+                    key={option.value}
+                    className="flex items-center gap-2 rounded-full border border-black/10 bg-white/80 px-3 py-1"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedStatuses.includes(option.value)}
+                      onChange={(event) => {
+                        setSelectedStatuses((prev) => {
+                          if (event.target.checked) {
+                            return [...prev, option.value];
+                          }
+                          return prev.filter((status) => status !== option.value);
+                        });
+                      }}
+                    />
+                    <span>{option.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 text-xs text-[rgb(var(--muted))]">
+                <input
+                  type="checkbox"
+                  checked={needsFollowupOnly}
+                  onChange={(event) => setNeedsFollowupOnly(event.target.checked)}
+                />
+                Needs follow-up
+              </label>
               <input
-                type="checkbox"
-                checked={needsFollowupOnly}
-                onChange={(event) => setNeedsFollowupOnly(event.target.checked)}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search by title or company"
+                className="w-64 rounded-full border border-black/10 bg-white px-4 py-2 text-sm"
               />
-              Needs follow-up
-            </label>
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search by title or company"
-              className="w-64 rounded-full border border-black/10 bg-white px-4 py-2 text-sm"
-            />
+            </div>
           </div>
         </div>
       </div>
@@ -147,10 +203,22 @@ export default function PipelineBoard({
             </div>
             <div className="space-y-3">
               {(grouped[column.value] ?? []).map((app) => {
-                const nextFollowupLabel = app.next_followup_at
-                  ? formatDateUk(app.next_followup_at)
-                  : "";
-                const isDue = isFollowupDue(app.next_followup_at);
+                const status = normaliseApplicationStatus(app.status);
+                const lastActivity =
+                  lastActivityById[app.id] ??
+                  app.last_activity_at ??
+                  app.last_touch_at;
+                const lastActivityLabel = lastActivity
+                  ? formatDateUk(lastActivity)
+                  : "No activity yet";
+                const nextActionLabel = app.next_action_due
+                  ? formatUkDate(app.next_action_due)
+                  : "Not set";
+                const isDue = isDueToday(app.next_action_due) || isOverdue(app.next_action_due);
+                const needsFollowup = deriveNeedsFollowUp(
+                  status,
+                  app.next_action_due
+                );
                 return (
                   <div
                     key={app.id}
@@ -164,8 +232,12 @@ export default function PipelineBoard({
                         <p className="text-xs text-[rgb(var(--muted))]">
                           {app.company_name || app.company || "Company not set"}
                         </p>
+                        <div className="mt-3 space-y-1 text-xs text-[rgb(var(--muted))]">
+                          <p>Last activity: {lastActivityLabel}</p>
+                          <p>Next action: {nextActionLabel}</p>
+                        </div>
                       </div>
-                      {nextFollowupLabel ? (
+                      {needsFollowup ? (
                         <span
                           className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${
                             isDue
@@ -173,7 +245,7 @@ export default function PipelineBoard({
                               : "bg-slate-100 text-slate-600"
                           }`}
                         >
-                          Follow-up {nextFollowupLabel}
+                          Needs follow-up
                         </span>
                       ) : null}
                     </div>
@@ -192,17 +264,30 @@ export default function PipelineBoard({
                           </option>
                         ))}
                       </select>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        className="whitespace-nowrap"
-                        onClick={() => {
-                          window.location.href = `/app/applications/${app.id}`;
-                        }}
-                        disabled={isPending}
-                      >
-                        Open
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="whitespace-nowrap"
+                          onClick={() => {
+                            setActiveId(app.id);
+                          }}
+                          disabled={isPending}
+                        >
+                          Actions
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          className="whitespace-nowrap"
+                          onClick={() => {
+                            window.location.href = `/app/applications/${app.id}`;
+                          }}
+                          disabled={isPending}
+                        >
+                          Open
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -216,6 +301,13 @@ export default function PipelineBoard({
           </div>
         ))}
       </div>
+
+      {activeId ? (
+        <PipelineActionCentre
+          application={applications.find((app) => app.id === activeId) ?? null}
+          onClose={() => setActiveId(null)}
+        />
+      ) : null}
     </div>
   );
 }

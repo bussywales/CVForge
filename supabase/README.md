@@ -13,5 +13,6 @@ Apply migrations in order using the Supabase SQL editor.
    - `supabase/migrations/0004_domain_packs.sql`
    - `supabase/migrations/0005_application_tracking.sql`
    - `supabase/migrations/0006_application_activities.sql`
+   - `supabase/migrations/0007_pipeline_actions.sql`
 
 These create the tables, RLS policies, and the `handle_new_user` trigger plus Role Fit learning tables.
