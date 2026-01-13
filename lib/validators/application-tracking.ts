@@ -27,7 +27,9 @@ export const applicationTrackingSchema = z.object({
   applied_at: z.string().optional().or(z.literal("")),
   next_followup_at: z.string().optional().or(z.literal("")),
   contact_name: z.string().trim().max(120).optional().or(z.literal("")),
+  contact_role: z.string().trim().max(120).optional().or(z.literal("")),
   contact_email: z.string().trim().max(160).optional().or(z.literal("")),
+  contact_linkedin: z.string().trim().max(260).optional().or(z.literal("")),
   company_name: z.string().trim().max(120).optional().or(z.literal("")),
   source: z.string().trim().max(120).optional().or(z.literal("")),
 });

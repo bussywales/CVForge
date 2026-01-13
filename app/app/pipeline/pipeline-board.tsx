@@ -15,6 +15,7 @@ import {
   isDueToday,
   isOverdue,
 } from "@/lib/tracking-utils";
+import { getOutreachStageLabel } from "@/lib/outreach-utils";
 import PipelineActionCentre from "./pipeline-action-centre";
 
 const statusValues = applicationStatusOptions.map((option) => option.value);
@@ -96,7 +97,9 @@ export default function PipelineBoard({
       formData.set("applied_at", application.applied_at ?? "");
       formData.set("next_followup_at", application.next_followup_at ?? "");
       formData.set("contact_name", application.contact_name ?? "");
+      formData.set("contact_role", application.contact_role ?? "");
       formData.set("contact_email", application.contact_email ?? "");
+      formData.set("contact_linkedin", application.contact_linkedin ?? "");
       formData.set("company_name", application.company_name ?? "");
       formData.set("source", application.source ?? "");
       const result = await onUpdateStatus(formData);
@@ -214,6 +217,10 @@ export default function PipelineBoard({
                 const nextActionLabel = app.next_action_due
                   ? formatUkDate(app.next_action_due)
                   : "Not set";
+                const outreachLabel = getOutreachStageLabel(app.outreach_stage);
+                const outreachDueLabel = app.outreach_next_due_at
+                  ? formatDateUk(app.outreach_next_due_at)
+                  : "Not set";
                 const isDue = isDueToday(app.next_action_due) || isOverdue(app.next_action_due);
                 const needsFollowup = deriveNeedsFollowUp(
                   status,
@@ -235,6 +242,7 @@ export default function PipelineBoard({
                         <div className="mt-3 space-y-1 text-xs text-[rgb(var(--muted))]">
                           <p>Last activity: {lastActivityLabel}</p>
                           <p>Next action: {nextActionLabel}</p>
+                          <p>Outreach: {outreachLabel} · {outreachDueLabel}</p>
                         </div>
                       </div>
                       {needsFollowup ? (

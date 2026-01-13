@@ -8,7 +8,9 @@ export type ApplicationRecord = {
   company: string | null;
   company_name: string | null;
   contact_name: string | null;
+  contact_role: string | null;
   contact_email: string | null;
+  contact_linkedin: string | null;
   job_url: string | null;
   job_description: string;
   status: ApplicationStatusValue | string;
@@ -21,6 +23,10 @@ export type ApplicationRecord = {
   next_action_type: string | null;
   next_action_due: string | null;
   next_followup_at: string | null;
+  outreach_stage: string | null;
+  outreach_last_sent_at: string | null;
+  outreach_next_due_at: string | null;
+  outreach_channel_pref: string | null;
   source: string | null;
   created_at: string;
 };
@@ -32,7 +38,9 @@ export type ApplicationInsert = Pick<
   company?: string | null;
   company_name?: string | null;
   contact_name?: string | null;
+  contact_role?: string | null;
   contact_email?: string | null;
+  contact_linkedin?: string | null;
   job_url?: string | null;
   applied_at?: string | null;
   last_activity_at?: string | null;
@@ -43,13 +51,17 @@ export type ApplicationInsert = Pick<
   next_action_type?: string | null;
   next_action_due?: string | null;
   next_followup_at?: string | null;
+  outreach_stage?: string | null;
+  outreach_last_sent_at?: string | null;
+  outreach_next_due_at?: string | null;
+  outreach_channel_pref?: string | null;
   source?: string | null;
 };
 
 export type ApplicationUpdate = Partial<ApplicationInsert>;
 
 const applicationSelect =
-  "id, user_id, job_title, company, company_name, contact_name, contact_email, job_url, job_description, status, applied_at, last_activity_at, last_touch_at, star_drafts, last_lift_action, lift_completed_at, next_action_type, next_action_due, next_followup_at, source, created_at";
+  "id, user_id, job_title, company, company_name, contact_name, contact_role, contact_email, contact_linkedin, job_url, job_description, status, applied_at, last_activity_at, last_touch_at, star_drafts, last_lift_action, lift_completed_at, next_action_type, next_action_due, next_followup_at, outreach_stage, outreach_last_sent_at, outreach_next_due_at, outreach_channel_pref, source, created_at";
 
 export async function listApplications(
   supabase: SupabaseClient,

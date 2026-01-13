@@ -6,6 +6,7 @@ import type { ActionState } from "@/lib/actions/types";
 import {
   createApplication,
   deleteApplication,
+  fetchApplication,
   updateApplication,
 } from "@/lib/data/applications";
 import {
@@ -19,8 +20,10 @@ import {
   applicationTrackingSchema,
   nextActionSchema,
 } from "@/lib/validators/application-tracking";
+import { outreachLogSchema } from "@/lib/validators/outreach";
 import { getFieldErrors } from "@/lib/validators/utils";
 import type { ApplicationStatusValue } from "@/lib/application-status";
+import { getNextOutreachStep, getOutreachSteps } from "@/lib/outreach-templates";
 
 export async function createApplicationAction(
   formData: FormData
@@ -40,6 +43,10 @@ export async function createApplicationAction(
     job_url: getFormString(formData, "job_url"),
     job_description: getFormString(formData, "job_description"),
     status: getFormString(formData, "status"),
+    contact_name: getFormString(formData, "contact_name"),
+    contact_role: getFormString(formData, "contact_role"),
+    contact_email: getFormString(formData, "contact_email"),
+    contact_linkedin: getFormString(formData, "contact_linkedin"),
   };
 
   const parsed = applicationSchema.safeParse(values);
@@ -60,6 +67,10 @@ export async function createApplicationAction(
       job_url: parsed.data.job_url ?? null,
       job_description: parsed.data.job_description,
       status: parsed.data.status,
+      contact_name: toNullable(parsed.data.contact_name ?? ""),
+      contact_role: toNullable(parsed.data.contact_role ?? ""),
+      contact_email: toNullable(parsed.data.contact_email ?? ""),
+      contact_linkedin: toNullable(parsed.data.contact_linkedin ?? ""),
     });
 
     revalidatePath("/app/applications");
@@ -103,6 +114,10 @@ export async function updateApplicationAction(
     job_url: getFormString(formData, "job_url"),
     job_description: getFormString(formData, "job_description"),
     status: getFormString(formData, "status"),
+    contact_name: getFormString(formData, "contact_name"),
+    contact_role: getFormString(formData, "contact_role"),
+    contact_email: getFormString(formData, "contact_email"),
+    contact_linkedin: getFormString(formData, "contact_linkedin"),
   };
 
   const parsed = applicationSchema.safeParse(values);
@@ -122,6 +137,10 @@ export async function updateApplicationAction(
       job_url: parsed.data.job_url ?? null,
       job_description: parsed.data.job_description,
       status: parsed.data.status,
+      contact_name: toNullable(parsed.data.contact_name ?? ""),
+      contact_role: toNullable(parsed.data.contact_role ?? ""),
+      contact_email: toNullable(parsed.data.contact_email ?? ""),
+      contact_linkedin: toNullable(parsed.data.contact_linkedin ?? ""),
     });
 
     revalidatePath("/app/applications");
@@ -191,7 +210,9 @@ export async function updateTrackingAction(
     applied_at: getFormString(formData, "applied_at"),
     next_followup_at: getFormString(formData, "next_followup_at"),
     contact_name: getFormString(formData, "contact_name"),
+    contact_role: getFormString(formData, "contact_role"),
     contact_email: getFormString(formData, "contact_email"),
+    contact_linkedin: getFormString(formData, "contact_linkedin"),
     company_name: getFormString(formData, "company_name"),
     source: getFormString(formData, "source"),
   };
@@ -215,6 +236,29 @@ export async function updateTrackingAction(
         status: "error",
         message: "Fix the highlighted fields to continue.",
         fieldErrors: { contact_email: "Enter a valid email address." },
+      };
+    }
+  }
+
+  if (parsed.data.contact_linkedin) {
+    const linkedIn = parsed.data.contact_linkedin.trim();
+    if (!/^https?:/i.test(linkedIn)) {
+      return {
+        status: "error",
+        message: "Fix the highlighted fields to continue.",
+        fieldErrors: { contact_linkedin: "Only http:// or https:// links are allowed." },
+      };
+    }
+    try {
+      // eslint-disable-next-line no-new
+      new URL(linkedIn);
+    } catch {
+      return {
+        status: "error",
+        message: "Fix the highlighted fields to continue.",
+        fieldErrors: {
+          contact_linkedin: "Enter a valid web link (e.g., https://linkedin.com/in/you).",
+        },
       };
     }
   }
@@ -243,7 +287,9 @@ export async function updateTrackingAction(
     applied_at: appliedAt,
     next_followup_at: nextFollowupAt,
     contact_name: toNullable(parsed.data.contact_name ?? ""),
+    contact_role: toNullable(parsed.data.contact_role ?? ""),
     contact_email: toNullable(parsed.data.contact_email ?? ""),
+    contact_linkedin: toNullable(parsed.data.contact_linkedin ?? ""),
     company_name: toNullable(parsed.data.company_name ?? ""),
     source: toNullable(parsed.data.source ?? ""),
   };
@@ -656,6 +702,178 @@ export async function logPipelineActivityAction(
     return {
       status: "error",
       message: "Unable to log the activity right now.",
+    };
+  }
+}
+
+export async function logOutreachStepAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to log outreach.",
+    };
+  }
+
+  const values = {
+    application_id: getFormString(formData, "application_id"),
+    step_id: getFormString(formData, "step_id"),
+    channel: getFormString(formData, "channel"),
+    subject: getFormString(formData, "subject"),
+    body: getFormString(formData, "body"),
+  };
+
+  const parsed = outreachLogSchema.safeParse(values);
+  if (!parsed.success) {
+    return {
+      status: "error",
+      message: "Fix the highlighted fields to continue.",
+      fieldErrors: getFieldErrors(parsed.error),
+    };
+  }
+
+  const steps = getOutreachSteps();
+  const step = steps.find((item) => item.id === parsed.data.step_id);
+  if (!step) {
+    return { status: "error", message: "Outreach step not found." };
+  }
+
+  try {
+    const application = await fetchApplication(
+      supabase,
+      user.id,
+      parsed.data.application_id
+    );
+    if (!application) {
+      return { status: "error", message: "Application not found." };
+    }
+
+    if (application.outreach_stage === "replied" || application.outreach_stage === "closed") {
+      return {
+        status: "error",
+        message: "Outreach is already marked as replied or closed.",
+      };
+    }
+
+    const now = new Date();
+    const nextStep = getNextOutreachStep(step.stage);
+    const nextDue = nextStep
+      ? new Date(now.getTime() + nextStep.offsetDays * 24 * 60 * 60 * 1000)
+      : null;
+    const nextActionDue = nextDue ? nextDue.toISOString().slice(0, 10) : null;
+
+    const subject =
+      parsed.data.subject ||
+      `Outreach: ${step.label}`;
+    const bodySnippet = parsed.data.body
+      ? parsed.data.body.slice(0, 2000)
+      : "";
+
+    await createApplicationActivity(supabase, user.id, {
+      application_id: parsed.data.application_id,
+      type: "outreach",
+      channel: parsed.data.channel,
+      subject,
+      body: bodySnippet || null,
+      occurred_at: now.toISOString(),
+    });
+
+    await updateApplication(supabase, user.id, parsed.data.application_id, {
+      outreach_stage: step.stage,
+      outreach_last_sent_at: now.toISOString(),
+      outreach_next_due_at: nextDue ? nextDue.toISOString() : null,
+      outreach_channel_pref: parsed.data.channel,
+      next_action_type: nextActionDue ? "follow_up" : null,
+      next_action_due: nextActionDue,
+      last_touch_at: now.toISOString(),
+      last_activity_at: now.toISOString(),
+    });
+
+    revalidatePath(`/app/applications/${parsed.data.application_id}`);
+    revalidatePath("/app/pipeline");
+
+    return {
+      status: "success",
+      message: "Outreach logged.",
+    };
+  } catch (error) {
+    console.error("[logOutreachStepAction]", error);
+    return {
+      status: "error",
+      message: "Unable to log outreach right now.",
+    };
+  }
+}
+
+export async function markOutreachRepliedAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to update outreach.",
+    };
+  }
+
+  const applicationId = getFormString(formData, "application_id");
+  if (!applicationId) {
+    return { status: "error", message: "Missing application id." };
+  }
+
+  try {
+    await updateApplication(supabase, user.id, applicationId, {
+      outreach_stage: "replied",
+      outreach_next_due_at: null,
+      next_action_due: null,
+    });
+    revalidatePath(`/app/applications/${applicationId}`);
+    revalidatePath("/app/pipeline");
+    return { status: "success", message: "Outreach marked as replied." };
+  } catch (error) {
+    console.error("[markOutreachRepliedAction]", error);
+    return {
+      status: "error",
+      message: "Unable to update outreach right now.",
+    };
+  }
+}
+
+export async function closeOutreachAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to update outreach.",
+    };
+  }
+
+  const applicationId = getFormString(formData, "application_id");
+  if (!applicationId) {
+    return { status: "error", message: "Missing application id." };
+  }
+
+  try {
+    await updateApplication(supabase, user.id, applicationId, {
+      outreach_stage: "closed",
+      outreach_next_due_at: null,
+      next_action_due: null,
+    });
+    revalidatePath(`/app/applications/${applicationId}`);
+    revalidatePath("/app/pipeline");
+    return { status: "success", message: "Outreach closed." };
+  } catch (error) {
+    console.error("[closeOutreachAction]", error);
+    return {
+      status: "error",
+      message: "Unable to update outreach right now.",
     };
   }
 }

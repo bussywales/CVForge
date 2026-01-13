@@ -87,3 +87,8 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 
 ## Interview Lift loop (v0.6.4)
 - Use the Interview Lift card on each application to add evidence, metrics, and STAR drafts after logging activity.
+
+## Outreach Engine (v0.6.6)
+- Apply migration `0009_outreach.sql` to add outreach fields.
+- Add contact details on the application edit page and use the Pipeline Action Centre to copy templates, log outreach, and schedule reminders.
+- No emails are sent automatically; copy + log only.

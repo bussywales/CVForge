@@ -101,6 +101,19 @@ export default function TrackingPanel({
         </FormField>
 
         <FormField
+          label="Contact role"
+          htmlFor="contact_role"
+          error={state.fieldErrors?.contact_role}
+        >
+          <input
+            id="contact_role"
+            name="contact_role"
+            defaultValue={application.contact_role ?? ""}
+            className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm"
+          />
+        </FormField>
+
+        <FormField
           label="Contact email"
           htmlFor="contact_email"
           error={state.fieldErrors?.contact_email}
@@ -110,6 +123,29 @@ export default function TrackingPanel({
             id="contact_email"
             name="contact_email"
             defaultValue={application.contact_email ?? ""}
+            className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm"
+          />
+        </FormField>
+
+        <FormField
+          label="Contact LinkedIn"
+          htmlFor="contact_linkedin"
+          error={state.fieldErrors?.contact_linkedin}
+        >
+          <input
+            id="contact_linkedin"
+            name="contact_linkedin"
+            defaultValue={application.contact_linkedin ?? ""}
+            onBlur={(event) => {
+              const value = event.currentTarget.value.trim();
+              if (!value) {
+                return;
+              }
+              if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value)) {
+                event.currentTarget.value = `https://${value}`;
+              }
+            }}
+            placeholder="https://linkedin.com/in/..."
             className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm"
           />
         </FormField>

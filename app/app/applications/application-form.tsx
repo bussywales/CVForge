@@ -141,6 +141,82 @@ export default function ApplicationForm({
         </select>
       </FormField>
 
+      <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+              Contact (optional)
+            </p>
+            <p className="text-xs text-[rgb(var(--muted))]">
+              Used for outreach follow-ups. CVForge never sends emails automatically.
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 grid gap-4 md:grid-cols-2">
+          <FormField
+            label="Contact name"
+            htmlFor="contact_name"
+            error={state.fieldErrors?.contact_name}
+          >
+            <input
+              id="contact_name"
+              name="contact_name"
+              defaultValue={initialValues?.contact_name ?? ""}
+              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
+            />
+          </FormField>
+          <FormField
+            label="Contact role"
+            htmlFor="contact_role"
+            error={state.fieldErrors?.contact_role}
+          >
+            <input
+              id="contact_role"
+              name="contact_role"
+              defaultValue={initialValues?.contact_role ?? ""}
+              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
+            />
+          </FormField>
+          <FormField
+            label="Contact email"
+            htmlFor="contact_email"
+            error={state.fieldErrors?.contact_email}
+          >
+            <input
+              type="email"
+              id="contact_email"
+              name="contact_email"
+              defaultValue={initialValues?.contact_email ?? ""}
+              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
+            />
+          </FormField>
+          <FormField
+            label="Contact LinkedIn"
+            htmlFor="contact_linkedin"
+            error={state.fieldErrors?.contact_linkedin}
+            hint="Paste a profile URL (https://linkedin.com/in/...)."
+          >
+            <input
+              type="url"
+              id="contact_linkedin"
+              name="contact_linkedin"
+              defaultValue={initialValues?.contact_linkedin ?? ""}
+              onBlur={(event) => {
+                const value = event.currentTarget.value.trim();
+                if (!value) {
+                  return;
+                }
+                if (!/^[a-zA-Z][a-zA-Z0-9+.-]*:/.test(value)) {
+                  event.currentTarget.value = `https://${value}`;
+                }
+              }}
+              placeholder="https://"
+              className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
+            />
+          </FormField>
+        </div>
+      </div>
+
       <FormField
         label="Job description"
         htmlFor="job_description"

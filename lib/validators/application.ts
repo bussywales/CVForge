@@ -5,8 +5,9 @@ export const applicationStatusSchema = z.enum(applicationStatusValues);
 
 const hasSchemeRegex = /^[a-zA-Z][a-zA-Z0-9+.-]*:/;
 const httpSchemeRegex = /^https?:/i;
+const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function normalizeJobUrl(value: string) {
+function normalizeHttpUrl(value: string) {
   const trimmed = value.trim();
   if (!trimmed) {
     return "";
@@ -26,14 +27,14 @@ function isValidHttpUrl(value: string) {
   }
 }
 
-function validateJobUrl(value: string, ctx: z.RefinementCtx) {
+function validateHttpUrl(value: string, ctx: z.RefinementCtx) {
   const trimmed = value.trim();
   if (!trimmed) {
     return;
   }
 
   if (!hasSchemeRegex.test(trimmed)) {
-    const normalized = normalizeJobUrl(trimmed);
+    const normalized = normalizeHttpUrl(trimmed);
     if (isValidHttpUrl(normalized)) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -88,9 +89,43 @@ export const applicationSchema = z.object({
     .optional()
     .or(z.literal(""))
     .superRefine((value, ctx) => {
-      validateJobUrl(value ?? "", ctx);
+      validateHttpUrl(value ?? "", ctx);
     })
-    .transform((value) => normalizeJobUrl(value ?? ""))
+    .transform((value) => normalizeHttpUrl(value ?? ""))
+    .transform((value) => (value === "" ? null : value)),
+  contact_name: z.string().trim().max(120).optional().or(z.literal("")),
+  contact_role: z.string().trim().max(120).optional().or(z.literal("")),
+  contact_email: z
+    .string()
+    .trim()
+    .max(160, "Email must be 160 characters or fewer.")
+    .optional()
+    .or(z.literal(""))
+    .superRefine((value, ctx) => {
+      const safeValue = (value ?? "").trim();
+      if (!safeValue) {
+        return;
+      }
+      if (!emailRegex.test(safeValue)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "Enter a valid email address.",
+        });
+      }
+    })
+    .transform((value) => {
+      const trimmed = (value ?? "").trim();
+      return trimmed === "" ? null : trimmed;
+    }),
+  contact_linkedin: z
+    .string()
+    .trim()
+    .optional()
+    .or(z.literal(""))
+    .superRefine((value, ctx) => {
+      validateHttpUrl(value ?? "", ctx);
+    })
+    .transform((value) => normalizeHttpUrl(value ?? ""))
     .transform((value) => (value === "" ? null : value)),
   status: applicationStatusSchema,
 });
