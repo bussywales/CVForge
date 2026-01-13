@@ -20,6 +20,12 @@ Scope boundary: rewrite inside Practice Mode only, no new facts added.
 Success criteria: rewrites apply cleanly and persist with improved metadata.
 Not in scope: AI rewriting or automatic submission changes.
 
+### Practice Dashboard + Drill Mode (shipped)
+Outcome: per-application practice summary and a focused drill flow (shipped v0.7.1).
+Scope boundary: deterministic scoring and rewrites only, no new AI prompts.
+Success criteria: dashboard reflects scoring status and drill updates persist.
+Not in scope: AI coaching or automatic scheduling.
+
 ### Role Fit + packs
 Outcome: keep Role Fit reliable with core/domain packs and fallback JD terms.
 Scope boundary: deterministic signals, pack detection, and UI gap guidance.

@@ -21,6 +21,7 @@
 - Copy a STAR prompt and create a STAR draft from a question.
 - Export the Interview Pack in Standard and ATS-Minimal variants.
 - Toggle Practice Mode, score an answer, generate a rewrite, and confirm the draft persists after refresh.
+- Open the Practice Dashboard and start Drill Mode to practise the lowest-score question.
 
 ## Pipeline Action Centre
 - Visit /app/pipeline and open the Action Centre for a card.

@@ -259,20 +259,30 @@ export default async function ApplicationPage({
         }))}
       />
 
-      <Section
-        title="Interview Pack"
-        description="Turn role-fit gaps and signals into interview-ready prompts."
-      >
-        <InterviewPackPanel
-          applicationId={application.id}
-          pack={interviewPack}
-          achievements={achievements.map((achievement) => ({
-            id: achievement.id,
-            title: achievement.title,
-            metrics: achievement.metrics,
-          }))}
-        />
-      </Section>
+      <div id="interview-pack">
+        <Section
+          title="Interview Pack"
+          description="Turn role-fit gaps and signals into interview-ready prompts."
+          action={
+            <Link
+              href={`/app/applications/${application.id}/practice`}
+              className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))]"
+            >
+              Practice Dashboard
+            </Link>
+          }
+        >
+          <InterviewPackPanel
+            applicationId={application.id}
+            pack={interviewPack}
+            achievements={achievements.map((achievement) => ({
+              id: achievement.id,
+              title: achievement.title,
+              metrics: achievement.metrics,
+            }))}
+          />
+        </Section>
+      </div>
 
       <AutopacksSection applicationId={application.id} autopacks={autopacks} />
 

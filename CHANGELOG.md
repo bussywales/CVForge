@@ -4,6 +4,10 @@
 - Practice Mode Rewrite Coach with deterministic STAR rewrites and previews.
 - Rewrite API endpoint plus stored improved drafts metadata.
 
+## v0.7.1
+- Practice Dashboard with scoring summary and question status per application.
+- Drill Mode for one-by-one practice using existing scoring and rewrite flows.
+
 ## v0.7.0a
 - Practice Mode for Interview Pack with deterministic scoring and saved drafts.
 - Interview practice API endpoints and migration for stored answers.
