@@ -1,6 +1,6 @@
 import type { InterviewPracticeScore } from "@/lib/interview-practice";
 
-type PracticeAnswerSnapshot = {
+export type PracticeAnswerSnapshot = {
   answer_text?: string | null;
   score?: number | null;
   rubric_json?: InterviewPracticeScore | null;
@@ -8,7 +8,7 @@ type PracticeAnswerSnapshot = {
   updated_at?: string | null;
 };
 
-type PracticeQuestion = {
+export type PracticeQuestion = {
   questionKey: string;
   questionText: string;
 };

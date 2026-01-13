@@ -23,6 +23,11 @@
 - Toggle Practice Mode, score an answer, generate a rewrite, and confirm the draft persists after refresh.
 - Open the Practice Dashboard and start Drill Mode to practise the lowest-score question.
 
+## Application Kit
+- Open an application detail page and confirm the Application Kit checklist renders.
+- Download the Application Kit ZIP and confirm it contains CV, cover letter, interview pack, and STAR JSON.
+- Check that kit.download activity appears in the activity log.
+
 ## Pipeline Action Centre
 - Visit /app/pipeline and open the Action Centre for a card.
 - Log an activity and set a next action date.

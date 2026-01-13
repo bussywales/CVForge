@@ -1,12 +1,16 @@
 # Changelog
 
-## v0.7.0b
-- Practice Mode Rewrite Coach with deterministic STAR rewrites and previews.
-- Rewrite API endpoint plus stored improved drafts metadata.
+## v0.7.2
+- Application Kit panel with checklist, readiness score, and next best actions.
+- Application Kit ZIP export with CV, cover letter, interview pack, and STAR drafts.
 
 ## v0.7.1
 - Practice Dashboard with scoring summary and question status per application.
 - Drill Mode for one-by-one practice using existing scoring and rewrite flows.
+
+## v0.7.0b
+- Practice Mode Rewrite Coach with deterministic STAR rewrites and previews.
+- Rewrite API endpoint plus stored improved drafts metadata.
 
 ## v0.7.0a
 - Practice Mode for Interview Pack with deterministic scoring and saved drafts.

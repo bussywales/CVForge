@@ -48,6 +48,13 @@ Output: DOCX interview pack download.
 Errors: JSON { error, detail? } with 401/404/400/500.
 Runtime: nodejs, force-dynamic.
 
+GET /api/application/[applicationId]/kit.zip
+Auth: required.
+Input: path param applicationId.
+Output: ZIP download with CV (ATS-Minimal), cover letter (ATS-Minimal), interview pack (Standard), and STAR drafts JSON.
+Errors: JSON { error, detail? } with 401/404/400/500.
+Runtime: nodejs, force-dynamic.
+
 GET /api/interview-practice
 Auth: required.
 Input: query param applicationId.

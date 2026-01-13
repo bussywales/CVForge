@@ -26,6 +26,12 @@ Scope boundary: deterministic scoring and rewrites only, no new AI prompts.
 Success criteria: dashboard reflects scoring status and drill updates persist.
 Not in scope: AI coaching or automatic scheduling.
 
+### Application Kit v1 (shipped)
+Outcome: deterministic readiness checklist and a single ZIP for submission artefacts (shipped v0.7.2).
+Scope boundary: checklist + kit download only, no new exports beyond existing assets.
+Success criteria: kit ZIP includes CV, cover letter, interview pack, and STAR drafts.
+Not in scope: PDF export or automated applications.
+
 ### Role Fit + packs
 Outcome: keep Role Fit reliable with core/domain packs and fallback JD terms.
 Scope boundary: deterministic signals, pack detection, and UI gap guidance.

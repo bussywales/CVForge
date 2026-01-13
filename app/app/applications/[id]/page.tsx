@@ -14,6 +14,12 @@ import { buildInterviewPack } from "@/lib/interview-pack";
 import { inferDomainGuess } from "@/lib/jd-learning";
 import { calculateRoleFit } from "@/lib/role-fit";
 import type { RoleFitPack } from "@/lib/role-fit";
+import { buildQuestionKey } from "@/lib/interview-practice";
+import {
+  computeKitChecklist,
+  getKitContentsList,
+} from "@/lib/application-kit";
+import type { PracticeAnswerSnapshot } from "@/lib/practice-dashboard";
 import {
   createActivityAction,
   createFollowupFromTemplateAction,
@@ -34,6 +40,7 @@ import JobAdvertCard from "../job-advert-card";
 import RoleFitCard from "../role-fit-card";
 import TrackingPanel from "../tracking-panel";
 import ActivityPanel from "../activity-panel";
+import ApplicationKitPanel from "../application-kit-panel";
 
 type ApplicationPageProps = {
   params: { id: string };
@@ -130,6 +137,55 @@ export default async function ApplicationPage({
     roleFit,
     telemetryOptIn: Boolean(profile?.telemetry_opt_in),
   });
+
+  const practiceQuestions = interviewPack.questions.map((question, index) => ({
+    questionKey: buildQuestionKey(question.question, index),
+    questionText: question.question,
+  }));
+
+  let practiceAnswers: Record<string, PracticeAnswerSnapshot> = {};
+  try {
+    const { data, error } = await supabase
+      .from("interview_practice_answers")
+      .select(
+        "question_key, question_text, answer_text, rubric_json, score, improved_text, updated_at"
+      )
+      .eq("user_id", user.id)
+      .eq("application_id", application.id);
+
+    if (error) {
+      console.error("[application.kit.practice]", error);
+    } else {
+      practiceAnswers = (data ?? []).reduce((acc, row) => {
+        acc[row.question_key] = row as PracticeAnswerSnapshot;
+        return acc;
+      }, {} as Record<string, PracticeAnswerSnapshot>);
+    }
+  } catch (error) {
+    console.error("[application.kit.practice]", error);
+  }
+
+  const kitChecklist = computeKitChecklist({
+    applicationId: application.id,
+    profileHeadline: profile?.headline ?? null,
+    profileName: profile?.full_name ?? null,
+    userEmail: user.email ?? null,
+    achievements,
+    autopack: latestAutopack
+      ? {
+          id: latestAutopack.id,
+          cv_text: latestAutopack.cv_text,
+          cover_letter: latestAutopack.cover_letter,
+        }
+      : null,
+    practiceQuestions,
+    practiceAnswers,
+    starDrafts: application.star_drafts,
+    outreachStage: application.outreach_stage,
+    activities,
+  });
+
+  const kitContents = getKitContentsList();
   const jobUrl = application.job_url?.trim() ?? "";
   let safeJobUrl: string | null = null;
   let jobHost = "";
@@ -284,7 +340,30 @@ export default async function ApplicationPage({
         </Section>
       </div>
 
-      <AutopacksSection applicationId={application.id} autopacks={autopacks} />
+      <div id="application-kit">
+        <Section
+          title="Application Kit"
+          description="See readiness, next actions, and download the kit ZIP."
+        >
+          <ApplicationKitPanel
+            applicationId={application.id}
+            checklist={kitChecklist.items}
+            score={kitChecklist.score}
+            nextActions={kitChecklist.nextActions}
+            downloadEnabled={Boolean(latestAutopack?.id)}
+            downloadHint={
+              latestAutopack?.id
+                ? undefined
+                : "Generate an autopack first to enable the kit download."
+            }
+            contents={kitContents}
+          />
+        </Section>
+      </div>
+
+      <div id="autopacks">
+        <AutopacksSection applicationId={application.id} autopacks={autopacks} />
+      </div>
 
       <Section
         title="Danger zone"
