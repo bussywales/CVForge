@@ -20,7 +20,7 @@
 - Open an application detail page and confirm the Interview Pack renders.
 - Copy a STAR prompt and create a STAR draft from a question.
 - Export the Interview Pack in Standard and ATS-Minimal variants.
-- Toggle Practice Mode, score an answer, and confirm the draft persists after refresh.
+- Toggle Practice Mode, score an answer, generate a rewrite, and confirm the draft persists after refresh.
 
 ## Pipeline Action Centre
 - Visit /app/pipeline and open the Action Centre for a card.

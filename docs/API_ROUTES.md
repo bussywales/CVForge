@@ -51,7 +51,7 @@ Runtime: nodejs, force-dynamic.
 GET /api/interview-practice
 Auth: required.
 Input: query param applicationId.
-Output: JSON { answers: [] }.
+Output: JSON { answers: [] } including improved rewrite fields when available.
 Errors: JSON { error } with 400/401/500.
 Runtime: nodejs, force-dynamic.
 
@@ -59,6 +59,13 @@ PUT /api/interview-practice
 Auth: required.
 Input: JSON { applicationId, questionKey, questionText, answerText, meta? }.
 Output: JSON { answer, scoring } with deterministic rubric.
+Errors: JSON { error, detail? } with 400/401/500.
+Runtime: nodejs, force-dynamic.
+
+POST /api/interview-practice/rewrite
+Auth: required.
+Input: JSON { applicationId, questionKey, questionText, answerText, meta? }.
+Output: JSON { answer, scoring, improvedText, notes }.
 Errors: JSON { error, detail? } with 400/401/500.
 Runtime: nodejs, force-dynamic.
 

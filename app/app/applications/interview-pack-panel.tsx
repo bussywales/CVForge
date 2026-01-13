@@ -6,6 +6,7 @@ import Button from "@/components/Button";
 import FormField from "@/components/FormField";
 import type { InterviewPack, InterviewPackWeakSpot } from "@/lib/interview-pack";
 import type { ExportVariant } from "@/lib/export/export-utils";
+import type { InterviewRewriteNotes } from "@/lib/interview-rewrite";
 import {
   buildQuestionKey,
   type InterviewPracticeScore,
@@ -30,6 +31,9 @@ type PracticeAnswer = {
   answer_text: string;
   rubric_json: InterviewPracticeScore | null;
   score: number;
+  improved_text?: string | null;
+  improved_meta?: InterviewRewriteNotes | null;
+  improved_updated_at?: string | null;
   updated_at?: string | null;
   created_at?: string | null;
 };
@@ -57,6 +61,22 @@ function normaliseRubric(value: unknown): InterviewPracticeScore | null {
   return rubric;
 }
 
+function normaliseRewriteNotes(value: unknown): InterviewRewriteNotes | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+  const notes = value as InterviewRewriteNotes;
+  if (
+    !Array.isArray(notes.changes) ||
+    !Array.isArray(notes.insertedPlaceholders) ||
+    !notes.structure ||
+    !notes.length
+  ) {
+    return null;
+  }
+  return notes;
+}
+
 export default function InterviewPackPanel({
   applicationId,
   pack,
@@ -80,6 +100,7 @@ export default function InterviewPackPanel({
   >({});
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [openDrafts, setOpenDrafts] = useState<Record<string, boolean>>({});
+  const [openRewrites, setOpenRewrites] = useState<Record<string, boolean>>({});
   const [openBreakdowns, setOpenBreakdowns] = useState<Record<string, boolean>>(
     {}
   );
@@ -138,6 +159,7 @@ export default function InterviewPackPanel({
             return;
           }
           const rubric = normaliseRubric(answer.rubric_json);
+          const notes = normaliseRewriteNotes(answer.improved_meta);
           const score =
             typeof answer.score === "number"
               ? answer.score
@@ -148,6 +170,9 @@ export default function InterviewPackPanel({
             answer_text: answer.answer_text ?? "",
             rubric_json: rubric,
             score,
+            improved_text: answer.improved_text ?? "",
+            improved_meta: notes,
+            improved_updated_at: answer.improved_updated_at ?? null,
             updated_at: answer.updated_at ?? null,
             created_at: answer.created_at ?? null,
           };
@@ -294,12 +319,17 @@ export default function InterviewPackPanel({
   const handleScoreAnswer = async (
     questionKey: string,
     questionText: string,
-    signals: string[]
+    signals: string[],
+    overrideText?: string
   ) => {
-    const answerText = drafts[questionKey] ?? "";
-    if (!answerText.trim()) {
+    const rawText = overrideText ?? drafts[questionKey] ?? "";
+    const answerText = rawText.trim();
+    if (!answerText) {
       setToast({ message: "Add an answer before scoring.", variant: "error" });
       return;
+    }
+    if (overrideText !== undefined) {
+      setDrafts((prev) => ({ ...prev, [questionKey]: rawText }));
     }
     setPendingKey(`score-${questionKey}`);
 
@@ -333,11 +363,19 @@ export default function InterviewPackPanel({
       setPracticeAnswers((prev) => ({
         ...prev,
         [questionKey]: {
+          ...prev[questionKey],
           question_key: questionKey,
           question_text: saved.question_text ?? questionText,
           answer_text: saved.answer_text ?? answerText,
           rubric_json: rubric,
           score: rubric?.totalScore ?? saved.score ?? 0,
+          improved_text: saved.improved_text ?? prev[questionKey]?.improved_text ?? "",
+          improved_meta:
+            normaliseRewriteNotes(saved.improved_meta) ??
+            prev[questionKey]?.improved_meta ??
+            null,
+          improved_updated_at:
+            saved.improved_updated_at ?? prev[questionKey]?.improved_updated_at ?? null,
           updated_at: saved.updated_at ?? null,
           created_at: saved.created_at ?? null,
         },
@@ -366,6 +404,95 @@ export default function InterviewPackPanel({
       lines.push("- Add a measurable metric (%, time saved, cost, risk reduction). ");
     }
     handleCopy(lines.join("\n"));
+  };
+
+  const handleRewriteAnswer = async (
+    questionKey: string,
+    questionText: string,
+    signals: string[]
+  ) => {
+    const answerText = drafts[questionKey] ?? "";
+    if (!answerText.trim()) {
+      setToast({ message: "Add an answer before rewriting.", variant: "error" });
+      return;
+    }
+    setPendingKey(`rewrite-${questionKey}`);
+
+    try {
+      const response = await fetch("/api/interview-practice/rewrite", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          applicationId,
+          questionKey,
+          questionText,
+          answerText,
+          meta: {
+            signals,
+            gaps: pack.weakSpots.map((spot) => spot.label),
+          },
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setToast({
+          message: payload?.error ?? "Unable to rewrite answer right now.",
+          variant: "error",
+        });
+        return;
+      }
+
+      const saved = payload?.answer ?? {};
+      const rubric = normaliseRubric(payload?.scoring) ?? normaliseRubric(saved.rubric_json);
+      const notes =
+        normaliseRewriteNotes(payload?.notes) ??
+        normaliseRewriteNotes(saved.improved_meta);
+
+      setPracticeAnswers((prev) => ({
+        ...prev,
+        [questionKey]: {
+          ...prev[questionKey],
+          question_key: questionKey,
+          question_text: saved.question_text ?? questionText,
+          answer_text: saved.answer_text ?? answerText,
+          rubric_json: rubric ?? prev[questionKey]?.rubric_json ?? null,
+          score:
+            rubric?.totalScore ??
+            saved.score ??
+            prev[questionKey]?.score ??
+            0,
+          improved_text: saved.improved_text ?? payload?.improvedText ?? "",
+          improved_meta: notes ?? prev[questionKey]?.improved_meta ?? null,
+          improved_updated_at:
+            saved.improved_updated_at ?? prev[questionKey]?.improved_updated_at ?? null,
+          updated_at: saved.updated_at ?? prev[questionKey]?.updated_at ?? null,
+          created_at: saved.created_at ?? prev[questionKey]?.created_at ?? null,
+        },
+      }));
+
+      setOpenRewrites((prev) => ({ ...prev, [questionKey]: true }));
+      setToast({ message: "Rewrite ready.", variant: "success" });
+    } catch (error) {
+      console.error("[interview-pack.practice.rewrite]", error);
+      setToast({ message: "Unable to rewrite answer right now.", variant: "error" });
+    } finally {
+      setPendingKey(null);
+    }
+  };
+
+  const handleApplyImproved = async (
+    questionKey: string,
+    questionText: string,
+    signals: string[]
+  ) => {
+    const improvedText = practiceAnswers[questionKey]?.improved_text ?? "";
+    if (!improvedText.trim()) {
+      setToast({ message: "Generate a rewrite first.", variant: "error" });
+      return;
+    }
+    await handleScoreAnswer(questionKey, questionText, signals, improvedText);
+    setOpenRewrites((prev) => ({ ...prev, [questionKey]: false }));
   };
 
   const downloadInterviewPack = async () => {
@@ -555,6 +682,18 @@ export default function InterviewPackPanel({
             const rubric = practiceAnswers[key]?.rubric_json ?? null;
             const breakdownOpen = Boolean(openBreakdowns[key]);
             const draftOpen = Boolean(openDrafts[key]);
+            const improvedText = practiceAnswers[key]?.improved_text ?? "";
+            const improvedNotes = practiceAnswers[key]?.improved_meta ?? null;
+            const improvedUpdatedAt = practiceAnswers[key]?.improved_updated_at ?? null;
+            const answerUpdatedAt = practiceAnswers[key]?.updated_at ?? null;
+            const rewriteOpen = Boolean(openRewrites[key]);
+            const isOutOfDate =
+              Boolean(improvedText) &&
+              Boolean(improvedUpdatedAt) &&
+              Boolean(answerUpdatedAt) &&
+              new Date(answerUpdatedAt as string).getTime() >
+                new Date(improvedUpdatedAt as string).getTime();
+            const originalText = draft || practiceAnswers[key]?.answer_text || "";
 
             return (
               <div
@@ -709,6 +848,146 @@ export default function InterviewPackPanel({
                         </div>
                       </div>
                     ) : null}
+
+                    <div className="rounded-2xl border border-black/10 bg-white/80 p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <p className="text-xs font-semibold text-[rgb(var(--ink))]">
+                          Rewrite Coach
+                        </p>
+                        {improvedText ? (
+                          <span
+                            className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                              isOutOfDate
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-emerald-100 text-emerald-700"
+                            }`}
+                          >
+                            {isOutOfDate ? "Out of date" : "Ready"}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="mt-2 text-xs text-[rgb(var(--muted))]">
+                        Deterministic rewrite — no new facts are added.
+                      </p>
+                      <div className="mt-2 flex flex-wrap items-center gap-2">
+                        <Button
+                          type="button"
+                          onClick={() =>
+                            handleRewriteAnswer(
+                              key,
+                              question.question,
+                              question.signals
+                            )
+                          }
+                          disabled={
+                            pendingKey === `rewrite-${key}` || !draft.trim()
+                          }
+                        >
+                          {pendingKey === `rewrite-${key}`
+                            ? "Rewriting..."
+                            : "Generate improved version"}
+                        </Button>
+                        {improvedText && !rewriteOpen ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setOpenRewrites((prev) => ({
+                                ...prev,
+                                [key]: true,
+                              }))
+                            }
+                            className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
+                          >
+                            View improved
+                          </button>
+                        ) : null}
+                        {!draft.trim() ? (
+                          <span className="text-[10px] text-[rgb(var(--muted))]">
+                            Add an answer to generate a rewrite.
+                          </span>
+                        ) : null}
+                      </div>
+
+                      {rewriteOpen ? (
+                        improvedText ? (
+                          <div className="mt-3 space-y-3">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="rounded-xl border border-dashed border-black/10 bg-white/70 p-3">
+                                <p className="text-[10px] font-semibold text-[rgb(var(--ink))]">
+                                  Original
+                                </p>
+                                <pre className="mt-2 whitespace-pre-wrap text-xs text-[rgb(var(--muted))]">
+                                  {originalText || "No draft yet."}
+                                </pre>
+                              </div>
+                              <div className="rounded-xl border border-dashed border-black/10 bg-white/70 p-3">
+                                <p className="text-[10px] font-semibold text-[rgb(var(--ink))]">
+                                  Improved
+                                </p>
+                                <pre className="mt-2 whitespace-pre-wrap text-xs text-[rgb(var(--muted))]">
+                                  {improvedText}
+                                </pre>
+                              </div>
+                            </div>
+
+                            {improvedNotes?.changes?.length ? (
+                              <div className="rounded-xl border border-dashed border-black/10 bg-white/70 p-3 text-xs text-[rgb(var(--muted))]">
+                                <p className="font-semibold text-[rgb(var(--ink))]">
+                                  What changed
+                                </p>
+                                <ul className="mt-2 space-y-1">
+                                  {improvedNotes.changes.map((item) => (
+                                    <li key={item} className="flex gap-2">
+                                      <span>•</span>
+                                      <span>{item}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ) : null}
+
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                type="button"
+                                onClick={() =>
+                                  handleApplyImproved(
+                                    key,
+                                    question.question,
+                                    question.signals
+                                  )
+                                }
+                                disabled={pendingKey === `score-${key}`}
+                              >
+                                Apply improved
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="secondary"
+                                onClick={() => handleCopy(improvedText)}
+                              >
+                                Copy improved
+                              </Button>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  setOpenRewrites((prev) => ({
+                                    ...prev,
+                                    [key]: false,
+                                  }))
+                                }
+                                className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
+                              >
+                                Discard
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p className="mt-2 text-xs text-[rgb(var(--muted))]">
+                            Generate an improved version to preview the rewrite.
+                          </p>
+                        )
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
               </div>

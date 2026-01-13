@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.0b
+- Practice Mode Rewrite Coach with deterministic STAR rewrites and previews.
+- Rewrite API endpoint plus stored improved drafts metadata.
+
 ## v0.7.0a
 - Practice Mode for Interview Pack with deterministic scoring and saved drafts.
 - Interview practice API endpoints and migration for stored answers.

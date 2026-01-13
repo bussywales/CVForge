@@ -14,6 +14,12 @@ Scope boundary: practice inside Interview Pack only, deterministic scoring, no A
 Success criteria: scores, recommendations, and drafts persist per application.
 Not in scope: automated coaching or adaptive prompts.
 
+### Rewrite Coach (shipped)
+Outcome: deterministic STAR rewrites with before/after previews (shipped v0.7.0b).
+Scope boundary: rewrite inside Practice Mode only, no new facts added.
+Success criteria: rewrites apply cleanly and persist with improved metadata.
+Not in scope: AI rewriting or automatic submission changes.
+
 ### Role Fit + packs
 Outcome: keep Role Fit reliable with core/domain packs and fallback JD terms.
 Scope boundary: deterministic signals, pack detection, and UI gap guidance.
