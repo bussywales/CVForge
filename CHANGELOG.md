@@ -1,6 +1,10 @@
 # Changelog
 
-## v0.6.8-docs (unreleased)
+## v0.6.9
+- Interview Pack v1 on application detail pages (deterministic questions, prompts, and weak spots).
+- Interview Pack DOCX export with Standard and ATS-Minimal variants.
+
+## v0.6.8-docs
 - Documentation hardening: architecture, database, API, runbooks, smoke tests, and release process.
 - Standardised docs index and changelog structure.
 

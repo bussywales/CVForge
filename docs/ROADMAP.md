@@ -2,11 +2,17 @@
 
 ## Now
 
-### Role Fit
-Outcome: keep Role Fit reliable for any job with deterministic signals and gap guidance.
-Scope boundary: core/domain packs, fallback terms, and UI guidance only.
-Success criteria: non-zero coverage on typical JDs and clear, actionable gaps.
-Not in scope: LLM scoring, external scraping, or auto-writing CV content.
+### Interview Pack v1 (shipped)
+Outcome: deterministic interview-ready prompts and a DOCX pack on the application detail page (shipped v0.6.9).
+Scope boundary: role snapshot, questions, weak spots, STAR prompts, and DOCX export only.
+Success criteria: pack renders reliably, prompts are copy-ready, and export downloads cleanly.
+Not in scope: AI rewriting, new navigation, or multi-application packs.
+
+### Role Fit + packs
+Outcome: keep Role Fit reliable with core/domain packs and fallback JD terms.
+Scope boundary: deterministic signals, pack detection, and UI gap guidance.
+Success criteria: non-zero coverage for typical JDs and actionable gaps.
+Not in scope: LLM scoring, job-ad scraping, or auto-writing CV content.
 
 ### Pipeline and tracking
 Outcome: a consistent view of status, next actions, and follow-up dates.
@@ -14,19 +20,19 @@ Scope boundary: status updates, activity logging, and reminders with ICS downloa
 Success criteria: users can see due/overdue items and log activity in one flow.
 Not in scope: email sending, background notifications, or CRM integrations.
 
-### Imports and exports
+### Imports and exports (DOCX/ZIP)
 Outcome: stable DOCX import preview/apply and professional DOCX exports.
-Scope boundary: DOCX only, two export variants, ZIP submission packs.
+Scope boundary: DOCX only, Standard + ATS-Minimal variants, ZIP submission packs.
 Success criteria: export quality meets ATS expectations and import applies cleanly.
 Not in scope: PDF export or file storage.
 
-## Next
+### Work History
+Outcome: role history captured and available for export and interview prep.
+Scope boundary: CRUD on Profile, DOCX import detection, DOCX export inclusion.
+Success criteria: roles display correctly and export in Professional Experience section.
+Not in scope: automated CV parsing beyond basic heuristics.
 
-### JD learning
-Outcome: grow Role Fit coverage via opt-in, anonymised JD signals.
-Scope boundary: redacted terms only, admin review and publishing.
-Success criteria: new packs published safely and improve gap relevance.
-Not in scope: storing raw JDs or auto-publishing without review.
+## Next
 
 ### Interview Lift
 Outcome: raise interview conversion with deterministic next actions and STAR drafts.
@@ -34,16 +40,28 @@ Scope boundary: heuristics from Role Fit and CV content, no AI rewriting.
 Success criteria: lift prompts appear after activity and are acted upon.
 Not in scope: automated coaching or personalised prompts via LLMs.
 
-## Later
-
 ### Outreach Engine
 Outcome: repeatable, logged follow-up sequences per application.
 Scope boundary: deterministic templates, copy-only, activity logging.
 Success criteria: users can log outreach and schedule follow-ups quickly.
 Not in scope: email delivery, messaging integrations, or automation.
 
+### JD learning (opt-in + admin)
+Outcome: improve Role Fit coverage using anonymised JD signals.
+Scope boundary: opt-in learning events, admin review, published packs.
+Success criteria: proposals can be reviewed and published safely.
+Not in scope: storing raw job descriptions or auto-publishing.
+
 ### Billing and credits
 Outcome: predictable credit purchase and usage tracking.
 Scope boundary: Stripe checkout, webhook crediting, credit ledger.
 Success criteria: credits are accurate and generation is gated correctly.
 Not in scope: subscriptions, invoices, or team billing.
+
+## Later
+
+### Future platform upgrades
+Outcome: agreed backlog of larger improvements once core modules stabilise.
+Scope boundary: TBD after feedback cycles.
+Success criteria: prioritised roadmap with user-validated outcomes.
+Not in scope: commitments before validation.

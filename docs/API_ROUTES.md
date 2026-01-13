@@ -41,6 +41,13 @@ Output: ZIP download with CV, cover letter, and STAR JSON.
 Errors: JSON { error, detail? } with 401/404/400/500.
 Runtime: nodejs, force-dynamic.
 
+GET /api/export/interview-pack.docx
+Auth: required.
+Input: query params applicationId and variant=standard|ats_minimal.
+Output: DOCX interview pack download.
+Errors: JSON { error, detail? } with 401/404/400/500.
+Runtime: nodejs, force-dynamic.
+
 ## Imports
 POST /api/import/cv-docx
 Auth: required.

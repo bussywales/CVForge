@@ -5,6 +5,7 @@ import type {
 import { createRequire } from "module";
 import type { ProfileRecord } from "@/lib/data/profile";
 import type { WorkHistoryRecord } from "@/lib/data/work-history";
+import type { InterviewPack } from "@/lib/interview-pack";
 import type { ExportVariant } from "@/lib/export/export-utils";
 import { buildContactLine, extractLinkedIn, extractPhone } from "@/lib/export/contact";
 import { sanitizeInlineText } from "@/lib/utils/autopack-sanitize";
@@ -814,6 +815,211 @@ export function buildCvDocx(
       },
     ],
   });
+}
+
+type InterviewPackDocxOptions = {
+  email?: string | null;
+  headline?: string | null;
+  contactText?: string | null;
+  variant?: ExportVariant;
+};
+
+export function buildInterviewPackDocx(
+  profile: ProfileRecord | null,
+  pack: InterviewPack,
+  options?: InterviewPackDocxOptions
+) {
+  const { Document } = getDocxModule();
+  const { titleHeading, sectionHeading } = resolveHeadingLevels();
+  const variant = options?.variant ?? "standard";
+  const spacing = getSpacing(variant);
+  const children: DocxParagraph[] = [];
+
+  const name = profile?.full_name?.trim();
+  const headline = options?.headline?.trim() || profile?.headline?.trim() || "";
+  const location = profile?.location?.trim();
+  const contactSource = options?.contactText ?? "";
+  const phone = contactSource ? extractPhone(contactSource) : null;
+  const linkedIn = contactSource ? extractLinkedIn(contactSource) : null;
+  const contactLine = buildContactLine([
+    headline || null,
+    location,
+    options?.email ?? null,
+    phone,
+    linkedIn,
+  ]);
+
+  if (name) {
+    children.push(
+      makeParagraph(name, {
+        heading: titleHeading,
+        size: FONT_SIZES.name,
+        spacing: spacing.header,
+        bold: true,
+      })
+    );
+  }
+
+  if (contactLine) {
+    children.push(
+      makeParagraph(contactLine, {
+        size: FONT_SIZES.body,
+        spacing: spacing.header,
+      })
+    );
+  }
+
+  if (pack.roleSnapshot.length > 0) {
+    children.push(
+      makeParagraph("Role Snapshot", {
+        heading: sectionHeading,
+        size: FONT_SIZES.heading,
+        spacing: spacing.section,
+        bold: true,
+      })
+    );
+    pack.roleSnapshot.forEach((item) => {
+      const cleaned = normaliseLine(item);
+      if (!cleaned) {
+        return;
+      }
+      children.push(
+        makeBulletParagraph(cleaned, spacing.bullet, FONT_SIZES.body)
+      );
+    });
+  }
+
+  if (pack.questions.length > 0) {
+    children.push(
+      makeParagraph("Top Questions", {
+        heading: sectionHeading,
+        size: FONT_SIZES.heading,
+        spacing: spacing.section,
+        bold: true,
+      })
+    );
+    pack.questions.forEach((question) => {
+      const cleanedQuestion = normaliseLine(question.question);
+      if (!cleanedQuestion) {
+        return;
+      }
+      children.push(
+        makeParagraph(cleanedQuestion, {
+          size: FONT_SIZES.body,
+          spacing: spacing.body,
+          bold: true,
+        })
+      );
+      if (question.signals.length > 0) {
+        children.push(
+          makeParagraph(`Signals: ${question.signals.join(", ")}`, {
+            size: FONT_SIZES.body,
+            spacing: spacing.body,
+          })
+        );
+      }
+      splitPromptLines(question.starPrompt).forEach((line) => {
+        children.push(
+          makeBulletParagraph(line, spacing.bullet, FONT_SIZES.body)
+        );
+      });
+    });
+  }
+
+  if (pack.weakSpots.length > 0) {
+    children.push(
+      makeParagraph("Weak Spots & Actions", {
+        heading: sectionHeading,
+        size: FONT_SIZES.heading,
+        spacing: spacing.section,
+        bold: true,
+      })
+    );
+    pack.weakSpots.forEach((spot) => {
+      const label = normaliseLine(spot.label);
+      if (!label) {
+        return;
+      }
+      children.push(
+        makeParagraph(label, {
+          size: FONT_SIZES.body,
+          spacing: spacing.body,
+          bold: true,
+        })
+      );
+      const action = normaliseLine(spot.actionSuggestion);
+      if (action) {
+        children.push(
+          makeBulletParagraph(
+            `Action: ${action}`,
+            spacing.bullet,
+            FONT_SIZES.body
+          )
+        );
+      }
+      spot.metricSuggestions.forEach((metric) => {
+        const cleanedMetric = trimMetricLine(normaliseLine(metric), 120);
+        if (!cleanedMetric) {
+          return;
+        }
+        children.push(
+          makeBulletParagraph(
+            `Metric: ${cleanedMetric}`,
+            spacing.bullet,
+            FONT_SIZES.body
+          )
+        );
+      });
+    });
+  }
+
+  if (pack.prepChecklist.length > 0) {
+    children.push(
+      makeParagraph("Prep Checklist", {
+        heading: sectionHeading,
+        size: FONT_SIZES.heading,
+        spacing: spacing.section,
+        bold: true,
+      })
+    );
+    pack.prepChecklist.forEach((item) => {
+      const cleaned = normaliseLine(item);
+      if (!cleaned) {
+        return;
+      }
+      children.push(
+        makeBulletParagraph(cleaned, spacing.bullet, FONT_SIZES.body)
+      );
+    });
+  }
+
+  if (children.length === 0) {
+    children.push(
+      makeParagraph("Interview pack content unavailable.", {
+        size: FONT_SIZES.body,
+        spacing: spacing.body,
+      })
+    );
+  }
+
+  return new Document({
+    sections: [
+      {
+        children,
+      },
+    ],
+  });
+}
+
+function splitPromptLines(value: string) {
+  return value
+    .split(/\r?\n/)
+    .map((line) => normaliseLine(line))
+    .filter(Boolean);
+}
+
+function normaliseLine(value: string) {
+  return sanitizeInlineText(value).replace(/\s+/g, " ").trim();
 }
 
 export function buildCoverLetterDocx(

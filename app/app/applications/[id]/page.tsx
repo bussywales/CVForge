@@ -10,6 +10,7 @@ import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { buildFollowupTemplates } from "@/lib/followup-templates";
 import { buildInterviewLift } from "@/lib/interview-lift";
+import { buildInterviewPack } from "@/lib/interview-pack";
 import { inferDomainGuess } from "@/lib/jd-learning";
 import { calculateRoleFit } from "@/lib/role-fit";
 import type { RoleFitPack } from "@/lib/role-fit";
@@ -28,6 +29,7 @@ import AutopacksSection from "../autopacks-section";
 import DeleteApplicationForm from "../delete-application-form";
 import FollowupSection from "../followup-section";
 import InterviewLiftPanel from "../interview-lift-panel";
+import InterviewPackPanel from "../interview-pack-panel";
 import JobAdvertCard from "../job-advert-card";
 import RoleFitCard from "../role-fit-card";
 import TrackingPanel from "../tracking-panel";
@@ -113,6 +115,13 @@ export default async function ApplicationPage({
     coverLetter: latestAutopack?.cover_letter ?? "",
     nextActionDue: application.next_action_due,
     lastLiftAction: application.last_lift_action,
+  });
+  const interviewPack = buildInterviewPack({
+    jobTitle: application.job_title,
+    company: application.company_name ?? application.company,
+    jobDescription,
+    roleFit,
+    interviewLift,
   });
   await logLearningEvent({
     supabase,
@@ -249,6 +258,21 @@ export default async function ApplicationPage({
           metrics: achievement.metrics,
         }))}
       />
+
+      <Section
+        title="Interview Pack"
+        description="Turn role-fit gaps and signals into interview-ready prompts."
+      >
+        <InterviewPackPanel
+          applicationId={application.id}
+          pack={interviewPack}
+          achievements={achievements.map((achievement) => ({
+            id: achievement.id,
+            title: achievement.title,
+            metrics: achievement.metrics,
+          }))}
+        />
+      </Section>
 
       <AutopacksSection applicationId={application.id} autopacks={autopacks} />
 

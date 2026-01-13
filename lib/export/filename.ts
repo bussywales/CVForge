@@ -1,6 +1,10 @@
 const MAX_FILENAME_LENGTH = 80;
 
-export type ExportFileType = "CV" | "Cover-Letter" | "STAR-Answers" | "Submission-Pack";
+export type ExportFileType =
+  | "CV"
+  | "Cover-Letter"
+  | "STAR-Answers"
+  | "Submission-Pack";
 
 export function buildExportFilename(
   name: string,
@@ -43,6 +47,25 @@ export function slugifyName(value: string) {
   const words = cleaned.split(" ").filter(Boolean);
   const formatted = words.map((word) => formatWord(word));
   return formatted.join("-");
+}
+
+export function buildInterviewPackFilename(input: {
+  name: string;
+  role?: string | null;
+  company?: string | null;
+  variant: "standard" | "ats_minimal";
+}) {
+  const safeName = slugifyName(input.name) || "CVForge";
+  const safeRole = input.role ? slugifyName(input.role) : "";
+  const safeCompany = input.company ? slugifyName(input.company) : "";
+  const variantLabel = input.variant === "ats_minimal" ? "ATS-Minimal" : "Standard";
+  const safeVariant = slugifyName(variantLabel);
+
+  const parts = ["Interview-Pack", safeName, safeRole, safeCompany, safeVariant]
+    .filter(Boolean);
+  const base = parts.join("-");
+  const trimmed = truncateFilename(base, "docx");
+  return `${trimmed}.docx`;
 }
 
 function formatWord(word: string) {

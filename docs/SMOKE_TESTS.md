@@ -16,6 +16,11 @@
 - Log an activity and confirm Interview Lift suggestions appear.
 - Create a STAR draft and confirm it persists after refresh.
 
+## Interview Pack
+- Open an application detail page and confirm the Interview Pack renders.
+- Copy a STAR prompt and create a STAR draft from a question.
+- Export the Interview Pack in Standard and ATS-Minimal variants.
+
 ## Pipeline Action Centre
 - Visit /app/pipeline and open the Action Centre for a card.
 - Log an activity and set a next action date.
