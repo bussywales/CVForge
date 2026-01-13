@@ -35,4 +35,18 @@ describe("cv import heuristics", () => {
     const preview = extractCvPreview(text);
     expect(preview.achievements.length).toBeGreaterThan(0);
   });
+
+  it("detects work history roles with dates", () => {
+    const text = [
+      "Experience",
+      "Network Engineer — Acme Ltd",
+      "Jan 2022 – Present",
+      "• Led WAN optimisation across 5 sites.",
+    ].join("\n");
+
+    const preview = extractCvPreview(text);
+    expect(preview.work_history.length).toBeGreaterThan(0);
+    expect(preview.work_history[0].job_title).toBe("Network Engineer");
+    expect(preview.work_history[0].company).toBe("Acme Ltd");
+  });
 });

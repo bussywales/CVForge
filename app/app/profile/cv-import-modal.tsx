@@ -7,6 +7,37 @@ import type { CvImportPreview } from "@/lib/cv-import";
 
 type ImportStatus = "idle" | "loading" | "ready" | "error" | "applying";
 
+function formatRoleDates(
+  startDate?: string,
+  endDate?: string,
+  isCurrent?: boolean
+) {
+  const startLabel = formatMonthYear(startDate);
+  const endLabel = isCurrent
+    ? "Present"
+    : endDate
+      ? formatMonthYear(endDate)
+      : "Present";
+  if (!startLabel) {
+    return endLabel;
+  }
+  return `${startLabel} – ${endLabel}`;
+}
+
+function formatMonthYear(value?: string) {
+  if (!value) {
+    return "";
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+  return new Intl.DateTimeFormat("en-GB", {
+    month: "short",
+    year: "numeric",
+  }).format(parsed);
+}
+
 export default function CvImportModal() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -18,6 +49,8 @@ export default function CvImportModal() {
   const [applyHeadline, setApplyHeadline] = useState(false);
   const [applyAchievements, setApplyAchievements] = useState(false);
   const [selectedAchievements, setSelectedAchievements] = useState<boolean[]>([]);
+  const [applyWorkHistory, setApplyWorkHistory] = useState(false);
+  const [selectedWorkHistory, setSelectedWorkHistory] = useState<boolean[]>([]);
 
   const canApply = useMemo(() => {
     if (!preview) {
@@ -29,8 +62,19 @@ export default function CvImportModal() {
     if (applyAchievements && selectedAchievements.some(Boolean)) {
       return true;
     }
+    if (applyWorkHistory && selectedWorkHistory.some(Boolean)) {
+      return true;
+    }
     return false;
-  }, [applyAchievements, applyHeadline, applyName, preview, selectedAchievements]);
+  }, [
+    applyAchievements,
+    applyHeadline,
+    applyName,
+    applyWorkHistory,
+    preview,
+    selectedAchievements,
+    selectedWorkHistory,
+  ]);
 
   const handleReset = () => {
     setFile(null);
@@ -39,6 +83,8 @@ export default function CvImportModal() {
     setApplyHeadline(false);
     setApplyAchievements(false);
     setSelectedAchievements([]);
+    setApplyWorkHistory(false);
+    setSelectedWorkHistory([]);
     setStatus("idle");
     setMessage(null);
   };
@@ -75,6 +121,8 @@ export default function CvImportModal() {
       setApplyHeadline(Boolean(previewPayload.profile.headline));
       setApplyAchievements(previewPayload.achievements.length > 0);
       setSelectedAchievements(previewPayload.achievements.map(() => true));
+      setApplyWorkHistory(previewPayload.work_history.length > 0);
+      setSelectedWorkHistory(previewPayload.work_history.map(() => true));
       setStatus("ready");
     } catch (error) {
       console.error("[cv.import.preview]", error);
@@ -92,6 +140,9 @@ export default function CvImportModal() {
     setMessage(null);
 
     const selectedIndexes = selectedAchievements
+      .map((checked, index) => (checked ? index : -1))
+      .filter((index) => index >= 0);
+    const selectedWorkHistoryIndexes = selectedWorkHistory
       .map((checked, index) => (checked ? index : -1))
       .filter((index) => index >= 0);
 
@@ -118,6 +169,8 @@ export default function CvImportModal() {
             ),
             applyAchievements,
             selectedAchievementIndexes: selectedIndexes,
+            applyWorkHistory,
+            selectedWorkHistoryIndexes,
           },
         }),
       });
@@ -129,7 +182,7 @@ export default function CvImportModal() {
         return;
       }
 
-      setMessage("Import applied. Review your profile and achievements.");
+      setMessage("Import applied. Review your profile and work history.");
       setStatus("ready");
       router.refresh();
     } catch (error) {
@@ -320,6 +373,69 @@ export default function CvImportModal() {
                     ) : (
                       <p className="mt-3 text-sm text-[rgb(var(--muted))]">
                         No achievements were detected.
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+                        Work history detected
+                      </p>
+                      <label className="flex items-center gap-2 text-xs text-[rgb(var(--muted))]">
+                        <input
+                          type="checkbox"
+                          checked={applyWorkHistory}
+                          onChange={(event) =>
+                            setApplyWorkHistory(event.target.checked)
+                          }
+                        />
+                        Apply work history
+                      </label>
+                    </div>
+
+                    {preview.work_history.length ? (
+                      <div className="mt-4 space-y-3">
+                        {preview.work_history.map((role, index) => (
+                          <label
+                            key={`${role.job_title}-${role.company}-${index}`}
+                            className="flex items-start gap-3 rounded-2xl border border-black/10 bg-white/80 p-3"
+                          >
+                            <input
+                              type="checkbox"
+                              disabled={!applyWorkHistory}
+                              checked={selectedWorkHistory[index] ?? false}
+                              onChange={(event) => {
+                                const next = [...selectedWorkHistory];
+                                next[index] = event.target.checked;
+                                setSelectedWorkHistory(next);
+                              }}
+                            />
+                            <div className="space-y-1 text-sm">
+                              <p className="font-semibold text-[rgb(var(--ink))]">
+                                {role.job_title} — {role.company}
+                              </p>
+                              <p className="text-xs text-[rgb(var(--muted))]">
+                                {role.location ? `${role.location} · ` : ""}
+                                {formatRoleDates(role.start_date, role.end_date, role.is_current)}
+                              </p>
+                              {role.summary ? (
+                                <p className="text-xs text-[rgb(var(--muted))]">
+                                  {role.summary}
+                                </p>
+                              ) : null}
+                              {role.bullets?.length ? (
+                                <p className="text-xs text-[rgb(var(--muted))]">
+                                  {role.bullets.length} highlight{role.bullets.length === 1 ? "" : "s"}
+                                </p>
+                              ) : null}
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-3 text-sm text-[rgb(var(--muted))]">
+                        No work history roles were detected.
                       </p>
                     )}
                   </div>

@@ -8,11 +8,17 @@ import {
   deleteAchievement,
   updateAchievement,
 } from "@/lib/data/achievements";
+import {
+  createWorkHistory,
+  deleteWorkHistory,
+  updateWorkHistory,
+} from "@/lib/data/work-history";
 import { ensureProfile, upsertProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { achievementSchema } from "@/lib/validators/achievement";
 import { profileSchema } from "@/lib/validators/profile";
 import { getFieldErrors } from "@/lib/validators/utils";
+import { workHistorySchema } from "@/lib/validators/work-history";
 
 export async function updateProfileAction(
   formData: FormData
@@ -204,6 +210,121 @@ export async function deleteAchievementAction(
   }
 }
 
+export async function createWorkHistoryAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to add work history.",
+    };
+  }
+
+  const parsed = parseWorkHistoryForm(formData);
+  if (!parsed.success) {
+    return parsed.error;
+  }
+
+  try {
+    await createWorkHistory(supabase, user.id, {
+      job_title: parsed.data.job_title,
+      company: parsed.data.company,
+      location: toNullable(parsed.data.location ?? ""),
+      start_date: parsed.data.start_date,
+      end_date: parsed.data.end_date || null,
+      is_current: parsed.data.is_current,
+      summary: toNullable(parsed.data.summary ?? ""),
+      bullets: parsed.data.bullets,
+    });
+
+    revalidatePath("/app/profile");
+    return { status: "success", message: "Work history added." };
+  } catch (error) {
+    console.error("[createWorkHistoryAction]", error);
+    return {
+      status: "error",
+      message: "Unable to add work history right now.",
+    };
+  }
+}
+
+export async function updateWorkHistoryAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to update work history.",
+    };
+  }
+
+  const id = getFormString(formData, "id");
+  if (!id) {
+    return { status: "error", message: "Missing work history id." };
+  }
+
+  const parsed = parseWorkHistoryForm(formData);
+  if (!parsed.success) {
+    return parsed.error;
+  }
+
+  try {
+    await updateWorkHistory(supabase, user.id, id, {
+      job_title: parsed.data.job_title,
+      company: parsed.data.company,
+      location: toNullable(parsed.data.location ?? ""),
+      start_date: parsed.data.start_date,
+      end_date: parsed.data.end_date || null,
+      is_current: parsed.data.is_current,
+      summary: toNullable(parsed.data.summary ?? ""),
+      bullets: parsed.data.bullets,
+    });
+
+    revalidatePath("/app/profile");
+    return { status: "success", message: "Work history updated." };
+  } catch (error) {
+    console.error("[updateWorkHistoryAction]", error);
+    return {
+      status: "error",
+      message: "Unable to update work history right now.",
+    };
+  }
+}
+
+export async function deleteWorkHistoryAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to delete work history.",
+    };
+  }
+
+  const id = getFormString(formData, "id");
+  if (!id) {
+    return { status: "error", message: "Missing work history id." };
+  }
+
+  try {
+    await deleteWorkHistory(supabase, user.id, id);
+    revalidatePath("/app/profile");
+    return { status: "success", message: "Work history removed." };
+  } catch (error) {
+    console.error("[deleteWorkHistoryAction]", error);
+    return {
+      status: "error",
+      message: "Unable to remove work history right now.",
+    };
+  }
+}
+
 export async function updateTelemetryAction(
   formData: FormData
 ): Promise<ActionState> {
@@ -245,4 +366,90 @@ export async function updateTelemetryAction(
       message: "Unable to update your preference right now.",
     };
   }
+}
+
+type ParseResult =
+  | { success: true; data: ReturnType<typeof workHistorySchema.parse> }
+  | { success: false; error: ActionState };
+
+function parseWorkHistoryForm(formData: FormData): ParseResult {
+  const startMonth = getFormString(formData, "start_month");
+  const endMonth = getFormString(formData, "end_month");
+  const isCurrent = formData.get("is_current") === "on";
+
+  const startDate = parseMonthToDate(startMonth);
+  if (!startDate) {
+    return {
+      success: false,
+      error: {
+        status: "error",
+        message: "Fix the highlighted fields to continue.",
+        fieldErrors: { start_month: "Enter a valid start month." },
+      },
+    };
+  }
+
+  const endDate = isCurrent ? "" : parseMonthToDate(endMonth);
+  if (!isCurrent && endMonth && !endDate) {
+    return {
+      success: false,
+      error: {
+        status: "error",
+        message: "Fix the highlighted fields to continue.",
+        fieldErrors: { end_month: "Enter a valid end month." },
+      },
+    };
+  }
+
+  const bullets = formData
+    .getAll("bullets")
+    .map((value) => (typeof value === "string" ? value.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 6);
+
+  const values = {
+    job_title: getFormString(formData, "job_title"),
+    company: getFormString(formData, "company"),
+    location: getFormString(formData, "location"),
+    start_date: startDate,
+    end_date: endDate ?? "",
+    is_current: isCurrent,
+    summary: getFormString(formData, "summary"),
+    bullets,
+  };
+
+  const parsed = workHistorySchema.safeParse(values);
+  if (!parsed.success) {
+    const fieldErrors = getFieldErrors(parsed.error);
+    if (fieldErrors.start_date) {
+      fieldErrors.start_month = fieldErrors.start_date;
+      delete fieldErrors.start_date;
+    }
+    if (fieldErrors.end_date) {
+      fieldErrors.end_month = fieldErrors.end_date;
+      delete fieldErrors.end_date;
+    }
+
+    return {
+      success: false,
+      error: {
+        status: "error",
+        message: "Fix the highlighted fields to continue.",
+        fieldErrors,
+      },
+    };
+  }
+
+  return { success: true, data: parsed.data };
+}
+
+function parseMonthToDate(value: string) {
+  if (!value) {
+    return "";
+  }
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}$/.test(trimmed)) {
+    return "";
+  }
+  return `${trimmed}-01`;
 }

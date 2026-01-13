@@ -5,6 +5,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { fetchAutopack } from "@/lib/data/autopacks";
 import { fetchApplication } from "@/lib/data/applications";
 import { fetchProfile } from "@/lib/data/profile";
+import { listWorkHistory } from "@/lib/data/work-history";
 import { buildCvDocx, buildCoverLetterDocx, packDoc } from "@/lib/export/docx";
 import { resolveExportVariant, sanitizeForExport } from "@/lib/export/export-utils";
 import { buildSubmissionPackFiles } from "@/lib/export/submission-pack";
@@ -56,6 +57,7 @@ export async function GET(
       user.id,
       autopack.application_id
     );
+    const workHistory = await listWorkHistory(supabase, user.id);
 
     const sanitizedCvText = sanitizeForExport(autopack.cv_text);
     const sanitizedCoverLetter = sanitizeForExport(autopack.cover_letter);
@@ -63,6 +65,7 @@ export async function GET(
     const cvDoc = buildCvDocx(profile, sanitizedCvText, {
       email: user.email ?? null,
       variant,
+      workHistory,
     });
     const coverDoc = buildCoverLetterDocx(profile, sanitizedCoverLetter, {
       email: user.email ?? null,

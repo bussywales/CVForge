@@ -74,6 +74,7 @@ export async function POST(request: Request) {
       action: "cv.import.preview",
       meta: {
         achievementsCount: preview.achievements.length,
+        workHistoryCount: preview.work_history.length,
         sectionsDetected: preview.extracted.sectionsDetected,
         warningsCount: preview.extracted.warnings.length,
       },

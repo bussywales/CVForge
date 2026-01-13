@@ -3,6 +3,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { fetchAutopack } from "@/lib/data/autopacks";
 import { fetchApplication } from "@/lib/data/applications";
 import { fetchProfile } from "@/lib/data/profile";
+import { listWorkHistory } from "@/lib/data/work-history";
 import { buildCvDocx, packDoc } from "@/lib/export/docx";
 import { buildExportFilename } from "@/lib/export/filename";
 import { resolveExportVariant, sanitizeForExport } from "@/lib/export/export-utils";
@@ -50,6 +51,7 @@ export async function GET(
       user.id,
       autopack.application_id
     );
+    const workHistory = await listWorkHistory(supabase, user.id);
     const variant = resolveExportVariant(
       new URL(request.url).searchParams.get("variant")
     );
@@ -68,6 +70,7 @@ export async function GET(
     const doc = buildCvDocx(profile, sanitizedCvText, {
       email: user.email ?? null,
       variant,
+      workHistory,
     });
     const buffer = await packDoc(doc);
 

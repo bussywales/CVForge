@@ -92,3 +92,8 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 - Apply migration `0009_outreach.sql` to add outreach fields.
 - Add contact details on the application edit page and use the Pipeline Action Centre to copy templates, log outreach, and schedule reminders.
 - No emails are sent automatically; copy + log only.
+
+## Work History (v0.6.7)
+- Apply migration `0010_work_history.sql` to add the work history table.
+- Add roles on `/app/profile` and include them in DOCX exports.
+- DOCX import can detect Experience roles; review and apply in the import modal.

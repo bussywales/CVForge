@@ -1,17 +1,22 @@
 import Section from "@/components/Section";
 import { listAchievements } from "@/lib/data/achievements";
 import { ensureProfile } from "@/lib/data/profile";
+import { listWorkHistory } from "@/lib/data/work-history";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import {
   createAchievementAction,
+  createWorkHistoryAction,
   deleteAchievementAction,
+  deleteWorkHistoryAction,
   updateAchievementAction,
   updateProfileAction,
   updateTelemetryAction,
+  updateWorkHistoryAction,
 } from "./actions";
 import AchievementsSection from "./achievements-section";
 import CvImportModal from "./cv-import-modal";
 import ProfileForm from "./profile-form";
+import WorkHistorySection from "./work-history-section";
 
 function calculateCompleteness(
   profile: { full_name: string | null; headline: string | null; location: string | null },
@@ -41,6 +46,7 @@ export default async function ProfilePage() {
 
   const profile = await ensureProfile(supabase, user.id);
   const achievements = await listAchievements(supabase, user.id);
+  const workHistory = await listWorkHistory(supabase, user.id);
   const completeness = calculateCompleteness(profile, achievements.length);
 
   return (
@@ -92,6 +98,15 @@ export default async function ProfilePage() {
           </div>
         </form>
       </Section>
+
+      <div className="rounded-3xl border border-black/10 bg-white/80 p-6 shadow-sm">
+        <WorkHistorySection
+          entries={workHistory}
+          createAction={createWorkHistoryAction}
+          updateAction={updateWorkHistoryAction}
+          deleteAction={deleteWorkHistoryAction}
+        />
+      </div>
 
       <div className="rounded-3xl border border-black/10 bg-white/80 p-6 shadow-sm">
         <AchievementsSection

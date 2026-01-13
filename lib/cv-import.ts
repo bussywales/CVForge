@@ -12,9 +12,21 @@ export type CvImportAchievement = {
   metrics?: string;
 };
 
+export type CvImportWorkHistory = {
+  job_title: string;
+  company: string;
+  location?: string;
+  start_date: string;
+  end_date?: string;
+  is_current: boolean;
+  summary?: string;
+  bullets: string[];
+};
+
 export type CvImportPreview = {
   profile: CvImportProfile;
   achievements: CvImportAchievement[];
+  work_history: CvImportWorkHistory[];
   extracted: {
     skills?: string[];
     sectionsDetected: string[];
@@ -31,6 +43,7 @@ const SECTION_ALIASES: Record<SectionKey, string[]> = {
     "professional experience",
     "employment",
     "career history",
+    "work history",
   ],
   projects: ["projects", "project experience", "project work"],
   achievements: ["achievements", "key achievements", "accomplishments"],
@@ -92,15 +105,22 @@ const NUMERIC_TOKEN = /^(?:£|\$|€)?\d+(?:[.,]\d+)?%?(?:k|m|bn|million|billion
 export function extractCvPreview(text: string): CvImportPreview {
   const lines = toLines(text);
   const { profile } = extractProfile(lines);
-  const extraction = extractAchievementsAndSkills(lines);
+  const { sectionLookup, sectionsDetected } = buildSectionLookup(lines);
+  const extraction = extractAchievementsAndSkills(
+    lines,
+    sectionLookup,
+    sectionsDetected
+  );
+  const workHistory = extractWorkHistory(lines, sectionLookup);
 
   return {
     profile,
     achievements: extraction.achievements,
+    work_history: workHistory.entries,
     extracted: {
       skills: extraction.skills.length ? extraction.skills : undefined,
-      sectionsDetected: extraction.sectionsDetected,
-      warnings: extraction.warnings,
+      sectionsDetected,
+      warnings: [...extraction.warnings, ...workHistory.warnings],
     },
   };
 }
@@ -157,12 +177,8 @@ function extractProfile(lines: string[]) {
   };
 }
 
-function extractAchievementsAndSkills(lines: string[]) {
-  const achievements: CvImportAchievement[] = [];
+function buildSectionLookup(lines: string[]) {
   const sectionsDetected: string[] = [];
-  const warnings: string[] = [];
-  const skills: string[] = [];
-
   const sectionLookup = new Map<number, SectionKey>();
 
   lines.forEach((line, index) => {
@@ -175,6 +191,18 @@ function extractAchievementsAndSkills(lines: string[]) {
       }
     }
   });
+
+  return { sectionLookup, sectionsDetected };
+}
+
+function extractAchievementsAndSkills(
+  lines: string[],
+  sectionLookup: Map<number, SectionKey>,
+  sectionsDetected: string[]
+) {
+  const achievements: CvImportAchievement[] = [];
+  const warnings: string[] = [];
+  const skills: string[] = [];
 
   const hasRelevantSection = Array.from(sectionLookup.values()).some((key) =>
     RELEVANT_SECTIONS.has(key)
@@ -394,4 +422,290 @@ function clampText(value: string) {
     return value;
   }
   return value.slice(0, 120).replace(/[.;:,]+$/g, "").trim();
+}
+
+type WorkHistoryExtraction = {
+  entries: CvImportWorkHistory[];
+  warnings: string[];
+};
+
+function extractWorkHistory(
+  lines: string[],
+  sectionLookup: Map<number, SectionKey>
+): WorkHistoryExtraction {
+  const entries: CvImportWorkHistory[] = [];
+  const warnings: string[] = [];
+
+  let currentSection: SectionKey | null = null;
+  let currentRole: CvImportWorkHistory | null = null;
+
+  const flushRole = () => {
+    if (!currentRole) {
+      return;
+    }
+    const hasTitle = currentRole.job_title.trim().length >= 2;
+    const hasCompany = currentRole.company.trim().length >= 2;
+    if (hasTitle && hasCompany) {
+      currentRole.bullets = currentRole.bullets.slice(0, 6);
+      entries.push(currentRole);
+    }
+    currentRole = null;
+  };
+
+  const hasExperienceSection = Array.from(sectionLookup.values()).some(
+    (key) => key === "experience"
+  );
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const sectionKey = sectionLookup.get(index);
+
+    if (sectionKey) {
+      if (currentSection === "experience" && sectionKey !== "experience") {
+        flushRole();
+      }
+      currentSection = sectionKey;
+      continue;
+    }
+
+    if (currentSection !== "experience") {
+      continue;
+    }
+
+    const dateRange = parseDateRange(line);
+    if (dateRange) {
+      flushRole();
+      const headerLine =
+        dateRange.headerLine ||
+        findHeaderCandidate(lines[index - 1]) ||
+        "";
+      const header = parseRoleHeader(headerLine);
+      if (!header) {
+        continue;
+      }
+      currentRole = {
+        job_title: header.job_title,
+        company: header.company,
+        location: header.location,
+        start_date: dateRange.start_date,
+        end_date: dateRange.end_date ?? undefined,
+        is_current: dateRange.is_current,
+        bullets: [],
+      };
+      continue;
+    }
+
+    if (!currentRole) {
+      continue;
+    }
+
+    const bullet = stripBullet(line);
+    if (bullet) {
+      if (currentRole.bullets.length < 6) {
+        currentRole.bullets.push(clampText(bullet.trim()));
+      }
+      continue;
+    }
+
+    if (!currentRole.location && looksLikeLocation(line)) {
+      currentRole.location = clampShort(line, 80);
+      continue;
+    }
+
+    if (!currentRole.summary && looksLikeSummary(line)) {
+      currentRole.summary = clampShort(line, 300);
+      continue;
+    }
+  }
+
+  flushRole();
+
+  if (hasExperienceSection && entries.length === 0) {
+    warnings.push(
+      "Experience section detected but no roles were parsed. You may need to add them manually."
+    );
+  }
+
+  return { entries, warnings };
+}
+
+type DateRangeMatch = {
+  start_date: string;
+  end_date?: string;
+  is_current: boolean;
+  headerLine?: string;
+};
+
+const MONTHS: Record<string, number> = {
+  jan: 1,
+  january: 1,
+  feb: 2,
+  february: 2,
+  mar: 3,
+  march: 3,
+  apr: 4,
+  april: 4,
+  may: 5,
+  jun: 6,
+  june: 6,
+  jul: 7,
+  july: 7,
+  aug: 8,
+  august: 8,
+  sep: 9,
+  sept: 9,
+  september: 9,
+  oct: 10,
+  october: 10,
+  nov: 11,
+  november: 11,
+  dec: 12,
+  december: 12,
+};
+
+function parseDateRange(line: string): DateRangeMatch | null {
+  const rangeRegex =
+    /((?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|\d{4})\s+\d{4}|\d{4})\s*(?:–|—|-)\s*(present|current|(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?|\d{4})\s+\d{4}|\d{4})/i;
+
+  const match = line.match(rangeRegex);
+  if (!match) {
+    return null;
+  }
+
+  const startToken = match[1];
+  const endToken = match[2];
+  const start = parseMonthYear(startToken);
+  if (!start) {
+    return null;
+  }
+
+  const isCurrent = /present|current/i.test(endToken);
+  const end = isCurrent ? null : parseMonthYear(endToken);
+  if (!isCurrent && !end) {
+    return null;
+  }
+
+  const headerLine = line.replace(match[0], "").replace(/[–—-]+/g, " ").trim();
+
+  return {
+    start_date: formatMonthYear(start.year, start.month),
+    end_date: end ? formatMonthYear(end.year, end.month) : undefined,
+    is_current: isCurrent,
+    headerLine: headerLine || undefined,
+  };
+}
+
+function parseMonthYear(token: string) {
+  const cleaned = token.replace(/[(),]/g, "").trim();
+  const parts = cleaned.split(/\s+/);
+  if (parts.length === 1) {
+    const year = Number(parts[0]);
+    if (!Number.isFinite(year) || year < 1900) {
+      return null;
+    }
+    return { year, month: 1 };
+  }
+  if (parts.length >= 2) {
+    const monthKey = parts[0].toLowerCase();
+    const month = MONTHS[monthKey];
+    const year = Number(parts[1]);
+    if (!month || !Number.isFinite(year)) {
+      return null;
+    }
+    return { year, month };
+  }
+  return null;
+}
+
+function formatMonthYear(year: number, month: number) {
+  const mm = String(month).padStart(2, "0");
+  return `${year}-${mm}-01`;
+}
+
+function findHeaderCandidate(line?: string) {
+  if (!line) {
+    return "";
+  }
+  if (isSectionHeading(line) || stripBullet(line)) {
+    return "";
+  }
+  return line;
+}
+
+function parseRoleHeader(line: string) {
+  const cleaned = line.trim();
+  if (!cleaned) {
+    return null;
+  }
+
+  const atMatch = cleaned.match(/^(.*?)\s+at\s+(.*)$/i);
+  if (atMatch) {
+    return {
+      job_title: clampShort(atMatch[1], 120),
+      company: clampShort(atMatch[2], 120),
+    };
+  }
+
+  const separators = [" | ", " — ", " – ", " - ", ","];
+  for (const separator of separators) {
+    if (!cleaned.includes(separator)) {
+      continue;
+    }
+    const parts = cleaned.split(separator).map((part) => part.trim()).filter(Boolean);
+    if (parts.length < 2) {
+      continue;
+    }
+    let jobTitle = parts[0];
+    let company = parts[1];
+    let location = parts[2];
+    if (separator === " | " || separator === " - " || separator === " — " || separator === " – ") {
+      if (looksLikeCompany(parts[0]) && parts[1]) {
+        company = parts[0];
+        jobTitle = parts[1];
+        location = parts[2];
+      }
+    }
+    return {
+      job_title: clampShort(jobTitle, 120),
+      company: clampShort(company, 120),
+      location: location ? clampShort(location, 80) : undefined,
+    };
+  }
+
+  return null;
+}
+
+function looksLikeCompany(value: string) {
+  const lowered = value.toLowerCase();
+  return /ltd|limited|inc|corp|plc|llp|llc|company|group|university|college|trust|council|nhs|bank|agency/.test(
+    lowered
+  );
+}
+
+function looksLikeLocation(value: string) {
+  if (value.length > 80) {
+    return false;
+  }
+  if (isContactLine(value) || isSectionHeading(value)) {
+    return false;
+  }
+  return value.includes(",");
+}
+
+function looksLikeSummary(value: string) {
+  if (value.length < 10 || value.length > 160) {
+    return false;
+  }
+  if (isContactLine(value) || isSectionHeading(value)) {
+    return false;
+  }
+  return true;
+}
+
+function clampShort(value: string, max: number) {
+  const trimmed = value.trim();
+  if (trimmed.length <= max) {
+    return trimmed;
+  }
+  return trimmed.slice(0, max).trim();
 }

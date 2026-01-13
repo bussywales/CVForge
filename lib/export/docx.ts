@@ -4,8 +4,10 @@ import type {
 } from "docx";
 import { createRequire } from "module";
 import type { ProfileRecord } from "@/lib/data/profile";
+import type { WorkHistoryRecord } from "@/lib/data/work-history";
 import type { ExportVariant } from "@/lib/export/export-utils";
 import { buildContactLine, extractLinkedIn, extractPhone } from "@/lib/export/contact";
+import { sanitizeInlineText } from "@/lib/utils/autopack-sanitize";
 
 type ParsedSection = {
   key: string;
@@ -453,7 +455,102 @@ type DocxContactOptions = {
   recipientName?: string | null;
   companyName?: string | null;
   companyLocation?: string | null;
+  workHistory?: WorkHistoryRecord[];
 };
+
+type WorkHistoryEntry = {
+  heading: string;
+  meta?: string | null;
+  summary?: string | null;
+  bullets: string[];
+};
+
+type WorkHistorySection = {
+  title: string;
+  entries: WorkHistoryEntry[];
+};
+
+function trimWorkBullet(line: string, maxLength = 200) {
+  const cleaned = line.trim();
+  if (cleaned.length <= maxLength) {
+    return cleaned;
+  }
+  return `${cleaned.slice(0, Math.max(0, maxLength - 3)).trimEnd()}...`;
+}
+
+function formatWorkDate(value?: string | null) {
+  if (!value) {
+    return "";
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return "";
+  }
+  return new Intl.DateTimeFormat("en-GB", {
+    month: "short",
+    year: "numeric",
+  }).format(parsed);
+}
+
+export function buildWorkHistorySection(
+  workHistory: WorkHistoryRecord[] | undefined,
+  variant: ExportVariant
+): WorkHistorySection | null {
+  if (!workHistory || workHistory.length === 0) {
+    return null;
+  }
+
+  const sorted = [...workHistory].sort((a, b) => {
+    if (a.is_current !== b.is_current) {
+      return a.is_current ? -1 : 1;
+    }
+    const aDate = a.end_date ?? a.start_date;
+    const bDate = b.end_date ?? b.start_date;
+    return bDate.localeCompare(aDate);
+  });
+
+  const entries: WorkHistoryEntry[] = [];
+  const headingSeparator = variant === "ats_minimal" ? " | " : " — ";
+
+  sorted.forEach((entry) => {
+    const jobTitle = sanitizeInlineText(entry.job_title ?? "").trim();
+    const company = sanitizeInlineText(entry.company ?? "").trim();
+    if (!jobTitle || !company) {
+      return;
+    }
+
+    const heading = `${jobTitle}${headingSeparator}${company}`;
+    const location = entry.location ? sanitizeInlineText(entry.location) : "";
+    const startLabel = formatWorkDate(entry.start_date);
+    const endLabel = entry.is_current
+      ? "Present"
+      : formatWorkDate(entry.end_date) || "Present";
+    const dateLine = startLabel ? `${startLabel} – ${endLabel}` : "";
+    const metaParts = [location, dateLine].filter(Boolean);
+    const summary = entry.summary ? sanitizeInlineText(entry.summary) : "";
+    const bullets = Array.isArray(entry.bullets) ? entry.bullets : [];
+
+    entries.push({
+      heading,
+      meta: metaParts.length ? metaParts.join(" • ") : null,
+      summary: summary || null,
+      bullets: bullets
+        .map((bullet) => sanitizeInlineText(bullet))
+        .filter(Boolean)
+        .slice(0, 6)
+        .map((bullet) => trimWorkBullet(bullet, 200)),
+    });
+  });
+
+  if (entries.length === 0) {
+    return null;
+  }
+
+  return {
+    title: "Professional Experience",
+    entries,
+  };
+}
 
 export function buildCvDocx(
   profile: ProfileRecord | null,
@@ -541,6 +638,55 @@ export function buildCvDocx(
         children.push(
           makeBulletParagraph(
             trimMetricLine(bullet, 120),
+            spacing.bullet,
+            FONT_SIZES.body
+          )
+        );
+      });
+    });
+  }
+
+  const workHistorySection = buildWorkHistorySection(
+    options?.workHistory,
+    variant
+  );
+  if (workHistorySection) {
+    children.push(
+      makeParagraph(workHistorySection.title, {
+        heading: sectionHeading,
+        size: FONT_SIZES.heading,
+        spacing: spacing.section,
+        bold: true,
+      })
+    );
+    workHistorySection.entries.forEach((entry) => {
+      children.push(
+        makeParagraph(entry.heading, {
+          size: FONT_SIZES.body,
+          spacing: spacing.body,
+          bold: true,
+        })
+      );
+      if (entry.meta) {
+        children.push(
+          makeParagraph(entry.meta, {
+            size: FONT_SIZES.body,
+            spacing: spacing.body,
+          })
+        );
+      }
+      if (entry.summary) {
+        children.push(
+          makeParagraph(entry.summary, {
+            size: FONT_SIZES.body,
+            spacing: spacing.body,
+          })
+        );
+      }
+      entry.bullets.forEach((bullet) => {
+        children.push(
+          makeBulletParagraph(
+            bullet,
             spacing.bullet,
             FONT_SIZES.body
           )
