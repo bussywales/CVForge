@@ -24,6 +24,9 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 - `npm run typecheck` - TypeScript check
 - `npm run build` - production build
 
+## Documentation
+- See `docs/INDEX.md` for architecture, database, API routes, runbooks, and release process.
+
 ## How to use (Phase 2)
 1. Sign in with a magic link at `/login`.
 2. Visit `/app/profile` to update your profile and add achievements.

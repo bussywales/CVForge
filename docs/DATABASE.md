@@ -1,0 +1,85 @@
+# Database
+
+## Tables
+
+### profiles
+Purpose: profile identity for each user.
+Key fields: user_id, full_name, headline, location, telemetry_opt_in.
+RLS: user_id = auth.uid().
+
+### achievements
+Purpose: evidence bank for STAR content.
+Key fields: title, situation, task, action, result, metrics.
+RLS: user_id = auth.uid().
+
+### work_history
+Purpose: employment history for DOCX export and profile display.
+Key fields: job_title, company, start_date, end_date, is_current, bullets.
+RLS: user_id = auth.uid().
+
+### applications
+Purpose: job applications with tracking, outreach, and interview lift state.
+Key fields: job_title, company, job_description, status, job_url, applied_at, next_followup_at, next_action_due, outreach_stage, star_drafts.
+RLS: user_id = auth.uid().
+
+### application_activities
+Purpose: timeline of application-related actions.
+Key fields: type, channel, subject, body, occurred_at.
+RLS: user_id = auth.uid().
+
+### autopacks
+Purpose: generated CV/cover letter drafts and STAR answers.
+Key fields: application_id, version, cv_text, cover_letter, answers_json.
+RLS: user_id = auth.uid().
+
+### audit_log
+Purpose: operational audit trail (imports, generation, credits).
+Key fields: action, meta.
+RLS: user_id = auth.uid().
+
+### credit_ledger
+Purpose: credit balance ledger.
+Key fields: delta, reason, ref.
+RLS: user_id = auth.uid(), but webhook and deductions use service role.
+
+### stripe_customers
+Purpose: mapping between users and Stripe customer IDs.
+Key fields: stripe_customer_id.
+RLS: user_id = auth.uid(), service role writes.
+
+### stripe_events
+Purpose: Stripe webhook idempotency.
+Key fields: id, type.
+RLS: enabled; writes are service role only.
+
+### role_fit_learning_events
+Purpose: opt-in, anonymised JD learning events.
+Key fields: domain_guess, matched_signals, missing_signals, top_terms, created_day.
+RLS: insert/select allowed for user when telemetry_opt_in is true.
+
+### domain_pack_proposals
+Purpose: admin-reviewed domain pack proposals.
+Key fields: domain_guess, title, signals, source_terms, occurrences, status.
+RLS: insert allowed for opt-in users; reads are admin/service role only.
+
+### domain_packs
+Purpose: published Role Fit packs.
+Key fields: slug, title, version, is_active, pack.
+RLS: authenticated users can select active packs; admin writes via service role.
+
+## Migration ledger (apply order)
+- 0001_init: baseline tables, RLS, and profile trigger.
+- 0002_job_url: add applications.job_url.
+- 0003_learning_events: telemetry_opt_in and role_fit_learning_events.
+- 0004_domain_packs: domain pack proposals and published packs.
+- 0005_application_tracking: tracking fields and status defaults.
+- 0006_application_activities: activity log table.
+- 0007_pipeline_actions: next_action fields for pipeline reminders.
+- 0008_interview_lift: star_drafts and lift metadata.
+- 0009_outreach: outreach stages and contact fields.
+- 0010_work_history: work_history table and updated_at trigger.
+
+## Common migration issues
+- Policy already exists: drop the policy or use supabase migration repair to mark it applied.
+- Immutable index errors: avoid expressions like date_trunc in indexes; store derived values in columns.
+- RLS blocking writes: use the service role for webhook or admin writes, not the user session.
