@@ -27,6 +27,11 @@ Purpose: timeline of application-related actions.
 Key fields: type, channel, subject, body, occurred_at.
 RLS: user_id = auth.uid().
 
+### interview_practice_answers
+Purpose: saved Interview Pack practice answers with rubric scoring.
+Key fields: application_id, question_key, answer_text, rubric_json, score.
+RLS: user_id = auth.uid().
+
 ### autopacks
 Purpose: generated CV/cover letter drafts and STAR answers.
 Key fields: application_id, version, cv_text, cover_letter, answers_json.
@@ -78,6 +83,7 @@ RLS: authenticated users can select active packs; admin writes via service role.
 - 0008_interview_lift: star_drafts and lift metadata.
 - 0009_outreach: outreach stages and contact fields.
 - 0010_work_history: work_history table and updated_at trigger.
+- 0011_practice_mode: interview_practice_answers for practice drafts and scoring.
 
 ## Common migration issues
 - Policy already exists: drop the policy or use supabase migration repair to mark it applied.

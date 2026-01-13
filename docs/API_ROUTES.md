@@ -48,6 +48,20 @@ Output: DOCX interview pack download.
 Errors: JSON { error, detail? } with 401/404/400/500.
 Runtime: nodejs, force-dynamic.
 
+GET /api/interview-practice
+Auth: required.
+Input: query param applicationId.
+Output: JSON { answers: [] }.
+Errors: JSON { error } with 400/401/500.
+Runtime: nodejs, force-dynamic.
+
+PUT /api/interview-practice
+Auth: required.
+Input: JSON { applicationId, questionKey, questionText, answerText, meta? }.
+Output: JSON { answer, scoring } with deterministic rubric.
+Errors: JSON { error, detail? } with 400/401/500.
+Runtime: nodejs, force-dynamic.
+
 ## Imports
 POST /api/import/cv-docx
 Auth: required.

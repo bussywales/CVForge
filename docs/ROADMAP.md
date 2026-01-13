@@ -8,6 +8,12 @@ Scope boundary: role snapshot, questions, weak spots, STAR prompts, and DOCX exp
 Success criteria: pack renders reliably, prompts are copy-ready, and export downloads cleanly.
 Not in scope: AI rewriting, new navigation, or multi-application packs.
 
+### Practice Mode (shipped)
+Outcome: STAR practice drafts with deterministic scoring and saved answers (shipped v0.7.0a).
+Scope boundary: practice inside Interview Pack only, deterministic scoring, no AI.
+Success criteria: scores, recommendations, and drafts persist per application.
+Not in scope: automated coaching or adaptive prompts.
+
 ### Role Fit + packs
 Outcome: keep Role Fit reliable with core/domain packs and fallback JD terms.
 Scope boundary: deterministic signals, pack detection, and UI gap guidance.

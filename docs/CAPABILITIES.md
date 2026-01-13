@@ -18,6 +18,9 @@ Role Fit uses deterministic taxonomies, domain packs, and fallback JD terms to s
 ## Interview Pack v1
 Interview Pack builds a deterministic interview bundle from the job description, Role Fit signals, and Interview Lift actions, with questions, STAR prompts, weak spots, and a DOCX export.
 
+## Practice Mode
+Practice Mode adds per-question STAR drafting with deterministic scoring, recommendations, and saved drafts per application.
+
 ## Pipeline and tracking
 A pipeline board shows status lanes, next actions, and activity history. The Action Centre provides follow-up templates, activity logging, and calendar invite downloads.
 

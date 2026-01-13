@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.0a
+- Practice Mode for Interview Pack with deterministic scoring and saved drafts.
+- Interview practice API endpoints and migration for stored answers.
+
 ## v0.6.9
 - Interview Pack v1 on application detail pages (deterministic questions, prompts, and weak spots).
 - Interview Pack DOCX export with Standard and ATS-Minimal variants.
