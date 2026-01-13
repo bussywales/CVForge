@@ -4,13 +4,19 @@ import { createServerClient } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
-const appendClauseSchema = z.object({
-  clause: z
-    .string()
-    .trim()
-    .min(3, "Clause must be at least 3 characters.")
-    .max(120, "Clause must be 120 characters or fewer."),
-});
+const updateSchema = z
+  .object({
+    clause: z
+      .string()
+      .trim()
+      .min(3, "Clause must be at least 3 characters.")
+      .max(120, "Clause must be 120 characters or fewer.")
+      .optional(),
+    metrics: z.string().trim().max(120).optional(),
+  })
+  .refine((value) => Boolean(value.clause || value.metrics), {
+    message: "Invalid payload.",
+  });
 
 export async function PATCH(
   request: Request,
@@ -26,7 +32,7 @@ export async function PATCH(
   }
 
   const body = await request.json().catch(() => null);
-  const parsed = appendClauseSchema.safeParse(body);
+  const parsed = updateSchema.safeParse(body);
 
   if (!parsed.success) {
     return NextResponse.json(
@@ -35,17 +41,12 @@ export async function PATCH(
     );
   }
 
-  const clause = normaliseClause(parsed.data.clause);
-  if (!clause) {
-    return NextResponse.json(
-      { error: "Nothing to insert for this achievement." },
-      { status: 400 }
-    );
-  }
+  const clause = parsed.data.clause ? normaliseClause(parsed.data.clause) : "";
+  const metrics = parsed.data.metrics?.trim() ?? "";
 
   const { data: existing, error: fetchError } = await supabase
     .from("achievements")
-    .select("action")
+    .select("action, metrics")
     .eq("id", params.id)
     .eq("user_id", user.id)
     .maybeSingle();
@@ -65,18 +66,35 @@ export async function PATCH(
     );
   }
 
-  const currentAction = (existing.action ?? "").trim();
-  if (currentAction.toLowerCase().includes(clause.toLowerCase())) {
+  let updatePayload: { action?: string; metrics?: string } = {};
+
+  if (clause) {
+    const currentAction = (existing.action ?? "").trim();
+    if (currentAction.toLowerCase().includes(clause.toLowerCase())) {
+      return NextResponse.json({ id: params.id, updated: false });
+    }
+    updatePayload.action = currentAction
+      ? `${currentAction.replace(/[;\s]+$/g, "")}; ${clause}`
+      : clause;
+  }
+
+  if (metrics) {
+    const currentMetrics = (existing.metrics ?? "").trim();
+    if (!currentMetrics) {
+      updatePayload.metrics = metrics;
+    } else if (!currentMetrics.toLowerCase().includes(metrics.toLowerCase())) {
+      const combined = `${currentMetrics} / ${metrics}`.trim();
+      updatePayload.metrics = combined.length <= 120 ? combined : metrics;
+    }
+  }
+
+  if (!Object.keys(updatePayload).length) {
     return NextResponse.json({ id: params.id, updated: false });
   }
 
-  const updatedAction = currentAction
-    ? `${currentAction.replace(/[;\s]+$/g, "")}; ${clause}`
-    : clause;
-
   const { error: updateError } = await supabase
     .from("achievements")
-    .update({ action: updatedAction })
+    .update(updatePayload)
     .eq("id", params.id)
     .eq("user_id", user.id);
 

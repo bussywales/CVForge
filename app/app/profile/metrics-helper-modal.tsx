@@ -14,12 +14,14 @@ type MetricsHelperModalProps = {
   isOpen: boolean;
   onClose: () => void;
   onApply: (value: string) => void;
+  initialTemplateId?: string;
 };
 
 export default function MetricsHelperModal({
   isOpen,
   onClose,
   onApply,
+  initialTemplateId,
 }: MetricsHelperModalProps) {
   const [templateId, setTemplateId] = useState(
     metricTemplates[0]?.id ?? ""
@@ -28,10 +30,14 @@ export default function MetricsHelperModal({
 
   useEffect(() => {
     if (isOpen) {
-      setTemplateId(metricTemplates[0]?.id ?? "");
+      const initial =
+        metricTemplates.find((entry) => entry.id === initialTemplateId)?.id ??
+        metricTemplates[0]?.id ??
+        "";
+      setTemplateId(initial);
       setValues(emptyValues);
     }
-  }, [isOpen]);
+  }, [isOpen, initialTemplateId]);
 
   const template = useMemo(
     () => metricTemplates.find((entry) => entry.id === templateId),

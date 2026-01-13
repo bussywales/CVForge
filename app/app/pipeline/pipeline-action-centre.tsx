@@ -6,6 +6,7 @@ import Button from "@/components/Button";
 import FormField from "@/components/FormField";
 import type { ActionState } from "@/lib/actions/types";
 import type { ApplicationRecord } from "@/lib/data/applications";
+import type { InterviewLiftResult } from "@/lib/interview-lift";
 import {
   buildFollowupTemplates,
   buildLinkedInTemplate,
@@ -14,6 +15,7 @@ import {
   nextActionTypeOptions,
 } from "@/lib/validators/application-tracking";
 import { formatUkDate } from "@/lib/tracking-utils";
+import InterviewLiftPanel from "../applications/interview-lift-panel";
 import {
   logPipelineActivityAction,
   updateNextActionAction,
@@ -39,6 +41,12 @@ export default function PipelineActionCentre({
 }: PipelineActionCentreProps) {
   const router = useRouter();
   const [toast, setToast] = useState<string | null>(null);
+  const [activityLogged, setActivityLogged] = useState(false);
+  const [liftResult, setLiftResult] = useState<InterviewLiftResult | null>(null);
+  const [liftAchievements, setLiftAchievements] = useState<
+    Array<{ id: string; title: string; metrics: string | null }>
+  >([]);
+  const [liftError, setLiftError] = useState<string | null>(null);
   const [nextActionType, setNextActionType] = useState(
     application?.next_action_type ?? ""
   );
@@ -55,6 +63,10 @@ export default function PipelineActionCentre({
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  useEffect(() => {
+    setActivityLogged(false);
+  }, [application?.id]);
+
   const templates = useMemo(() => {
     if (!application) {
       return null;
@@ -69,6 +81,55 @@ export default function PipelineActionCentre({
     const linkedinTemplate = buildLinkedInTemplate(baseInput);
     return { emailTemplate, linkedinTemplate };
   }, [application]);
+
+  useEffect(() => {
+    if (!application) {
+      return;
+    }
+    setLiftError(null);
+    const controller = new AbortController();
+    fetch(`/api/applications/${application.id}/interview-lift`, {
+      signal: controller.signal,
+    })
+      .then((response) => response.json())
+      .then((payload) => {
+        if (payload?.interviewLift) {
+          setLiftResult(payload.interviewLift);
+          setLiftAchievements(payload.achievements ?? []);
+        } else if (payload?.error) {
+          setLiftError(payload.error);
+        }
+      })
+      .catch((error) => {
+        if (error.name === "AbortError") {
+          return;
+        }
+        console.error("[pipeline.lift]", error);
+        setLiftError("Unable to load interview lift guidance.");
+      });
+    return () => controller.abort();
+  }, [application]);
+
+  const refreshLift = () => {
+    if (!application) {
+      return;
+    }
+    fetch(`/api/applications/${application.id}/interview-lift`)
+      .then((response) => response.json())
+      .then((payload) => {
+        if (payload?.interviewLift) {
+          setLiftResult(payload.interviewLift);
+          setLiftAchievements(payload.achievements ?? []);
+          setLiftError(null);
+        } else if (payload?.error) {
+          setLiftError(payload.error);
+        }
+      })
+      .catch((error) => {
+        console.error("[pipeline.lift.refresh]", error);
+        setLiftError("Unable to refresh interview lift guidance.");
+      });
+  };
 
   if (!application || !templates) {
     return null;
@@ -97,6 +158,8 @@ export default function PipelineActionCentre({
       const result = await logPipelineActivityAction(formData);
       if (result.status === "success") {
         setToast(result.message ?? "Activity logged.");
+        setActivityLogged(true);
+        refreshLift();
         router.refresh();
       } else if (result.message) {
         setToast(result.message);
@@ -232,6 +295,37 @@ export default function PipelineActionCentre({
                 </Button>
               ))}
             </div>
+          </section>
+
+          <section className="space-y-3">
+            <div>
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+                Next best actions
+              </p>
+              <p className="text-xs text-[rgb(var(--muted))]">
+                {activityLogged
+                  ? "Activity logged. Here are the next best actions to lift interviews."
+                  : "Complete one of these quick actions to lift your chances."}
+              </p>
+            </div>
+            {liftError ? (
+              <div className="rounded-2xl border border-red-200 bg-red-50 p-3 text-xs text-red-700">
+                {liftError}
+              </div>
+            ) : liftResult ? (
+              <InterviewLiftPanel
+                applicationId={application.id}
+                result={liftResult}
+                achievements={liftAchievements}
+                showTitle={false}
+                compact
+                onActionComplete={refreshLift}
+              />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-black/10 bg-white/70 p-4 text-xs text-[rgb(var(--muted))]">
+                Loading interview lift actions…
+              </div>
+            )}
           </section>
 
           <section className="space-y-3">

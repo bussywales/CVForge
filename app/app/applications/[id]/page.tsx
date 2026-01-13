@@ -9,6 +9,7 @@ import { logLearningEvent } from "@/lib/data/learning";
 import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { buildFollowupTemplates } from "@/lib/followup-templates";
+import { buildInterviewLift } from "@/lib/interview-lift";
 import { inferDomainGuess } from "@/lib/jd-learning";
 import { calculateRoleFit } from "@/lib/role-fit";
 import type { RoleFitPack } from "@/lib/role-fit";
@@ -26,6 +27,7 @@ import ApplicationForm from "../application-form";
 import AutopacksSection from "../autopacks-section";
 import DeleteApplicationForm from "../delete-application-form";
 import FollowupSection from "../followup-section";
+import InterviewLiftPanel from "../interview-lift-panel";
 import JobAdvertCard from "../job-advert-card";
 import RoleFitCard from "../role-fit-card";
 import TrackingPanel from "../tracking-panel";
@@ -101,6 +103,16 @@ export default async function ApplicationPage({
   const roleFit = calculateRoleFit(jobDescription, evidence, {
     dynamicPacks,
     domainGuess,
+  });
+  const latestAutopack = autopacks[0];
+  const interviewLift = buildInterviewLift({
+    roleFit,
+    jobDescription,
+    evidence,
+    cvText: latestAutopack?.cv_text ?? "",
+    coverLetter: latestAutopack?.cover_letter ?? "",
+    nextActionDue: application.next_action_due,
+    lastLiftAction: application.last_lift_action,
   });
   await logLearningEvent({
     supabase,
@@ -209,6 +221,21 @@ export default async function ApplicationPage({
           deleteAction={deleteActivityAction}
           logAppliedAction={logAppliedAction}
           logFollowupAction={logFollowupAction}
+        />
+      </Section>
+
+      <Section
+        title="Interview Lift"
+        description="Focus on the next actions most likely to improve interview outcomes."
+      >
+        <InterviewLiftPanel
+          applicationId={application.id}
+          result={interviewLift}
+          achievements={achievements.map((achievement) => ({
+            id: achievement.id,
+            title: achievement.title,
+            metrics: achievement.metrics,
+          }))}
         />
       </Section>
 

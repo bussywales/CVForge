@@ -50,7 +50,7 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 - Run the SQL migration by following `supabase/README.md`.
 - Apply `supabase/migrations/0002_job_url.sql` to add the optional job advert link.
 - Apply `supabase/migrations/0003_learning_events.sql` and `supabase/migrations/0004_domain_packs.sql` for Role Fit learning.
-- Apply `supabase/migrations/0005_application_tracking.sql`, `supabase/migrations/0006_application_activities.sql`, and `supabase/migrations/0007_pipeline_actions.sql` for pipeline tracking and action centre fields.
+- Apply `supabase/migrations/0005_application_tracking.sql`, `supabase/migrations/0006_application_activities.sql`, `supabase/migrations/0007_pipeline_actions.sql`, and `supabase/migrations/0008_interview_lift.sql` for pipeline tracking and action centre fields.
 - Configure auth redirect URLs to include your site URL and `/app`.
 - Magic-link auth completes at `/auth/callback`, so ensure `${NEXT_PUBLIC_SITE_URL}/auth/callback` is in your redirect allowlist.
 
@@ -83,3 +83,6 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 
 ## Pipeline Action Centre (v0.6.3)
 - Open an application card in `/app/pipeline` to access follow-up templates, quick activity logging, and next-action reminders.
+
+## Interview Lift loop (v0.6.4)
+- Use the Interview Lift card on each application to add evidence, metrics, and STAR drafts after logging activity.
