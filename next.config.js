@@ -2,7 +2,7 @@
 const nextConfig = {
   experimental: {
     serverActions: true,
-    serverComponentsExternalPackages: ["docx"],
+    serverComponentsExternalPackages: ["docx", "archiver"],
   },
 }
 

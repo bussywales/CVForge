@@ -5,6 +5,7 @@ import { fetchApplication } from "@/lib/data/applications";
 import { listAchievements } from "@/lib/data/achievements";
 import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
+import { extractLinkedIn, extractPhone } from "@/lib/export/contact";
 import {
   calculateKeywordCoverage,
   checkCoverConsistency,
@@ -108,6 +109,19 @@ export default async function AutopackEditorPage({
     application?.job_description ?? "",
     evidence
   );
+  const contactPhone = extractPhone(combinedText);
+  const contactLinkedIn = extractLinkedIn(combinedText);
+  const hasContactMethod = Boolean(
+    user.email || contactPhone || contactLinkedIn
+  );
+  const contactComplete = Boolean(profile?.full_name?.trim() && hasContactMethod);
+  const autopackAnswers = Array.isArray(autopack.answers_json)
+    ? autopack.answers_json
+    : [];
+  const starDraftsSource = application?.star_drafts;
+  const starDrafts = Array.isArray(starDraftsSource) ? starDraftsSource : [];
+  const starAnswerCount =
+    autopackAnswers.length > 0 ? autopackAnswers.length : starDrafts.length;
 
   return (
     <div className="space-y-6">
@@ -143,7 +157,12 @@ export default async function AutopackEditorPage({
             coverOk={coverConsistency.ok}
             coverHint={coverConsistency.hint}
           />
-          <AutopackExportButtons autopackId={autopack.id} />
+          <AutopackExportButtons
+            autopackId={autopack.id}
+            hasPlaceholders={hasPlaceholders}
+            contactComplete={contactComplete}
+            starCount={starAnswerCount}
+          />
           <AutopackEditorForm autopack={autopack} />
         </div>
       </Section>

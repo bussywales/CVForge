@@ -4,7 +4,8 @@ import type {
 } from "docx";
 import { createRequire } from "module";
 import type { ProfileRecord } from "@/lib/data/profile";
-import { sanitizeInlineText } from "@/lib/utils/autopack-sanitize";
+import type { ExportVariant } from "@/lib/export/export-utils";
+import { buildContactLine, extractLinkedIn, extractPhone } from "@/lib/export/contact";
 
 type ParsedSection = {
   key: string;
@@ -72,6 +73,8 @@ const ACHIEVEMENT_KEYS = [
   "impact highlights",
 ];
 
+const BULLET_REGEX = /^\s*(?:[-*\u2022]|\d+\.)\s+(.*)$/;
+
 const KNOWN_HEADINGS = new Set([
   ...SUMMARY_KEYS,
   ...ACHIEVEMENT_KEYS,
@@ -98,11 +101,8 @@ const SIGN_OFF_PREFIXES = [
   "yours faithfully",
   "sincerely",
 ];
-
-const PHONE_REGEX = /(\+?\d[\d\s().-]{7,}\d)/g;
-const PHONE_LABEL_REGEX = /\b(phone|mobile|tel|telephone|cell)\b/i;
-const LINKEDIN_REGEX =
-  /(https?:\/\/)?(www\.)?linkedin\.com\/[^\s)]+/i;
+const METRIC_REGEX =
+  /(\d|%|£|\$|€|\b(hours?|hrs?|days?|weeks?|months?|years?|mins?|minutes?|seconds?)\b|\b(kpi|sla)\b)/i;
 
 function normalizeHeading(value: string) {
   return value
@@ -126,6 +126,31 @@ function cleanLine(value: string) {
     .replace(/[`*_~]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function trimMetricLine(line: string, maxLength = 120) {
+  if (line.length <= maxLength) {
+    return line;
+  }
+  if (!METRIC_REGEX.test(line)) {
+    return line;
+  }
+  const trimmed = line.slice(0, Math.max(0, maxLength - 3)).trimEnd();
+  return `${trimmed}...`;
+}
+
+export function extractBulletLines(text: string) {
+  return text
+    .split(/\r?\n/)
+    .map((line) => {
+      const match = line.match(BULLET_REGEX);
+      if (!match) {
+        return null;
+      }
+      const cleaned = cleanLine(match[1]);
+      return cleaned || null;
+    })
+    .filter(Boolean) as string[];
 }
 
 function detectHeading(cleaned: string, rawLine: string) {
@@ -196,7 +221,7 @@ function parseCvText(cvText: string): ParsedCv {
       continue;
     }
 
-    const bulletMatch = rawLine.match(/^\s*(?:[-*\u2022]|\d+\.)\s+(.*)$/);
+    const bulletMatch = rawLine.match(BULLET_REGEX);
     if (bulletMatch) {
       const bulletText = cleanLine(bulletMatch[1]);
       if (bulletText) {
@@ -292,6 +317,14 @@ function parseCvText(cvText: string): ParsedCv {
   };
 }
 
+function isSectionMatch(title: string | undefined, keywords: string[]) {
+  if (!title) {
+    return false;
+  }
+  const normalized = normalizeHeading(title);
+  return keywords.some((keyword) => normalized.includes(keyword));
+}
+
 function stripMarkdown(text: string) {
   const lines = text.split(/\r?\n/);
   const cleanedLines = lines.map((line) => {
@@ -340,59 +373,71 @@ function parseCoverLetter(text: string) {
   return { employerLines, bodyParagraphs, signOff };
 }
 
-function isLikelyPhoneNumber(value: string) {
-  const digits = value.replace(/\D/g, "");
-  return digits.length >= 8 && digits.length <= 16;
-}
+type ParagraphStyleOptions = {
+  spacing?: number;
+  size?: number;
+  bold?: boolean;
+  heading?: HeadingValue;
+  alignment?: "left" | "right" | "center";
+};
 
-function extractPhone(text: string) {
-  const lines = text.split(/\r?\n/);
-  for (const line of lines) {
-    if (!PHONE_LABEL_REGEX.test(line)) {
-      continue;
-    }
-    const matches = line.match(PHONE_REGEX);
-    if (!matches) {
-      continue;
-    }
-    const candidate = matches.find(isLikelyPhoneNumber);
-    if (candidate) {
-      return candidate.replace(/\s+/g, " ").trim();
-    }
-  }
-
-  const matches = text.match(PHONE_REGEX) ?? [];
-  const candidate = matches.find(isLikelyPhoneNumber);
-  return candidate ? candidate.replace(/\s+/g, " ").trim() : null;
-}
-
-function extractLinkedIn(text: string) {
-  const match = text.match(LINKEDIN_REGEX);
-  if (!match) {
-    return null;
-  }
-  return match[0].replace(/[.,;]+$/, "").trim();
-}
-
-function buildContactLine(parts: Array<string | null | undefined>) {
-  const cleaned = parts
-    .map((part) => (part ? sanitizeInlineText(part) : ""))
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (cleaned.length === 0) {
-    return null;
-  }
-
-  return cleaned.join(" | ");
-}
-
-function makeParagraph(text: string, spacing = 160) {
-  const { Paragraph } = getDocxModule();
-  return new Paragraph({
+function makeParagraph(text: string, options: ParagraphStyleOptions = {}) {
+  const { Paragraph, TextRun, AlignmentType } = getDocxModule();
+  const run = new TextRun({
     text,
+    size: options.size,
+    bold: options.bold,
+  });
+  const alignment =
+    options.alignment === "right"
+      ? AlignmentType.RIGHT
+      : options.alignment === "center"
+        ? AlignmentType.CENTER
+        : AlignmentType.LEFT;
+  return new Paragraph({
+    children: [run],
+    heading: options.heading,
+    alignment,
+    spacing: { after: options.spacing ?? 160 },
+  });
+}
+
+function makeBulletParagraph(
+  text: string,
+  spacing: number,
+  size: number
+) {
+  const { Paragraph, TextRun } = getDocxModule();
+  return new Paragraph({
+    children: [new TextRun({ text, size })],
+    bullet: { level: 0 },
     spacing: { after: spacing },
   });
+}
+
+const FONT_SIZES = {
+  body: 22,
+  heading: 24,
+  name: 28,
+};
+
+function getSpacing(variant: ExportVariant) {
+  if (variant === "ats_minimal") {
+    return {
+      body: 120,
+      bullet: 80,
+      section: 140,
+      header: 120,
+      afterSection: 100,
+    };
+  }
+  return {
+    body: 160,
+    bullet: 100,
+    section: 160,
+    header: 140,
+    afterSection: 120,
+  };
 }
 
 export async function packDoc(doc: DocxDocument) {
@@ -403,6 +448,11 @@ export async function packDoc(doc: DocxDocument) {
 type DocxContactOptions = {
   email?: string | null;
   contactText?: string | null;
+  headline?: string | null;
+  variant?: ExportVariant;
+  recipientName?: string | null;
+  companyName?: string | null;
+  companyLocation?: string | null;
 };
 
 export function buildCvDocx(
@@ -411,16 +461,19 @@ export function buildCvDocx(
   options?: DocxContactOptions
 ) {
   const parsed = parseCvText(cvText);
-  const { Document, Paragraph } = getDocxModule();
+  const { Document } = getDocxModule();
   const { titleHeading, sectionHeading } = resolveHeadingLevels();
+  const variant = options?.variant ?? "standard";
+  const spacing = getSpacing(variant);
   const children: DocxParagraph[] = [];
 
   const name = profile?.full_name?.trim();
-  const headline = profile?.headline?.trim();
+  const headline = options?.headline?.trim() || profile?.headline?.trim() || "";
   const location = profile?.location?.trim();
   const phone = extractPhone(cvText);
   const linkedIn = extractLinkedIn(cvText);
   const contactLine = buildContactLine([
+    headline || null,
     location,
     options?.email ?? null,
     phone,
@@ -429,78 +482,183 @@ export function buildCvDocx(
 
   if (name) {
     children.push(
-      new Paragraph({
-        text: name,
+      makeParagraph(name, {
         heading: titleHeading,
-        spacing: { after: 120 },
+        size: FONT_SIZES.name,
+        spacing: spacing.header,
+        bold: true,
       })
     );
   }
 
-  if (headline) {
-    children.push(makeParagraph(headline, 100));
-  }
-
   if (contactLine) {
-    children.push(makeParagraph(contactLine, 200));
+    children.push(
+      makeParagraph(contactLine, {
+        size: FONT_SIZES.body,
+        spacing: spacing.header,
+      })
+    );
   }
 
   if (parsed.summaryParagraphs.length > 0) {
     children.push(
-      new Paragraph({
-        text: "Profile summary",
+      makeParagraph("Professional Summary", {
         heading: sectionHeading,
+        size: FONT_SIZES.heading,
+        spacing: spacing.section,
+        bold: true,
       })
     );
     parsed.summaryParagraphs.forEach((paragraph) => {
-      children.push(makeParagraph(paragraph));
-    });
-  }
-
-  if (parsed.achievements.length > 0) {
-    children.push(
-      new Paragraph({
-        text: "Key achievements",
-        heading: sectionHeading,
-      })
-    );
-    parsed.achievements.forEach((item) => {
       children.push(
-        new Paragraph({
-          text: item,
-          bullet: { level: 0 },
-          spacing: { after: 60 },
-        })
+        makeParagraph(paragraph, { size: FONT_SIZES.body, spacing: spacing.body })
       );
     });
-    children.push(makeParagraph("", 80));
   }
 
-  parsed.remainingSections.forEach((section) => {
+  const skillsSections = parsed.remainingSections.filter((section) =>
+    isSectionMatch(section.title, ["skills", "key skills"])
+  );
+  if (skillsSections.length > 0) {
+    children.push(
+      makeParagraph("Key Skills", {
+        heading: sectionHeading,
+        size: FONT_SIZES.heading,
+        spacing: spacing.section,
+        bold: true,
+      })
+    );
+    skillsSections.forEach((section) => {
+      section.paragraphs.forEach((paragraph) => {
+        children.push(
+          makeParagraph(paragraph, {
+            size: FONT_SIZES.body,
+            spacing: spacing.body,
+          })
+        );
+      });
+      section.bullets.forEach((bullet) => {
+        children.push(
+          makeBulletParagraph(
+            trimMetricLine(bullet, 120),
+            spacing.bullet,
+            FONT_SIZES.body
+          )
+        );
+      });
+    });
+  }
+
+  const experienceSections = parsed.remainingSections.filter((section) =>
+    isSectionMatch(section.title, ["experience", "employment"])
+  );
+  const experienceParagraphs = experienceSections.flatMap(
+    (section) => section.paragraphs
+  );
+  const experienceBullets = [
+    ...parsed.achievements,
+    ...experienceSections.flatMap((section) => section.bullets),
+  ];
+
+  if (experienceParagraphs.length > 0 || experienceBullets.length > 0) {
+    children.push(
+      makeParagraph("Experience / Achievements", {
+        heading: sectionHeading,
+        size: FONT_SIZES.heading,
+        spacing: spacing.section,
+        bold: true,
+      })
+    );
+    experienceParagraphs.forEach((paragraph) => {
+      children.push(
+        makeParagraph(paragraph, { size: FONT_SIZES.body, spacing: spacing.body })
+      );
+    });
+    experienceBullets.forEach((item) => {
+      children.push(
+        makeBulletParagraph(
+          trimMetricLine(item, 120),
+          spacing.bullet,
+          FONT_SIZES.body
+        )
+      );
+    });
+  }
+
+  const educationSections = parsed.remainingSections.filter((section) =>
+    isSectionMatch(section.title, ["education"])
+  );
+  if (educationSections.length > 0) {
+    children.push(
+      makeParagraph("Education", {
+        heading: sectionHeading,
+        size: FONT_SIZES.heading,
+        spacing: spacing.section,
+        bold: true,
+      })
+    );
+    educationSections.forEach((section) => {
+      section.paragraphs.forEach((paragraph) => {
+        children.push(
+          makeParagraph(paragraph, {
+            size: FONT_SIZES.body,
+            spacing: spacing.body,
+          })
+        );
+      });
+      section.bullets.forEach((bullet) => {
+        children.push(
+          makeBulletParagraph(
+            trimMetricLine(bullet, 120),
+            spacing.bullet,
+            FONT_SIZES.body
+          )
+        );
+      });
+    });
+  }
+
+  const otherSections = parsed.remainingSections.filter(
+    (section) =>
+      !skillsSections.includes(section) &&
+      !experienceSections.includes(section) &&
+      !educationSections.includes(section)
+  );
+
+  otherSections.forEach((section) => {
     if (section.title) {
       children.push(
-        new Paragraph({
-          text: section.title,
+        makeParagraph(section.title, {
           heading: sectionHeading,
+          size: FONT_SIZES.heading,
+          spacing: spacing.section,
+          bold: true,
         })
       );
     }
     section.paragraphs.forEach((paragraph) => {
-      children.push(makeParagraph(paragraph));
+      children.push(
+        makeParagraph(paragraph, { size: FONT_SIZES.body, spacing: spacing.body })
+      );
     });
     section.bullets.forEach((bullet) => {
       children.push(
-        new Paragraph({
-          text: bullet,
-          bullet: { level: 0 },
-          spacing: { after: 60 },
-        })
+        makeBulletParagraph(
+          trimMetricLine(bullet, 120),
+          spacing.bullet,
+          FONT_SIZES.body
+        )
       );
     });
   });
 
   if (children.length === 0) {
-    children.push(makeParagraph("CV content unavailable."));
+    children.push(
+      makeParagraph("CV content unavailable.", {
+        size: FONT_SIZES.body,
+        spacing: spacing.body,
+      })
+    );
   }
 
   return new Document({
@@ -517,13 +675,15 @@ export function buildCoverLetterDocx(
   coverLetter: string,
   options?: DocxContactOptions
 ) {
-  const { employerLines, bodyParagraphs, signOff } =
-    parseCoverLetter(coverLetter);
-  const { Document, Paragraph } = getDocxModule();
+  const parsed = parseCoverLetter(coverLetter);
+  const { Document } = getDocxModule();
   const { titleHeading } = resolveHeadingLevels();
+  const variant = options?.variant ?? "standard";
+  const spacing = getSpacing(variant);
   const children: DocxParagraph[] = [];
 
   const name = profile?.full_name?.trim();
+  const headline = options?.headline?.trim() || profile?.headline?.trim() || "";
   const location = profile?.location?.trim();
   const contactSource = options?.contactText
     ? `${coverLetter}\n${options.contactText}`
@@ -531,6 +691,7 @@ export function buildCoverLetterDocx(
   const phone = extractPhone(contactSource);
   const linkedIn = extractLinkedIn(contactSource);
   const contactLine = buildContactLine([
+    headline || null,
     location,
     options?.email ?? null,
     phone,
@@ -539,46 +700,96 @@ export function buildCoverLetterDocx(
 
   if (name) {
     children.push(
-      new Paragraph({
-        text: name,
+      makeParagraph(name, {
         heading: titleHeading,
-        spacing: { after: 120 },
+        size: FONT_SIZES.name,
+        spacing: spacing.header,
+        bold: true,
       })
     );
   }
 
   if (contactLine) {
-    children.push(makeParagraph(contactLine, 160));
+    children.push(
+      makeParagraph(contactLine, {
+        size: FONT_SIZES.body,
+        spacing: spacing.header,
+        alignment: "right",
+      })
+    );
   }
 
   const dateLabel = new Date().toLocaleDateString("en-GB", {
     day: "2-digit",
-    month: "short",
+    month: "long",
     year: "numeric",
   });
 
-  children.push(makeParagraph(dateLabel, 200));
+  children.push(
+    makeParagraph(dateLabel, {
+      size: FONT_SIZES.body,
+      spacing: spacing.section,
+    })
+  );
+
+  const recipient = options?.recipientName?.trim() || "Hiring Manager";
+  const employerFallback = [
+    recipient,
+    options?.companyName?.trim() || null,
+    options?.companyLocation?.trim() || null,
+  ].filter(Boolean) as string[];
+
+  const employerLines =
+    parsed.employerLines.length > 0 ? parsed.employerLines : employerFallback;
 
   if (employerLines.length > 0) {
     employerLines.forEach((line) => {
-      children.push(makeParagraph(line, 80));
+      children.push(
+        makeParagraph(line, { size: FONT_SIZES.body, spacing: spacing.body })
+      );
     });
-    children.push(makeParagraph("", 200));
+    children.push(
+      makeParagraph("", { size: FONT_SIZES.body, spacing: spacing.afterSection })
+    );
+  }
+
+  const bodyParagraphs = [...parsed.bodyParagraphs];
+  if (
+    bodyParagraphs.length === 0 ||
+    !bodyParagraphs[0].toLowerCase().startsWith("dear ")
+  ) {
+    bodyParagraphs.unshift(`Dear ${recipient},`);
   }
 
   bodyParagraphs.forEach((paragraph) => {
-    children.push(makeParagraph(paragraph));
+    children.push(
+      makeParagraph(paragraph, { size: FONT_SIZES.body, spacing: spacing.body })
+    );
   });
 
-  if (signOff) {
-    children.push(makeParagraph(signOff));
+  if (parsed.signOff) {
+    children.push(
+      makeParagraph(parsed.signOff, { size: FONT_SIZES.body, spacing: spacing.body })
+    );
   } else if (name) {
-    children.push(makeParagraph("Kind regards,", 80));
-    children.push(makeParagraph(name));
+    children.push(
+      makeParagraph("Kind regards,", {
+        size: FONT_SIZES.body,
+        spacing: spacing.body,
+      })
+    );
+    children.push(
+      makeParagraph(name, { size: FONT_SIZES.body, spacing: spacing.body })
+    );
   }
 
   if (children.length === 0) {
-    children.push(makeParagraph("Cover letter content unavailable."));
+    children.push(
+      makeParagraph("Cover letter content unavailable.", {
+        size: FONT_SIZES.body,
+        spacing: spacing.body,
+      })
+    );
   }
 
   return new Document({

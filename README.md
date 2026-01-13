@@ -67,6 +67,7 @@ CVForge is a CV and application pack builder with Supabase auth and Stripe-power
 ## DOCX export
 - DOCX exports are generated server-side from autopacks; no additional env vars required.
 - v0.5.1: exports are submission-ready and placeholders are removed automatically.
+- v0.6.5: exports support Standard and ATS-Minimal variants plus a submission-pack ZIP (CV + cover letter + STAR JSON).
 
 ## DOCX import
 - v0.5.9: DOCX CV import runs server-side for preview only; files are not stored.
