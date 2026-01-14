@@ -8,6 +8,7 @@ import { listActiveDomainPacks } from "@/lib/data/domain-packs";
 import { logLearningEvent } from "@/lib/data/learning";
 import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
+import { fetchApplyChecklist } from "@/lib/apply-checklist";
 import { buildFollowupTemplates } from "@/lib/followup-templates";
 import { buildInterviewLift } from "@/lib/interview-lift";
 import { buildInterviewPack } from "@/lib/interview-pack";
@@ -27,7 +28,11 @@ import {
   deleteApplicationAction,
   logAppliedAction,
   logFollowupAction,
+  scheduleFollowupAction,
+  setSubmittedAction,
   updateApplicationAction,
+  updateClosingDateAction,
+  updateSourcePlatformAction,
   updateTrackingAction,
 } from "../actions";
 import ApplicationForm from "../application-form";
@@ -165,6 +170,17 @@ export default async function ApplicationPage({
     console.error("[application.kit.practice]", error);
   }
 
+  let applyChecklist = null;
+  try {
+    applyChecklist = await fetchApplyChecklist(
+      supabase,
+      user.id,
+      application.id
+    );
+  } catch (error) {
+    console.error("[application.kit.checklist]", error);
+  }
+
   const kitChecklist = computeKitChecklist({
     applicationId: application.id,
     profileHeadline: profile?.headline ?? null,
@@ -178,10 +194,14 @@ export default async function ApplicationPage({
           cover_letter: latestAutopack.cover_letter,
         }
       : null,
+    checklist: applyChecklist,
+    closingDate: application.closing_date,
+    submittedAt: application.submitted_at,
+    nextActionDue: application.next_action_due,
+    outreachStage: application.outreach_stage,
     practiceQuestions,
     practiceAnswers,
     starDrafts: application.star_drafts,
-    outreachStage: application.outreach_stage,
     activities,
   });
 
@@ -342,11 +362,14 @@ export default async function ApplicationPage({
 
       <div id="application-kit">
         <Section
-          title="Application Kit"
-          description="See readiness, next actions, and download the kit ZIP."
+          title="Smart Apply"
+          description="Track readiness, submission steps, and next actions."
         >
           <ApplicationKitPanel
             applicationId={application.id}
+            closingDate={application.closing_date}
+            submittedAt={application.submitted_at}
+            sourcePlatform={application.source_platform}
             checklist={kitChecklist.items}
             score={kitChecklist.score}
             nextActions={kitChecklist.nextActions}
@@ -357,6 +380,10 @@ export default async function ApplicationPage({
                 : "Generate an autopack first to enable the kit download."
             }
             contents={kitContents}
+            updateClosingDateAction={updateClosingDateAction}
+            updateSourcePlatformAction={updateSourcePlatformAction}
+            setSubmittedAction={setSubmittedAction}
+            scheduleFollowupAction={scheduleFollowupAction}
           />
         </Section>
       </div>

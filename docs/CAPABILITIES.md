@@ -24,6 +24,9 @@ Practice Mode adds per-question STAR drafting with deterministic scoring, recomm
 ## Application Kit v1
 Application Kit aggregates readiness checks, next best actions, and a ZIP download containing CV, cover letter, interview pack, and STAR drafts.
 
+## Smart Apply v1
+Smart Apply tracks submission readiness with a checklist, closing dates, source platforms, and submission status. Exports and kit downloads update the checklist automatically and prompt follow-up scheduling.
+
 ## Pipeline and tracking
 A pipeline board shows status lanes, next actions, and activity history. The Action Centre provides follow-up templates, activity logging, and calendar invite downloads.
 

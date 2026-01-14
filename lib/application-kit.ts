@@ -13,12 +13,15 @@ export type KitChecklistItem = {
   label: string;
   ok: boolean;
   hint: string;
+  doneAt?: string | null;
+  actionHref?: string | null;
 };
 
 export type KitNextAction = {
   id: string;
   label: string;
   href: string;
+  reason?: string;
 };
 
 export type KitChecklistResult = {
@@ -42,11 +45,15 @@ export type KitChecklistInput = {
   userEmail?: string | null;
   achievements: Array<{ metrics: string | null }>;
   autopack: { id: string; cv_text: string | null; cover_letter: string | null } | null;
+  checklist: ApplyChecklistSnapshot | null;
+  closingDate?: string | null;
+  submittedAt?: string | null;
+  nextActionDue?: string | null;
+  outreachStage?: string | null;
   practiceQuestions: PracticeQuestion[];
   practiceAnswers: Record<string, PracticeAnswerSnapshot>;
   starDrafts: unknown;
-  outreachStage: string | null;
-  activities: Array<{ type: string }>;
+  activities: Array<{ type: string; occurred_at?: string | null }>;
 };
 
 const KIT_CONTENTS = [
@@ -55,6 +62,16 @@ const KIT_CONTENTS = [
   "03_Interview-Pack_Standard.docx",
   "04_STAR-Drafts.json",
 ];
+
+export type ApplyChecklistSnapshot = {
+  cv_exported_at?: string | null;
+  cover_exported_at?: string | null;
+  interview_pack_exported_at?: string | null;
+  kit_downloaded_at?: string | null;
+  outreach_step1_logged_at?: string | null;
+  followup_scheduled_at?: string | null;
+  submitted_logged_at?: string | null;
+};
 
 export function getKitContentsList() {
   return [...KIT_CONTENTS];
@@ -70,11 +87,6 @@ export function buildApplicationKitFilename(name: string, role: string | null) {
 
 export function computeKitChecklist(input: KitChecklistInput): KitChecklistResult {
   const profileOk = Boolean(input.profileHeadline?.trim());
-  const profileHint = profileOk
-    ? input.profileName || input.userEmail
-      ? "Headline set; contact line optional."
-      : "Add name or email to strengthen exports (optional)."
-    : "Add a headline to your profile.";
 
   const metricsCount = input.achievements.filter((achievement) => {
     const metrics = achievement.metrics?.trim();
@@ -116,79 +128,113 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
 
   const starOk = starDraftCount >= 3;
 
+  const outreachActivity = input.activities.find(
+    (activity) => activity.type === "outreach"
+  );
+  const outreachDoneAt =
+    input.checklist?.outreach_step1_logged_at ??
+    outreachActivity?.occurred_at ??
+    null;
   const outreachOk =
     Boolean(input.outreachStage && input.outreachStage !== "not_started") ||
-    input.activities.some((activity) => activity.type === "outreach");
+    Boolean(outreachDoneAt);
+
+  const followupActivity = input.activities.find(
+    (activity) => activity.type === "followup.scheduled"
+  );
+  const followupDoneAt =
+    input.checklist?.followup_scheduled_at ??
+    followupActivity?.occurred_at ??
+    toDateOnlyTimestamp(input.nextActionDue);
+  const followupOk = Boolean(followupDoneAt);
+
+  const submittedDoneAt =
+    input.checklist?.submitted_logged_at ?? input.submittedAt ?? null;
+  const submittedOk = Boolean(submittedDoneAt);
 
   const items: KitChecklistItem[] = [
     {
-      id: "profile",
-      label: "Profile ready",
-      ok: profileOk,
-      hint: profileHint,
+      id: "cv_exported",
+      label: "CV exported",
+      ok: Boolean(input.checklist?.cv_exported_at),
+      hint: input.checklist?.cv_exported_at
+        ? "CV export completed."
+        : "Export the CV (ATS-Minimal).",
+      doneAt: input.checklist?.cv_exported_at ?? null,
+      actionHref: input.autopack?.id
+        ? `/app/applications/${input.applicationId}/autopacks/${input.autopack.id}`
+        : `/app/applications/${input.applicationId}#autopacks`,
     },
     {
-      id: "metrics",
-      label: "3 achievements with metrics",
-      ok: metricsOk,
-      hint: metricsOk
-        ? `${metricsCount} achievements include metrics.`
-        : `Only ${metricsCount} achievements include metrics.`,
+      id: "cover_exported",
+      label: "Cover letter exported",
+      ok: Boolean(input.checklist?.cover_exported_at),
+      hint: input.checklist?.cover_exported_at
+        ? "Cover letter export completed."
+        : "Export the cover letter (ATS-Minimal).",
+      doneAt: input.checklist?.cover_exported_at ?? null,
+      actionHref: input.autopack?.id
+        ? `/app/applications/${input.applicationId}/autopacks/${input.autopack.id}`
+        : `/app/applications/${input.applicationId}#autopacks`,
     },
     {
-      id: "autopack",
-      label: "Autopack generated",
-      ok: autopackExists,
-      hint: autopackExists
-        ? "Latest version is available."
-        : "Generate an autopack for this application.",
+      id: "interview_pack_exported",
+      label: "Interview pack exported",
+      ok: Boolean(input.checklist?.interview_pack_exported_at),
+      hint: input.checklist?.interview_pack_exported_at
+        ? "Interview pack export completed."
+        : "Export the interview pack.",
+      doneAt: input.checklist?.interview_pack_exported_at ?? null,
+      actionHref: `/app/applications/${input.applicationId}#interview-pack`,
     },
     {
-      id: "export",
-      label: "Autopack export-ready",
-      ok: exportReady,
-      hint: exportReady
-        ? "No placeholders detected."
-        : "Fix placeholders and add role/company specifics.",
+      id: "kit_downloaded",
+      label: "Kit downloaded",
+      ok: Boolean(input.checklist?.kit_downloaded_at),
+      hint: input.checklist?.kit_downloaded_at
+        ? "Kit download completed."
+        : "Download the Application Kit ZIP.",
+      doneAt: input.checklist?.kit_downloaded_at ?? null,
+      actionHref: `/app/applications/${input.applicationId}#application-kit`,
     },
     {
-      id: "practice",
-      label: "Practice progress",
-      ok: practiceOk,
-      hint: stats.total
-        ? `${stats.drafted}/${stats.total} drafted, ${stats.scored}/${stats.total} scored.`
-        : "No practice questions available yet.",
-    },
-    {
-      id: "star",
-      label: "STAR drafts",
-      ok: starOk,
-      hint: `${starDraftCount} STAR drafts available.`,
-    },
-    {
-      id: "outreach",
-      label: "Outreach step 1",
+      id: "outreach_step1",
+      label: "Outreach step 1 logged",
       ok: outreachOk,
       hint: outreachOk
-        ? "Outreach has been started."
-        : "Draft step 1 and schedule a follow-up.",
+        ? "Outreach step logged."
+        : "Send outreach step 1.",
+      doneAt: outreachDoneAt,
+      actionHref: "/app/pipeline",
+    },
+    {
+      id: "followup_scheduled",
+      label: "Follow-up scheduled",
+      ok: followupOk,
+      hint: followupOk
+        ? "Follow-up scheduled."
+        : "Schedule a follow-up reminder.",
+      doneAt: followupDoneAt,
+      actionHref: "/app/pipeline",
+    },
+    {
+      id: "submitted",
+      label: "Submitted",
+      ok: submittedOk,
+      hint: submittedOk ? "Application marked as submitted." : "Mark as submitted.",
+      doneAt: submittedDoneAt,
+      actionHref: `/app/applications/${input.applicationId}#smart-apply`,
     },
   ];
 
-  const weights = {
-    profile: 10,
-    metrics: 20,
-    autopack: 15,
-    export: 15,
-    practice: 20,
-    star: 10,
-    outreach: 10,
-  } as const;
-
-  const score = items.reduce((sum, item) => {
-    const weight = weights[item.id as keyof typeof weights] ?? 0;
-    return sum + (item.ok ? weight : 0);
-  }, 0);
+  const readinessScore =
+    (profileOk ? 10 : 0) +
+    (metricsOk ? 20 : 0) +
+    (autopackExists ? 15 : 0) +
+    (exportReady ? 15 : 0) +
+    (practiceOk ? 20 : 0) +
+    (starOk ? 10 : 0) +
+    (outreachOk ? 10 : 0);
 
   const nextActions: KitNextAction[] = [];
 
@@ -197,6 +243,20 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
       id: "autopack",
       label: "Generate Autopack",
       href: `/app/applications/${input.applicationId}#autopacks`,
+      reason: "Required to unlock kit exports and readiness checks.",
+    });
+  }
+
+  const closingUrgent =
+    Boolean(input.closingDate) &&
+    !submittedOk &&
+    daysUntil(input.closingDate) <= 3;
+  if (closingUrgent) {
+    nextActions.push({
+      id: "closing",
+      label: "Apply today and export the kit",
+      href: `/app/applications/${input.applicationId}#application-kit`,
+      reason: "Closing date is within 3 days.",
     });
   }
 
@@ -205,14 +265,34 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
       id: "export",
       label: "Fix placeholders / add company specifics",
       href: `/app/applications/${input.applicationId}/autopacks/${input.autopack.id}`,
+      reason: "Exports still contain placeholders or missing context.",
     });
   }
 
-  if (!metricsOk) {
+  if (autopackExists && !input.checklist?.kit_downloaded_at) {
     nextActions.push({
-      id: "metrics",
-      label: "Add 1 metric to an achievement",
-      href: "/app/profile#achievements",
+      id: "kit",
+      label: "Download Application Kit ZIP",
+      href: `/app/applications/${input.applicationId}#application-kit`,
+      reason: "Bundle the ready-to-submit documents.",
+    });
+  }
+
+  if (!outreachOk && !submittedOk) {
+    nextActions.push({
+      id: "outreach",
+      label: "Send outreach Step 1",
+      href: "/app/pipeline",
+      reason: "Boost visibility before submitting.",
+    });
+  }
+
+  if (submittedOk && !followupOk) {
+    nextActions.push({
+      id: "followup",
+      label: "Schedule follow-up in 3 business days",
+      href: `/app/applications/${input.applicationId}#smart-apply`,
+      reason: "Keep the application warm after submission.",
     });
   }
 
@@ -221,6 +301,16 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
       id: "practice",
       label: "Score your 2 lowest questions in Drill Mode",
       href: `/app/applications/${input.applicationId}/practice/drill`,
+      reason: "Raise interview readiness quickly.",
+    });
+  }
+
+  if (!metricsOk) {
+    nextActions.push({
+      id: "metrics",
+      label: "Add 1 metric to an achievement",
+      href: "/app/profile#achievements",
+      reason: "Metrics improve CV and interview impact.",
     });
   }
 
@@ -229,20 +319,13 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
       id: "star",
       label: "Create 1 STAR draft from a scored question",
       href: `/app/applications/${input.applicationId}/practice`,
-    });
-  }
-
-  if (!outreachOk) {
-    nextActions.push({
-      id: "outreach",
-      label: "Draft outreach Step 1 and schedule follow-up",
-      href: "/app/pipeline",
+      reason: "Strengthen examples for common questions.",
     });
   }
 
   return {
     items,
-    score: Math.min(score, 100),
+    score: Math.min(readinessScore, 100),
     nextActions: nextActions.slice(0, 3),
     stats,
     starDraftCount,
@@ -258,6 +341,30 @@ export type KitStarDraft = {
   recommendations: string[];
   updated_at: string | null;
 };
+
+function daysUntil(value?: string | null) {
+  if (!value) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return Number.POSITIVE_INFINITY;
+  }
+  const now = new Date();
+  const diff = parsed.getTime() - now.getTime();
+  return Math.ceil(diff / (1000 * 60 * 60 * 24));
+}
+
+function toDateOnlyTimestamp(value?: string | null) {
+  if (!value) {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return null;
+  }
+  return new Date(`${trimmed}T12:00:00Z`).toISOString();
+}
 
 export function buildKitStarDraftsPayload(
   practiceAnswers: KitPracticeAnswer[],

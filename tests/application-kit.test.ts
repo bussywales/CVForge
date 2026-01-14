@@ -10,6 +10,10 @@ describe("computeKitChecklist", () => {
       userEmail: "test@example.com",
       achievements: [],
       autopack: null,
+      checklist: null,
+      closingDate: null,
+      submittedAt: null,
+      nextActionDue: null,
       practiceQuestions: [],
       practiceAnswers: {},
       starDrafts: [],
@@ -36,6 +40,10 @@ describe("computeKitChecklist", () => {
         cv_text: "CV content",
         cover_letter: "Cover letter content",
       },
+      checklist: null,
+      closingDate: null,
+      submittedAt: null,
+      nextActionDue: null,
       practiceQuestions: [
         { questionKey: "q1", questionText: "Question 1" },
         { questionKey: "q2", questionText: "Question 2" },
@@ -47,5 +55,61 @@ describe("computeKitChecklist", () => {
     });
 
     expect(result.nextActions.some((action) => action.id === "practice")).toBe(true);
+  });
+
+  it("prioritises closing date action when due soon", () => {
+    const closingDate = new Date();
+    closingDate.setDate(closingDate.getDate() + 2);
+    const closingDateValue = closingDate.toISOString().slice(0, 10);
+
+    const result = computeKitChecklist({
+      applicationId: "app-3",
+      profileHeadline: "Service Manager",
+      profileName: "Test User",
+      userEmail: "test@example.com",
+      achievements: [{ metrics: "Improved SLA to 99%" }],
+      autopack: {
+        id: "autopack-2",
+        cv_text: "CV content",
+        cover_letter: "Cover letter content",
+      },
+      checklist: null,
+      closingDate: closingDateValue,
+      submittedAt: null,
+      nextActionDue: null,
+      practiceQuestions: [],
+      practiceAnswers: {},
+      starDrafts: [],
+      outreachStage: "not_started",
+      activities: [],
+    });
+
+    expect(result.nextActions[0]?.id).toBe("closing");
+  });
+
+  it("recommends scheduling follow-up after submission", () => {
+    const result = computeKitChecklist({
+      applicationId: "app-4",
+      profileHeadline: "Network Lead",
+      profileName: "Test User",
+      userEmail: "test@example.com",
+      achievements: [{ metrics: "Reduced incidents by 15%" }],
+      autopack: {
+        id: "autopack-3",
+        cv_text: "CV content",
+        cover_letter: "Cover letter content",
+      },
+      checklist: null,
+      closingDate: null,
+      submittedAt: new Date().toISOString(),
+      nextActionDue: null,
+      practiceQuestions: [],
+      practiceAnswers: {},
+      starDrafts: [],
+      outreachStage: "not_started",
+      activities: [],
+    });
+
+    expect(result.nextActions.some((action) => action.id === "followup")).toBe(true);
   });
 });

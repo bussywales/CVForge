@@ -14,6 +14,7 @@ import {
   deleteApplicationActivity,
 } from "@/lib/data/application-activities";
 import { getSupabaseUser } from "@/lib/data/supabase";
+import { markApplyChecklist } from "@/lib/apply-checklist";
 import { applicationSchema } from "@/lib/validators/application";
 import {
   applicationActivitySchema,
@@ -792,6 +793,14 @@ export async function logOutreachStepAction(
       last_activity_at: now.toISOString(),
     });
 
+    try {
+      await markApplyChecklist(supabase, user.id, parsed.data.application_id, {
+        outreach_step1_logged_at: now.toISOString(),
+      });
+    } catch (checklistError) {
+      console.error("[logOutreachStepAction.checklist]", checklistError);
+    }
+
     revalidatePath(`/app/applications/${parsed.data.application_id}`);
     revalidatePath("/app/pipeline");
 
@@ -878,6 +887,197 @@ export async function closeOutreachAction(
   }
 }
 
+export async function updateClosingDateAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to update the closing date.",
+    };
+  }
+
+  const applicationId = getFormString(formData, "application_id");
+  const closingDateInput = getFormString(formData, "closing_date");
+
+  if (!applicationId) {
+    return { status: "error", message: "Missing application id." };
+  }
+
+  const closingDate = parseDateOnly(closingDateInput);
+
+  if (closingDateInput && !closingDate) {
+    return {
+      status: "error",
+      message: "Enter a valid closing date.",
+    };
+  }
+
+  try {
+    await updateApplication(supabase, user.id, applicationId, {
+      closing_date: closingDate,
+    });
+    await markApplyChecklist(supabase, user.id, applicationId, {});
+    revalidatePath(`/app/applications/${applicationId}`);
+    return { status: "success", message: "Closing date updated." };
+  } catch (error) {
+    console.error("[updateClosingDateAction]", error);
+    return {
+      status: "error",
+      message: "Unable to update the closing date right now.",
+    };
+  }
+}
+
+export async function updateSourcePlatformAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to update the source platform.",
+    };
+  }
+
+  const applicationId = getFormString(formData, "application_id");
+  const sourcePlatform = getFormString(formData, "source_platform");
+
+  if (!applicationId) {
+    return { status: "error", message: "Missing application id." };
+  }
+
+  try {
+    await updateApplication(supabase, user.id, applicationId, {
+      source_platform: toNullable(sourcePlatform ?? ""),
+    });
+    await markApplyChecklist(supabase, user.id, applicationId, {});
+    revalidatePath(`/app/applications/${applicationId}`);
+    return { status: "success", message: "Source platform updated." };
+  } catch (error) {
+    console.error("[updateSourcePlatformAction]", error);
+    return {
+      status: "error",
+      message: "Unable to update the source platform right now.",
+    };
+  }
+}
+
+export async function setSubmittedAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to update submission status.",
+    };
+  }
+
+  const applicationId = getFormString(formData, "application_id");
+  const submittedValue = getFormString(formData, "submitted");
+  const shouldSubmit = submittedValue === "true";
+
+  if (!applicationId) {
+    return { status: "error", message: "Missing application id." };
+  }
+
+  const now = new Date().toISOString();
+
+  try {
+    await updateApplication(supabase, user.id, applicationId, {
+      submitted_at: shouldSubmit ? now : null,
+    });
+    await markApplyChecklist(supabase, user.id, applicationId, {
+      submitted_logged_at: shouldSubmit ? now : null,
+    });
+
+    await createApplicationActivity(supabase, user.id, {
+      application_id: applicationId,
+      type: shouldSubmit ? "application.submitted" : "application.unsubmitted",
+      channel: null,
+      subject: shouldSubmit
+        ? "Application submitted"
+        : "Submission cleared",
+      body: null,
+      occurred_at: now,
+    });
+
+    revalidatePath(`/app/applications/${applicationId}`);
+    revalidatePath("/app/pipeline");
+
+    return {
+      status: "success",
+      message: shouldSubmit ? "Marked as submitted." : "Submission cleared.",
+    };
+  } catch (error) {
+    console.error("[setSubmittedAction]", error);
+    return {
+      status: "error",
+      message: "Unable to update submission status right now.",
+    };
+  }
+}
+
+export async function scheduleFollowupAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to schedule a follow-up.",
+    };
+  }
+
+  const applicationId = getFormString(formData, "application_id");
+  if (!applicationId) {
+    return { status: "error", message: "Missing application id." };
+  }
+
+  const now = new Date();
+  const dueDate = addBusinessDays(now, 3);
+  const dateOnly = dueDate.toISOString().slice(0, 10);
+
+  try {
+    await updateApplication(supabase, user.id, applicationId, {
+      next_action_type: "follow_up",
+      next_action_due: dateOnly,
+      last_touch_at: now.toISOString(),
+      last_activity_at: now.toISOString(),
+    });
+
+    await markApplyChecklist(supabase, user.id, applicationId, {
+      followup_scheduled_at: now.toISOString(),
+    });
+
+    await createApplicationActivity(supabase, user.id, {
+      application_id: applicationId,
+      type: "followup.scheduled",
+      channel: null,
+      subject: "Follow-up scheduled",
+      body: JSON.stringify({ due: dateOnly }),
+      occurred_at: now.toISOString(),
+    });
+
+    revalidatePath(`/app/applications/${applicationId}`);
+    revalidatePath("/app/pipeline");
+
+    return { status: "success", message: "Follow-up scheduled." };
+  } catch (error) {
+    console.error("[scheduleFollowupAction]", error);
+    return {
+      status: "error",
+      message: "Unable to schedule the follow-up right now.",
+    };
+  }
+}
+
 function parseDateInput(value?: string | null) {
   const trimmed = (value ?? "").trim();
   if (!trimmed) {
@@ -904,4 +1104,17 @@ function parseDateOnly(value?: string | null) {
     return null;
   }
   return trimmed;
+}
+
+function addBusinessDays(date: Date, days: number) {
+  const result = new Date(date);
+  let remaining = days;
+  while (remaining > 0) {
+    result.setDate(result.getDate() + 1);
+    const day = result.getDay();
+    if (day !== 0 && day !== 6) {
+      remaining -= 1;
+    }
+  }
+  return result;
 }

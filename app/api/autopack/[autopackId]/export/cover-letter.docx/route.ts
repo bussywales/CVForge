@@ -6,6 +6,7 @@ import { fetchProfile } from "@/lib/data/profile";
 import { buildCoverLetterDocx, packDoc } from "@/lib/export/docx";
 import { buildExportFilename } from "@/lib/export/filename";
 import { resolveExportVariant, sanitizeForExport } from "@/lib/export/export-utils";
+import { markApplyChecklist } from "@/lib/apply-checklist";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,6 +77,15 @@ export async function GET(
       companyName: application?.company_name ?? application?.company ?? null,
     });
     const buffer = await packDoc(doc);
+    const now = new Date().toISOString();
+
+    try {
+      await markApplyChecklist(supabase, user.id, autopack.application_id, {
+        cover_exported_at: now,
+      });
+    } catch (checklistError) {
+      console.error("[docx export cover-letter checklist]", checklistError);
+    }
 
     return new Response(buffer, {
       headers: {

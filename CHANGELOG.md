@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.3
+- Smart Apply panel with submission checklist, closing dates, and source platform fields.
+- Auto-updated checklist from exports and a follow-up scheduler.
+
 ## v0.7.2
 - Application Kit panel with checklist, readiness score, and next best actions.
 - Application Kit ZIP export with CV, cover letter, interview pack, and STAR drafts.

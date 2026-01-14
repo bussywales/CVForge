@@ -9,6 +9,7 @@ import { listActiveDomainPacks } from "@/lib/data/domain-packs";
 import { fetchProfile } from "@/lib/data/profile";
 import { listWorkHistory } from "@/lib/data/work-history";
 import { createApplicationActivity } from "@/lib/data/application-activities";
+import { markApplyChecklist } from "@/lib/apply-checklist";
 import { calculateRoleFit } from "@/lib/role-fit";
 import type { RoleFitPack } from "@/lib/role-fit";
 import { inferDomainGuess } from "@/lib/jd-learning";
@@ -220,6 +221,14 @@ export async function GET(
       });
     } catch (activityError) {
       console.error("[kit.activity]", activityError);
+    }
+
+    try {
+      await markApplyChecklist(supabase, user.id, application.id, {
+        kit_downloaded_at: new Date().toISOString(),
+      });
+    } catch (checklistError) {
+      console.error("[kit.checklist]", checklistError);
     }
 
     return new Response(Readable.toWeb(stream) as unknown as ReadableStream, {

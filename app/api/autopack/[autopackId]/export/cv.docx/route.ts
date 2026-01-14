@@ -7,6 +7,7 @@ import { listWorkHistory } from "@/lib/data/work-history";
 import { buildCvDocx, packDoc } from "@/lib/export/docx";
 import { buildExportFilename } from "@/lib/export/filename";
 import { resolveExportVariant, sanitizeForExport } from "@/lib/export/export-utils";
+import { markApplyChecklist } from "@/lib/apply-checklist";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -73,6 +74,15 @@ export async function GET(
       workHistory,
     });
     const buffer = await packDoc(doc);
+    const now = new Date().toISOString();
+
+    try {
+      await markApplyChecklist(supabase, user.id, autopack.application_id, {
+        cv_exported_at: now,
+      });
+    } catch (checklistError) {
+      console.error("[docx export cv checklist]", checklistError);
+    }
 
     return new Response(buffer, {
       headers: {

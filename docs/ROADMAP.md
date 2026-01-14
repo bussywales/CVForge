@@ -32,6 +32,12 @@ Scope boundary: checklist + kit download only, no new exports beyond existing as
 Success criteria: kit ZIP includes CV, cover letter, interview pack, and STAR drafts.
 Not in scope: PDF export or automated applications.
 
+### Smart Apply v1 (shipped)
+Outcome: submission checklist, closing dates, and source platforms with automatic export markers (shipped v0.7.3).
+Scope boundary: deterministic checklist + next actions, no automation or external integrations.
+Success criteria: checklist timestamps update from exports and submission status is tracked.
+Not in scope: sending applications or automatic follow-up messages.
+
 ### Role Fit + packs
 Outcome: keep Role Fit reliable with core/domain packs and fallback JD terms.
 Scope boundary: deterministic signals, pack detection, and UI gap guidance.
@@ -81,6 +87,12 @@ Outcome: predictable credit purchase and usage tracking.
 Scope boundary: Stripe checkout, webhook crediting, credit ledger.
 Success criteria: credits are accurate and generation is gated correctly.
 Not in scope: subscriptions, invoices, or team billing.
+
+### Job advert link fetch (v0.7.4)
+Outcome: optional assist to pull key details from a pasted job URL.
+Scope boundary: deterministic metadata capture only, no scraping or AI summarisation.
+Success criteria: users can preview fetched basics and keep manual control.
+Not in scope: full content ingestion or automatic job description rewriting.
 
 ## Later
 

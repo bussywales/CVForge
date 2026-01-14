@@ -28,6 +28,12 @@
 - Download the Application Kit ZIP and confirm it contains CV, cover letter, interview pack, and STAR JSON.
 - Check that kit.download activity appears in the activity log.
 
+## Smart Apply
+- Open an application detail page and confirm Smart Apply renders with checklist items.
+- Set a closing date and source platform and confirm they persist after refresh.
+- Export CV/cover/interview pack and confirm checklist timestamps update.
+- Mark as submitted and schedule a follow-up; verify next action due date updates.
+
 ## Pipeline Action Centre
 - Visit /app/pipeline and open the Action Centre for a card.
 - Log an activity and set a next action date.

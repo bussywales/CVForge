@@ -13,6 +13,7 @@ import { buildInterviewPack } from "@/lib/interview-pack";
 import { buildInterviewPackDocx, packDoc } from "@/lib/export/docx";
 import { resolveExportVariant } from "@/lib/export/export-utils";
 import { buildInterviewPackFilename } from "@/lib/export/filename";
+import { markApplyChecklist } from "@/lib/apply-checklist";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -120,6 +121,15 @@ export async function GET(request: Request) {
     });
 
     const buffer = await packDoc(doc);
+    const now = new Date().toISOString();
+
+    try {
+      await markApplyChecklist(supabase, user.id, application.id, {
+        interview_pack_exported_at: now,
+      });
+    } catch (checklistError) {
+      console.error("[interview-pack.checklist]", checklistError);
+    }
 
     return new Response(buffer, {
       headers: {
