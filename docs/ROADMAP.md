@@ -2,6 +2,12 @@
 
 ## Now
 
+### Application detail tabs (shipped v0.7.12a)
+Outcome: the application detail page now uses Overview, Apply, Evidence, Interview, Activity, and Admin/Debug tabs so each workflow is easy to reach without scrolling forever.
+Scope boundary: the existing panels are moved into tabs with lazy-loading, no behaviour changes are introduced.
+Success criteria: each tab shows the expected content and the tab query parameter respects deep links.
+Not in scope: redesigning Smart Apply, autopacks, or evidence components beyond their current behaviour.
+
 ### Interview Pack v1 (shipped)
 Outcome: deterministic interview-ready prompts and a DOCX pack on the application detail page (shipped v0.6.9).
 Scope boundary: role snapshot, questions, weak spots, STAR prompts, and DOCX export only.

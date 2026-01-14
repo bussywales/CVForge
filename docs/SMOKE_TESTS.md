@@ -9,6 +9,12 @@
 - Edit the application and confirm changes persist.
 - If a job URL is present, fetch the job advert and confirm the snapshot updates.
 
+## Application detail tabs
+- Open an application detail page and confirm the Overview tab shows Edit, Job advert, and the visible banner.
+- Switch to the Apply tab and ensure Smart Apply and Autopacks render without console errors.
+- Switch to Evidence to confirm Role Fit and the STAR Library appear; repeat for Interview and Activity tabs.
+- Visit `/app/applications/<id>?tab=evidence` and refresh to ensure the requested tab loads on first render.
+
 ## Role Fit and gap actions
 - Open an application detail page and confirm Role Fit score and gaps render.
 - Use a gap action to create or update an achievement and refresh the page.

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.12a
+- Application detail now uses tabbed navigation (Overview, Apply, Evidence, Interview, Activity, Admin/Debug) to prevent endless scrolling.
+- Lazy loading per tab ensures Smart Apply, Autopacks, Role Fit, STAR Library, Interview Lift, and Activity panels render only when needed.
+
 ## v0.7.11
 - Answer Pack generation from STAR drafts with Standard and 90-second variants.
 - Drill Mode and Practice Dashboard show answer-ready states and apply flows.

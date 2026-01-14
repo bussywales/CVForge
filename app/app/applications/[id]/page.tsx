@@ -1,4 +1,5 @@
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import Section from "@/components/Section";
 import { listAchievements } from "@/lib/data/achievements";
 import { listApplicationActivities } from "@/lib/data/application-activities";
@@ -40,19 +41,97 @@ import {
 import ApplicationForm from "../application-form";
 import AutopacksSection from "../autopacks-section";
 import DeleteApplicationForm from "../delete-application-form";
-import FollowupSection from "../followup-section";
-import InterviewLiftPanel from "../interview-lift-panel";
-import InterviewPackPanel from "../interview-pack-panel";
 import JobAdvertCard from "../job-advert-card";
-import RoleFitCard from "../role-fit-card";
-import TrackingPanel from "../tracking-panel";
-import ActivityPanel from "../activity-panel";
-import ApplicationKitPanel from "../application-kit-panel";
-import StarLibraryPanel from "../star-library-panel";
+import {
+  APPLICATION_DETAIL_TABS,
+  ApplicationDetailTabKey,
+  parseTab,
+} from "@/lib/ui/tabs";
+
+const RoleFitCard = dynamic(() => import("../role-fit-card"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-2xl border border-slate-200 px-4 py-6 text-sm text-[rgb(var(--muted))]">
+      Loading role fit…
+    </div>
+  ),
+});
+
+const StarLibraryPanel = dynamic(() => import("../star-library-panel"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-2xl border border-slate-200 px-4 py-6 text-sm text-[rgb(var(--muted))]">
+      Loading STAR drafts…
+    </div>
+  ),
+});
+
+const InterviewLiftPanel = dynamic(
+  () => import("../interview-lift-panel"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-2xl border border-slate-200 px-4 py-6 text-sm text-[rgb(var(--muted))]">
+        Loading Interview Lift…
+      </div>
+    ),
+  }
+);
+
+const InterviewPackPanel = dynamic(
+  () => import("../interview-pack-panel"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-2xl border border-slate-200 px-4 py-6 text-sm text-[rgb(var(--muted))]">
+        Loading Interview Pack…
+      </div>
+    ),
+  }
+);
+
+const ApplicationKitPanel = dynamic(
+  () => import("../application-kit-panel"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="rounded-2xl border border-slate-200 px-4 py-6 text-sm text-[rgb(var(--muted))]">
+        Loading Smart Apply…
+      </div>
+    ),
+  }
+);
+
+const FollowupSection = dynamic(() => import("../followup-section"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-2xl border border-slate-200 px-4 py-6 text-sm text-[rgb(var(--muted))]">
+      Loading follow-up templates…
+    </div>
+  ),
+});
+
+const TrackingPanel = dynamic(() => import("../tracking-panel"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-2xl border border-slate-200 px-4 py-6 text-sm text-[rgb(var(--muted))]">
+      Loading tracking…
+    </div>
+  ),
+});
+
+const ActivityPanel = dynamic(() => import("../activity-panel"), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-2xl border border-slate-200 px-4 py-6 text-sm text-[rgb(var(--muted))]">
+      Loading activity log…
+    </div>
+  ),
+});
 
 type ApplicationPageProps = {
   params: { id: string };
-  searchParams?: { created?: string };
+  searchParams?: { created?: string; tab?: string };
 };
 
 export default async function ApplicationPage({
@@ -261,6 +340,17 @@ export default async function ApplicationPage({
     ? `/api/calendar/followup?applicationId=${application.id}`
     : null;
 
+  const activeTab = parseTab(searchParams?.tab);
+  const tabBaseHref = `/app/applications/${application.id}`;
+  const buildTabHref = (tabKey: ApplicationDetailTabKey) => {
+    const params = new URLSearchParams();
+    params.set("tab", tabKey);
+    if (searchParams?.created) {
+      params.set("created", searchParams.created);
+    }
+    return `${tabBaseHref}?${params.toString()}`;
+  };
+
   return (
     <div className="space-y-6">
       <Link href="/app/applications" className="text-sm text-[rgb(var(--muted))]">
@@ -273,186 +363,236 @@ export default async function ApplicationPage({
         </div>
       ) : null}
 
-      <Section
-        title="Edit application"
-        description="Update the role details and keep status current."
-      >
-        <ApplicationForm
-          mode="edit"
-          initialValues={application}
-          action={updateApplicationAction}
-        />
-      </Section>
-
-      <Section
-        title="Job advert"
-        description="Keep the original listing link handy."
-      >
-      {safeJobUrl ? (
-          <JobAdvertCard
-            applicationId={application.id}
-            url={safeJobUrl}
-            host={jobHost}
-            source={jobTextMeta.source}
-            status={jobTextMeta.status}
-            fetchedAt={jobTextMeta.fetchedAt}
-            chars={jobTextMeta.chars}
-            error={jobTextMeta.error}
-            sourceUrl={jobTextMeta.sourceUrl}
-          />
-        ) : (
-          <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-4 text-sm text-[rgb(var(--muted))]">
-            Not added yet.{" "}
+      <nav className="flex flex-wrap gap-2">
+        {APPLICATION_DETAIL_TABS.map((tab) => {
+          const isActive = tab.key === activeTab;
+          return (
             <Link
-              href={`/app/applications/${application.id}#job_url`}
-              className="font-semibold text-[rgb(var(--ink))] underline-offset-2 hover:underline"
+              key={tab.key}
+              href={buildTabHref(tab.key)}
+              aria-current={isActive ? "page" : undefined}
+              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                isActive
+                  ? "bg-[rgb(var(--ink))] text-white"
+                  : "border border-black/10 bg-white/70 text-[rgb(var(--ink))] hover:border-black/20"
+              }`}
             >
-              Add link
+              {tab.label}
             </Link>
+          );
+        })}
+      </nav>
+
+      {activeTab === "overview" ? (
+        <>
+          <Section
+            title="Edit application"
+            description="Update the role details and keep status current."
+          >
+            <ApplicationForm
+              mode="edit"
+              initialValues={application}
+              action={updateApplicationAction}
+            />
+          </Section>
+
+          <Section
+            title="Job advert"
+            description="Keep the original listing link handy."
+          >
+            {safeJobUrl ? (
+              <JobAdvertCard
+                applicationId={application.id}
+                url={safeJobUrl}
+                host={jobHost}
+                source={jobTextMeta.source}
+                status={jobTextMeta.status}
+                fetchedAt={jobTextMeta.fetchedAt}
+                chars={jobTextMeta.chars}
+                error={jobTextMeta.error}
+                sourceUrl={jobTextMeta.sourceUrl}
+              />
+            ) : (
+              <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-4 text-sm text-[rgb(var(--muted))]">
+                Not added yet.{" "}
+                <Link
+                  href={`/app/applications/${application.id}#job_url`}
+                  className="font-semibold text-[rgb(var(--ink))] underline-offset-2 hover:underline"
+                >
+                  Add link
+                </Link>
+              </div>
+            )}
+          </Section>
+        </>
+      ) : null}
+
+      {activeTab === "apply" ? (
+        <>
+          <div id="application-kit">
+            <Section
+              title="Smart Apply"
+              description="Track readiness, submission steps, and next actions."
+            >
+              <ApplicationKitPanel
+                applicationId={application.id}
+                closingDate={application.closing_date}
+                submittedAt={application.submitted_at}
+                sourcePlatform={application.source_platform}
+                checklist={kitChecklist.items}
+                score={kitChecklist.score}
+                nextActions={kitChecklist.nextActions}
+                downloadEnabled={Boolean(latestAutopack?.id)}
+                downloadHint={
+                  latestAutopack?.id
+                    ? undefined
+                    : "Generate an autopack first to enable the kit download."
+                }
+                contents={kitContents}
+                updateClosingDateAction={updateClosingDateAction}
+                updateSourcePlatformAction={updateSourcePlatformAction}
+                setSubmittedAction={setSubmittedAction}
+                scheduleFollowupAction={scheduleFollowupAction}
+              />
+            </Section>
           </div>
-        )}
-      </Section>
 
-      <Section
-        title="Tracking"
-        description="Keep key dates, contacts, and reminders in one place."
-      >
-        <TrackingPanel application={application} updateAction={updateTrackingAction} />
-      </Section>
+          <div id="autopacks">
+            <AutopacksSection applicationId={application.id} autopacks={autopacks} />
+          </div>
+        </>
+      ) : null}
 
-      <Section
-        title="Follow-up"
-        description="Copy templates and set the next reminder."
-      >
-        <FollowupSection
-          applicationId={application.id}
-          templates={followupTemplates}
-          createFollowupAction={createFollowupFromTemplateAction}
-          calendarUrl={calendarUrl}
-        />
-      </Section>
+      {activeTab === "evidence" ? (
+        <>
+          <Section
+            title="Role Fit"
+            description="Score coverage and view evidence suggestions."
+          >
+            <RoleFitCard
+              applicationId={application.id}
+              result={roleFit}
+              hasJobDescription={hasJobDescription}
+              hasEvidence={hasEvidence}
+              achievements={achievements.map((achievement) => ({
+                id: achievement.id,
+                title: achievement.title,
+                metrics: achievement.metrics,
+              }))}
+              selectedEvidence={application.selected_evidence}
+            />
+          </Section>
 
-      <Section
-        title="Activity"
-        description="Log each touchpoint and keep the timeline accurate."
-      >
-        <ActivityPanel
-          applicationId={application.id}
-          activities={activities}
-          createAction={createActivityAction}
-          deleteAction={deleteActivityAction}
-          logAppliedAction={logAppliedAction}
-          logFollowupAction={logFollowupAction}
-        />
-      </Section>
+          <Section
+            title="STAR Library"
+            description="Turn STAR-target evidence into practice-ready drafts."
+          >
+            <StarLibraryPanel
+              applicationId={application.id}
+              gaps={roleFit.gapSignals}
+              drafts={starLibrary}
+              starEvidenceCount={starEvidenceCount}
+            />
+          </Section>
+        </>
+      ) : null}
 
-      <Section
-        title="Interview Lift"
-        description="Focus on the next actions most likely to improve interview outcomes."
-      >
-        <InterviewLiftPanel
-          applicationId={application.id}
-          result={interviewLift}
-          achievements={achievements.map((achievement) => ({
-            id: achievement.id,
-            title: achievement.title,
-            metrics: achievement.metrics,
-          }))}
-        />
-      </Section>
+      {activeTab === "interview" ? (
+        <>
+          <Section
+            title="Interview Lift"
+            description="Focus on the actions most likely to improve interview outcomes."
+          >
+            <InterviewLiftPanel
+              applicationId={application.id}
+              result={interviewLift}
+              achievements={achievements.map((achievement) => ({
+                id: achievement.id,
+                title: achievement.title,
+                metrics: achievement.metrics,
+              }))}
+            />
+          </Section>
 
-      <RoleFitCard
-        applicationId={application.id}
-        result={roleFit}
-        hasJobDescription={hasJobDescription}
-        hasEvidence={hasEvidence}
-        achievements={achievements.map((achievement) => ({
-          id: achievement.id,
-          title: achievement.title,
-          metrics: achievement.metrics,
-        }))}
-        selectedEvidence={application.selected_evidence}
-      />
-
-      <Section
-        title="STAR Library"
-        description="Turn STAR-target evidence into practice-ready drafts."
-      >
-        <StarLibraryPanel
-          applicationId={application.id}
-          gaps={roleFit.gapSignals}
-          drafts={starLibrary}
-          starEvidenceCount={starEvidenceCount}
-        />
-      </Section>
-
-      <div id="interview-pack">
-        <Section
-          title="Interview Pack"
-          description="Turn role-fit gaps and signals into interview-ready prompts."
-          action={
-            <Link
-              href={`/app/applications/${application.id}/practice`}
-              className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))]"
+          <div id="interview-pack">
+            <Section
+              title="Interview Pack"
+              description="Turn role-fit gaps and signals into interview-ready prompts."
+              action={
+                <Link
+                  href={`/app/applications/${application.id}/practice`}
+                  className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))]"
+                >
+                  Practice Dashboard
+                </Link>
+              }
             >
-              Practice Dashboard
-            </Link>
-          }
-        >
-          <InterviewPackPanel
-            applicationId={application.id}
-            pack={interviewPack}
-            achievements={achievements.map((achievement) => ({
-              id: achievement.id,
-              title: achievement.title,
-              metrics: achievement.metrics,
-            }))}
-          />
-        </Section>
-      </div>
+              <InterviewPackPanel
+                applicationId={application.id}
+                pack={interviewPack}
+                achievements={achievements.map((achievement) => ({
+                  id: achievement.id,
+                  title: achievement.title,
+                  metrics: achievement.metrics,
+                }))}
+              />
+            </Section>
+          </div>
+        </>
+      ) : null}
 
-      <div id="application-kit">
+      {activeTab === "activity" ? (
+        <>
+          <Section
+            title="Tracking"
+            description="Keep key dates, contacts, and reminders in one place."
+          >
+            <TrackingPanel
+              application={application}
+              updateAction={updateTrackingAction}
+            />
+          </Section>
+
+          <Section
+            title="Follow-up"
+            description="Copy templates and set the next reminder."
+          >
+            <FollowupSection
+              applicationId={application.id}
+              templates={followupTemplates}
+              createFollowupAction={createFollowupFromTemplateAction}
+              calendarUrl={calendarUrl}
+            />
+          </Section>
+
+          <Section
+            title="Activity"
+            description="Log each touchpoint and keep the timeline accurate."
+          >
+            <ActivityPanel
+              applicationId={application.id}
+              activities={activities}
+              createAction={createActivityAction}
+              deleteAction={deleteActivityAction}
+              logAppliedAction={logAppliedAction}
+              logFollowupAction={logFollowupAction}
+            />
+          </Section>
+        </>
+      ) : null}
+
+      {activeTab === "admin" ? (
         <Section
-          title="Smart Apply"
-          description="Track readiness, submission steps, and next actions."
+          title="Danger zone"
+          description="Delete the application if you no longer need it."
         >
-          <ApplicationKitPanel
-            applicationId={application.id}
-            closingDate={application.closing_date}
-            submittedAt={application.submitted_at}
-            sourcePlatform={application.source_platform}
-            checklist={kitChecklist.items}
-            score={kitChecklist.score}
-            nextActions={kitChecklist.nextActions}
-            downloadEnabled={Boolean(latestAutopack?.id)}
-            downloadHint={
-              latestAutopack?.id
-                ? undefined
-                : "Generate an autopack first to enable the kit download."
-            }
-            contents={kitContents}
-            updateClosingDateAction={updateClosingDateAction}
-            updateSourcePlatformAction={updateSourcePlatformAction}
-            setSubmittedAction={setSubmittedAction}
-            scheduleFollowupAction={scheduleFollowupAction}
+          <DeleteApplicationForm
+            id={application.id}
+            deleteAction={deleteApplicationAction}
+            label="Delete application"
           />
         </Section>
-      </div>
-
-      <div id="autopacks">
-        <AutopacksSection applicationId={application.id} autopacks={autopacks} />
-      </div>
-
-      <Section
-        title="Danger zone"
-        description="Delete the application if you no longer need it."
-      >
-        <DeleteApplicationForm
-          id={application.id}
-          deleteAction={deleteApplicationAction}
-          label="Delete application"
-        />
-      </Section>
+      ) : null}
     </div>
   );
 }
