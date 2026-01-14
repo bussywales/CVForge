@@ -1,14 +1,16 @@
 # CVForge User Guide v1.1
 
-## Table of Contents
-- [A. What CVForge is](#a-what-cvforge-is)
-- [B. Core daily flow (10-minute quick start)](#b-core-daily-flow-10-minute-quick-start)
-- [C. By-tab workflows](#c-by-tab-workflows)
-- [D. Common issues and how to recover](#d-common-issues-and-how-to-recover)
-- [E. Best practices](#e-best-practices)
-- [F. Recommended default settings](#f-recommended-default-settings)
-- [G. Privacy & data handling](#g-privacy--data-handling)
-- [H. Appendix](#h-appendix)
+## On this page
+- [What CVForge is](#a-what-cvforge-is)
+- [Core daily flow](#b-core-daily-flow-10-minute-quick-start)
+- [By-tab workflows](#c-by-tab-workflows)
+- [If you only do 3 things per application](#if-you-only-do-3-things-per-application)
+- [Common paths](#common-paths)
+- [Common issues and how to recover](#d-common-issues-and-how-to-recover)
+- [Best practices](#e-best-practices)
+- [Recommended default settings](#f-recommended-default-settings)
+- [Privacy & data handling](#g-privacy--data-handling)
+- [Appendix](#h-appendix)
 
 ## A. What CVForge is
 CVForge is your deterministic job-application cockpit. It keeps applications, job adverts, evidence, outreach, submissions, and practice workflows in one place, without any AI wizardry except where explicitly called out (Rewrite Coach, Answer Pack). You get traceable Role Fit scoring, guided evidence selection, interview preparation, and submission-grade outputs plus paperwork-ready reporting.
@@ -39,6 +41,18 @@ CVForge is your deterministic job-application cockpit. It keeps applications, jo
   - Next best action: log the latest touchpoint and set the next action due + outreach stage if needed.
 - **Admin/Debug**: delete an application or inspect low-use controls without cluttering the main experience.
   - Next best action: keep Admin/Debug clean; delete only when you are certain the application is archived.
+
+## If you only do 3 things per application
+1. **Select evidence per gap** → assign targets → regenerate an autopack so you always have CV/Cover/STAR that reflects your wins.
+2. **Run Smart Apply** → mark exports + download the Application Kit + update submission status and follow-up reminders.
+3. **Pracise via Interview tab** → drill the weakest question (Practice → Drill mode) and apply the Answer Pack; log activity so Activity tab badges stay green.
+**Next best action:** Repeat this triad before moving on to the next job.
+
+## Common paths
+- **Applying today**: Overview (job advert + blocked protection) → Evidence (select one gap) → Apply (generate autopack + Smart Apply exports) → Activity (mark submitted).
+- **Interview in 48 hours**: Evidence → Interview (Create STAR draft, Drill Mode, Answer Pack), log practice activities, set next action due via Activity.
+- **Long pipeline**: Apply (keep Smart Apply checklist updated) → Activity (log outreach/follow-ups) → Outreach Engine via pipeline / Activity templates and schedule reminders.
+**Next best action:** Pair each path with its relevant docs: [SMOKE TESTS](SMOKE_TESTS.md) for checks and [ROADMAP](ROADMAP.md) for expectations.
 
 ## D. Common issues and how to recover
 - **Job fetch blocked (Indeed/LinkedIn)**: These domains block automated requests. Open the advert manually, paste the text into the job description, and rely on the pasted snapshot. You can still select evidence and generate autopacks from the manual text.

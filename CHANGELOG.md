@@ -1,7 +1,7 @@
 # Changelog
 
 ## v0.7.14-docs
-- CVForge User Guide v1.1 polish: refreshed flow structure, added recommended settings, best practices, and glossary pointers for operators.
+- CVForge User Guide v1.1 polish: added table of contents, refined workflows, mini-maps, and cross-links plus glossary guidance.
 
 ## v0.7.13
 - Add deterministic detection of blocked job sources (Indeed & LinkedIn) and surface calm “Open & paste” guidance in the Job advert card when fetching is blocked.
