@@ -8,5 +8,8 @@
 - [RUNBOOK.md](RUNBOOK.md) - Operational troubleshooting playbooks.
 - [SMOKE_TESTS.md](SMOKE_TESTS.md) - Quick functional checks.
 - [RELEASE_PROCESS.md](RELEASE_PROCESS.md) - Versioning, checks, and release steps.
+- **Start here**
+- [USER_GUIDE.md](USER_GUIDE.md) - CVForge User Guide v1 for operators.
+- [GLOSSARY.md](GLOSSARY.md) - Key terms and feature callouts.
 - [CHANGELOG.md](../CHANGELOG.md) - Release notes by version.
 - [ENV.md](../ENV.md) - Environment variables reference.

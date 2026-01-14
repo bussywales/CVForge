@@ -1,6 +1,9 @@
 # Changelog
 
--## v0.7.13
+## v0.7.14-docs
+- CVForge User Guide v1, glossary, and documentation index updates to help operators follow the 10-minute quick start.
+
+## v0.7.13
 - Add deterministic detection of blocked job sources (Indeed & LinkedIn) and surface calm “Open & paste” guidance in the Job advert card when fetching is blocked.
 - Job fetch API now returns `blocked` responses with reason/suggestedAction and logs `job.fetch_blocked` activities for blocked attempts.
 
