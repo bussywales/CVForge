@@ -8,11 +8,12 @@ export type AutopackRecord = {
   cv_text: string | null;
   cover_letter: string | null;
   answers_json: unknown;
+  evidence_trace: unknown;
   created_at: string;
 };
 
 const autopackSelect =
-  "id, application_id, user_id, version, cv_text, cover_letter, answers_json, created_at";
+  "id, application_id, user_id, version, cv_text, cover_letter, answers_json, evidence_trace, created_at";
 
 export async function listAutopacks(
   supabase: SupabaseClient,

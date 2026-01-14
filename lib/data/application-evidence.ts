@@ -10,7 +10,11 @@ export type ApplicationEvidenceRecord = {
   source_id: string | null;
   match_score: number | null;
   quality_score: number | null;
+  use_cv: boolean | null;
+  use_cover: boolean | null;
+  use_star: boolean | null;
   created_at: string;
+  updated_at: string | null;
 };
 
 export type ApplicationEvidenceRow = Omit<
@@ -21,7 +25,7 @@ export type ApplicationEvidenceRow = Omit<
 export type SelectedEvidenceByGap = Record<string, ApplicationEvidenceRow[]>;
 
 const evidenceSelect =
-  "id, user_id, application_id, gap_key, evidence_id, source_type, source_id, match_score, quality_score, created_at";
+  "id, user_id, application_id, gap_key, evidence_id, source_type, source_id, match_score, quality_score, use_cv, use_cover, use_star, created_at, updated_at";
 
 export async function upsertApplicationEvidence(
   supabase: SupabaseClient,
@@ -67,6 +71,26 @@ export async function listApplicationEvidenceIds(
     .filter((id): id is string => typeof id === "string");
 }
 
+export async function listApplicationEvidenceRows(
+  supabase: SupabaseClient,
+  userId: string,
+  applicationId: string
+): Promise<ApplicationEvidenceRow[]> {
+  const { data, error } = await supabase
+    .from("application_evidence")
+    .select(
+      "application_id, gap_key, evidence_id, source_type, source_id, match_score, quality_score, use_cv, use_cover, use_star, updated_at"
+    )
+    .eq("user_id", userId)
+    .eq("application_id", applicationId);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as ApplicationEvidenceRow[];
+}
+
 export async function getSelectedEvidenceForApplication(
   supabase: SupabaseClient,
   userId: string,
@@ -74,7 +98,9 @@ export async function getSelectedEvidenceForApplication(
 ): Promise<SelectedEvidenceByGap> {
   const { data, error } = await supabase
     .from("application_evidence")
-    .select("application_id, gap_key, evidence_id, source_type, source_id, match_score, quality_score")
+    .select(
+      "application_id, gap_key, evidence_id, source_type, source_id, match_score, quality_score, use_cv, use_cover, use_star, updated_at"
+    )
     .eq("user_id", userId)
     .eq("application_id", applicationId);
 
@@ -104,6 +130,35 @@ export async function removeApplicationEvidence(
   if (error) {
     throw error;
   }
+}
+
+export async function updateEvidenceTargets(
+  supabase: SupabaseClient,
+  userId: string,
+  applicationId: string,
+  gapKey: string,
+  evidenceId: string,
+  payload: { use_cv: boolean; use_cover: boolean; use_star: boolean }
+): Promise<ApplicationEvidenceRecord> {
+  const storedKey = buildEvidenceGapKey(gapKey, evidenceId);
+  const { data, error } = await supabase
+    .from("application_evidence")
+    .update({
+      ...payload,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId)
+    .eq("application_id", applicationId)
+    .eq("evidence_id", evidenceId)
+    .in("gap_key", [gapKey, storedKey])
+    .select(evidenceSelect)
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  return data as ApplicationEvidenceRecord;
 }
 
 export function groupSelectedEvidenceRows(

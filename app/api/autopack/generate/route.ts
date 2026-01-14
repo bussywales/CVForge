@@ -8,12 +8,19 @@ import { fetchLatestAuditLog, insertAuditLog } from "@/lib/data/audit-log";
 import { deductCreditForAutopack, getUserCredits } from "@/lib/data/credits";
 import { listWorkHistory } from "@/lib/data/work-history";
 import { listActiveDomainPacks } from "@/lib/data/domain-packs";
+import {
+  listApplicationEvidenceRows,
+  normalizeGapKey,
+  type ApplicationEvidenceRow,
+} from "@/lib/data/application-evidence";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getEffectiveJobText } from "@/lib/job-text";
 import {
   buildEvidenceBank,
-  buildSelectedEvidenceSnippets,
+  buildEvidenceSnippet,
   normalizeSelectedEvidence,
+  splitEvidenceTargets,
+  type EvidenceTargetSelection,
 } from "@/lib/evidence";
 import { inferDomainGuess } from "@/lib/jd-learning";
 import type { RoleFitPack } from "@/lib/role-fit";
@@ -76,6 +83,134 @@ function parseJsonFromContent(content: string) {
   }
   const slice = content.slice(start, end + 1);
   return JSON.parse(slice);
+}
+
+type ResolvedEvidenceSelection = EvidenceTargetSelection & {
+  title: string;
+  snippet: string;
+  quality: number;
+};
+
+type EvidenceBuckets = ReturnType<typeof splitEvidenceTargets<ResolvedEvidenceSelection>>;
+
+type EvidenceTrace = {
+  cv: Array<{
+    evidenceId: string;
+    gapKey: string;
+    title: string;
+    quality: number;
+    snippet: string;
+  }>;
+  cover: Array<{
+    evidenceId: string;
+    gapKey: string;
+    title: string;
+    quality: number;
+    snippet: string;
+  }>;
+  star: Array<{
+    evidenceId: string;
+    gapKey: string;
+    title: string;
+    quality: number;
+    snippet: string;
+  }>;
+};
+
+function buildEvidenceSelections(
+  rows: Array<{
+    gap_key: string;
+    evidence_id: string;
+    use_cv: boolean | null;
+    use_cover: boolean | null;
+    use_star: boolean | null;
+    quality_score: number | null;
+  }>,
+  fallbackSelections: ReturnType<typeof normalizeSelectedEvidence>
+): EvidenceTargetSelection[] {
+  if (rows.length > 0) {
+    return rows.map((row) => ({
+      gapKey: normalizeGapKey(row.gap_key),
+      evidenceId: row.evidence_id,
+      useCv: row.use_cv ?? true,
+      useCover: row.use_cover ?? true,
+      useStar: row.use_star ?? false,
+      qualityScore: row.quality_score ?? null,
+    }));
+  }
+  return fallbackSelections.map((entry) => ({
+    gapKey: entry.signalId,
+    evidenceId: entry.id,
+    useCv: true,
+    useCover: true,
+    useStar: false,
+  }));
+}
+
+function resolveEvidenceSelections(
+  selections: EvidenceTargetSelection[],
+  evidenceBank: ReturnType<typeof buildEvidenceBank>,
+  fallbackSelections: ReturnType<typeof normalizeSelectedEvidence>
+): ResolvedEvidenceSelection[] {
+  const noteMap = new Map(
+    fallbackSelections.map((entry) => [`${entry.signalId}:${entry.id}`, entry])
+  );
+  const seen = new Set<string>();
+  const resolved: ResolvedEvidenceSelection[] = [];
+  selections.forEach((selection) => {
+    const key = `${selection.gapKey}:${selection.evidenceId}`;
+    if (seen.has(key)) {
+      return;
+    }
+    seen.add(key);
+    const item = evidenceBank.byId.get(selection.evidenceId);
+    if (item) {
+      const snippet = buildEvidenceSnippet(item).shortSnippet;
+      resolved.push({
+        ...selection,
+        title: item.title,
+        snippet,
+        quality: item.qualityScore,
+      });
+      return;
+    }
+    const fallback = noteMap.get(key);
+    if (fallback?.note) {
+      resolved.push({
+        ...selection,
+        title: fallback.note,
+        snippet: fallback.note,
+        quality: selection.qualityScore ?? 0,
+      });
+    }
+  });
+  return resolved;
+}
+
+function buildEvidenceTrace(buckets: EvidenceBuckets): EvidenceTrace {
+  return {
+    cv: buckets.cv.map((entry) => ({
+      evidenceId: entry.evidenceId,
+      gapKey: entry.gapKey,
+      title: entry.title,
+      quality: entry.quality,
+      snippet: entry.snippet,
+    })),
+    cover: buckets.cover.map((entry) => ({
+      evidenceId: entry.evidenceId,
+      gapKey: entry.gapKey,
+      title: entry.title,
+      quality: entry.quality,
+      snippet: entry.snippet,
+    })),
+    star: buckets.star.map((entry) => ({
+      evidenceId: entry.evidenceId,
+      gapKey: entry.gapKey,
+      title: entry.title,
+      quality: entry.quality,
+      snippet: entry.snippet,
+    })),
+  };
 }
 
 async function callOpenAI<T>(payload: {
@@ -207,6 +342,16 @@ export async function POST(request: Request) {
     const selectedEvidence = normalizeSelectedEvidence(
       application.selected_evidence
     );
+    let evidenceRows: ApplicationEvidenceRow[] = [];
+    try {
+      evidenceRows = await listApplicationEvidenceRows(
+        supabase,
+        user.id,
+        application.id
+      );
+    } catch (error) {
+      console.error("[autopack.evidence.rows]", error);
+    }
 
     const generationNotes: string[] = [];
 
@@ -337,23 +482,42 @@ export async function POST(request: Request) {
     const signals = buildRoleFitSignals(packs);
     const evidenceBank = buildEvidenceBank({
       profileHeadline: profile.headline,
+      profileLocation: profile.location,
       achievements,
       workHistory,
       signals,
     });
-    const evidenceSnippets = buildSelectedEvidenceSnippets(
-      selectedEvidence,
+    const evidenceSelections = buildEvidenceSelections(
+      evidenceRows,
+      selectedEvidence
+    );
+    const resolvedEvidence = resolveEvidenceSelections(
+      evidenceSelections,
       evidenceBank,
-      6
-    )
-      .map((snippet) => sanitizeInlineText(snippet))
-      .filter(Boolean);
-    const cvWithEvidence = evidenceSnippets.length
-      ? `${sanitizedCvText}\n\nSelected evidence for this role\n${evidenceSnippets.map((snippet) => `- ${snippet}`).join("\n")}`
+      selectedEvidence
+    );
+    const buckets = splitEvidenceTargets<ResolvedEvidenceSelection>(
+      resolvedEvidence
+    );
+    const evidenceForCv = buckets.cv
+      .map((entry) => sanitizeInlineText(entry.snippet))
+      .filter(Boolean)
+      .slice(0, 6);
+    const evidenceForCover = buckets.cover
+      .map((entry) => sanitizeInlineText(entry.snippet))
+      .filter(Boolean)
+      .slice(0, 4);
+    const evidenceForStar = buckets.star
+      .map((entry) => sanitizeInlineText(entry.snippet))
+      .filter(Boolean)
+      .slice(0, 6);
+    const cvWithEvidence = evidenceForCv.length
+      ? `${sanitizedCvText}\n\nEvidence highlights\n${evidenceForCv.map((snippet) => `- ${snippet}`).join("\n")}`
       : sanitizedCvText;
-    const coverWithEvidence = evidenceSnippets.length
-      ? `${sanitizedCoverLetter}\n\nEvidence highlights: ${evidenceSnippets.slice(0, 2).join(" ")}`
+    const coverWithEvidence = evidenceForCover.length
+      ? `${sanitizedCoverLetter}\n\nRelevant evidence:\n${evidenceForCover.map((snippet) => `- ${snippet}`).join("\n")}`
       : sanitizedCoverLetter;
+    const evidenceTrace = buildEvidenceTrace(buckets);
 
     const latestVersion = await fetchLatestAutopackVersion(
       supabase,
@@ -366,7 +530,9 @@ export async function POST(request: Request) {
       requirements: sanitizedAnswers,
       change_log: sanitizedChangeLog,
       extracted_requirements: extractedRequirements,
-      ...(evidenceSnippets.length > 0 ? { evidence: evidenceSnippets } : {}),
+      ...(evidenceForStar.length > 0
+        ? { suggested_star_evidence: evidenceForStar }
+        : {}),
       ...(sanitizedAssumptions.length > 0
         ? { assumptions: sanitizedAssumptions }
         : {}),
@@ -381,6 +547,7 @@ export async function POST(request: Request) {
         cv_text: cvWithEvidence,
         cover_letter: coverWithEvidence,
         answers_json: answersPayload,
+        evidence_trace: evidenceTrace,
       })
       .select("id, version")
       .single();

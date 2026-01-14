@@ -118,6 +118,7 @@ export async function POST(request: Request) {
     const updated = dedupeSelectedEvidence([...existing, entry]);
 
     const matchScore = evidenceItem.matchScores[parsed.data.signalId] ?? 0;
+    const updatedAt = new Date().toISOString();
 
     try {
       await upsertApplicationEvidence(supabase, user.id, {
@@ -128,6 +129,10 @@ export async function POST(request: Request) {
         source_id: evidenceItem.sourceId,
         match_score: matchScore,
         quality_score: evidenceItem.qualityScore,
+        use_cv: true,
+        use_cover: true,
+        use_star: false,
+        updated_at: updatedAt,
       });
     } catch (error) {
       console.error("[evidence.select.persist]", error);

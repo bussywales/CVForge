@@ -189,6 +189,9 @@ function buildSelectedEvidenceList(
 ) {
   return selectedRows
     .map((row) => {
+      const useCv = row.use_cv ?? true;
+      const useCover = row.use_cover ?? true;
+      const useStar = row.use_star ?? false;
       const evidenceItem = evidenceBank.byId.get(row.evidence_id);
       if (evidenceItem) {
         const snippet = buildEvidenceSnippet(evidenceItem);
@@ -199,6 +202,9 @@ function buildSelectedEvidenceList(
           text: evidenceItem.text,
           shortSnippet: snippet.shortSnippet,
           qualityScore: evidenceItem.qualityScore,
+          useCv,
+          useCover,
+          useStar,
         };
       }
       const fallback = noteMap.get(`${gapKey}:${row.evidence_id}`);
@@ -212,6 +218,9 @@ function buildSelectedEvidenceList(
         text: fallback.note ?? "",
         shortSnippet: fallback.note ?? "",
         qualityScore: row.quality_score ?? 0,
+        useCv,
+        useCover,
+        useStar,
       };
     })
     .filter(Boolean);

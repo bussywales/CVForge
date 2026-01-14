@@ -12,6 +12,10 @@ describe("groupSelectedEvidenceRows", () => {
         source_id: "1",
         match_score: 1,
         quality_score: 70,
+        use_cv: true,
+        use_cover: true,
+        use_star: false,
+        updated_at: null,
       },
       {
         application_id: "app-1",
@@ -21,6 +25,10 @@ describe("groupSelectedEvidenceRows", () => {
         source_id: "1",
         match_score: 1,
         quality_score: 70,
+        use_cv: true,
+        use_cover: true,
+        use_star: false,
+        updated_at: null,
       },
       {
         application_id: "app-1",
@@ -30,6 +38,10 @@ describe("groupSelectedEvidenceRows", () => {
         source_id: "2",
         match_score: 0.9,
         quality_score: 60,
+        use_cv: true,
+        use_cover: false,
+        use_star: true,
+        updated_at: null,
       },
     ];
 

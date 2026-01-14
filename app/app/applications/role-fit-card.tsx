@@ -175,7 +175,12 @@ export default function RoleFitCard({
       const selectedMap: Record<string, SelectedEvidenceItem[]> = {};
       (payload?.gaps ?? []).forEach((gap: EvidenceGapSuggestion) => {
         gapMap[gap.signalId] = gap.suggestedEvidence ?? [];
-        selectedMap[gap.signalId] = gap.selectedEvidence ?? [];
+        selectedMap[gap.signalId] = (gap.selectedEvidence ?? []).map((item) => ({
+          ...item,
+          useCv: item.useCv ?? true,
+          useCover: item.useCover ?? true,
+          useStar: item.useStar ?? false,
+        }));
       });
       setEvidenceByGap(gapMap);
       setSelectedByGap(selectedMap);
@@ -363,6 +368,9 @@ export default function RoleFitCard({
       text: item.text,
       shortSnippet: item.shortSnippet,
       qualityScore: item.qualityScore,
+      useCv: true,
+      useCover: true,
+      useStar: false,
     });
     setEvidenceErrors((prev) => {
       const { [item.id]: _ignored, ...rest } = prev;
@@ -480,6 +488,65 @@ export default function RoleFitCard({
       console.error("[role-fit.unselect]", error);
       addSelectedEvidence(gapId, item);
       updateEvidenceSelection(item.id, true);
+      setEvidenceErrors((prev) => ({
+        ...prev,
+        [item.id]: "Couldn't save. Try again.",
+      }));
+    } finally {
+      setPendingEvidenceId(null);
+    }
+  };
+
+  const handleEvidenceTargets = async (
+    gapId: string,
+    item: SelectedEvidenceItem,
+    updates: Partial<Pick<SelectedEvidenceItem, "useCv" | "useCover" | "useStar">>
+  ) => {
+    const nextItem = { ...item, ...updates };
+    setSelectedByGap((prev) => ({
+      ...prev,
+      [gapId]: (prev[gapId] ?? []).map((entry) =>
+        entry.id === item.id ? nextItem : entry
+      ),
+    }));
+    setPendingEvidenceId(item.id);
+    try {
+      const response = await fetch("/api/evidence/targets", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          applicationId,
+          gapKey: gapId,
+          evidenceId: item.id,
+          useCv: nextItem.useCv,
+          useCover: nextItem.useCover,
+          useStar: nextItem.useStar,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setSelectedByGap((prev) => ({
+          ...prev,
+          [gapId]: (prev[gapId] ?? []).map((entry) =>
+            entry.id === item.id ? item : entry
+          ),
+        }));
+        setEvidenceErrors((prev) => ({
+          ...prev,
+          [item.id]: payload?.error ?? "Couldn't save. Try again.",
+        }));
+        return;
+      }
+      setToast({ message: "Targets updated." });
+    } catch (error) {
+      console.error("[role-fit.targets]", error);
+      setSelectedByGap((prev) => ({
+        ...prev,
+        [gapId]: (prev[gapId] ?? []).map((entry) =>
+          entry.id === item.id ? item : entry
+        ),
+      }));
       setEvidenceErrors((prev) => ({
         ...prev,
         [item.id]: "Couldn't save. Try again.",
@@ -699,6 +766,44 @@ export default function RoleFitCard({
                                     {item.shortSnippet}
                                   </p>
                                   <div className="mt-2 flex flex-wrap gap-2">
+                                    <div className="flex flex-wrap items-center gap-1">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleEvidenceTargets(gap.id, item, {
+                                            useCv: !item.useCv,
+                                          })
+                                        }
+                                        className={toggleClass(item.useCv)}
+                                        disabled={pendingEvidenceId === item.id}
+                                      >
+                                        CV
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleEvidenceTargets(gap.id, item, {
+                                            useCover: !item.useCover,
+                                          })
+                                        }
+                                        className={toggleClass(item.useCover)}
+                                        disabled={pendingEvidenceId === item.id}
+                                      >
+                                        Cover
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleEvidenceTargets(gap.id, item, {
+                                            useStar: !item.useStar,
+                                          })
+                                        }
+                                        className={toggleClass(item.useStar)}
+                                        disabled={pendingEvidenceId === item.id}
+                                      >
+                                        STAR
+                                      </button>
+                                    </div>
                                     <button
                                       type="button"
                                       onClick={() => handleCopy(item.shortSnippet)}
@@ -1020,6 +1125,14 @@ function pickMetricHint(label: string) {
   return "delivery time";
 }
 
+function toggleClass(active: boolean) {
+  return `rounded-full border px-2 py-0.5 text-[11px] font-semibold transition ${
+    active
+      ? "border-emerald-200 bg-emerald-600 text-white"
+      : "border-emerald-100 bg-white text-emerald-700 hover:bg-white"
+  }`;
+}
+
 type EvidenceSuggestion = {
   id: string;
   kind: "achievement" | "work_bullet";
@@ -1052,4 +1165,7 @@ type SelectedEvidenceItem = {
   text: string;
   shortSnippet: string;
   qualityScore: number;
+  useCv: boolean;
+  useCover: boolean;
+  useStar: boolean;
 };

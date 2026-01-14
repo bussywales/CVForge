@@ -17,6 +17,7 @@ import { getEffectiveJobText } from "@/lib/job-text";
 import AutopackEditorForm from "@/app/app/applications/autopack-editor-form";
 import AutopackGeneratedBanner from "@/app/app/applications/autopack-generated-banner";
 import AutopackExportButtons from "@/app/app/applications/autopack-export-buttons";
+import AutopackEvidenceUsed from "@/app/app/applications/autopack-evidence-used";
 import SubmissionChecklist from "@/app/app/applications/submission-checklist";
 
 type AutopackPageProps = {
@@ -158,6 +159,7 @@ export default async function AutopackEditorPage({
             coverOk={coverConsistency.ok}
             coverHint={coverConsistency.hint}
           />
+          <AutopackEvidenceUsed evidenceTrace={autopack.evidence_trace} />
           <AutopackExportButtons
             autopackId={autopack.id}
             hasPlaceholders={hasPlaceholders}

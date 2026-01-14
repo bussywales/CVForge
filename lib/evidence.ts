@@ -43,6 +43,25 @@ export type EvidenceQualityFlags = {
   has_timeframe: boolean;
 };
 
+export type EvidenceTargetSelection = {
+  gapKey: string;
+  evidenceId: string;
+  useCv: boolean;
+  useCover: boolean;
+  useStar: boolean;
+  qualityScore?: number | null;
+};
+
+export function splitEvidenceTargets<T extends EvidenceTargetSelection>(
+  selections: T[]
+) {
+  return {
+    cv: selections.filter((item) => item.useCv),
+    cover: selections.filter((item) => item.useCover),
+    star: selections.filter((item) => item.useStar),
+  };
+}
+
 export type EvidenceMatch = {
   item: EvidenceItem;
   matchScore: number;
@@ -168,11 +187,11 @@ export function buildEvidenceBank({
         title: roleLabel,
         text,
         dateRange,
-      signals: signalsMatched,
-      weight: quality.score + recencyBoost + contextBoost,
-      matchScores,
-      qualityScore: quality.score,
-      qualityFlags: quality.flags,
+        signals: signalsMatched,
+        weight: quality.score + recencyBoost + contextBoost,
+        matchScores,
+        qualityScore: quality.score,
+        qualityFlags: quality.flags,
         tokens,
         tokenSet,
         normalizedText,
