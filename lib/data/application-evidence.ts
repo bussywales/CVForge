@@ -39,3 +39,23 @@ export async function upsertApplicationEvidence(
 
   return data as ApplicationEvidenceRecord;
 }
+
+export async function listApplicationEvidenceIds(
+  supabase: SupabaseClient,
+  userId: string,
+  applicationId: string
+): Promise<string[]> {
+  const { data, error } = await supabase
+    .from("application_evidence")
+    .select("evidence_id")
+    .eq("user_id", userId)
+    .eq("application_id", applicationId);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? [])
+    .map((row) => row.evidence_id)
+    .filter((id): id is string => typeof id === "string");
+}

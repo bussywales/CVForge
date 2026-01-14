@@ -6,7 +6,13 @@ import { listAchievements } from "@/lib/data/achievements";
 import { listWorkHistory } from "@/lib/data/work-history";
 import { fetchProfile } from "@/lib/data/profile";
 import { listActiveDomainPacks } from "@/lib/data/domain-packs";
-import { buildEvidenceBank, buildEvidenceSnippet, rankEvidenceForGap } from "@/lib/evidence";
+import { listApplicationEvidenceIds } from "@/lib/data/application-evidence";
+import {
+  buildEvidenceBank,
+  buildEvidenceSnippet,
+  markSelectedSuggestions,
+  rankEvidenceForGap,
+} from "@/lib/evidence";
 import { getEffectiveJobText } from "@/lib/job-text";
 import { inferDomainGuess } from "@/lib/jd-learning";
 import type { RoleFitPack } from "@/lib/role-fit";
@@ -43,11 +49,14 @@ async function handleSuggest(applicationId: string) {
       );
     }
 
-    const [profile, achievements, workHistory] = await Promise.all([
-      fetchProfile(supabase, user.id),
-      listAchievements(supabase, user.id),
-      listWorkHistory(supabase, user.id),
-    ]);
+    const [profile, achievements, workHistory, selectedEvidenceIds] =
+      await Promise.all([
+        fetchProfile(supabase, user.id),
+        listAchievements(supabase, user.id),
+        listWorkHistory(supabase, user.id),
+        listApplicationEvidenceIds(supabase, user.id, application.id),
+      ]);
+    const selectedEvidenceSet = new Set(selectedEvidenceIds);
 
     let dynamicPacks: RoleFitPack[] = [];
     try {
@@ -88,7 +97,7 @@ async function handleSuggest(applicationId: string) {
     });
 
     const gaps = roleFit.gapSignals.map((gap) => {
-      const suggestions = rankEvidenceForGap(gap.id, evidenceBank).map(
+      const baseSuggestions = rankEvidenceForGap(gap.id, evidenceBank).map(
         ({ item, matchScore, qualityScore }) => {
           const snippet = buildEvidenceSnippet(item);
           return {
@@ -103,6 +112,10 @@ async function handleSuggest(applicationId: string) {
             sourceId: item.sourceId,
           };
         }
+      );
+      const suggestions = markSelectedSuggestions(
+        baseSuggestions,
+        selectedEvidenceSet
       );
 
       return {

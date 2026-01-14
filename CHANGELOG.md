@@ -8,6 +8,10 @@
 - Evidence quality scoring with fuzzy matching across achievements and work history.
 - Role Fit gaps now show quality-ranked evidence suggestions and fallback actions.
 
+## v0.7.7
+- Evidence suggestions now return selected flags for immediate UI feedback.
+- Role Fit selections show Selected ✓ state with optimistic updates.
+
 ## v0.7.4
 - Job advert fetch endpoint with extracted snapshot storage and refresh support.
 - Role Fit, Autopack, and Interview Pack now prefer fetched snapshots when available.

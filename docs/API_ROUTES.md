@@ -148,7 +148,7 @@ Runtime: nodejs.
 GET /api/evidence/suggest?applicationId=...
 Auth: required.
 Input: query param applicationId.
-Output: JSON { gaps: [{ signalId, label, suggestedEvidence[] }] } where suggestedEvidence includes matchScore and qualityScore.
+Output: JSON { gaps: [{ signalId, label, suggestedEvidence[] }] } where suggestedEvidence includes matchScore, qualityScore, and selected.
 Errors: JSON { error } with 400/401/404/500.
 Runtime: nodejs, force-dynamic.
 

@@ -25,6 +25,16 @@ export type EvidenceSnippet = {
   shortSnippet: string;
 };
 
+export function markSelectedSuggestions<T extends { id: string }>(
+  suggestions: T[],
+  selectedIds: Set<string>
+) {
+  return suggestions.map((suggestion) => ({
+    ...suggestion,
+    selected: selectedIds.has(suggestion.id),
+  }));
+}
+
 export type EvidenceQualityFlags = {
   has_metric: boolean;
   has_tooling: boolean;

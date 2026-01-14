@@ -47,6 +47,9 @@ export default function RoleFitCard({
   const [evidenceByGap, setEvidenceByGap] = useState<
     Record<string, EvidenceSuggestion[]>
   >({});
+  const [evidenceErrors, setEvidenceErrors] = useState<
+    Record<string, string>
+  >({});
   const [evidenceStatus, setEvidenceStatus] = useState<
     "idle" | "loading" | "error"
   >("idle");
@@ -170,6 +173,7 @@ export default function RoleFitCard({
         gapMap[gap.signalId] = gap.suggestedEvidence ?? [];
       });
       setEvidenceByGap(gapMap);
+      setEvidenceErrors({});
       setEvidenceStatus("idle");
     } catch (error) {
       console.error("[role-fit.evidence]", error);
@@ -181,6 +185,21 @@ export default function RoleFitCard({
   useEffect(() => {
     void fetchEvidenceSuggestions();
   }, [fetchEvidenceSuggestions]);
+
+  const updateEvidenceSelection = useCallback(
+    (evidenceId: string, selected: boolean) => {
+      setEvidenceByGap((prev) => {
+        const next: Record<string, EvidenceSuggestion[]> = {};
+        Object.entries(prev).forEach(([gapId, items]) => {
+          next[gapId] = items.map((item) =>
+            item.id === evidenceId ? { ...item, selected } : item
+          );
+        });
+        return next;
+      });
+    },
+    []
+  );
 
   const handleAddAchievement = async (gap: RoleFitResult["gapSignals"][number]) => {
     if (!gap.primaryAction) {
@@ -303,6 +322,11 @@ export default function RoleFitCard({
     evidenceId: string,
     signalId: string
   ) => {
+    updateEvidenceSelection(evidenceId, true);
+    setEvidenceErrors((prev) => {
+      const { [evidenceId]: _ignored, ...rest } = prev;
+      return rest;
+    });
     setPendingEvidenceId(evidenceId);
     try {
       const response = await fetch("/api/evidence/select", {
@@ -313,15 +337,25 @@ export default function RoleFitCard({
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
+        updateEvidenceSelection(evidenceId, false);
+        setEvidenceErrors((prev) => ({
+          ...prev,
+          [evidenceId]: payload?.error ?? "Couldn't save. Try again.",
+        }));
         setToast({
           message: payload?.error ?? "Unable to select evidence right now.",
         });
         return;
       }
-      setToast({ message: "Evidence selected." });
+      setToast({ message: "Saved." });
       router.refresh();
     } catch (error) {
       console.error("[role-fit.select]", error);
+      updateEvidenceSelection(evidenceId, false);
+      setEvidenceErrors((prev) => ({
+        ...prev,
+        [evidenceId]: "Couldn't save. Try again.",
+      }));
       setToast({ message: "Unable to select evidence right now." });
     } finally {
       setPendingEvidenceId(null);
@@ -624,6 +658,11 @@ export default function RoleFitCard({
                                         <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
                                           Quality {item.qualityScore}
                                         </span>
+                                        {item.selected ? (
+                                          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                            Selected
+                                          </span>
+                                        ) : null}
                                       </div>
                                     </div>
                                     <p className="mt-1 text-xs text-[rgb(var(--muted))]">
@@ -636,9 +675,16 @@ export default function RoleFitCard({
                                           handleEvidenceSelect(item.id, gap.id)
                                         }
                                         className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] transition hover:bg-white"
-                                        disabled={pendingEvidenceId === item.id}
+                                        disabled={
+                                          pendingEvidenceId === item.id ||
+                                          item.selected
+                                        }
                                       >
-                                        Select
+                                        {item.selected
+                                          ? "Selected ✓"
+                                          : pendingEvidenceId === item.id
+                                            ? "Saving..."
+                                            : "Select"}
                                       </button>
                                       <button
                                         type="button"
@@ -662,6 +708,11 @@ export default function RoleFitCard({
                                         Add to STAR
                                       </button>
                                     </div>
+                                    {evidenceErrors[item.id] ? (
+                                      <p className="mt-2 text-xs text-red-600">
+                                        {evidenceErrors[item.id]}
+                                      </p>
+                                    ) : null}
                                   </li>
                                 ))}
                               </ul>
@@ -811,6 +862,7 @@ type EvidenceSuggestion = {
   qualityScore: number;
   sourceType?: string;
   sourceId?: string;
+  selected?: boolean;
 };
 
 type EvidenceGapSuggestion = {
