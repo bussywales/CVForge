@@ -9,4 +9,4 @@
 - **Smart Apply** – Submission readiness dashboard with checklist updates triggered by exports, kit downloads, and marked submissions.
 - **Application Kit** – ZIP download of CV, cover letter, interview pack, and STAR JSON for submission-ready artefacts.
 - **Outreach Engine** – Deterministic email/LinkedIn templates, logging, and next-step scheduling tracked via pipeline activities.
-- **User Guide v1.1** – Practical walkthrough linked from the docs index that covers quick start flows, tab-by-tab tasks, common issues, and best practices.
+- **User Guide v1.2** – Client-facing manual with quick paths, tab workflows, AI boost notes, troubleshooting tables, and export advice.
