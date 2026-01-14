@@ -5,6 +5,7 @@ import { fetchApplication, updateApplication } from "@/lib/data/applications";
 import { listAchievements } from "@/lib/data/achievements";
 import { listAutopacks } from "@/lib/data/autopacks";
 import { buildStarDraft } from "@/lib/star-draft";
+import { getEffectiveJobText } from "@/lib/job-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -62,7 +63,7 @@ export async function POST(
     }
 
     const draft = buildStarDraft({
-      jobDescription: application.job_description ?? "",
+      jobDescription: getEffectiveJobText(application),
       achievementTitle: selected.title,
     });
 

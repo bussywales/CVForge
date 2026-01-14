@@ -3,6 +3,7 @@ import { insertAuditLog } from "@/lib/data/audit-log";
 import type { ApplicationRecord } from "@/lib/data/applications";
 import type { RoleFitResult } from "@/lib/role-fit";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { getEffectiveJobText } from "@/lib/job-text";
 import {
   buildPackProposal,
   extractTopTerms,
@@ -28,7 +29,7 @@ export async function logLearningEvent({
     return;
   }
 
-  const jobDescription = application.job_description ?? "";
+  const jobDescription = getEffectiveJobText(application);
   if (!jobDescription.trim()) {
     return;
   }

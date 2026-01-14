@@ -7,6 +7,7 @@ import { fetchLatestAutopackVersion } from "@/lib/data/autopacks";
 import { fetchLatestAuditLog, insertAuditLog } from "@/lib/data/audit-log";
 import { deductCreditForAutopack, getUserCredits } from "@/lib/data/credits";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { getEffectiveJobText } from "@/lib/job-text";
 import {
   autopackAiOutputSchema,
   generateAutopackSchema,
@@ -186,7 +187,7 @@ export async function POST(request: Request) {
     const generationNotes: string[] = [];
 
     const jobDescriptionResult = truncateText(
-      application.job_description,
+      getEffectiveJobText(application),
       JOB_DESCRIPTION_MAX
     );
 

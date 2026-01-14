@@ -8,6 +8,7 @@ import { getSupabaseUser } from "@/lib/data/supabase";
 import { buildInterviewLift } from "@/lib/interview-lift";
 import { buildInterviewPack } from "@/lib/interview-pack";
 import { inferDomainGuess } from "@/lib/jd-learning";
+import { getEffectiveJobText } from "@/lib/job-text";
 import { buildQuestionKey } from "@/lib/interview-practice";
 import type { InterviewPracticeScore } from "@/lib/interview-practice";
 import type { InterviewRewriteNotes } from "@/lib/interview-rewrite";
@@ -77,7 +78,7 @@ export default async function PracticeDrillPage({
     console.error("[practice-drill.packs]", error);
   }
 
-  const jobDescription = application.job_description ?? "";
+  const jobDescription = getEffectiveJobText(application);
   const evidenceParts = [
     profile?.headline,
     ...achievements.map((achievement) =>

@@ -28,6 +28,7 @@ import {
   getKitContentsList,
   type KitPracticeAnswer,
 } from "@/lib/application-kit";
+import { getEffectiveJobText } from "@/lib/job-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -101,7 +102,7 @@ export async function GET(
     ].filter(Boolean) as string[];
     const evidence = evidenceParts.join(" ").trim();
 
-    const jobDescription = application.job_description ?? "";
+    const jobDescription = getEffectiveJobText(application);
     const domainGuess = inferDomainGuess(
       application.job_title ?? "",
       jobDescription

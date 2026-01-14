@@ -9,6 +9,9 @@ Profiles store name, headline, and location. Achievements capture STAR evidence 
 ## Applications
 Applications capture job title, company, description, status, and optional job advert link. Tracking fields support follow-up dates, contacts, activity history, and outreach stages.
 
+## Job Link Fetch v1
+Job advert links can be fetched server-side to store a read-only snapshot. Role Fit, Autopacks, and Interview Packs prefer the fetched snapshot when available.
+
 ## Autopacks
 Autopacks generate CVs, cover letters, and STAR answers from profile and achievements. Users can edit and version outputs in-app.
 

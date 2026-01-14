@@ -61,12 +61,15 @@ export async function createApplicationAction(
   }
 
   try {
+    const jobText = parsed.data.job_description.trim();
     const created = await createApplication(supabase, user.id, {
       job_title: parsed.data.job_title,
       company: toNullable(parsed.data.company ?? ""),
       company_name: toNullable(parsed.data.company ?? ""),
       job_url: parsed.data.job_url ?? null,
       job_description: parsed.data.job_description,
+      job_text: jobText || null,
+      job_text_source: jobText ? "pasted" : null,
       status: parsed.data.status,
       contact_name: toNullable(parsed.data.contact_name ?? ""),
       contact_role: toNullable(parsed.data.contact_role ?? ""),
@@ -132,11 +135,30 @@ export async function updateApplicationAction(
   }
 
   try {
+    const existing = await fetchApplication(supabase, user.id, id);
+    const jobText = parsed.data.job_description.trim();
+    const shouldOverwriteJobText =
+      !existing ||
+      existing.job_text_source !== "fetched" ||
+      jobText !== (existing.job_description ?? "");
+
+    const jobTextUpdates = shouldOverwriteJobText
+      ? {
+          job_text: jobText || null,
+          job_text_source: jobText ? "pasted" : null,
+          job_fetch_status: null,
+          job_fetch_error: null,
+          job_fetched_at: null,
+          job_text_hash: null,
+        }
+      : {};
+
     await updateApplication(supabase, user.id, id, {
       job_title: parsed.data.job_title,
       company: toNullable(parsed.data.company ?? ""),
       job_url: parsed.data.job_url ?? null,
       job_description: parsed.data.job_description,
+      ...jobTextUpdates,
       status: parsed.data.status,
       contact_name: toNullable(parsed.data.contact_name ?? ""),
       contact_role: toNullable(parsed.data.contact_role ?? ""),

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.4
+- Job advert fetch endpoint with extracted snapshot storage and refresh support.
+- Role Fit, Autopack, and Interview Pack now prefer fetched snapshots when available.
+
 ## v0.7.3
 - Smart Apply panel with submission checklist, closing dates, and source platform fields.
 - Auto-updated checklist from exports and a follow-up scheduler.

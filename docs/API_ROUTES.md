@@ -91,6 +91,14 @@ Output: JSON { updatedProfile, createdAchievements, createdWorkHistory }.
 Errors: JSON { error, detail? } with 400/401/500.
 Runtime: nodejs, force-dynamic.
 
+## Job adverts
+POST /api/job/fetch
+Auth: required.
+Input: JSON { applicationId }.
+Output: JSON { ok, status, jobTextChars, truncated? }.
+Errors: JSON { error, detail?, hint? } with 400/401/404/502.
+Runtime: nodejs, force-dynamic.
+
 ## Role Fit and Interview Lift
 GET /api/applications/[id]/interview-lift
 Auth: required.

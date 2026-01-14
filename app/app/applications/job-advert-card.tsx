@@ -1,15 +1,41 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
+import { formatDateTimeUk } from "@/lib/tracking-utils";
 
-type JobAdvertCardProps = {
-  url: string;
-  host: string;
+type FetchState = {
+  status: "idle" | "loading" | "success" | "error";
+  message?: string;
 };
 
-export default function JobAdvertCard({ url, host }: JobAdvertCardProps) {
+type JobAdvertCardProps = {
+  applicationId: string;
+  url: string;
+  host: string;
+  source: "fetched" | "pasted";
+  status: "ok" | "failed" | "not_fetched";
+  fetchedAt: string | null;
+  chars: number;
+  error: string | null;
+  sourceUrl: string | null;
+};
+
+export default function JobAdvertCard({
+  applicationId,
+  url,
+  host,
+  source,
+  status,
+  fetchedAt,
+  chars,
+  error,
+  sourceUrl,
+}: JobAdvertCardProps) {
   const [copied, setCopied] = useState(false);
+  const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
+  const router = useRouter();
 
   const handleCopy = async () => {
     try {
@@ -18,6 +44,43 @@ export default function JobAdvertCard({ url, host }: JobAdvertCardProps) {
       window.setTimeout(() => setCopied(false), 2000);
     } catch (error) {
       console.error("[job advert copy]", error);
+    }
+  };
+
+  const handleFetch = async () => {
+    setFetchState({ status: "loading" });
+    try {
+      const response = await fetch("/api/job/fetch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId }),
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        setFetchState({
+          status: "error",
+          message:
+            payload?.error ?? "Unable to fetch the job advert right now.",
+        });
+        return;
+      }
+
+      const payload = await response.json().catch(() => ({}));
+      const resultStatus = payload?.status ?? "ok";
+      const message =
+        resultStatus === "not_modified"
+          ? "No changes detected since the last fetch."
+          : `Fetched updated advert text (${payload?.jobTextChars ?? 0} chars).`;
+
+      setFetchState({ status: "success", message });
+      router.refresh();
+    } catch (fetchError) {
+      console.error("[job advert fetch]", fetchError);
+      setFetchState({
+        status: "error",
+        message: "Unable to fetch the job advert right now.",
+      });
     }
   };
 
@@ -37,8 +100,37 @@ export default function JobAdvertCard({ url, host }: JobAdvertCardProps) {
             {url}
           </a>
           <p className="text-xs text-[rgb(var(--muted))]">
-            Optional. Used for reference; content is not fetched.
+            {source === "fetched"
+              ? "Fetched snapshot is used for Role Fit and packs."
+              : "Paste the description or fetch it from the link after saving."}
           </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[rgb(var(--muted))]">
+            <span className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[rgb(var(--ink))]">
+              {source === "fetched" ? "Fetched" : "Pasted"}
+            </span>
+            <span>
+              {chars.toLocaleString("en-GB")} chars
+            </span>
+            {fetchedAt ? (
+              <span>• Last fetched {formatDateTimeUk(fetchedAt)}</span>
+            ) : null}
+            {sourceUrl && sourceUrl !== url ? (
+              <span>• Canonical: {sourceUrl}</span>
+            ) : null}
+          </div>
+          {status === "failed" && error ? (
+            <p className="mt-2 text-xs text-amber-700">
+              Fetch failed: {error}. Paste the advert text below instead.
+            </p>
+          ) : null}
+          {fetchState.status === "success" && fetchState.message ? (
+            <p className="mt-2 text-xs text-emerald-700">
+              {fetchState.message}
+            </p>
+          ) : null}
+          {fetchState.status === "error" && fetchState.message ? (
+            <p className="mt-2 text-xs text-red-600">{fetchState.message}</p>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -55,6 +147,14 @@ export default function JobAdvertCard({ url, host }: JobAdvertCardProps) {
             aria-live="polite"
           >
             {copied ? "Copied" : "Copy link"}
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            onClick={handleFetch}
+            disabled={fetchState.status === "loading"}
+          >
+            {fetchState.status === "loading" ? "Fetching..." : "Fetch/Refresh"}
           </Button>
         </div>
       </div>

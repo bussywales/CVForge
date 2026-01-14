@@ -7,10 +7,12 @@
 ## Applications
 - Create an application with job title, job description, and optional job URL.
 - Edit the application and confirm changes persist.
+- If a job URL is present, fetch the job advert and confirm the snapshot updates.
 
 ## Role Fit and gap actions
 - Open an application detail page and confirm Role Fit score and gaps render.
 - Use a gap action to create or update an achievement and refresh the page.
+- If a fetched snapshot exists, confirm Role Fit uses it.
 
 ## Interview Lift
 - Log an activity and confirm Interview Lift suggestions appear.

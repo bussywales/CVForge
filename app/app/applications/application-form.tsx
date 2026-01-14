@@ -8,6 +8,7 @@ import type { ActionState } from "@/lib/actions/types";
 import { initialActionState } from "@/lib/actions/types";
 import type { ApplicationRecord } from "@/lib/data/applications";
 import { applicationStatusOptions } from "@/lib/application-status";
+import { formatDateTimeUk } from "@/lib/tracking-utils";
 
 type ApplicationFormProps = {
   mode: "create" | "edit";
@@ -102,7 +103,7 @@ export default function ApplicationForm({
         label="Job advert link (optional)"
         htmlFor="job_url"
         error={state.fieldErrors?.job_url}
-        hint="Paste the advert URL (Indeed, LinkedIn, company site...)."
+        hint="Paste the advert URL (Indeed, LinkedIn, company site...). You can fetch after saving."
       >
         <input
           id="job_url"
@@ -121,6 +122,28 @@ export default function ApplicationForm({
           className="w-full rounded-2xl border border-black/10 bg-white px-4 py-3 text-sm outline-none transition focus:border-[rgb(var(--accent))]"
         />
       </FormField>
+
+      {initialValues?.job_text_source === "fetched" &&
+      initialValues?.job_text ? (
+        <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
+          <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+            Fetched snapshot
+          </p>
+          <div className="mt-2 text-xs text-[rgb(var(--muted))]">
+            <span className="font-semibold text-[rgb(var(--ink))]">
+              {initialValues.job_text.length.toLocaleString("en-GB")} chars
+            </span>
+            {initialValues.job_fetched_at ? (
+              <span className="ml-2">
+                • Last fetched {formatDateTimeUk(initialValues.job_fetched_at)}
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-3 max-h-56 overflow-auto whitespace-pre-wrap rounded-xl border border-black/10 bg-white p-3 text-xs text-[rgb(var(--muted))]">
+            {initialValues.job_text}
+          </div>
+        </div>
+      ) : null}
 
       <FormField
         label="Status"
@@ -218,7 +241,7 @@ export default function ApplicationForm({
       </div>
 
       <FormField
-        label="Job description"
+        label="Job description (editable)"
         htmlFor="job_description"
         error={state.fieldErrors?.job_description}
       >
@@ -250,7 +273,7 @@ export default function ApplicationForm({
             }
             return (
               <span className="text-[rgb(var(--muted))]">
-                Paste the full JD here (minimum 200 characters).
+                Paste the full JD here (minimum 200 characters), or fetch from the advert link after saving.
               </span>
             );
           })()}

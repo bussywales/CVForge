@@ -13,6 +13,7 @@ import {
   detectMissingSections,
   detectPlaceholders,
 } from "@/lib/submission-quality";
+import { getEffectiveJobText } from "@/lib/job-text";
 import AutopackEditorForm from "@/app/app/applications/autopack-editor-form";
 import AutopackGeneratedBanner from "@/app/app/applications/autopack-generated-banner";
 import AutopackExportButtons from "@/app/app/applications/autopack-export-buttons";
@@ -106,7 +107,7 @@ export default async function AutopackEditorPage({
     .filter(Boolean)
     .join(" ");
   const keywordCoverage = calculateKeywordCoverage(
-    application?.job_description ?? "",
+    application ? getEffectiveJobText(application) : "",
     evidence
   );
   const contactPhone = extractPhone(combinedText);

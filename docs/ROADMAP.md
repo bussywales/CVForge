@@ -38,6 +38,12 @@ Scope boundary: deterministic checklist + next actions, no automation or externa
 Success criteria: checklist timestamps update from exports and submission status is tracked.
 Not in scope: sending applications or automatic follow-up messages.
 
+### Job Link Fetch v1 (shipped)
+Outcome: fetch a job advert snapshot from a link and use it for Role Fit and packs (shipped v0.7.4).
+Scope boundary: deterministic fetch + extraction only, no scraping automation or AI summarisation.
+Success criteria: fetched snapshots are stored and preferred when available.
+Not in scope: storing raw HTML or automatic job description rewriting.
+
 ### Role Fit + packs
 Outcome: keep Role Fit reliable with core/domain packs and fallback JD terms.
 Scope boundary: deterministic signals, pack detection, and UI gap guidance.
@@ -88,11 +94,11 @@ Scope boundary: Stripe checkout, webhook crediting, credit ledger.
 Success criteria: credits are accurate and generation is gated correctly.
 Not in scope: subscriptions, invoices, or team billing.
 
-### Job advert link fetch (v0.7.4)
-Outcome: optional assist to pull key details from a pasted job URL.
-Scope boundary: deterministic metadata capture only, no scraping or AI summarisation.
-Success criteria: users can preview fetched basics and keep manual control.
-Not in scope: full content ingestion or automatic job description rewriting.
+### Job advert enrichment (v0.7.5)
+Outcome: optional structured fields derived from fetched job adverts.
+Scope boundary: deterministic metadata extraction only.
+Success criteria: users can review and accept extracted fields.
+Not in scope: AI summarisation or external content storage beyond snapshots.
 
 ## Later
 

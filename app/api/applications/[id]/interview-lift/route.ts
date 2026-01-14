@@ -9,6 +9,7 @@ import { calculateRoleFit } from "@/lib/role-fit";
 import type { RoleFitPack } from "@/lib/role-fit";
 import { inferDomainGuess } from "@/lib/jd-learning";
 import { buildInterviewLift } from "@/lib/interview-lift";
+import { getEffectiveJobText } from "@/lib/job-text";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -55,7 +56,7 @@ export async function GET(
     ].filter(Boolean) as string[];
     const evidence = evidenceParts.join(" ").trim();
 
-    const jobDescription = application.job_description ?? "";
+    const jobDescription = getEffectiveJobText(application);
     const domainGuess = inferDomainGuess(
       application.job_title ?? "",
       jobDescription

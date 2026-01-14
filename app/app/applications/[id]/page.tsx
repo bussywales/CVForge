@@ -10,6 +10,7 @@ import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { fetchApplyChecklist } from "@/lib/apply-checklist";
 import { buildFollowupTemplates } from "@/lib/followup-templates";
+import { getEffectiveJobText, getJobTextMeta } from "@/lib/job-text";
 import { buildInterviewLift } from "@/lib/interview-lift";
 import { buildInterviewPack } from "@/lib/interview-pack";
 import { inferDomainGuess } from "@/lib/jd-learning";
@@ -92,7 +93,8 @@ export default async function ApplicationPage({
     user.id,
     application.id
   );
-  const jobDescription = application.job_description ?? "";
+  const jobDescription = getEffectiveJobText(application);
+  const jobTextMeta = getJobTextMeta(application);
   let dynamicPacks: RoleFitPack[] = [];
 
   try {
@@ -261,8 +263,18 @@ export default async function ApplicationPage({
         title="Job advert"
         description="Keep the original listing link handy."
       >
-        {safeJobUrl ? (
-          <JobAdvertCard url={safeJobUrl} host={jobHost} />
+      {safeJobUrl ? (
+          <JobAdvertCard
+            applicationId={application.id}
+            url={safeJobUrl}
+            host={jobHost}
+            source={jobTextMeta.source}
+            status={jobTextMeta.status}
+            fetchedAt={jobTextMeta.fetchedAt}
+            chars={jobTextMeta.chars}
+            error={jobTextMeta.error}
+            sourceUrl={jobTextMeta.sourceUrl}
+          />
         ) : (
           <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-4 text-sm text-[rgb(var(--muted))]">
             Not added yet.{" "}
