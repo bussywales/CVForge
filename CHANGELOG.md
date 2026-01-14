@@ -12,6 +12,10 @@
 - Evidence suggestions now return selected flags for immediate UI feedback.
 - Role Fit selections show Selected ✓ state with optimistic updates.
 
+## v0.7.8
+- Selected evidence now appears per gap with Copy and Unselect actions.
+- Evidence suggest response includes selectedEvidence lists per gap.
+
 ## v0.7.4
 - Job advert fetch endpoint with extracted snapshot storage and refresh support.
 - Role Fit, Autopack, and Interview Pack now prefer fetched snapshots when available.

@@ -13,6 +13,13 @@ export type ApplicationEvidenceRecord = {
   created_at: string;
 };
 
+export type ApplicationEvidenceRow = Omit<
+  ApplicationEvidenceRecord,
+  "id" | "user_id" | "created_at"
+>;
+
+export type SelectedEvidenceByGap = Record<string, ApplicationEvidenceRow[]>;
+
 const evidenceSelect =
   "id, user_id, application_id, gap_key, evidence_id, source_type, source_id, match_score, quality_score, created_at";
 
@@ -58,4 +65,73 @@ export async function listApplicationEvidenceIds(
   return (data ?? [])
     .map((row) => row.evidence_id)
     .filter((id): id is string => typeof id === "string");
+}
+
+export async function getSelectedEvidenceForApplication(
+  supabase: SupabaseClient,
+  userId: string,
+  applicationId: string
+): Promise<SelectedEvidenceByGap> {
+  const { data, error } = await supabase
+    .from("application_evidence")
+    .select("application_id, gap_key, evidence_id, source_type, source_id, match_score, quality_score")
+    .eq("user_id", userId)
+    .eq("application_id", applicationId);
+
+  if (error) {
+    throw error;
+  }
+
+  return groupSelectedEvidenceRows((data ?? []) as ApplicationEvidenceRow[]);
+}
+
+export async function removeApplicationEvidence(
+  supabase: SupabaseClient,
+  userId: string,
+  applicationId: string,
+  gapKey: string,
+  evidenceId: string
+): Promise<void> {
+  const storedKey = buildEvidenceGapKey(gapKey, evidenceId);
+  const { error } = await supabase
+    .from("application_evidence")
+    .delete()
+    .eq("user_id", userId)
+    .eq("application_id", applicationId)
+    .eq("evidence_id", evidenceId)
+    .in("gap_key", [gapKey, storedKey]);
+
+  if (error) {
+    throw error;
+  }
+}
+
+export function groupSelectedEvidenceRows(
+  rows: ApplicationEvidenceRow[]
+): SelectedEvidenceByGap {
+  const grouped: SelectedEvidenceByGap = {};
+
+  rows.forEach((row) => {
+    const gapKey = normalizeGapKey(row.gap_key);
+    if (!grouped[gapKey]) {
+      grouped[gapKey] = [];
+    }
+    const exists = grouped[gapKey].some(
+      (entry) => entry.evidence_id === row.evidence_id
+    );
+    if (!exists) {
+      grouped[gapKey].push({ ...row, gap_key: gapKey });
+    }
+  });
+
+  return grouped;
+}
+
+export function normalizeGapKey(value: string) {
+  const [base] = value.split("::");
+  return base;
+}
+
+export function buildEvidenceGapKey(gapKey: string, evidenceId: string) {
+  return `${gapKey}::${evidenceId}`;
 }

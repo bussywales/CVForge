@@ -47,6 +47,9 @@ export default function RoleFitCard({
   const [evidenceByGap, setEvidenceByGap] = useState<
     Record<string, EvidenceSuggestion[]>
   >({});
+  const [selectedByGap, setSelectedByGap] = useState<
+    Record<string, SelectedEvidenceItem[]>
+  >({});
   const [evidenceErrors, setEvidenceErrors] = useState<
     Record<string, string>
   >({});
@@ -169,10 +172,13 @@ export default function RoleFitCard({
         return;
       }
       const gapMap: Record<string, EvidenceSuggestion[]> = {};
+      const selectedMap: Record<string, SelectedEvidenceItem[]> = {};
       (payload?.gaps ?? []).forEach((gap: EvidenceGapSuggestion) => {
         gapMap[gap.signalId] = gap.suggestedEvidence ?? [];
+        selectedMap[gap.signalId] = gap.selectedEvidence ?? [];
       });
       setEvidenceByGap(gapMap);
+      setSelectedByGap(selectedMap);
       setEvidenceErrors({});
       setEvidenceStatus("idle");
     } catch (error) {
@@ -200,6 +206,33 @@ export default function RoleFitCard({
     },
     []
   );
+
+  const addSelectedEvidence = useCallback(
+    (gapId: string, item: SelectedEvidenceItem) => {
+      setSelectedByGap((prev) => {
+        const existing = prev[gapId] ?? [];
+        if (existing.some((entry) => entry.id === item.id)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          [gapId]: [item, ...existing],
+        };
+      });
+    },
+    []
+  );
+
+  const removeSelectedEvidence = useCallback((gapId: string, evidenceId: string) => {
+    setSelectedByGap((prev) => {
+      const existing = prev[gapId] ?? [];
+      const updated = existing.filter((entry) => entry.id !== evidenceId);
+      return {
+        ...prev,
+        [gapId]: updated,
+      };
+    });
+  }, []);
 
   const handleAddAchievement = async (gap: RoleFitResult["gapSignals"][number]) => {
     if (!gap.primaryAction) {
@@ -319,28 +352,37 @@ export default function RoleFitCard({
   };
 
   const handleEvidenceSelect = async (
-    evidenceId: string,
-    signalId: string
+    gapId: string,
+    item: EvidenceSuggestion
   ) => {
-    updateEvidenceSelection(evidenceId, true);
+    updateEvidenceSelection(item.id, true);
+    addSelectedEvidence(gapId, {
+      id: item.id,
+      kind: item.kind,
+      title: item.title,
+      text: item.text,
+      shortSnippet: item.shortSnippet,
+      qualityScore: item.qualityScore,
+    });
     setEvidenceErrors((prev) => {
-      const { [evidenceId]: _ignored, ...rest } = prev;
+      const { [item.id]: _ignored, ...rest } = prev;
       return rest;
     });
-    setPendingEvidenceId(evidenceId);
+    setPendingEvidenceId(item.id);
     try {
       const response = await fetch("/api/evidence/select", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ applicationId, evidenceId, signalId }),
+        body: JSON.stringify({ applicationId, evidenceId: item.id, signalId: gapId }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        updateEvidenceSelection(evidenceId, false);
+        updateEvidenceSelection(item.id, false);
+        removeSelectedEvidence(gapId, item.id);
         setEvidenceErrors((prev) => ({
           ...prev,
-          [evidenceId]: payload?.error ?? "Couldn't save. Try again.",
+          [item.id]: payload?.error ?? "Couldn't save. Try again.",
         }));
         setToast({
           message: payload?.error ?? "Unable to select evidence right now.",
@@ -351,10 +393,11 @@ export default function RoleFitCard({
       router.refresh();
     } catch (error) {
       console.error("[role-fit.select]", error);
-      updateEvidenceSelection(evidenceId, false);
+      updateEvidenceSelection(item.id, false);
+      removeSelectedEvidence(gapId, item.id);
       setEvidenceErrors((prev) => ({
         ...prev,
-        [evidenceId]: "Couldn't save. Try again.",
+        [item.id]: "Couldn't save. Try again.",
       }));
       setToast({ message: "Unable to select evidence right now." });
     } finally {
@@ -394,6 +437,53 @@ export default function RoleFitCard({
     } catch (error) {
       console.error("[role-fit.apply]", error);
       setToast({ message: "Unable to apply evidence right now." });
+    } finally {
+      setPendingEvidenceId(null);
+    }
+  };
+
+  const handleEvidenceUnselect = async (
+    gapId: string,
+    item: SelectedEvidenceItem
+  ) => {
+    removeSelectedEvidence(gapId, item.id);
+    updateEvidenceSelection(item.id, false);
+    setEvidenceErrors((prev) => {
+      const { [item.id]: _ignored, ...rest } = prev;
+      return rest;
+    });
+    setPendingEvidenceId(item.id);
+    try {
+      const response = await fetch("/api/evidence/unselect", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          applicationId,
+          gapKey: gapId,
+          evidenceId: item.id,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        addSelectedEvidence(gapId, item);
+        updateEvidenceSelection(item.id, true);
+        setEvidenceErrors((prev) => ({
+          ...prev,
+          [item.id]: payload?.error ?? "Couldn't save. Try again.",
+        }));
+        return;
+      }
+      setToast({ message: "Removed." });
+      router.refresh();
+    } catch (error) {
+      console.error("[role-fit.unselect]", error);
+      addSelectedEvidence(gapId, item);
+      updateEvidenceSelection(item.id, true);
+      setEvidenceErrors((prev) => ({
+        ...prev,
+        [item.id]: "Couldn't save. Try again.",
+      }));
     } finally {
       setPendingEvidenceId(null);
     }
@@ -581,6 +671,84 @@ export default function RoleFitCard({
                       <div className="space-y-3 text-xs text-[rgb(var(--muted))]">
                         <div>
                           <p className="text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+                            Selected evidence
+                          </p>
+                          {selectedByGap[gap.id]?.length ? (
+                            <ul className="mt-2 space-y-2">
+                              {selectedByGap[gap.id].map((item) => (
+                                <li
+                                  key={item.id}
+                                  className="rounded-xl border border-emerald-100 bg-emerald-50/40 p-2"
+                                >
+                                  <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <p className="text-xs font-semibold text-[rgb(var(--ink))]">
+                                      {item.title}
+                                    </p>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                      <span className="rounded-full border border-emerald-100 bg-white px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                        {item.kind === "work_bullet"
+                                          ? "Work history"
+                                          : "Achievement"}
+                                      </span>
+                                      <span className="rounded-full border border-emerald-100 bg-white px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                        Quality {item.qualityScore}
+                                      </span>
+                                    </div>
+                                  </div>
+                                  <p className="mt-1 text-xs text-[rgb(var(--muted))]">
+                                    {item.shortSnippet}
+                                  </p>
+                                  <div className="mt-2 flex flex-wrap gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCopy(item.shortSnippet)}
+                                      className="rounded-full border border-emerald-100 bg-white px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-white"
+                                    >
+                                      Copy
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleEvidenceUnselect(gap.id, item)
+                                      }
+                                      className="rounded-full border border-emerald-100 bg-white px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-white"
+                                      disabled={pendingEvidenceId === item.id}
+                                    >
+                                      {pendingEvidenceId === item.id
+                                        ? "Removing..."
+                                        : "Unselect"}
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleEvidenceApply(
+                                          "attach_to_star",
+                                          item.id,
+                                          gap.id
+                                        )
+                                      }
+                                      className="rounded-full border border-emerald-100 bg-white px-2 py-0.5 text-[11px] font-semibold text-emerald-700 transition hover:bg-white"
+                                      disabled={pendingEvidenceId === item.id}
+                                    >
+                                      Add to STAR
+                                    </button>
+                                  </div>
+                                  {evidenceErrors[item.id] ? (
+                                    <p className="mt-2 text-xs text-red-600">
+                                      {evidenceErrors[item.id]}
+                                    </p>
+                                  ) : null}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="mt-2 text-xs text-[rgb(var(--muted))]">
+                              No evidence selected yet.
+                            </p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
                             Suggested achievement action
                           </p>
                           <ul className="mt-2 space-y-1">
@@ -672,7 +840,7 @@ export default function RoleFitCard({
                                       <button
                                         type="button"
                                         onClick={() =>
-                                          handleEvidenceSelect(item.id, gap.id)
+                                          handleEvidenceSelect(gap.id, item)
                                         }
                                         className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] transition hover:bg-white"
                                         disabled={
@@ -869,9 +1037,19 @@ type EvidenceGapSuggestion = {
   signalId: string;
   label: string;
   suggestedEvidence: EvidenceSuggestion[];
+  selectedEvidence?: SelectedEvidenceItem[];
 };
 
 type EvidenceApplyMode =
   | "create_draft_achievement"
   | "insert_clause_metric"
   | "attach_to_star";
+
+type SelectedEvidenceItem = {
+  id: string;
+  kind: "achievement" | "work_bullet";
+  title: string;
+  text: string;
+  shortSnippet: string;
+  qualityScore: number;
+};

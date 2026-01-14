@@ -7,7 +7,10 @@ import { listWorkHistory } from "@/lib/data/work-history";
 import { fetchProfile } from "@/lib/data/profile";
 import { listActiveDomainPacks } from "@/lib/data/domain-packs";
 import { createApplicationActivity } from "@/lib/data/application-activities";
-import { upsertApplicationEvidence } from "@/lib/data/application-evidence";
+import {
+  buildEvidenceGapKey,
+  upsertApplicationEvidence,
+} from "@/lib/data/application-evidence";
 import {
   buildEvidenceBank,
   buildEvidenceSnippet,
@@ -111,9 +114,7 @@ export async function POST(request: Request) {
       createdAt: now,
     };
 
-    const existing = normalizeSelectedEvidence(application.selected_evidence).filter(
-      (existingEntry) => existingEntry.signalId !== parsed.data.signalId
-    );
+    const existing = normalizeSelectedEvidence(application.selected_evidence);
     const updated = dedupeSelectedEvidence([...existing, entry]);
 
     const matchScore = evidenceItem.matchScores[parsed.data.signalId] ?? 0;
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
     try {
       await upsertApplicationEvidence(supabase, user.id, {
         application_id: application.id,
-        gap_key: parsed.data.signalId,
+        gap_key: buildEvidenceGapKey(parsed.data.signalId, evidenceItem.id),
         evidence_id: evidenceItem.id,
         source_type: evidenceItem.sourceType,
         source_id: evidenceItem.sourceId,

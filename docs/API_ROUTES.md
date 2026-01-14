@@ -148,7 +148,7 @@ Runtime: nodejs.
 GET /api/evidence/suggest?applicationId=...
 Auth: required.
 Input: query param applicationId.
-Output: JSON { gaps: [{ signalId, label, suggestedEvidence[] }] } where suggestedEvidence includes matchScore, qualityScore, and selected.
+Output: JSON { gaps: [{ signalId, label, suggestedEvidence[], selectedEvidence[] }] } where suggestedEvidence includes matchScore, qualityScore, and selected.
 Errors: JSON { error } with 400/401/404/500.
 Runtime: nodejs, force-dynamic.
 
@@ -156,6 +156,13 @@ POST /api/evidence/select
 Auth: required.
 Input: JSON { applicationId, evidenceId, signalId }.
 Output: JSON { selectedEvidence }.
+Errors: JSON { error } with 400/401/404/500.
+Runtime: nodejs, force-dynamic.
+
+POST /api/evidence/unselect
+Auth: required.
+Input: JSON { applicationId, gapKey, evidenceId }.
+Output: JSON { ok: true }.
 Errors: JSON { error } with 400/401/404/500.
 Runtime: nodejs, force-dynamic.
 

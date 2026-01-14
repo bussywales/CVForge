@@ -6,11 +6,15 @@ import { listAchievements } from "@/lib/data/achievements";
 import { listWorkHistory } from "@/lib/data/work-history";
 import { fetchProfile } from "@/lib/data/profile";
 import { listActiveDomainPacks } from "@/lib/data/domain-packs";
-import { listApplicationEvidenceIds } from "@/lib/data/application-evidence";
+import {
+  getSelectedEvidenceForApplication,
+  type SelectedEvidenceByGap,
+} from "@/lib/data/application-evidence";
 import {
   buildEvidenceBank,
   buildEvidenceSnippet,
   markSelectedSuggestions,
+  normalizeSelectedEvidence,
   rankEvidenceForGap,
 } from "@/lib/evidence";
 import { getEffectiveJobText } from "@/lib/job-text";
@@ -49,14 +53,19 @@ async function handleSuggest(applicationId: string) {
       );
     }
 
-    const [profile, achievements, workHistory, selectedEvidenceIds] =
+    const [profile, achievements, workHistory, selectedEvidenceByGap] =
       await Promise.all([
         fetchProfile(supabase, user.id),
         listAchievements(supabase, user.id),
         listWorkHistory(supabase, user.id),
-        listApplicationEvidenceIds(supabase, user.id, application.id),
+        getSelectedEvidenceForApplication(supabase, user.id, application.id),
       ]);
-    const selectedEvidenceSet = new Set(selectedEvidenceIds);
+    const selectedEvidenceNotes = normalizeSelectedEvidence(
+      application.selected_evidence
+    ).reduce((map, entry) => {
+      map.set(`${entry.signalId}:${entry.id}`, entry);
+      return map;
+    }, new Map<string, ReturnType<typeof normalizeSelectedEvidence>[number]>());
 
     let dynamicPacks: RoleFitPack[] = [];
     try {
@@ -97,6 +106,10 @@ async function handleSuggest(applicationId: string) {
     });
 
     const gaps = roleFit.gapSignals.map((gap) => {
+      const selectedForGap = selectedEvidenceByGap[gap.id] ?? [];
+      const selectedEvidenceSet = new Set(
+        selectedForGap.map((row) => row.evidence_id)
+      );
       const baseSuggestions = rankEvidenceForGap(gap.id, evidenceBank).map(
         ({ item, matchScore, qualityScore }) => {
           const snippet = buildEvidenceSnippet(item);
@@ -118,10 +131,18 @@ async function handleSuggest(applicationId: string) {
         selectedEvidenceSet
       );
 
+      const selectedEvidence = buildSelectedEvidenceList(
+        gap.id,
+        selectedForGap,
+        evidenceBank,
+        selectedEvidenceNotes
+      );
+
       return {
         signalId: gap.id,
         label: gap.label,
         suggestedEvidence: suggestions,
+        selectedEvidence,
       };
     });
 
@@ -156,4 +177,42 @@ export async function POST(request: Request) {
   }
 
   return handleSuggest(parsed.data.applicationId);
+}
+
+type SelectedEvidenceNote = ReturnType<typeof normalizeSelectedEvidence>[number];
+
+function buildSelectedEvidenceList(
+  gapKey: string,
+  selectedRows: SelectedEvidenceByGap[string],
+  evidenceBank: ReturnType<typeof buildEvidenceBank>,
+  noteMap: Map<string, SelectedEvidenceNote>
+) {
+  return selectedRows
+    .map((row) => {
+      const evidenceItem = evidenceBank.byId.get(row.evidence_id);
+      if (evidenceItem) {
+        const snippet = buildEvidenceSnippet(evidenceItem);
+        return {
+          id: evidenceItem.id,
+          kind: evidenceItem.kind,
+          title: evidenceItem.title,
+          text: evidenceItem.text,
+          shortSnippet: snippet.shortSnippet,
+          qualityScore: evidenceItem.qualityScore,
+        };
+      }
+      const fallback = noteMap.get(`${gapKey}:${row.evidence_id}`);
+      if (!fallback) {
+        return null;
+      }
+      return {
+        id: fallback.id,
+        kind: fallback.kind,
+        title: fallback.note ? fallback.note : "Selected evidence",
+        text: fallback.note ?? "",
+        shortSnippet: fallback.note ?? "",
+        qualityScore: row.quality_score ?? 0,
+      };
+    })
+    .filter(Boolean);
 }
