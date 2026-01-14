@@ -26,6 +26,12 @@ Scope boundary: deterministic scoring and rewrites only, no new AI prompts.
 Success criteria: dashboard reflects scoring status and drill updates persist.
 Not in scope: AI coaching or automatic scheduling.
 
+### STAR Library v1 (shipped)
+Outcome: per-gap STAR drafts created from STAR-target evidence (shipped v0.7.10).
+Scope boundary: deterministic prefills, editable drafts, and drill paste actions.
+Success criteria: drafts can be created, edited, and surfaced in Practice flows.
+Not in scope: AI rewriting or automated scoring changes.
+
 ### Application Kit v1 (shipped)
 Outcome: deterministic readiness checklist and a single ZIP for submission artefacts (shipped v0.7.2).
 Scope boundary: checklist + kit download only, no new exports beyond existing assets.

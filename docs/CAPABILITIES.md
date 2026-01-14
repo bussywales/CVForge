@@ -27,6 +27,9 @@ Interview Pack builds a deterministic interview bundle from the job description,
 ## Practice Mode
 Practice Mode adds per-question STAR drafting with deterministic scoring, recommendations, saved drafts per application, and a Rewrite Coach for improved STAR structure. A Practice Dashboard and Drill Mode help prioritise weak questions and practise one-by-one.
 
+## STAR Library v1
+STAR Library creates per-gap STAR drafts from STAR-target evidence, with editable fields and links into Drill Mode for practice.
+
 ## Application Kit v1
 Application Kit aggregates readiness checks, next best actions, and a ZIP download containing CV, cover letter, interview pack, and STAR drafts.
 

@@ -6,6 +6,7 @@ import { listAutopacks } from "@/lib/data/autopacks";
 import { listActiveDomainPacks } from "@/lib/data/domain-packs";
 import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
+import { listStarLibrary } from "@/lib/data/star-library";
 import { buildInterviewLift } from "@/lib/interview-lift";
 import { buildInterviewPack } from "@/lib/interview-pack";
 import { inferDomainGuess } from "@/lib/jd-learning";
@@ -123,10 +124,28 @@ export default async function PracticeDashboardPage({
     interviewLift,
   });
 
-  const questions = interviewPack.questions.map((question, index) => ({
-    questionKey: buildQuestionKey(question.question, index),
-    questionText: question.question,
+  const gapLabelMap = new Map(
+    roleFit.gapSignals.map((gap) => [gap.label, gap.id])
+  );
+  const questionMeta = interviewPack.questions.map((question, index) => {
+    const gapKey =
+      question.source === "gap"
+        ? gapLabelMap.get(question.signals[0] ?? "") ?? null
+        : null;
+    return {
+      questionKey: buildQuestionKey(question.question, index),
+      questionText: question.question,
+      gapKey,
+    };
+  });
+  const questions = questionMeta.map(({ questionKey, questionText }) => ({
+    questionKey,
+    questionText,
   }));
+  const questionGapMap = questionMeta.reduce((acc, item) => {
+    acc[item.questionKey] = item.gapKey;
+    return acc;
+  }, {} as Record<string, string | null>);
 
   let answersMap: Record<string, PracticeAnswerRow> = {};
 
@@ -157,6 +176,17 @@ export default async function PracticeDashboardPage({
 
   const stats = computePracticeStats(questions, answersMap);
   const orderedQuestions = orderPracticeQuestions(questions, answersMap);
+  let starLibraryMap: Record<string, { id: string }> = {};
+
+  try {
+    const drafts = await listStarLibrary(supabase, user.id, application.id);
+    starLibraryMap = drafts.reduce((acc, draft) => {
+      acc[draft.gap_key] = draft;
+      return acc;
+    }, {} as Record<string, { id: string }>);
+  } catch (error) {
+    console.error("[practice-dashboard.star-library]", error);
+  }
 
   return (
     <div className="space-y-6">
@@ -213,6 +243,8 @@ export default async function PracticeDashboardPage({
               const scored = question.status.scored;
               const improved = question.status.improved;
               const score = scored ? question.score : 0;
+              const gapKey = questionGapMap[question.questionKey];
+              const starReady = gapKey ? Boolean(starLibraryMap[gapKey]) : false;
 
               return (
                 <div
@@ -238,6 +270,11 @@ export default async function PracticeDashboardPage({
                         {improved ? (
                           <span className="rounded-full bg-indigo-100 px-3 py-1 text-[10px] font-semibold text-indigo-700">
                             Improved
+                          </span>
+                        ) : null}
+                        {starReady ? (
+                          <span className="rounded-full bg-sky-100 px-3 py-1 text-[10px] font-semibold text-sky-700">
+                            STAR ready
                           </span>
                         ) : null}
                         {!drafted && !scored && !improved ? (

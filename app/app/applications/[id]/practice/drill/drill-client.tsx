@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Button from "@/components/Button";
 import type { InterviewPracticeScore } from "@/lib/interview-practice";
 import type { InterviewRewriteNotes } from "@/lib/interview-rewrite";
+import { formatStarDraft } from "@/lib/star-library";
 import {
   deriveStatus,
   orderPracticeQuestions,
@@ -37,6 +38,18 @@ type DrillClientProps = {
   initialQuestionKey: string | null;
   initialRewriteOpen: boolean;
   gapLabels: string[];
+  questionGapMap: Record<string, string | null>;
+  starLibraryMap: Record<
+    string,
+    {
+      id: string;
+      title: string;
+      situation: string;
+      task: string;
+      action: string;
+      result: string;
+    }
+  >;
   initialAnswers: Record<string, PracticeAnswer>;
 };
 
@@ -77,6 +90,8 @@ export default function DrillClient({
   initialQuestionKey,
   initialRewriteOpen,
   gapLabels,
+  questionGapMap,
+  starLibraryMap,
   initialAnswers,
 }: DrillClientProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
@@ -127,6 +142,16 @@ export default function DrillClient({
     ...currentAnswer,
     answer_text: currentDraft,
   });
+  const currentGapKey = questionGapMap[currentKey] ?? null;
+  const starDraft = currentGapKey ? starLibraryMap[currentGapKey] : null;
+  const starDraftText = starDraft
+    ? formatStarDraft({
+        situation: starDraft.situation,
+        task: starDraft.task,
+        action: starDraft.action,
+        result: starDraft.result,
+      })
+    : "";
 
   const orderedQuestions = useMemo<OrderedPracticeQuestion[]>(
     () =>
@@ -458,6 +483,26 @@ export default function DrillClient({
                   </Button>
                 </div>
               </div>
+              {starDraft ? (
+                <div className="mt-3 rounded-2xl border border-dashed border-black/10 bg-white/70 p-3 text-xs text-[rgb(var(--muted))]">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="font-semibold text-[rgb(var(--ink))]">
+                      STAR ready · {starDraft.title}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setDraft(starDraftText)}
+                      className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
+                    >
+                      Use STAR draft
+                    </button>
+                  </div>
+                  <p className="mt-2 text-[11px] text-[rgb(var(--muted))]">
+                    Paste the draft as a starting point, then tailor it to this
+                    question.
+                  </p>
+                </div>
+              ) : null}
             </div>
 
             {rubric ? (

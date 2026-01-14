@@ -20,7 +20,7 @@
 - Select an evidence item and refresh to see it listed as selected.
 - Apply evidence to create a draft achievement and confirm it appears in Profile.
 - Apply evidence to a STAR draft and confirm the draft contains the evidence line.
- - If no match exists, use Create draft evidence or Insert clause into action.
+- If no match exists, use Create draft evidence or Insert clause into action.
 
 ## Interview Lift
 - Log an activity and confirm Interview Lift suggestions appear.
@@ -32,6 +32,11 @@
 - Export the Interview Pack in Standard and ATS-Minimal variants.
 - Toggle Practice Mode, score an answer, generate a rewrite, and confirm the draft persists after refresh.
 - Open the Practice Dashboard and start Drill Mode to practise the lowest-score question.
+
+## STAR Library
+- From the application detail page, create a STAR draft for a gap.
+- Open the STAR draft editor and save edits.
+- In Drill Mode, use the STAR draft paste action and confirm it updates the draft answer.
 
 ## Application Kit
 - Open an application detail page and confirm the Application Kit checklist renders.

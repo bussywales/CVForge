@@ -5,6 +5,7 @@ import { listApplicationActivities } from "@/lib/data/application-activities";
 import { fetchApplication } from "@/lib/data/applications";
 import { listAutopacks } from "@/lib/data/autopacks";
 import { listActiveDomainPacks } from "@/lib/data/domain-packs";
+import { listStarLibrary, type StarLibraryRecord } from "@/lib/data/star-library";
 import { logLearningEvent } from "@/lib/data/learning";
 import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
@@ -47,6 +48,7 @@ import RoleFitCard from "../role-fit-card";
 import TrackingPanel from "../tracking-panel";
 import ActivityPanel from "../activity-panel";
 import ApplicationKitPanel from "../application-kit-panel";
+import StarLibraryPanel from "../star-library-panel";
 
 type ApplicationPageProps = {
   params: { id: string };
@@ -211,6 +213,8 @@ export default async function ApplicationPage({
   const jobUrl = application.job_url?.trim() ?? "";
   let safeJobUrl: string | null = null;
   let jobHost = "";
+  let starLibrary: StarLibraryRecord[] = [];
+  let starEvidenceCount = 0;
 
   if (jobUrl) {
     try {
@@ -222,6 +226,27 @@ export default async function ApplicationPage({
     } catch {
       safeJobUrl = null;
     }
+  }
+
+  try {
+    starLibrary = await listStarLibrary(supabase, user.id, application.id);
+  } catch (error) {
+    console.error("[star-library.list]", error);
+  }
+
+  try {
+    const { count, error } = await supabase
+      .from("application_evidence")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .eq("application_id", application.id)
+      .eq("use_star", true);
+    if (error) {
+      console.error("[star-library.count]", error);
+    }
+    starEvidenceCount = count ?? 0;
+  } catch (error) {
+    console.error("[star-library.count]", error);
   }
 
   const followupTemplates = buildFollowupTemplates({
@@ -336,18 +361,30 @@ export default async function ApplicationPage({
         />
       </Section>
 
-        <RoleFitCard
+      <RoleFitCard
+        applicationId={application.id}
+        result={roleFit}
+        hasJobDescription={hasJobDescription}
+        hasEvidence={hasEvidence}
+        achievements={achievements.map((achievement) => ({
+          id: achievement.id,
+          title: achievement.title,
+          metrics: achievement.metrics,
+        }))}
+        selectedEvidence={application.selected_evidence}
+      />
+
+      <Section
+        title="STAR Library"
+        description="Turn STAR-target evidence into practice-ready drafts."
+      >
+        <StarLibraryPanel
           applicationId={application.id}
-          result={roleFit}
-          hasJobDescription={hasJobDescription}
-          hasEvidence={hasEvidence}
-          achievements={achievements.map((achievement) => ({
-            id: achievement.id,
-            title: achievement.title,
-            metrics: achievement.metrics,
-          }))}
-          selectedEvidence={application.selected_evidence}
+          gaps={roleFit.gapSignals}
+          drafts={starLibrary}
+          starEvidenceCount={starEvidenceCount}
         />
+      </Section>
 
       <div id="interview-pack">
         <Section

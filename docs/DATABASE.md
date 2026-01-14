@@ -24,7 +24,12 @@ RLS: user_id = auth.uid().
 
 ### application_evidence
 Purpose: selected evidence per gap with match and quality metadata.
-Key fields: application_id, gap_key, evidence_id, source_type, source_id, match_score, quality_score.
+Key fields: application_id, gap_key, evidence_id, source_type, source_id, match_score, quality_score, use_cv, use_cover, use_star.
+RLS: user_id = auth.uid().
+
+### star_library
+Purpose: per-application STAR drafts derived from evidence.
+Key fields: application_id, gap_key, title, situation, task, action, result, evidence_ids, quality_hint.
 RLS: user_id = auth.uid().
 
 ### application_apply_checklist
@@ -44,7 +49,7 @@ RLS: user_id = auth.uid().
 
 ### autopacks
 Purpose: generated CV/cover letter drafts and STAR answers.
-Key fields: application_id, version, cv_text, cover_letter, answers_json.
+Key fields: application_id, version, cv_text, cover_letter, answers_json, evidence_trace.
 RLS: user_id = auth.uid().
 
 ### audit_log
@@ -99,6 +104,9 @@ RLS: authenticated users can select active packs; admin writes via service role.
 - 0014_job_fetch: job advert snapshot fields for fetched job text.
 - 0015_evidence_engine: selected_evidence storage on applications.
 - 0016_evidence_quality: application_evidence table with match and quality metadata.
+- 0017_evidence_targets: CV/Cover/STAR target flags on application_evidence.
+- 0018_autopack_evidence_trace: evidence_trace on autopacks.
+- 0019_star_library: STAR Library drafts per application.
 
 ## Common migration issues
 - Policy already exists: drop the policy or use supabase migration repair to mark it applied.

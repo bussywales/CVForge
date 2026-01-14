@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.7.10
+- STAR Library drafts created from STAR-target evidence with per-gap editor pages.
+- Practice Dashboard and Drill Mode surface STAR-ready drafts and allow paste-in.
+
+## v0.7.9
+- Evidence target toggles for CV/Cover/STAR with persisted selections.
+- Autopack generation stores evidence traces and shows evidence used in the editor.
+
 ## v0.7.5
 - Evidence Engine v1 with evidence suggestions on Role Fit gaps and one-click apply actions.
 - Selected evidence stored per application and used during autopack generation.

@@ -5,6 +5,7 @@ import { listAutopacks } from "@/lib/data/autopacks";
 import { listActiveDomainPacks } from "@/lib/data/domain-packs";
 import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
+import { listStarLibrary } from "@/lib/data/star-library";
 import { buildInterviewLift } from "@/lib/interview-lift";
 import { buildInterviewPack } from "@/lib/interview-pack";
 import { inferDomainGuess } from "@/lib/jd-learning";
@@ -116,11 +117,31 @@ export default async function PracticeDrillPage({
     interviewLift,
   });
 
-  const questions = interviewPack.questions.map((question, index) => ({
-    questionKey: buildQuestionKey(question.question, index),
-    questionText: question.question,
+  const gapLabelMap = new Map(
+    roleFit.gapSignals.map((gap) => [gap.label, gap.id])
+  );
+  const questionMeta = interviewPack.questions.map((question, index) => {
+    const gapKey =
+      question.source === "gap"
+        ? gapLabelMap.get(question.signals[0] ?? "") ?? null
+        : null;
+    return {
+      questionKey: buildQuestionKey(question.question, index),
+      questionText: question.question,
+      signals: question.signals,
+      gapKey,
+    };
+  });
+
+  const questions = questionMeta.map((question) => ({
+    questionKey: question.questionKey,
+    questionText: question.questionText,
     signals: question.signals,
   }));
+  const questionGapMap = questionMeta.reduce((acc, item) => {
+    acc[item.questionKey] = item.gapKey;
+    return acc;
+  }, {} as Record<string, string | null>);
 
   let answersMap: Record<string, PracticeAnswerRow> = {};
 
@@ -163,6 +184,24 @@ export default async function PracticeDrillPage({
     ? Math.max(0, orderedKeys.indexOf(initialKey))
     : 0;
 
+  let starLibraryMap: Record<string, { id: string; title: string; situation: string; task: string; action: string; result: string }> = {};
+  try {
+    const drafts = await listStarLibrary(supabase, user.id, application.id);
+    starLibraryMap = drafts.reduce((acc, draft) => {
+      acc[draft.gap_key] = {
+        id: draft.id,
+        title: draft.title,
+        situation: draft.situation,
+        task: draft.task,
+        action: draft.action,
+        result: draft.result,
+      };
+      return acc;
+    }, {} as Record<string, { id: string; title: string; situation: string; task: string; action: string; result: string }>);
+  } catch (error) {
+    console.error("[practice-drill.star-library]", error);
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -188,6 +227,8 @@ export default async function PracticeDrillPage({
         initialQuestionKey={initialKey ?? null}
         initialRewriteOpen={searchParams?.rewrite === "1"}
         gapLabels={gapLabels}
+        questionGapMap={questionGapMap}
+        starLibraryMap={starLibraryMap}
         initialAnswers={answersMap}
       />
     </div>

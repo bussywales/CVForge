@@ -121,6 +121,21 @@ Output: JSON { ok: true, draft }.
 Errors: JSON { error } with 400/401/404/500.
 Runtime: nodejs, force-dynamic.
 
+## STAR Library
+POST /api/star-library/create
+Auth: required.
+Input: JSON { applicationId, gapKey, title? }.
+Output: JSON { draft }.
+Errors: JSON { error } with 400/401/404/500.
+Runtime: nodejs, force-dynamic.
+
+PATCH /api/star-library/[id]
+Auth: required.
+Input: JSON { title?, situation?, task?, action?, result? }.
+Output: JSON { draft }.
+Errors: JSON { error } with 400/401/404/500.
+Runtime: nodejs, force-dynamic.
+
 ## Outreach
 GET /api/applications/[id]/outreach
 Auth: required.
