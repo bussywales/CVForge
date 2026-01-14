@@ -76,6 +76,28 @@ Output: JSON { answer, scoring, improvedText, notes }.
 Errors: JSON { error, detail? } with 400/401/500.
 Runtime: nodejs, force-dynamic.
 
+## Answer Pack
+GET /api/answer-pack
+Auth: required.
+Input: query params applicationId and questionKey.
+Output: JSON { standard, short90 } with answerText and STAR references.
+Errors: JSON { error } with 400/401/500.
+Runtime: nodejs, force-dynamic.
+
+POST /api/answer-pack/generate
+Auth: required.
+Input: JSON { applicationId, questionKey, questionType, variant, starGapKey? }.
+Output: JSON { answerText, starLibraryId, starGapKey, variant, questionType }.
+Errors: JSON { error } with 400/401/404/500.
+Runtime: nodejs, force-dynamic.
+
+PATCH /api/answer-pack/apply
+Auth: required.
+Input: JSON { applicationId, questionKey, variant }.
+Output: JSON { ok: true }.
+Errors: JSON { error } with 400/401/404/500.
+Runtime: nodejs, force-dynamic.
+
 ## Imports
 POST /api/import/cv-docx
 Auth: required.

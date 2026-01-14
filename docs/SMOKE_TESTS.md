@@ -38,6 +38,10 @@
 - Open the STAR draft editor and save edits.
 - In Drill Mode, use the STAR draft paste action and confirm it updates the draft answer.
 
+## Answer Pack
+- In Drill Mode, generate a Standard answer and a 90-second answer.
+- Copy each answer and apply one to the draft; confirm it persists after refresh.
+
 ## Application Kit
 - Open an application detail page and confirm the Application Kit checklist renders.
 - Download the Application Kit ZIP and confirm it contains CV, cover letter, interview pack, and STAR JSON.

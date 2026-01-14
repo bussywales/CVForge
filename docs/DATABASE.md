@@ -47,6 +47,11 @@ Purpose: saved Interview Pack practice answers with rubric scoring.
 Key fields: application_id, question_key, answer_text, rubric_json, score.
 RLS: user_id = auth.uid().
 
+### interview_answer_pack
+Purpose: deterministic interview answers generated from STAR drafts.
+Key fields: application_id, question_key, question_type, variant, star_gap_key, star_library_id, answer_text.
+RLS: user_id = auth.uid().
+
 ### autopacks
 Purpose: generated CV/cover letter drafts and STAR answers.
 Key fields: application_id, version, cv_text, cover_letter, answers_json, evidence_trace.
@@ -107,6 +112,7 @@ RLS: authenticated users can select active packs; admin writes via service role.
 - 0017_evidence_targets: CV/Cover/STAR target flags on application_evidence.
 - 0018_autopack_evidence_trace: evidence_trace on autopacks.
 - 0019_star_library: STAR Library drafts per application.
+- 0020_answer_pack: interview_answer_pack storage for deterministic answers.
 
 ## Common migration issues
 - Policy already exists: drop the policy or use supabase migration repair to mark it applied.

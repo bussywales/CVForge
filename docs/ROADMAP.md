@@ -32,6 +32,12 @@ Scope boundary: deterministic prefills, editable drafts, and drill paste actions
 Success criteria: drafts can be created, edited, and surfaced in Practice flows.
 Not in scope: AI rewriting or automated scoring changes.
 
+### Answer Pack v1 (shipped)
+Outcome: deterministic interview answers derived from STAR drafts (shipped v0.7.11).
+Scope boundary: Standard and 90-second variants, applied into Practice drafts.
+Success criteria: answers generate, copy/apply, and persist per question.
+Not in scope: AI rewriting, new question generation, or PDF/ZIP outputs.
+
 ### Application Kit v1 (shipped)
 Outcome: deterministic readiness checklist and a single ZIP for submission artefacts (shipped v0.7.2).
 Scope boundary: checklist + kit download only, no new exports beyond existing assets.

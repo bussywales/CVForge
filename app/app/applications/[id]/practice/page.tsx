@@ -36,6 +36,11 @@ type PracticeAnswerRow = {
   created_at: string | null;
 };
 
+type AnswerPackRow = {
+  question_key: string;
+  variant: "standard" | "short90";
+};
+
 function truncate(value: string, max = 120) {
   if (value.length <= max) {
     return value;
@@ -176,6 +181,10 @@ export default async function PracticeDashboardPage({
 
   const stats = computePracticeStats(questions, answersMap);
   const orderedQuestions = orderPracticeQuestions(questions, answersMap);
+  let answerPackMap: Record<
+    string,
+    { standard: boolean; short90: boolean }
+  > = {};
   let starLibraryMap: Record<string, { id: string }> = {};
 
   try {
@@ -186,6 +195,27 @@ export default async function PracticeDashboardPage({
     }, {} as Record<string, { id: string }>);
   } catch (error) {
     console.error("[practice-dashboard.star-library]", error);
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("interview_answer_pack")
+      .select("question_key, variant")
+      .eq("user_id", user.id)
+      .eq("application_id", application.id);
+    if (error) {
+      console.error("[practice-dashboard.answer-pack]", error);
+    } else {
+      answerPackMap = (data as AnswerPackRow[]).reduce((acc, row) => {
+        if (!acc[row.question_key]) {
+          acc[row.question_key] = { standard: false, short90: false };
+        }
+        acc[row.question_key][row.variant] = true;
+        return acc;
+      }, {} as Record<string, { standard: boolean; short90: boolean }>);
+    }
+  } catch (error) {
+    console.error("[practice-dashboard.answer-pack]", error);
   }
 
   return (
@@ -245,6 +275,7 @@ export default async function PracticeDashboardPage({
               const score = scored ? question.score : 0;
               const gapKey = questionGapMap[question.questionKey];
               const starReady = gapKey ? Boolean(starLibraryMap[gapKey]) : false;
+              const answerPack = answerPackMap[question.questionKey];
 
               return (
                 <div
@@ -275,6 +306,16 @@ export default async function PracticeDashboardPage({
                         {starReady ? (
                           <span className="rounded-full bg-sky-100 px-3 py-1 text-[10px] font-semibold text-sky-700">
                             STAR ready
+                          </span>
+                        ) : null}
+                        {answerPack?.standard ? (
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-[10px] font-semibold text-emerald-700">
+                            Answer ready
+                          </span>
+                        ) : null}
+                        {answerPack?.short90 ? (
+                          <span className="rounded-full bg-indigo-100 px-3 py-1 text-[10px] font-semibold text-indigo-700">
+                            90s ready
                           </span>
                         ) : null}
                         {!drafted && !scored && !improved ? (

@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.11
+- Answer Pack generation from STAR drafts with Standard and 90-second variants.
+- Drill Mode and Practice Dashboard show answer-ready states and apply flows.
+
 ## v0.7.10
 - STAR Library drafts created from STAR-target evidence with per-gap editor pages.
 - Practice Dashboard and Drill Mode surface STAR-ready drafts and allow paste-in.

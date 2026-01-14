@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Button from "@/components/Button";
 import type { InterviewPracticeScore } from "@/lib/interview-practice";
 import type { InterviewRewriteNotes } from "@/lib/interview-rewrite";
 import { formatStarDraft } from "@/lib/star-library";
+import {
+  inferQuestionType,
+  type AnswerPackVariant,
+} from "@/lib/interview/answer-pack";
 import {
   deriveStatus,
   orderPracticeQuestions,
@@ -54,6 +58,15 @@ type DrillClientProps = {
 };
 
 type ToastState = { message: string; variant?: "success" | "error" };
+
+type AnswerPackEntry = {
+  answerText: string;
+  variant: AnswerPackVariant;
+  questionType: string;
+  starLibraryId: string;
+  starGapKey: string;
+  starTitle?: string | null;
+};
 
 function normaliseRubric(value: unknown): InterviewPracticeScore | null {
   if (!value || typeof value !== "object") {
@@ -109,6 +122,14 @@ export default function DrillClient({
   const [toast, setToast] = useState<ToastState | null>(null);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showRewrite, setShowRewrite] = useState(initialRewriteOpen);
+  const [answerPack, setAnswerPack] = useState<{
+    standard: AnswerPackEntry | null;
+    short90: AnswerPackEntry | null;
+  }>({ standard: null, short90: null });
+  const [answerPackVariant, setAnswerPackVariant] =
+    useState<AnswerPackVariant>("standard");
+  const [answerPackLoading, setAnswerPackLoading] = useState(false);
+  const [answerPackError, setAnswerPackError] = useState<string | null>(null);
 
   const questionMap = useMemo(() => {
     return questions.reduce((acc, question) => {
@@ -165,6 +186,35 @@ export default function DrillClient({
     [questions, answers]
   );
 
+  const setDraft = (value: string) => {
+    setDrafts((prev) => ({ ...prev, [currentKey]: value }));
+  };
+
+  const loadAnswerPack = useCallback(async (questionKey: string) => {
+    setAnswerPackLoading(true);
+    setAnswerPack({ standard: null, short90: null });
+    try {
+      const response = await fetch(
+        `/api/answer-pack?applicationId=${applicationId}&questionKey=${encodeURIComponent(questionKey)}`,
+        { credentials: "include" }
+      );
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAnswerPackError(payload?.error ?? "Unable to load answer pack.");
+        return;
+      }
+      setAnswerPack({
+        standard: payload?.standard ?? null,
+        short90: payload?.short90 ?? null,
+      });
+    } catch (error) {
+      console.error("[answer-pack.load]", error);
+      setAnswerPackError("Unable to load answer pack.");
+    } finally {
+      setAnswerPackLoading(false);
+    }
+  }, [applicationId]);
+
   useEffect(() => {
     if (!toast) {
       return;
@@ -183,11 +233,10 @@ export default function DrillClient({
       setShowRewrite(false);
     }
     setShowBreakdown(false);
-  }, [currentKey, initialQuestionKey, initialRewriteOpen]);
-
-  const setDraft = (value: string) => {
-    setDrafts((prev) => ({ ...prev, [currentKey]: value }));
-  };
+    setAnswerPackError(null);
+    setAnswerPackVariant("standard");
+    void loadAnswerPack(currentKey);
+  }, [currentKey, initialQuestionKey, initialRewriteOpen, loadAnswerPack]);
 
   const handleCopy = async (value: string) => {
     try {
@@ -196,6 +245,91 @@ export default function DrillClient({
     } catch (error) {
       console.error("[practice-drill.copy]", error);
       setToast({ message: "Unable to copy right now.", variant: "error" });
+    }
+  };
+
+  const handleGenerateAnswer = async (variant: AnswerPackVariant) => {
+    if (!currentQuestion) {
+      return;
+    }
+    setAnswerPackError(null);
+    setAnswerPackLoading(true);
+    try {
+      const response = await fetch("/api/answer-pack/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          applicationId,
+          questionKey: currentKey,
+          questionText: currentQuestion.questionText,
+          signals: currentQuestion.signals,
+          questionType: inferQuestionType(
+            currentQuestion.questionText,
+            currentQuestion.signals
+          ),
+          variant,
+          starGapKey: currentGapKey ?? undefined,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAnswerPackError(payload?.error ?? "Unable to generate answer.");
+        return;
+      }
+      const entry: AnswerPackEntry = {
+        answerText: payload.answerText,
+        variant: payload.variant,
+        questionType: payload.questionType,
+        starLibraryId: payload.starLibraryId,
+        starGapKey: payload.starGapKey,
+        starTitle: payload.starTitle ?? null,
+      };
+      setAnswerPack((prev) => ({
+        ...prev,
+        [variant]: entry,
+      }));
+      setAnswerPackVariant(variant);
+      setToast({ message: "Answer generated.", variant: "success" });
+    } catch (error) {
+      console.error("[answer-pack.generate]", error);
+      setAnswerPackError("Unable to generate answer.");
+    } finally {
+      setAnswerPackLoading(false);
+    }
+  };
+
+  const handleApplyAnswer = async (variant: AnswerPackVariant) => {
+    const entry = answerPack[variant];
+    if (!entry) {
+      setAnswerPackError("Generate an answer first.");
+      return;
+    }
+    setPendingKey(`apply-${currentKey}-${variant}`);
+    try {
+      const response = await fetch("/api/answer-pack/apply", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          applicationId,
+          questionKey: currentKey,
+          questionText: currentQuestion?.questionText,
+          variant,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setAnswerPackError(payload?.error ?? "Unable to apply answer.");
+        return;
+      }
+      setDraft(entry.answerText);
+      setToast({ message: "Applied to draft.", variant: "success" });
+    } catch (error) {
+      console.error("[answer-pack.apply]", error);
+      setAnswerPackError("Unable to apply answer.");
+    } finally {
+      setPendingKey(null);
     }
   };
 
@@ -671,6 +805,121 @@ export default function DrillClient({
                   </p>
                 )
               ) : null}
+            </div>
+
+            <div className="rounded-2xl border border-black/10 bg-white/80 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs font-semibold text-[rgb(var(--ink))]">
+                  Answer Pack
+                </p>
+                <div className="flex flex-wrap items-center gap-2 text-[10px]">
+                  <button
+                    type="button"
+                    onClick={() => setAnswerPackVariant("standard")}
+                    className={`rounded-full border px-3 py-1 font-semibold ${
+                      answerPackVariant === "standard"
+                        ? "border-emerald-200 bg-emerald-600 text-white"
+                        : "border-black/10 bg-white text-[rgb(var(--ink))]"
+                    }`}
+                  >
+                    Standard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAnswerPackVariant("short90")}
+                    className={`rounded-full border px-3 py-1 font-semibold ${
+                      answerPackVariant === "short90"
+                        ? "border-emerald-200 bg-emerald-600 text-white"
+                        : "border-black/10 bg-white text-[rgb(var(--ink))]"
+                    }`}
+                  >
+                    90-second
+                  </button>
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-[rgb(var(--muted))]">
+                Deterministic answers from STAR drafts. No AI rewriting.
+              </p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Button
+                  type="button"
+                  onClick={() => handleGenerateAnswer(answerPackVariant)}
+                  disabled={answerPackLoading}
+                >
+                  {answerPackLoading ? "Generating..." : "Generate answer"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => handleGenerateAnswer("short90")}
+                  disabled={answerPackLoading}
+                >
+                  Generate 90-second
+                </Button>
+              </div>
+
+              {answerPackError ? (
+                <p className="mt-2 text-xs text-red-600">{answerPackError}</p>
+              ) : null}
+
+              {answerPack[answerPackVariant] ? (
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-xl border border-dashed border-black/10 bg-white/70 p-3">
+                    <p className="text-[10px] font-semibold text-[rgb(var(--ink))]">
+                      Preview
+                    </p>
+                    <pre className="mt-2 whitespace-pre-wrap text-xs text-[rgb(var(--muted))]">
+                      {answerPack[answerPackVariant]?.answerText}
+                    </pre>
+                  </div>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
+                    <div>
+                      <span className="font-semibold text-[rgb(var(--ink))]">
+                        STAR used:
+                      </span>{" "}
+                      {answerPack[answerPackVariant]?.starTitle ??
+                        answerPack[answerPackVariant]?.starGapKey}
+                      {answerPack[answerPackVariant]?.starGapKey ? (
+                        <a
+                          href={`/app/applications/${applicationId}/star/${encodeURIComponent(
+                            answerPack[answerPackVariant]!.starGapKey
+                          )}`}
+                          className="ml-2 font-semibold text-[rgb(var(--ink))] underline-offset-2 hover:underline"
+                        >
+                          Open
+                        </a>
+                      ) : null}
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      onClick={() =>
+                        handleCopy(
+                          answerPack[answerPackVariant]?.answerText ?? ""
+                        )
+                      }
+                    >
+                      Copy answer
+                    </Button>
+                    <Button
+                      type="button"
+                      onClick={() => handleApplyAnswer(answerPackVariant)}
+                      disabled={pendingKey === `apply-${currentKey}-${answerPackVariant}`}
+                    >
+                      {pendingKey === `apply-${currentKey}-${answerPackVariant}`
+                        ? "Applying..."
+                        : "Apply to draft"}
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 text-xs text-[rgb(var(--muted))]">
+                  No answer generated yet for this question.
+                </p>
+              )}
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2">
