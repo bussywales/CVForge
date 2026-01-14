@@ -1,5 +1,9 @@
 # Changelog
 
+-## v0.7.13
+- Add deterministic detection of blocked job sources (Indeed & LinkedIn) and surface calm “Open & paste” guidance in the Job advert card when fetching is blocked.
+- Job fetch API now returns `blocked` responses with reason/suggestedAction and logs `job.fetch_blocked` activities for blocked attempts.
+
 ## v0.7.12b
 - Application detail tabs remember the last opened tab per application, show lightweight badges for pending work, and collapse the edit form for longer/up-to-date listings.
 - CTAs now deep-link to the correct tabs (`?tab=...`) and the Overview tab stays compact while heavy panels remain lazy-loaded.

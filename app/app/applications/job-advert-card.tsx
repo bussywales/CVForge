@@ -15,11 +15,13 @@ type JobAdvertCardProps = {
   url: string;
   host: string;
   source: "fetched" | "pasted";
-  status: "ok" | "failed" | "not_fetched";
+  status: "ok" | "failed" | "not_fetched" | "blocked";
   fetchedAt: string | null;
   chars: number;
   error: string | null;
   sourceUrl: string | null;
+  blocked?: boolean;
+  blockedMessage?: string | null;
 };
 
 export default function JobAdvertCard({
@@ -32,10 +34,14 @@ export default function JobAdvertCard({
   chars,
   error,
   sourceUrl,
+  blocked = false,
+  blockedMessage = null,
 }: JobAdvertCardProps) {
   const [copied, setCopied] = useState(false);
   const [fetchState, setFetchState] = useState<FetchState>({ status: "idle" });
   const router = useRouter();
+
+  const isBlocked = blocked;
 
   const handleCopy = async () => {
     try {
@@ -48,7 +54,16 @@ export default function JobAdvertCard({
   };
 
   const handleFetch = async () => {
-    setFetchState({ status: "loading" });
+  if (isBlocked) {
+    setFetchState({
+      status: "error",
+      message:
+        blockedMessage ??
+        "This source blocks automated fetch. Please paste the job text manually.",
+    });
+    return;
+  }
+  setFetchState({ status: "loading" });
     try {
       const response = await fetch("/api/job/fetch", {
         method: "POST",
@@ -67,6 +82,13 @@ export default function JobAdvertCard({
       }
 
       const payload = await response.json().catch(() => ({}));
+      if (payload?.blocked) {
+        setFetchState({
+          status: "error",
+          message: payload?.message ?? "This source blocks automated fetch.",
+        });
+        return;
+      }
       const resultStatus = payload?.status ?? "ok";
       const message =
         resultStatus === "not_modified"
@@ -81,6 +103,14 @@ export default function JobAdvertCard({
         status: "error",
         message: "Unable to fetch the job advert right now.",
       });
+    }
+  };
+
+  const handlePaste = () => {
+    const textarea = document.getElementById("job_description");
+    if (textarea) {
+      textarea.scrollIntoView({ behavior: "smooth", block: "center" });
+      (textarea as HTMLTextAreaElement).focus();
     }
   };
 
@@ -104,6 +134,9 @@ export default function JobAdvertCard({
               ? "Fetched snapshot is used for Role Fit and packs."
               : "Paste the description or fetch it from the link after saving."}
           </p>
+          <p className="mt-1 text-[10px] text-[rgb(var(--muted))]">
+            Some sites (Indeed/LinkedIn) require paste due to anti-bot restrictions.
+          </p>
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-[rgb(var(--muted))]">
             <span className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-[rgb(var(--ink))]">
               {source === "fetched" ? "Fetched" : "Pasted"}
@@ -118,7 +151,12 @@ export default function JobAdvertCard({
               <span>• Canonical: {sourceUrl}</span>
             ) : null}
           </div>
-          {status === "failed" && error ? (
+          {isBlocked ? (
+            <p className="mt-2 text-xs text-amber-700">
+              {blockedMessage ??
+                "This site blocks automated fetch. Please open the advert and paste the job text instead."}
+            </p>
+          ) : status === "failed" && error ? (
             <p className="mt-2 text-xs text-amber-700">
               Fetch failed: {error}. Paste the advert text below instead.
             </p>
@@ -148,11 +186,15 @@ export default function JobAdvertCard({
           >
             {copied ? "Copied" : "Copy link"}
           </Button>
+          <Button type="button" variant="secondary" onClick={handlePaste}>
+            Paste job text
+          </Button>
           <Button
             type="button"
             variant="primary"
             onClick={handleFetch}
-            disabled={fetchState.status === "loading"}
+            disabled={fetchState.status === "loading" || isBlocked}
+            title={isBlocked ? "This site blocks automated fetch." : undefined}
           >
             {fetchState.status === "loading" ? "Fetching..." : "Fetch/Refresh"}
           </Button>

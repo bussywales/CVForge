@@ -117,7 +117,7 @@ Runtime: nodejs, force-dynamic.
 POST /api/job/fetch
 Auth: required.
 Input: JSON { applicationId }.
-Output: JSON { ok, status, jobTextChars, truncated? }.
+Output: JSON { ok, status, jobTextChars, truncated? } for success, or { blocked: true, reason, message, urlHost, suggestedAction: "open_and_paste" } when the source blocks fetches.
 Errors: JSON { error, detail?, hint? } with 400/401/404/502.
 Runtime: nodejs, force-dynamic.
 

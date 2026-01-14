@@ -14,6 +14,7 @@ The application detail page uses tabs (Overview, Apply, Evidence, Interview, Act
 
 ## Job Link Fetch v1
 Job advert links can be fetched server-side to store a read-only snapshot. Role Fit, Autopacks, and Interview Packs prefer the fetched snapshot when available.
+Some sites such as Indeed and LinkedIn block automated fetches, so the UI now surfaces a calm “Open advert and paste the text” path, and the API explicitly reports blocked sources with structured tips for manual paste.
 
 ## Autopacks
 Autopacks generate CVs, cover letters, and STAR answers from profile and achievements. Users can edit and version outputs in-app.

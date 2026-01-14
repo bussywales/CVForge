@@ -2,11 +2,12 @@ import type { ApplicationRecord } from "@/lib/data/applications";
 
 export type JobTextMeta = {
   source: "fetched" | "pasted";
-  status: "ok" | "failed" | "not_fetched";
+  status: "ok" | "failed" | "not_fetched" | "blocked";
   fetchedAt: string | null;
   chars: number;
   error: string | null;
   sourceUrl: string | null;
+  blockedMessage?: string | null;
 };
 
 export function getEffectiveJobText(application: ApplicationRecord) {
@@ -39,6 +40,10 @@ export function getJobTextMeta(application: ApplicationRecord): JobTextMeta {
     : fetchedAvailable
       ? "ok"
       : "not_fetched";
+  const blockedMessage =
+    application.job_fetch_status === "blocked"
+      ? application.job_fetch_error ?? null
+      : null;
 
   return {
     source,
@@ -46,6 +51,7 @@ export function getJobTextMeta(application: ApplicationRecord): JobTextMeta {
     fetchedAt: application.job_fetched_at ?? null,
     chars,
     error: application.job_fetch_error ?? null,
+    blockedMessage,
     sourceUrl: application.job_source_url ?? null,
   };
 }

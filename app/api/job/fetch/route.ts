@@ -4,6 +4,10 @@ import { createServerClient } from "@/lib/supabase/server";
 import { fetchApplication, updateApplication } from "@/lib/data/applications";
 import { createApplicationActivity } from "@/lib/data/application-activities";
 import { cleanExtractedText, extractTextFromHtml } from "@/lib/job-fetch";
+import {
+  buildBlockedFetchResponse,
+  isBlockedJobFetchUrl,
+} from "@/lib/job-fetch-policy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -77,6 +81,19 @@ export async function POST(request: Request) {
       : parsedUrl;
   const fallbackUrl = parsedUrl.protocol === "http:" ? parsedUrl : null;
 
+  const blockedCheck = isBlockedJobFetchUrl(parsedUrl);
+  if (blockedCheck.blocked) {
+    return handleBlockedFetch(
+      supabase,
+      user.id,
+      application.id,
+      parsedUrl,
+      blockedCheck.reason ?? "BLOCKED_SOURCE",
+      blockedCheck.message ?? "This site blocks automated fetch.",
+      200
+    );
+  }
+
   const attemptFetch = async (url: URL) => {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
@@ -139,6 +156,18 @@ export async function POST(request: Request) {
   }
 
   if (!response.ok) {
+    const statusCode = response.status;
+    if ([401, 403, 429].includes(statusCode)) {
+      return handleBlockedFetch(
+        supabase,
+        user.id,
+        application.id,
+        usedUrl,
+        "BLOCKED_BY_UPSTREAM",
+        "The site refused the request. Please open and paste the advert.",
+        statusCode
+      );
+    }
     return handleFetchFailure(supabase, user.id, application.id, {
       message: `Fetch failed with status ${response.status}.`,
       sourceUrl: usedUrl.toString(),
@@ -312,4 +341,61 @@ async function handleFetchFailure(
     },
     { status: params.status ?? 502 }
   );
+}
+
+async function handleBlockedFetch(
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string,
+  applicationId: string,
+  url: URL,
+  reason: string,
+  message: string,
+  status: number
+) {
+  const now = new Date().toISOString();
+  try {
+    await updateApplication(supabase, userId, applicationId, {
+      job_fetch_status: "blocked",
+      job_fetch_error: message,
+      job_fetched_at: now,
+      job_source_url: url.toString(),
+    });
+  } catch (error) {
+    console.error("[job.fetch.update]", error);
+  }
+
+  await logBlockedActivity(supabase, userId, applicationId, {
+    reason,
+    host: url.host,
+    status,
+  });
+
+  return NextResponse.json(
+    buildBlockedFetchResponse({
+      reason,
+      message,
+      urlHost: url.host,
+    }),
+    { status: 200 }
+  );
+}
+
+async function logBlockedActivity(
+  supabase: ReturnType<typeof createServerClient>,
+  userId: string,
+  applicationId: string,
+  meta: { reason: string; host: string; status: number }
+) {
+  try {
+    await createApplicationActivity(supabase, userId, {
+      application_id: applicationId,
+      type: "job.fetch_blocked",
+      channel: null,
+      subject: "Job advert blocked",
+      body: JSON.stringify(meta),
+      occurred_at: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("[job.fetch.blocked]", error);
+  }
 }

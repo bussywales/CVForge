@@ -449,21 +449,23 @@ let applyChecklist: ApplyChecklistRecord | null = null;
             title="Job advert"
             description="Keep the original listing link handy."
           >
-            {safeJobUrl ? (
-              <JobAdvertCard
-                applicationId={application.id}
-                url={safeJobUrl}
-                host={jobHost}
-                source={jobTextMeta.source}
-                status={jobTextMeta.status}
-                fetchedAt={jobTextMeta.fetchedAt}
-                chars={jobTextMeta.chars}
-                error={jobTextMeta.error}
-                sourceUrl={jobTextMeta.sourceUrl}
-              />
-            ) : (
-              <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-4 text-sm text-[rgb(var(--muted))]">
-                Not added yet.{" "}
+          {safeJobUrl ? (
+            <JobAdvertCard
+              applicationId={application.id}
+              url={safeJobUrl}
+              host={jobHost}
+              source={jobTextMeta.source}
+              status={jobTextMeta.status}
+              fetchedAt={jobTextMeta.fetchedAt}
+              chars={jobTextMeta.chars}
+              error={jobTextMeta.error}
+              sourceUrl={jobTextMeta.sourceUrl}
+              blocked={jobTextMeta.status === "blocked"}
+              blockedMessage={jobTextMeta.blockedMessage}
+            />
+          ) : (
+            <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-4 text-sm text-[rgb(var(--muted))]">
+              Not added yet.{" "}
                 <Link
                   href={`/app/applications/${application.id}#job_url`}
                   className="font-semibold text-[rgb(var(--ink))] underline-offset-2 hover:underline"

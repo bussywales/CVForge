@@ -77,3 +77,7 @@
 ## DOCX export
 - Export Standard and ATS-Minimal CV and cover letter.
 - Download the submission pack ZIP and confirm it contains CV, cover letter, and STAR JSON.
+
+## Job Link Fetch resilience
+- Provide an Indeed or LinkedIn job URL and confirm the fetch endpoint reports the source as blocked (instead of a scary HTTP error).
+- When blocked, the Job advert card should show a calm notice plus “Open,” “Copy link,” and “Paste job text” buttons while disabling the Fetch/Refresh button.
