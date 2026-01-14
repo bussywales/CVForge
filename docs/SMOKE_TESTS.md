@@ -14,6 +14,12 @@
 - Use a gap action to create or update an achievement and refresh the page.
 - If a fetched snapshot exists, confirm Role Fit uses it.
 
+## Evidence Engine
+- Open Role Fit gaps and confirm suggested evidence appears for taxonomy gaps.
+- Select an evidence item and refresh to see it listed as selected.
+- Apply evidence to create a draft achievement and confirm it appears in Profile.
+- Apply evidence to a STAR draft and confirm the draft contains the evidence line.
+
 ## Interview Lift
 - Log an activity and confirm Interview Lift suggestions appear.
 - Create a STAR draft and confirm it persists after refresh.

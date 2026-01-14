@@ -18,6 +18,9 @@ Autopacks generate CVs, cover letters, and STAR answers from profile and achieve
 ## Role Fit and Interview Lift
 Role Fit uses deterministic taxonomies, domain packs, and fallback JD terms to score coverage and suggest gaps. Interview Lift uses deterministic checks to recommend next actions and STAR drafts.
 
+## Evidence Engine v1
+Evidence Engine builds a tagged evidence bank from achievements and work history, suggests evidence for Role Fit gaps, and lets users attach evidence to STAR drafts or achievements.
+
 ## Interview Pack v1
 Interview Pack builds a deterministic interview bundle from the job description, Role Fit signals, and Interview Lift actions, with questions, STAR prompts, weak spots, and a DOCX export.
 

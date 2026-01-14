@@ -23,6 +23,7 @@ export type ApplicationRecord = {
   job_text_hash: string | null;
   job_source_url: string | null;
   status: ApplicationStatusValue | string;
+  selected_evidence: unknown;
   applied_at: string | null;
   closing_date: string | null;
   submitted_at: string | null;
@@ -63,6 +64,7 @@ export type ApplicationInsert = Pick<
   job_fetch_last_modified?: string | null;
   job_text_hash?: string | null;
   job_source_url?: string | null;
+  selected_evidence?: unknown;
   applied_at?: string | null;
   closing_date?: string | null;
   submitted_at?: string | null;
@@ -85,7 +87,7 @@ export type ApplicationInsert = Pick<
 export type ApplicationUpdate = Partial<ApplicationInsert>;
 
 const applicationSelect =
-  "id, user_id, job_title, company, company_name, contact_name, contact_role, contact_email, contact_linkedin, job_url, job_description, job_text, job_text_source, job_fetched_at, job_fetch_status, job_fetch_error, job_fetch_etag, job_fetch_last_modified, job_text_hash, job_source_url, status, applied_at, closing_date, submitted_at, source_platform, last_activity_at, last_touch_at, star_drafts, last_lift_action, lift_completed_at, next_action_type, next_action_due, next_followup_at, outreach_stage, outreach_last_sent_at, outreach_next_due_at, outreach_channel_pref, source, created_at";
+  "id, user_id, job_title, company, company_name, contact_name, contact_role, contact_email, contact_linkedin, job_url, job_description, job_text, job_text_source, job_fetched_at, job_fetch_status, job_fetch_error, job_fetch_etag, job_fetch_last_modified, job_text_hash, job_source_url, status, selected_evidence, applied_at, closing_date, submitted_at, source_platform, last_activity_at, last_touch_at, star_drafts, last_lift_action, lift_completed_at, next_action_type, next_action_due, next_followup_at, outreach_stage, outreach_last_sent_at, outreach_next_due_at, outreach_channel_pref, source, created_at";
 
 export async function listApplications(
   supabase: SupabaseClient,

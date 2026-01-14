@@ -1051,6 +1051,18 @@ export function calculateRoleFit(
   };
 }
 
+export function buildRoleFitSignals(packs: RoleFitPack[]): RoleFitSignal[] {
+  return buildSignalsForPacks(packs);
+}
+
+export function normalizeRoleFitText(text: string): string {
+  return normalizeText(text);
+}
+
+export function matchesRoleFitAliases(corpus: string, aliases: string[]): boolean {
+  return matchesAnyAlias(corpus, aliases);
+}
+
 function buildSignalsForPacks(packs: RoleFitPack[]): RoleFitSignal[] {
   return packs.flatMap((pack) =>
     pack.signals.map((signal) => ({

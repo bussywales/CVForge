@@ -144,6 +144,28 @@ Output: JSON { id, updated }.
 Errors: JSON { error } with 400/401/404/500.
 Runtime: nodejs.
 
+## Evidence Engine
+POST /api/evidence/suggest
+Auth: required.
+Input: JSON { applicationId }.
+Output: JSON { gaps: [{ signalId, label, suggestedEvidence[] }] }.
+Errors: JSON { error } with 400/401/404/500.
+Runtime: nodejs, force-dynamic.
+
+POST /api/evidence/select
+Auth: required.
+Input: JSON { applicationId, evidenceId, signalId }.
+Output: JSON { selectedEvidence }.
+Errors: JSON { error } with 400/401/404/500.
+Runtime: nodejs, force-dynamic.
+
+POST /api/evidence/apply
+Auth: required.
+Input: JSON { applicationId, evidenceId, signalId, mode }.
+Output: JSON { ok: true }.
+Errors: JSON { error } with 400/401/404/500.
+Runtime: nodejs, force-dynamic.
+
 ## Calendar
 GET /api/calendar/followup
 Auth: required.

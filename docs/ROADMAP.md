@@ -44,6 +44,12 @@ Scope boundary: deterministic fetch + extraction only, no scraping automation or
 Success criteria: fetched snapshots are stored and preferred when available.
 Not in scope: storing raw HTML or automatic job description rewriting.
 
+### Evidence Engine v1 (shipped)
+Outcome: evidence suggestions for Role Fit gaps with one-click apply actions (shipped v0.7.5).
+Scope boundary: deterministic matching using existing taxonomies only.
+Success criteria: evidence can be selected and applied to achievements or STAR drafts.
+Not in scope: AI-written evidence or cross-user sharing.
+
 ### Role Fit + packs
 Outcome: keep Role Fit reliable with core/domain packs and fallback JD terms.
 Scope boundary: deterministic signals, pack detection, and UI gap guidance.
@@ -94,11 +100,17 @@ Scope boundary: Stripe checkout, webhook crediting, credit ledger.
 Success criteria: credits are accurate and generation is gated correctly.
 Not in scope: subscriptions, invoices, or team billing.
 
-### Job advert enrichment (v0.7.5)
+### Job advert enrichment (v0.7.7)
 Outcome: optional structured fields derived from fetched job adverts.
 Scope boundary: deterministic metadata extraction only.
 Success criteria: users can review and accept extracted fields.
 Not in scope: AI summarisation or external content storage beyond snapshots.
+
+### Evidence scoring + UI polish (v0.7.6)
+Outcome: tighter evidence ranking and clearer apply workflows.
+Scope boundary: deterministic weighting adjustments and small UI improvements.
+Success criteria: higher-quality evidence surfaces first with less manual sorting.
+Not in scope: new AI-generated evidence.
 
 ## Later
 

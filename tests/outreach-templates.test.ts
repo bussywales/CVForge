@@ -25,6 +25,7 @@ const baseApplication: ApplicationRecord = {
   job_text_hash: null,
   job_source_url: null,
   status: "ready",
+  selected_evidence: [],
   applied_at: null,
   closing_date: null,
   submitted_at: null,

@@ -6,8 +6,18 @@ import { listAchievements } from "@/lib/data/achievements";
 import { fetchLatestAutopackVersion } from "@/lib/data/autopacks";
 import { fetchLatestAuditLog, insertAuditLog } from "@/lib/data/audit-log";
 import { deductCreditForAutopack, getUserCredits } from "@/lib/data/credits";
+import { listWorkHistory } from "@/lib/data/work-history";
+import { listActiveDomainPacks } from "@/lib/data/domain-packs";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getEffectiveJobText } from "@/lib/job-text";
+import {
+  buildEvidenceBank,
+  buildSelectedEvidenceSnippets,
+  normalizeSelectedEvidence,
+} from "@/lib/evidence";
+import { inferDomainGuess } from "@/lib/jd-learning";
+import type { RoleFitPack } from "@/lib/role-fit";
+import { buildRoleFitSignals, detectRoleFitPacks } from "@/lib/role-fit";
 import {
   autopackAiOutputSchema,
   generateAutopackSchema,
@@ -181,13 +191,28 @@ export async function POST(request: Request) {
       );
     }
 
-    const profile = await ensureProfile(supabase, user.id);
-    const achievements = await listAchievements(supabase, user.id);
+    const [profile, achievements, workHistory] = await Promise.all([
+      ensureProfile(supabase, user.id),
+      listAchievements(supabase, user.id),
+      listWorkHistory(supabase, user.id),
+    ]);
+
+    let dynamicPacks: RoleFitPack[] = [];
+    try {
+      dynamicPacks = await listActiveDomainPacks(supabase);
+    } catch (error) {
+      console.error("[autopack.packs]", error);
+    }
+
+    const selectedEvidence = normalizeSelectedEvidence(
+      application.selected_evidence
+    );
 
     const generationNotes: string[] = [];
 
+    const effectiveJobText = getEffectiveJobText(application);
     const jobDescriptionResult = truncateText(
-      getEffectiveJobText(application),
+      effectiveJobText,
       JOB_DESCRIPTION_MAX
     );
 
@@ -301,6 +326,35 @@ export async function POST(request: Request) {
       .map((entry) => sanitizeInlineText(entry))
       .filter(Boolean);
 
+    const domainGuess = inferDomainGuess(
+      application.job_title ?? "",
+      effectiveJobText
+    );
+    const packs = detectRoleFitPacks(effectiveJobText, {
+      dynamicPacks,
+      domainGuess,
+    });
+    const signals = buildRoleFitSignals(packs);
+    const evidenceBank = buildEvidenceBank({
+      profileHeadline: profile.headline,
+      achievements,
+      workHistory,
+      signals,
+    });
+    const evidenceSnippets = buildSelectedEvidenceSnippets(
+      selectedEvidence,
+      evidenceBank,
+      6
+    )
+      .map((snippet) => sanitizeInlineText(snippet))
+      .filter(Boolean);
+    const cvWithEvidence = evidenceSnippets.length
+      ? `${sanitizedCvText}\n\nSelected evidence for this role\n${evidenceSnippets.map((snippet) => `- ${snippet}`).join("\n")}`
+      : sanitizedCvText;
+    const coverWithEvidence = evidenceSnippets.length
+      ? `${sanitizedCoverLetter}\n\nEvidence highlights: ${evidenceSnippets.slice(0, 2).join(" ")}`
+      : sanitizedCoverLetter;
+
     const latestVersion = await fetchLatestAutopackVersion(
       supabase,
       user.id,
@@ -312,6 +366,7 @@ export async function POST(request: Request) {
       requirements: sanitizedAnswers,
       change_log: sanitizedChangeLog,
       extracted_requirements: extractedRequirements,
+      ...(evidenceSnippets.length > 0 ? { evidence: evidenceSnippets } : {}),
       ...(sanitizedAssumptions.length > 0
         ? { assumptions: sanitizedAssumptions }
         : {}),
@@ -323,8 +378,8 @@ export async function POST(request: Request) {
         application_id: application.id,
         user_id: user.id,
         version: nextVersion,
-        cv_text: sanitizedCvText,
-        cover_letter: sanitizedCoverLetter,
+        cv_text: cvWithEvidence,
+        cover_letter: coverWithEvidence,
         answers_json: answersPayload,
       })
       .select("id, version")

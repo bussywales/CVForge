@@ -336,16 +336,18 @@ export default async function ApplicationPage({
         />
       </Section>
 
-      <RoleFitCard
-        result={roleFit}
-        hasJobDescription={hasJobDescription}
-        hasEvidence={hasEvidence}
-        achievements={achievements.map((achievement) => ({
-          id: achievement.id,
-          title: achievement.title,
-          metrics: achievement.metrics,
-        }))}
-      />
+        <RoleFitCard
+          applicationId={application.id}
+          result={roleFit}
+          hasJobDescription={hasJobDescription}
+          hasEvidence={hasEvidence}
+          achievements={achievements.map((achievement) => ({
+            id: achievement.id,
+            title: achievement.title,
+            metrics: achievement.metrics,
+          }))}
+          selectedEvidence={application.selected_evidence}
+        />
 
       <div id="interview-pack">
         <Section

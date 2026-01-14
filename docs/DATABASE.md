@@ -19,7 +19,7 @@ RLS: user_id = auth.uid().
 
 ### applications
 Purpose: job applications with tracking, outreach, and interview lift state.
-Key fields: job_title, company, job_description, job_text, job_text_source, job_fetched_at, job_fetch_status, job_url, applied_at, closing_date, submitted_at, source_platform, next_followup_at, next_action_due, outreach_stage, star_drafts.
+Key fields: job_title, company, job_description, job_text, job_text_source, job_fetched_at, job_fetch_status, job_url, selected_evidence, applied_at, closing_date, submitted_at, source_platform, next_followup_at, next_action_due, outreach_stage, star_drafts.
 RLS: user_id = auth.uid().
 
 ### application_apply_checklist
@@ -92,6 +92,7 @@ RLS: authenticated users can select active packs; admin writes via service role.
 - 0012_practice_rewrite: improved_text and metadata for practice drafts.
 - 0013_smart_apply: closing_date/source_platform/submitted_at and apply checklist table.
 - 0014_job_fetch: job advert snapshot fields for fetched job text.
+- 0015_evidence_engine: selected_evidence storage on applications.
 
 ## Common migration issues
 - Policy already exists: drop the policy or use supabase migration repair to mark it applied.

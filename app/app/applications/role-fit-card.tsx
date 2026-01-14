@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Button from "@/components/Button";
 import Section from "@/components/Section";
 import type { RoleFitResult } from "@/lib/role-fit";
+import { normalizeSelectedEvidence } from "@/lib/evidence";
 
 type RoleFitCardProps = {
+  applicationId: string;
   result: RoleFitResult;
   hasJobDescription: boolean;
   hasEvidence: boolean;
@@ -16,13 +18,16 @@ type RoleFitCardProps = {
     title: string;
     metrics: string | null;
   }>;
+  selectedEvidence?: unknown;
 };
 
 export default function RoleFitCard({
+  applicationId,
   result,
   hasJobDescription,
   hasEvidence,
   achievements,
+  selectedEvidence,
 }: RoleFitCardProps) {
   const router = useRouter();
   const [toast, setToast] = useState<{
@@ -35,6 +40,15 @@ export default function RoleFitCard({
   const [pendingAchievementId, setPendingAchievementId] = useState<
     string | null
   >(null);
+  const [pendingEvidenceId, setPendingEvidenceId] = useState<string | null>(
+    null
+  );
+  const [evidenceByGap, setEvidenceByGap] = useState<
+    Record<string, EvidenceSuggestion[]>
+  >({});
+  const [evidenceStatus, setEvidenceStatus] = useState<
+    "idle" | "loading" | "error"
+  >("idle");
 
   useEffect(() => {
     if (!toast) {
@@ -71,6 +85,33 @@ export default function RoleFitCard({
     return result.fallbackUsed ? `${base} + JD terms` : base;
   }, [result.appliedPacks, result.fallbackUsed]);
 
+  const selectedEvidenceList = useMemo(
+    () => normalizeSelectedEvidence(selectedEvidence),
+    [selectedEvidence]
+  );
+
+  const selectedEvidenceCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    selectedEvidenceList.forEach((entry) => {
+      counts.set(entry.signalId, (counts.get(entry.signalId) ?? 0) + 1);
+    });
+    return Array.from(counts.entries()).map(([signalId, count]) => ({
+      signalId,
+      count,
+    }));
+  }, [selectedEvidenceList]);
+
+  const signalLabelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    result.matchedSignals.forEach((signal) => {
+      map.set(signal.id, signal.label);
+    });
+    result.gapSignals.forEach((signal) => {
+      map.set(signal.id, signal.label);
+    });
+    return map;
+  }, [result.gapSignals, result.matchedSignals]);
+
   const handleCopy = async (value: string) => {
     try {
       await navigator.clipboard.writeText(value);
@@ -80,6 +121,43 @@ export default function RoleFitCard({
       setToast({ message: "Unable to copy right now." });
     }
   };
+
+  const fetchEvidenceSuggestions = useCallback(async () => {
+    if (!applicationId || !hasJobDescription || result.gapSignals.length === 0) {
+      return;
+    }
+    setEvidenceStatus("loading");
+    try {
+      const response = await fetch("/api/evidence/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ applicationId }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setEvidenceStatus("error");
+        setToast({
+          message: payload?.error ?? "Unable to load evidence suggestions.",
+        });
+        return;
+      }
+      const gapMap: Record<string, EvidenceSuggestion[]> = {};
+      (payload?.gaps ?? []).forEach((gap: EvidenceGapSuggestion) => {
+        gapMap[gap.signalId] = gap.suggestedEvidence ?? [];
+      });
+      setEvidenceByGap(gapMap);
+      setEvidenceStatus("idle");
+    } catch (error) {
+      console.error("[role-fit.evidence]", error);
+      setEvidenceStatus("error");
+      setToast({ message: "Unable to load evidence suggestions." });
+    }
+  }, [applicationId, hasJobDescription, result.gapSignals.length]);
+
+  useEffect(() => {
+    void fetchEvidenceSuggestions();
+  }, [fetchEvidenceSuggestions]);
 
   const handleAddAchievement = async (gap: RoleFitResult["gapSignals"][number]) => {
     if (!gap.primaryAction) {
@@ -194,6 +272,72 @@ export default function RoleFitCard({
     }
   };
 
+  const handleEvidenceSelect = async (
+    evidenceId: string,
+    signalId: string
+  ) => {
+    setPendingEvidenceId(evidenceId);
+    try {
+      const response = await fetch("/api/evidence/select", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ applicationId, evidenceId, signalId }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setToast({
+          message: payload?.error ?? "Unable to select evidence right now.",
+        });
+        return;
+      }
+      setToast({ message: "Evidence selected." });
+      router.refresh();
+    } catch (error) {
+      console.error("[role-fit.select]", error);
+      setToast({ message: "Unable to select evidence right now." });
+    } finally {
+      setPendingEvidenceId(null);
+    }
+  };
+
+  const handleEvidenceApply = async (
+    mode: EvidenceApplyMode,
+    evidenceId: string,
+    signalId: string
+  ) => {
+    setPendingEvidenceId(evidenceId);
+    try {
+      const response = await fetch("/api/evidence/apply", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ applicationId, evidenceId, signalId, mode }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setToast({
+          message: payload?.error ?? "Unable to apply evidence right now.",
+        });
+        return;
+      }
+      setToast({
+        message:
+          mode === "create_draft_achievement"
+            ? "Draft achievement created."
+            : mode === "attach_to_star"
+              ? "Evidence added to STAR draft."
+              : "Metrics updated.",
+      });
+      router.refresh();
+    } catch (error) {
+      console.error("[role-fit.apply]", error);
+      setToast({ message: "Unable to apply evidence right now." });
+    } finally {
+      setPendingEvidenceId(null);
+    }
+  };
+
   return (
     <Section
       title="Role fit"
@@ -243,6 +387,24 @@ export default function RoleFitCard({
             Heuristic score — improve by adding evidence in Achievements.
           </p>
         </div>
+
+        {selectedEvidenceCounts.length ? (
+          <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
+            <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+              Selected evidence
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {selectedEvidenceCounts.map(({ signalId, count }) => (
+                <span
+                  key={signalId}
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-600"
+                >
+                  {signalLabelMap.get(signalId) ?? signalId} · {count}
+                </span>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {guidance ? (
           <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-4 text-sm text-[rgb(var(--muted))]">
@@ -389,6 +551,93 @@ export default function RoleFitCard({
                             ))}
                           </ul>
                         </div>
+
+                        {gap.allowActions ? (
+                          <div>
+                            <p className="text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+                              Suggested evidence
+                            </p>
+                            {evidenceStatus === "loading" ? (
+                              <p className="mt-2 text-xs text-[rgb(var(--muted))]">
+                                Loading evidence suggestions...
+                              </p>
+                            ) : evidenceByGap[gap.id]?.length ? (
+                              <ul className="mt-2 space-y-2">
+                                {evidenceByGap[gap.id].map((item) => (
+                                  <li
+                                    key={item.id}
+                                    className="rounded-xl border border-black/10 bg-white/70 p-2"
+                                  >
+                                    <p className="text-xs font-semibold text-[rgb(var(--ink))]">
+                                      {item.title}
+                                    </p>
+                                    <p className="mt-1 text-xs text-[rgb(var(--muted))]">
+                                      {item.shortSnippet}
+                                    </p>
+                                    <div className="mt-2 flex flex-wrap gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleEvidenceSelect(item.id, gap.id)
+                                        }
+                                        className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] transition hover:bg-white"
+                                        disabled={pendingEvidenceId === item.id}
+                                      >
+                                        Select
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleEvidenceApply(
+                                            "create_draft_achievement",
+                                            item.id,
+                                            gap.id
+                                          )
+                                        }
+                                        className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] transition hover:bg-white"
+                                        disabled={pendingEvidenceId === item.id}
+                                      >
+                                        Create draft
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleEvidenceApply(
+                                            "insert_clause_metric",
+                                            item.id,
+                                            gap.id
+                                          )
+                                        }
+                                        className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] transition hover:bg-white"
+                                        disabled={pendingEvidenceId === item.id}
+                                      >
+                                        Insert metric
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleEvidenceApply(
+                                            "attach_to_star",
+                                            item.id,
+                                            gap.id
+                                          )
+                                        }
+                                        className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] transition hover:bg-white"
+                                        disabled={pendingEvidenceId === item.id}
+                                      >
+                                        Add to STAR
+                                      </button>
+                                    </div>
+                                  </li>
+                                ))}
+                              </ul>
+                            ) : (
+                              <p className="mt-2 text-xs text-[rgb(var(--muted))]">
+                                No matching evidence found — add a work bullet or achievement mentioning {gap.label}.
+                              </p>
+                            )}
+                          </div>
+                        ) : null}
                       </div>
 
                       {gap.allowActions && openGapId === gap.id ? (
@@ -461,3 +710,22 @@ function formatClause(value: string) {
   }
   return trimmed.slice(0, 120).replace(/[.;:,]+$/g, "").trim();
 }
+
+type EvidenceSuggestion = {
+  id: string;
+  kind: "achievement" | "work_bullet";
+  title: string;
+  text: string;
+  shortSnippet: string;
+};
+
+type EvidenceGapSuggestion = {
+  signalId: string;
+  label: string;
+  suggestedEvidence: EvidenceSuggestion[];
+};
+
+type EvidenceApplyMode =
+  | "create_draft_achievement"
+  | "insert_clause_metric"
+  | "attach_to_star";

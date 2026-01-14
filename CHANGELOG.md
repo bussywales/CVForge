@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.5
+- Evidence Engine v1 with evidence suggestions on Role Fit gaps and one-click apply actions.
+- Selected evidence stored per application and used during autopack generation.
+
 ## v0.7.4
 - Job advert fetch endpoint with extracted snapshot storage and refresh support.
 - Role Fit, Autopack, and Interview Pack now prefer fetched snapshots when available.
