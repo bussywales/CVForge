@@ -161,9 +161,7 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
         ? "CV export completed."
         : "Export the CV (ATS-Minimal).",
       doneAt: input.checklist?.cv_exported_at ?? null,
-      actionHref: input.autopack?.id
-        ? `/app/applications/${input.applicationId}/autopacks/${input.autopack.id}`
-        : `/app/applications/${input.applicationId}#autopacks`,
+      actionHref: `/app/applications/${input.applicationId}?tab=apply`,
     },
     {
       id: "cover_exported",
@@ -173,9 +171,7 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
         ? "Cover letter export completed."
         : "Export the cover letter (ATS-Minimal).",
       doneAt: input.checklist?.cover_exported_at ?? null,
-      actionHref: input.autopack?.id
-        ? `/app/applications/${input.applicationId}/autopacks/${input.autopack.id}`
-        : `/app/applications/${input.applicationId}#autopacks`,
+      actionHref: `/app/applications/${input.applicationId}?tab=apply`,
     },
     {
       id: "interview_pack_exported",
@@ -185,7 +181,7 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
         ? "Interview pack export completed."
         : "Export the interview pack.",
       doneAt: input.checklist?.interview_pack_exported_at ?? null,
-      actionHref: `/app/applications/${input.applicationId}#interview-pack`,
+      actionHref: `/app/applications/${input.applicationId}?tab=interview`,
     },
     {
       id: "kit_downloaded",
@@ -195,7 +191,7 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
         ? "Kit download completed."
         : "Download the Application Kit ZIP.",
       doneAt: input.checklist?.kit_downloaded_at ?? null,
-      actionHref: `/app/applications/${input.applicationId}#application-kit`,
+      actionHref: `/app/applications/${input.applicationId}?tab=apply`,
     },
     {
       id: "outreach_step1",
@@ -205,7 +201,7 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
         ? "Outreach step logged."
         : "Send outreach step 1.",
       doneAt: outreachDoneAt,
-      actionHref: "/app/pipeline",
+      actionHref: `/app/applications/${input.applicationId}?tab=activity`,
     },
     {
       id: "followup_scheduled",
@@ -215,7 +211,7 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
         ? "Follow-up scheduled."
         : "Schedule a follow-up reminder.",
       doneAt: followupDoneAt,
-      actionHref: "/app/pipeline",
+      actionHref: `/app/applications/${input.applicationId}?tab=activity`,
     },
     {
       id: "submitted",
@@ -223,7 +219,7 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
       ok: submittedOk,
       hint: submittedOk ? "Application marked as submitted." : "Mark as submitted.",
       doneAt: submittedDoneAt,
-      actionHref: `/app/applications/${input.applicationId}#smart-apply`,
+      actionHref: `/app/applications/${input.applicationId}?tab=apply`,
     },
   ];
 
@@ -239,10 +235,10 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
   const nextActions: KitNextAction[] = [];
 
   if (!autopackExists) {
-    nextActions.push({
-      id: "autopack",
-      label: "Generate Autopack",
-      href: `/app/applications/${input.applicationId}#autopacks`,
+      nextActions.push({
+        id: "autopack",
+        label: "Generate Autopack",
+        href: `/app/applications/${input.applicationId}?tab=apply`,
       reason: "Required to unlock kit exports and readiness checks.",
     });
   }
@@ -252,10 +248,10 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
     !submittedOk &&
     daysUntil(input.closingDate) <= 3;
   if (closingUrgent) {
-    nextActions.push({
-      id: "closing",
-      label: "Apply today and export the kit",
-      href: `/app/applications/${input.applicationId}#application-kit`,
+      nextActions.push({
+        id: "closing",
+        label: "Apply today and export the kit",
+        href: `/app/applications/${input.applicationId}?tab=apply`,
       reason: "Closing date is within 3 days.",
     });
   }

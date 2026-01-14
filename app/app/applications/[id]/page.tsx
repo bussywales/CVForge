@@ -10,7 +10,10 @@ import { listStarLibrary, type StarLibraryRecord } from "@/lib/data/star-library
 import { logLearningEvent } from "@/lib/data/learning";
 import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
-import { fetchApplyChecklist } from "@/lib/apply-checklist";
+import {
+  fetchApplyChecklist,
+  type ApplyChecklistRecord,
+} from "@/lib/apply-checklist";
 import { buildFollowupTemplates } from "@/lib/followup-templates";
 import { getEffectiveJobText, getJobTextMeta } from "@/lib/job-text";
 import { buildInterviewLift } from "@/lib/interview-lift";
@@ -38,15 +41,13 @@ import {
   updateSourcePlatformAction,
   updateTrackingAction,
 } from "../actions";
+import ApplicationDetailTabs from "../application-detail-tabs";
 import ApplicationForm from "../application-form";
 import AutopacksSection from "../autopacks-section";
 import DeleteApplicationForm from "../delete-application-form";
 import JobAdvertCard from "../job-advert-card";
-import {
-  APPLICATION_DETAIL_TABS,
-  ApplicationDetailTabKey,
-  parseTab,
-} from "@/lib/ui/tabs";
+import { applicationStatusLabels, normaliseApplicationStatus } from "@/lib/application-status";
+import { computeTabBadges, ApplicationDetailTabKey, parseTab } from "@/lib/ui/tabs";
 
 const RoleFitCard = dynamic(() => import("../role-fit-card"), {
   ssr: false,
@@ -253,7 +254,7 @@ export default async function ApplicationPage({
     console.error("[application.kit.practice]", error);
   }
 
-  let applyChecklist = null;
+let applyChecklist: ApplyChecklistRecord | null = null;
   try {
     applyChecklist = await fetchApplyChecklist(
       supabase,
@@ -340,16 +341,57 @@ export default async function ApplicationPage({
     ? `/api/calendar/followup?applicationId=${application.id}`
     : null;
 
+  const status = normaliseApplicationStatus(application.status);
+  const statusLabel =
+    applicationStatusLabels[status] ??
+    application.status ??
+    "Draft";
+  const jobDescriptionText = application.job_description?.trim() ?? "";
+  const descriptionLength = jobDescriptionText.length;
+  const lastUpdatedReference = application.created_at;
+  const updatedWithinWeek = lastUpdatedReference
+    ? Date.now() - new Date(lastUpdatedReference).getTime() <=
+      7 * 24 * 60 * 60 * 1000
+    : false;
+  const shouldCollapseForm =
+    jobDescriptionText.length > 0 &&
+    (updatedWithinWeek || descriptionLength > 200);
+  const editFormOpen = !shouldCollapseForm;
+
   const activeTab = parseTab(searchParams?.tab);
-  const tabBaseHref = `/app/applications/${application.id}`;
-  const buildTabHref = (tabKey: ApplicationDetailTabKey) => {
-    const params = new URLSearchParams();
-    params.set("tab", tabKey);
-    if (searchParams?.created) {
-      params.set("created", searchParams.created);
-    }
-    return `${tabBaseHref}?${params.toString()}`;
-  };
+  const hasTabParam = Boolean(searchParams?.tab);
+  const createdParam = searchParams?.created ?? null;
+
+  const checklistFields = [
+    "cv_exported_at",
+    "cover_exported_at",
+    "interview_pack_exported_at",
+    "kit_downloaded_at",
+    "outreach_step1_logged_at",
+    "followup_scheduled_at",
+    "submitted_logged_at",
+  ] as const;
+  const checklistData = applyChecklist;
+  const pendingApplyItems = checklistData
+    ? checklistFields.filter((field) => !checklistData[field]).length
+    : 0;
+
+  const evidenceGaps = roleFit.gapSignals.length;
+  const interviewPriority = Math.max(
+    kitChecklist.stats.total - kitChecklist.stats.scored,
+    0
+  );
+  const nextActionDue = application.next_action_due
+    ? new Date(application.next_action_due)
+    : null;
+  const hasDueAction =
+    !!nextActionDue && nextActionDue.getTime() <= new Date().getTime();
+  const tabBadges = computeTabBadges({
+    pendingApplyItems,
+    evidenceGaps,
+    interviewPriority,
+    hasDueAction,
+  });
 
   return (
     <div className="space-y-6">
@@ -363,25 +405,13 @@ export default async function ApplicationPage({
         </div>
       ) : null}
 
-      <nav className="flex flex-wrap gap-2">
-        {APPLICATION_DETAIL_TABS.map((tab) => {
-          const isActive = tab.key === activeTab;
-          return (
-            <Link
-              key={tab.key}
-              href={buildTabHref(tab.key)}
-              aria-current={isActive ? "page" : undefined}
-              className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                isActive
-                  ? "bg-[rgb(var(--ink))] text-white"
-                  : "border border-black/10 bg-white/70 text-[rgb(var(--ink))] hover:border-black/20"
-              }`}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </nav>
+      <ApplicationDetailTabs
+        applicationId={application.id}
+        defaultTab={activeTab}
+        hasTabParam={hasTabParam}
+        createdParam={createdParam}
+        badges={tabBadges}
+      />
 
       {activeTab === "overview" ? (
         <>
@@ -389,11 +419,30 @@ export default async function ApplicationPage({
             title="Edit application"
             description="Update the role details and keep status current."
           >
-            <ApplicationForm
-              mode="edit"
-              initialValues={application}
-              action={updateApplicationAction}
-            />
+            <details
+              open={editFormOpen}
+              className="w-full rounded-2xl border border-black/10 bg-white/70"
+            >
+              <summary className="flex items-center justify-between gap-4 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))]">
+                <div>
+                  <p>{application.job_title ?? "Untitled role"}</p>
+                  <p className="text-xs text-[rgb(var(--muted))]">
+                    {application.company_name ?? application.company ?? "—"}
+                  </p>
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">
+                  {statusLabel}
+                </span>
+                <span className="text-xs text-[rgb(var(--muted))]">Edit</span>
+              </summary>
+              <div className="border-t border-black/10 px-4 py-5">
+                <ApplicationForm
+                  mode="edit"
+                  initialValues={application}
+                  action={updateApplicationAction}
+                />
+              </div>
+            </details>
           </Section>
 
           <Section

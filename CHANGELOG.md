@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.12b
+- Application detail tabs remember the last opened tab per application, show lightweight badges for pending work, and collapse the edit form for longer/up-to-date listings.
+- CTAs now deep-link to the correct tabs (`?tab=...`) and the Overview tab stays compact while heavy panels remain lazy-loaded.
+
 ## v0.7.12a
 - Application detail now uses tabbed navigation (Overview, Apply, Evidence, Interview, Activity, Admin/Debug) to prevent endless scrolling.
 - Lazy loading per tab ensures Smart Apply, Autopacks, Role Fit, STAR Library, Interview Lift, and Activity panels render only when needed.

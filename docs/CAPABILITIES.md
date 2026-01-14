@@ -10,7 +10,7 @@ Profiles store name, headline, and location. Achievements capture STAR evidence 
 Applications capture job title, company, description, status, and optional job advert link. Tracking fields support follow-up dates, contacts, activity history, and outreach stages.
 
 ## Application detail tabs
-The application detail page now uses tabbed navigation (Overview, Apply, Evidence, Interview, Activity, Admin/Debug) so users land on a focused workspace and only load the relevant panels when they switch tabs.
+The application detail page uses tabs (Overview, Apply, Evidence, Interview, Activity, Admin/Debug) so each workflow is easy to reach without scrolling endlessly. The tabs persist per application via localStorage, display lightweight badges for pending apply items, gaps, and activity follow-ups, and all CTA links include `?tab=` so they jump to the right workspace. The Overview tab collapses the edit form for longer or recently updated job descriptions while keeping the job advert card handy.
 
 ## Job Link Fetch v1
 Job advert links can be fetched server-side to store a read-only snapshot. Role Fit, Autopacks, and Interview Packs prefer the fetched snapshot when available.

@@ -10,10 +10,11 @@
 - If a job URL is present, fetch the job advert and confirm the snapshot updates.
 
 ## Application detail tabs
-- Open an application detail page and confirm the Overview tab shows Edit, Job advert, and the visible banner.
-- Switch to the Apply tab and ensure Smart Apply and Autopacks render without console errors.
-- Switch to Evidence to confirm Role Fit and the STAR Library appear; repeat for Interview and Activity tabs.
-- Visit `/app/applications/<id>?tab=evidence` and refresh to ensure the requested tab loads on first render.
+- Open an application detail page and confirm the Overview tab shows the collapsible edit form, job advert card, and banner.
+- Switch to the Apply tab and ensure Smart Apply plus Autopacks render without console errors; confirm the CTAs now include `?tab=apply`.
+- Switch to Evidence, Interview, and Activity; verify the tab badges reflect outstanding gaps, practice priority, or due actions.
+- Reload the page with `/app/applications/<id>?tab=interview` and confirm the requested tab stays active.
+- Switch tabs, reload, and confirm the last selected tab is remembered per application (without a `tab` query param set).
 
 ## Role Fit and gap actions
 - Open an application detail page and confirm Role Fit score and gaps render.
