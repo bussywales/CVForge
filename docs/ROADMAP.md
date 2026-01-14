@@ -50,6 +50,12 @@ Scope boundary: deterministic matching using existing taxonomies only.
 Success criteria: evidence can be selected and applied to achievements or STAR drafts.
 Not in scope: AI-written evidence or cross-user sharing.
 
+### Evidence Quality + Better Matching (shipped)
+Outcome: improved evidence matching with fuzzy aliases and quality scoring (shipped v0.7.6).
+Scope boundary: deterministic matching + quality heuristics, no AI.
+Success criteria: quality-ranked evidence appears for common gaps with clear fallback actions.
+Not in scope: AI-written evidence or cross-user sharing.
+
 ### Role Fit + packs
 Outcome: keep Role Fit reliable with core/domain packs and fallback JD terms.
 Scope boundary: deterministic signals, pack detection, and UI gap guidance.
@@ -105,12 +111,6 @@ Outcome: optional structured fields derived from fetched job adverts.
 Scope boundary: deterministic metadata extraction only.
 Success criteria: users can review and accept extracted fields.
 Not in scope: AI summarisation or external content storage beyond snapshots.
-
-### Evidence scoring + UI polish (v0.7.6)
-Outcome: tighter evidence ranking and clearer apply workflows.
-Scope boundary: deterministic weighting adjustments and small UI improvements.
-Success criteria: higher-quality evidence surfaces first with less manual sorting.
-Not in scope: new AI-generated evidence.
 
 ## Later
 

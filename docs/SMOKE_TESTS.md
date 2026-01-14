@@ -16,9 +16,11 @@
 
 ## Evidence Engine
 - Open Role Fit gaps and confirm suggested evidence appears for taxonomy gaps.
+- Confirm each suggestion shows a quality score and uses fuzzy matching (e.g. runbooks/standards).
 - Select an evidence item and refresh to see it listed as selected.
 - Apply evidence to create a draft achievement and confirm it appears in Profile.
 - Apply evidence to a STAR draft and confirm the draft contains the evidence line.
+ - If no match exists, use Create draft evidence or Insert clause into action.
 
 ## Interview Lift
 - Log an activity and confirm Interview Lift suggestions appear.

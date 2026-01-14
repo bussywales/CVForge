@@ -7,6 +7,7 @@ import Button from "@/components/Button";
 import Section from "@/components/Section";
 import type { RoleFitResult } from "@/lib/role-fit";
 import { normalizeSelectedEvidence } from "@/lib/evidence";
+import { buildMetricSnippet } from "@/lib/metrics-helper";
 
 type RoleFitCardProps = {
   applicationId: string;
@@ -101,6 +102,27 @@ export default function RoleFitCard({
     }));
   }, [selectedEvidenceList]);
 
+  const evidenceCoverageLabel = useMemo(() => {
+    const total = result.gapSignals.length;
+    if (!hasJobDescription || total === 0) {
+      return "Evidence matches: 0 / 0 gaps";
+    }
+    const selectedSignals = new Set(
+      selectedEvidenceList.map((entry) => entry.signalId)
+    );
+    const matched = result.gapSignals.reduce((count, gap) => {
+      if (selectedSignals.has(gap.id)) {
+        return count + 1;
+      }
+      const suggestions = evidenceByGap[gap.id] ?? [];
+      if (suggestions.some((item) => item.matchScore >= 0.6)) {
+        return count + 1;
+      }
+      return count;
+    }, 0);
+    return `Evidence matches: ${matched} / ${total} gaps`;
+  }, [evidenceByGap, hasJobDescription, result.gapSignals, selectedEvidenceList]);
+
   const signalLabelMap = useMemo(() => {
     const map = new Map<string, string>();
     result.matchedSignals.forEach((signal) => {
@@ -128,12 +150,13 @@ export default function RoleFitCard({
     }
     setEvidenceStatus("loading");
     try {
-      const response = await fetch("/api/evidence/suggest", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ applicationId }),
-      });
+      const response = await fetch(
+        `/api/evidence/suggest?applicationId=${applicationId}`,
+        {
+          method: "GET",
+          credentials: "include",
+        }
+      );
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
         setEvidenceStatus("error");
@@ -200,6 +223,10 @@ export default function RoleFitCard({
     gap: RoleFitResult["gapSignals"][number]
   ) => {
     const action = gap.primaryAction || gap.actionSuggestions[0];
+    const metric = buildFallbackMetricSnippet(
+      gap.label,
+      gap.metricSuggestions[0] ?? ""
+    );
     if (!action) {
       return;
     }
@@ -212,7 +239,7 @@ export default function RoleFitCard({
         body: JSON.stringify({
           title: `Evidence for ${gap.label}`,
           action,
-          metrics: gap.metricSuggestions[0] ?? "",
+          metrics: metric,
         }),
       });
       const payload = await response.json().catch(() => ({}));
@@ -380,6 +407,7 @@ export default function RoleFitCard({
             </div>
             <div className="mt-1 space-y-1 text-xs text-[rgb(var(--muted))]">
               <p>{coverageLabel}</p>
+              <p>{evidenceCoverageLabel}</p>
               {packLabel ? <p>Using: {packLabel}</p> : null}
             </div>
           </div>
@@ -488,16 +516,31 @@ export default function RoleFitCard({
                             </Button>
                           </div>
                         ) : gap.source === "fallback" ? (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            onClick={() => handleCreateFallbackAchievement(gap)}
-                            disabled={pendingGapId === gap.id}
-                          >
-                            {pendingGapId === gap.id
-                              ? "Adding..."
-                              : "Create draft achievement"}
-                          </Button>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              onClick={() =>
+                                handleCreateFallbackAchievement(gap)
+                              }
+                              disabled={pendingGapId === gap.id}
+                            >
+                              {pendingGapId === gap.id
+                                ? "Adding..."
+                                : "Create draft evidence"}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() =>
+                                setOpenGapId((current) =>
+                                  current === gap.id ? null : gap.id
+                                )
+                              }
+                            >
+                              Insert into action…
+                            </Button>
+                          </div>
                         ) : null}
                       </div>
 
@@ -568,9 +611,21 @@ export default function RoleFitCard({
                                     key={item.id}
                                     className="rounded-xl border border-black/10 bg-white/70 p-2"
                                   >
-                                    <p className="text-xs font-semibold text-[rgb(var(--ink))]">
-                                      {item.title}
-                                    </p>
+                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                      <p className="text-xs font-semibold text-[rgb(var(--ink))]">
+                                        {item.title}
+                                      </p>
+                                      <div className="flex flex-wrap items-center gap-2">
+                                        <span className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-600">
+                                          {item.kind === "work_bullet"
+                                            ? "Work history"
+                                            : "Achievement"}
+                                        </span>
+                                        <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                          Quality {item.qualityScore}
+                                        </span>
+                                      </div>
+                                    </div>
                                     <p className="mt-1 text-xs text-[rgb(var(--muted))]">
                                       {item.shortSnippet}
                                     </p>
@@ -587,31 +642,10 @@ export default function RoleFitCard({
                                       </button>
                                       <button
                                         type="button"
-                                        onClick={() =>
-                                          handleEvidenceApply(
-                                            "create_draft_achievement",
-                                            item.id,
-                                            gap.id
-                                          )
-                                        }
+                                        onClick={() => handleCopy(item.shortSnippet)}
                                         className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] transition hover:bg-white"
-                                        disabled={pendingEvidenceId === item.id}
                                       >
-                                        Create draft
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={() =>
-                                          handleEvidenceApply(
-                                            "insert_clause_metric",
-                                            item.id,
-                                            gap.id
-                                          )
-                                        }
-                                        className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] transition hover:bg-white"
-                                        disabled={pendingEvidenceId === item.id}
-                                      >
-                                        Insert metric
+                                        Copy
                                       </button>
                                       <button
                                         type="button"
@@ -632,15 +666,41 @@ export default function RoleFitCard({
                                 ))}
                               </ul>
                             ) : (
-                              <p className="mt-2 text-xs text-[rgb(var(--muted))]">
-                                No matching evidence found — add a work bullet or achievement mentioning {gap.label}.
-                              </p>
+                              <div className="mt-2 space-y-2 text-xs text-[rgb(var(--muted))]">
+                                <p>
+                                  No confident matches yet. Create a draft or insert a clause to add evidence for{" "}
+                                  {gap.label}.
+                                </p>
+                                <div className="flex flex-wrap gap-2">
+                                  <Button
+                                    type="button"
+                                    variant="secondary"
+                                    onClick={() => handleCreateFallbackAchievement(gap)}
+                                    disabled={pendingGapId === gap.id}
+                                  >
+                                    {pendingGapId === gap.id
+                                      ? "Adding..."
+                                      : "Create draft evidence"}
+                                  </Button>
+                                  <Button
+                                    type="button"
+                                    variant="ghost"
+                                    onClick={() =>
+                                      setOpenGapId((current) =>
+                                        current === gap.id ? null : gap.id
+                                      )
+                                    }
+                                  >
+                                    Insert clause into action…
+                                  </Button>
+                                </div>
+                              </div>
                             )}
                           </div>
                         ) : null}
                       </div>
 
-                      {gap.allowActions && openGapId === gap.id ? (
+                      {openGapId === gap.id ? (
                         <div className="rounded-2xl border border-black/10 bg-white/80 p-3">
                           <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
                             Insert into achievement
@@ -711,12 +771,46 @@ function formatClause(value: string) {
   return trimmed.slice(0, 120).replace(/[.;:,]+$/g, "").trim();
 }
 
+function buildFallbackMetricSnippet(label: string, fallback: string) {
+  const metric = pickMetricHint(label);
+  const snippet = buildMetricSnippet("percent-improvement", {
+    metric,
+    percent: "X",
+    period: "3 months",
+  });
+  if (snippet && snippet.length <= 120) {
+    return snippet;
+  }
+  return fallback;
+}
+
+function pickMetricHint(label: string) {
+  const lower = label.toLowerCase();
+  if (lower.includes("incident")) {
+    return "incident resolution time";
+  }
+  if (lower.includes("sla") || lower.includes("service")) {
+    return "SLA compliance";
+  }
+  if (lower.includes("document") || lower.includes("standard")) {
+    return "onboarding time";
+  }
+  if (lower.includes("change")) {
+    return "change turnaround time";
+  }
+  return "delivery time";
+}
+
 type EvidenceSuggestion = {
   id: string;
   kind: "achievement" | "work_bullet";
   title: string;
   text: string;
   shortSnippet: string;
+  matchScore: number;
+  qualityScore: number;
+  sourceType?: string;
+  sourceId?: string;
 };
 
 type EvidenceGapSuggestion = {

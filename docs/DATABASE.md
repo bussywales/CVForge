@@ -22,6 +22,11 @@ Purpose: job applications with tracking, outreach, and interview lift state.
 Key fields: job_title, company, job_description, job_text, job_text_source, job_fetched_at, job_fetch_status, job_url, selected_evidence, applied_at, closing_date, submitted_at, source_platform, next_followup_at, next_action_due, outreach_stage, star_drafts.
 RLS: user_id = auth.uid().
 
+### application_evidence
+Purpose: selected evidence per gap with match and quality metadata.
+Key fields: application_id, gap_key, evidence_id, source_type, source_id, match_score, quality_score.
+RLS: user_id = auth.uid().
+
 ### application_apply_checklist
 Purpose: submission checklist timestamps for Smart Apply.
 Key fields: cv_exported_at, cover_exported_at, interview_pack_exported_at, kit_downloaded_at, outreach_step1_logged_at, followup_scheduled_at, submitted_logged_at.
@@ -93,6 +98,7 @@ RLS: authenticated users can select active packs; admin writes via service role.
 - 0013_smart_apply: closing_date/source_platform/submitted_at and apply checklist table.
 - 0014_job_fetch: job advert snapshot fields for fetched job text.
 - 0015_evidence_engine: selected_evidence storage on applications.
+- 0016_evidence_quality: application_evidence table with match and quality metadata.
 
 ## Common migration issues
 - Policy already exists: drop the policy or use supabase migration repair to mark it applied.

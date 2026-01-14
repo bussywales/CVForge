@@ -4,6 +4,10 @@
 - Evidence Engine v1 with evidence suggestions on Role Fit gaps and one-click apply actions.
 - Selected evidence stored per application and used during autopack generation.
 
+## v0.7.6
+- Evidence quality scoring with fuzzy matching across achievements and work history.
+- Role Fit gaps now show quality-ranked evidence suggestions and fallback actions.
+
 ## v0.7.4
 - Job advert fetch endpoint with extracted snapshot storage and refresh support.
 - Role Fit, Autopack, and Interview Pack now prefer fetched snapshots when available.

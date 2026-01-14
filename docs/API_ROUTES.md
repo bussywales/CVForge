@@ -145,10 +145,10 @@ Errors: JSON { error } with 400/401/404/500.
 Runtime: nodejs.
 
 ## Evidence Engine
-POST /api/evidence/suggest
+GET /api/evidence/suggest?applicationId=...
 Auth: required.
-Input: JSON { applicationId }.
-Output: JSON { gaps: [{ signalId, label, suggestedEvidence[] }] }.
+Input: query param applicationId.
+Output: JSON { gaps: [{ signalId, label, suggestedEvidence[] }] } where suggestedEvidence includes matchScore and qualityScore.
 Errors: JSON { error } with 400/401/404/500.
 Runtime: nodejs, force-dynamic.
 

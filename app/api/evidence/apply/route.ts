@@ -89,6 +89,7 @@ export async function POST(request: Request) {
 
     const evidenceBank = buildEvidenceBank({
       profileHeadline: profile?.headline,
+      profileLocation: profile?.location,
       achievements,
       workHistory,
       signals,
@@ -251,11 +252,15 @@ function pickTargetAchievement(
 
   const candidates = evidenceBank.items
     .filter((item) => item.kind === "achievement")
-    .filter((item) => item.signals.includes(signalId))
-    .sort((a, b) => b.weight - a.weight);
+    .map((item) => ({
+      item,
+      matchScore: item.matchScores[signalId] ?? 0,
+    }))
+    .filter((candidate) => candidate.matchScore >= 0.6)
+    .sort((a, b) => b.matchScore - a.matchScore || b.item.weight - a.item.weight);
 
   if (candidates.length > 0) {
-    const targetId = candidates[0].id.replace("ach:", "");
+    const targetId = candidates[0].item.id.replace("ach:", "");
     return achievements.find((achievement) => achievement.id === targetId) ?? null;
   }
 

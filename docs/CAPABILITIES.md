@@ -19,7 +19,7 @@ Autopacks generate CVs, cover letters, and STAR answers from profile and achieve
 Role Fit uses deterministic taxonomies, domain packs, and fallback JD terms to score coverage and suggest gaps. Interview Lift uses deterministic checks to recommend next actions and STAR drafts.
 
 ## Evidence Engine v1
-Evidence Engine builds a tagged evidence bank from achievements and work history, suggests evidence for Role Fit gaps, and lets users attach evidence to STAR drafts or achievements.
+Evidence Engine builds a tagged evidence bank from achievements and work history, suggests evidence for Role Fit gaps with quality scoring and fuzzy matching, and lets users attach evidence to STAR drafts or achievements.
 
 ## Interview Pack v1
 Interview Pack builds a deterministic interview bundle from the job description, Role Fit signals, and Interview Lift actions, with questions, STAR prompts, weak spots, and a DOCX export.
@@ -52,4 +52,4 @@ Opt-in, anonymised JD learning events feed admin-reviewed domain pack proposals 
 Deterministic engines include role-fit.ts, interview-lift.ts, outreach-templates.ts, submission-quality.ts, and metrics-helper.ts. OpenAI is only used for autopack generation via server-side API calls.
 
 ## Non-goals / Not supported
-No PDF export. No job advert scraping or URL fetch. No auto-apply or multi-user workspaces. No email sending or messaging integrations. No storage of raw job descriptions for learning.
+No PDF export. No automated job advert scraping beyond user-initiated fetch and text extraction. No auto-apply or multi-user workspaces. No email sending or messaging integrations. No storage of raw job descriptions for learning.

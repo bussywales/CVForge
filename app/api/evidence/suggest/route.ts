@@ -19,7 +19,7 @@ const payloadSchema = z.object({
   applicationId: z.string().uuid(),
 });
 
-export async function POST(request: Request) {
+async function handleSuggest(applicationId: string) {
   const supabase = createServerClient();
   const {
     data: { user },
@@ -29,18 +29,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const body = await request.json().catch(() => ({}));
-  const parsed = payloadSchema.safeParse(body);
-
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid payload." }, { status: 400 });
-  }
-
   try {
     const application = await fetchApplication(
       supabase,
       user.id,
-      parsed.data.applicationId
+      applicationId
     );
 
     if (!application) {
@@ -88,6 +81,7 @@ export async function POST(request: Request) {
 
     const evidenceBank = buildEvidenceBank({
       profileHeadline: profile?.headline,
+      profileLocation: profile?.location,
       achievements,
       workHistory,
       signals,
@@ -95,7 +89,7 @@ export async function POST(request: Request) {
 
     const gaps = roleFit.gapSignals.map((gap) => {
       const suggestions = rankEvidenceForGap(gap.id, evidenceBank).map(
-        (item) => {
+        ({ item, matchScore, qualityScore }) => {
           const snippet = buildEvidenceSnippet(item);
           return {
             id: item.id,
@@ -103,6 +97,10 @@ export async function POST(request: Request) {
             title: item.title,
             text: item.text,
             shortSnippet: snippet.shortSnippet,
+            matchScore,
+            qualityScore,
+            sourceType: item.sourceType,
+            sourceId: item.sourceId,
           };
         }
       );
@@ -122,4 +120,27 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
+}
+
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const applicationId = searchParams.get("applicationId") ?? "";
+  const parsed = payloadSchema.safeParse({ applicationId });
+
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid payload." }, { status: 400 });
+  }
+
+  return handleSuggest(parsed.data.applicationId);
+}
+
+export async function POST(request: Request) {
+  const body = await request.json().catch(() => ({}));
+  const parsed = payloadSchema.safeParse(body);
+
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid payload." }, { status: 400 });
+  }
+
+  return handleSuggest(parsed.data.applicationId);
 }
