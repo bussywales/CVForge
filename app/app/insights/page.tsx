@@ -17,6 +17,8 @@ import { normalizeSelectedEvidence } from "@/lib/evidence";
 import { getUserCredits } from "@/lib/data/credits";
 import PackSelector from "@/app/app/billing/pack-selector";
 import { fetchBillingSettings } from "@/lib/data/billing";
+import { ensureReferralCode } from "@/lib/referrals";
+import ReferralCta from "./referral-cta";
 
 export const dynamic = "force-dynamic";
 
@@ -88,6 +90,7 @@ export default async function InsightsPage({
   });
   const credits = await getUserCredits(supabase, user.id);
   const billingSettings = await fetchBillingSettings(supabase, user.id);
+  const referral = await ensureReferralCode(supabase, user.id);
 
   const handleCreateSample = async () => {
     "use server";
@@ -294,6 +297,7 @@ export default async function InsightsPage({
           </div>
         </div>
       ) : null}
+      {referral?.code ? <ReferralCta code={referral.code} /> : null}
 
       <Section
         title="Today"

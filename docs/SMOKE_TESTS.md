@@ -120,6 +120,11 @@
 - Recent credit activity renders without errors.
 - Start a subscription from /app/billing and ensure you are redirected to Stripe; manage portal link works when a customer exists.
 
+## Referrals
+- Fetch your referral link on /app/billing; copy and share.
+- New user signup with `?ref=` shows +3 credits; inviter receives +3 credits.
+- Redeeming twice with same invitee does not double-grant credits; self-referral is blocked.
+
 ## First Job Win onboarding
 - Visit /app/insights and confirm the First Job Win panel shows five steps with statuses.
 - With zero data, it should offer “Create a sample application.”

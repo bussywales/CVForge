@@ -132,6 +132,8 @@ RLS: authenticated users can select active packs; admin writes via service role.
 - 0022_conversion_outcomes: outreach/outcome helper fields.
 - 0023_outcome_loop: application_outcomes, outcome_action_links, and last_outcome_* columns on applications.
 - 0024_billing_settings: billing settings for subscriptions and auto top-up.
+- 0025_referrals: referral_codes and referral_redemptions tables.
+- 0024_billing_settings: billing settings for subscriptions and auto top-up.
 
 ## Common migration issues
 - Policy already exists: drop the policy or use supabase migration repair to mark it applied.

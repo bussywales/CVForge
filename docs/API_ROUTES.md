@@ -139,6 +139,16 @@ POST /api/stripe/webhook
 Auth: Stripe signature required.
 Handles checkout.session.completed, customer.subscription.* and invoice.paid for packs/subscriptions (credit grants via credit_ledger). Idempotent via stripe_events table.
 
+## Referrals
+GET /api/referrals/me
+Auth: required.
+Output: JSON { code, inviteUrl } creating a referral code if missing.
+
+POST /api/referrals/redeem
+Auth: required.
+Input: JSON { code }.
+Output: JSON { ok: true, awarded? } or { alreadyRedeemed: true }.
+
 ## Role Fit and Interview Lift
 GET /api/applications/[id]/interview-lift
 Auth: required.

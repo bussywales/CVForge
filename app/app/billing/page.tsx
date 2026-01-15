@@ -6,6 +6,7 @@ import PackSelector from "./pack-selector";
 import { fetchBillingSettings, upsertBillingSettings } from "@/lib/data/billing";
 import { SUBSCRIPTION_PLANS } from "@/lib/billing/plans";
 import { createServerClient } from "@/lib/supabase/server";
+import { ensureReferralCode } from "@/lib/referrals";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const credits = await getUserCredits(supabase, user.id);
   const activity = await listCreditActivity(supabase, user.id, 20);
   const settings = await fetchBillingSettings(supabase, user.id);
+  const referral = await ensureReferralCode(supabase, user.id);
   const appCount =
     (
       await supabase
@@ -257,6 +259,34 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             Save settings
           </button>
         </form>
+      </Section>
+
+      <Section
+        title="Refer a friend"
+        description="Invite a friend; you both get +3 credits when they join."
+      >
+        <div className="space-y-2 rounded-2xl border border-black/10 bg-white/80 p-4">
+          {referral?.code ? (
+            <>
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+                Your invite link
+              </p>
+              <p className="break-all rounded-lg border border-black/10 bg-white px-3 py-2 text-sm">
+                {`${(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(
+                  /\/$/,
+                  ""
+                )}/auth/signup?ref=${referral.code}`}
+              </p>
+              <p className="text-xs text-[rgb(var(--muted))]">
+                Copy and share. Credits apply once per new user.
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-[rgb(var(--muted))]">
+              Unable to load referral code right now.
+            </p>
+          )}
+        </div>
       </Section>
 
       <Section
