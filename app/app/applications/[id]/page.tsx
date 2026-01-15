@@ -22,6 +22,7 @@ import { inferDomainGuess } from "@/lib/jd-learning";
 import { calculateRoleFit } from "@/lib/role-fit";
 import type { RoleFitPack } from "@/lib/role-fit";
 import { buildCadence } from "@/lib/conversion-cadence";
+import { buildNextBestActions } from "@/lib/next-best-actions";
 import { buildQuestionKey } from "@/lib/interview-practice";
 import {
   computeKitChecklist,
@@ -49,6 +50,7 @@ import ApplicationForm from "../application-form";
 import AutopacksSection from "../autopacks-section";
 import DeleteApplicationForm from "../delete-application-form";
 import JobAdvertCard from "../job-advert-card";
+import NextBestActionsBar from "../next-best-actions-bar";
 import { applicationStatusLabels, normaliseApplicationStatus } from "@/lib/application-status";
 import { computeTabBadges, ApplicationDetailTabKey, parseTab } from "@/lib/ui/tabs";
 
@@ -415,6 +417,19 @@ let applyChecklist: ApplyChecklistRecord | null = null;
         })
       : followupTemplates[0] ?? null;
 
+  const nextBestActions = buildNextBestActions({
+    applicationId: application.id,
+    closingDate: application.closing_date,
+    pendingApplyItems,
+    jobTextStatus: jobTextMeta.status,
+    hasJobText: hasJobDescription,
+    roleFitGaps: roleFit.gapSignals.length,
+    starDraftCount: kitChecklist.starDraftCount,
+    practiceTotal: kitChecklist.stats.total,
+    practiceScored: kitChecklist.stats.scored,
+    hasDueFollowup: hasDueAction,
+  });
+
   return (
     <div className="space-y-6">
       <Link href="/app/applications" className="text-sm text-[rgb(var(--muted))]">
@@ -433,6 +448,10 @@ let applyChecklist: ApplyChecklistRecord | null = null;
         hasTabParam={hasTabParam}
         createdParam={createdParam}
         badges={tabBadges}
+      />
+      <NextBestActionsBar
+        applicationId={application.id}
+        actions={nextBestActions}
       />
 
       {activeTab === "overview" ? (
@@ -467,10 +486,11 @@ let applyChecklist: ApplyChecklistRecord | null = null;
             </details>
           </Section>
 
-          <Section
-            title="Job advert"
-            description="Keep the original listing link handy."
-          >
+          <div id="job-advert">
+            <Section
+              title="Job advert"
+              description="Keep the original listing link handy."
+            >
           {safeJobUrl ? (
             <JobAdvertCard
               applicationId={application.id}
@@ -496,7 +516,8 @@ let applyChecklist: ApplyChecklistRecord | null = null;
                 </Link>
               </div>
             )}
-          </Section>
+            </Section>
+          </div>
         </>
       ) : null}
 
@@ -552,54 +573,60 @@ let applyChecklist: ApplyChecklistRecord | null = null;
 
       {activeTab === "evidence" ? (
         <>
-          <Section
-            title="Role Fit"
-            description="Score coverage and view evidence suggestions."
-          >
-            <RoleFitCard
-              applicationId={application.id}
-              result={roleFit}
-              hasJobDescription={hasJobDescription}
-              hasEvidence={hasEvidence}
-              achievements={achievements.map((achievement) => ({
-                id: achievement.id,
-                title: achievement.title,
-                metrics: achievement.metrics,
-              }))}
-              selectedEvidence={application.selected_evidence}
-            />
-          </Section>
+          <div id="role-fit">
+            <Section
+              title="Role Fit"
+              description="Score coverage and view evidence suggestions."
+            >
+              <RoleFitCard
+                applicationId={application.id}
+                result={roleFit}
+                hasJobDescription={hasJobDescription}
+                hasEvidence={hasEvidence}
+                achievements={achievements.map((achievement) => ({
+                  id: achievement.id,
+                  title: achievement.title,
+                  metrics: achievement.metrics,
+                }))}
+                selectedEvidence={application.selected_evidence}
+              />
+            </Section>
+          </div>
 
-          <Section
-            title="STAR Library"
-            description="Turn STAR-target evidence into practice-ready drafts."
-          >
-            <StarLibraryPanel
-              applicationId={application.id}
-              gaps={roleFit.gapSignals}
-              drafts={starLibrary}
-              starEvidenceCount={starEvidenceCount}
-            />
-          </Section>
+          <div id="star-library">
+            <Section
+              title="STAR Library"
+              description="Turn STAR-target evidence into practice-ready drafts."
+            >
+              <StarLibraryPanel
+                applicationId={application.id}
+                gaps={roleFit.gapSignals}
+                drafts={starLibrary}
+                starEvidenceCount={starEvidenceCount}
+              />
+            </Section>
+          </div>
         </>
       ) : null}
 
       {activeTab === "interview" ? (
         <>
-          <Section
-            title="Interview Lift"
-            description="Focus on the actions most likely to improve interview outcomes."
-          >
-            <InterviewLiftPanel
-              applicationId={application.id}
-              result={interviewLift}
-              achievements={achievements.map((achievement) => ({
-                id: achievement.id,
-                title: achievement.title,
-                metrics: achievement.metrics,
-              }))}
-            />
-          </Section>
+          <div id="interview-lift">
+            <Section
+              title="Interview Lift"
+              description="Focus on the actions most likely to improve interview outcomes."
+            >
+              <InterviewLiftPanel
+                applicationId={application.id}
+                result={interviewLift}
+                achievements={achievements.map((achievement) => ({
+                  id: achievement.id,
+                  title: achievement.title,
+                  metrics: achievement.metrics,
+                }))}
+              />
+            </Section>
+          </div>
 
           <div id="interview-pack">
             <Section
@@ -609,6 +636,7 @@ let applyChecklist: ApplyChecklistRecord | null = null;
                 <Link
                   href={`/app/applications/${application.id}/practice`}
                   className="inline-flex items-center justify-center rounded-2xl border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))]"
+                  id="practice-dashboard"
                 >
                   Practice Dashboard
                 </Link>
@@ -623,6 +651,7 @@ let applyChecklist: ApplyChecklistRecord | null = null;
                   metrics: achievement.metrics,
                 }))}
               />
+              <div id="answer-pack" />
             </Section>
           </div>
         </>
@@ -630,41 +659,47 @@ let applyChecklist: ApplyChecklistRecord | null = null;
 
       {activeTab === "activity" ? (
         <>
-          <Section
-            title="Tracking"
-            description="Keep key dates, contacts, and reminders in one place."
-          >
-            <TrackingPanel
-              application={application}
-              updateAction={updateTrackingAction}
-            />
-          </Section>
+          <div id="tracking">
+            <Section
+              title="Tracking"
+              description="Keep key dates, contacts, and reminders in one place."
+            >
+              <TrackingPanel
+                application={application}
+                updateAction={updateTrackingAction}
+              />
+            </Section>
+          </div>
 
-          <Section
-            title="Follow-up"
-            description="Copy templates and set the next reminder."
-          >
-            <FollowupSection
-              applicationId={application.id}
-              templates={followupTemplates}
-              createFollowupAction={createFollowupFromTemplateAction}
-              calendarUrl={calendarUrl}
-            />
-          </Section>
+          <div id="followup">
+            <Section
+              title="Follow-up"
+              description="Copy templates and set the next reminder."
+            >
+              <FollowupSection
+                applicationId={application.id}
+                templates={followupTemplates}
+                createFollowupAction={createFollowupFromTemplateAction}
+                calendarUrl={calendarUrl}
+              />
+            </Section>
+          </div>
 
-          <Section
-            title="Activity"
-            description="Log each touchpoint and keep the timeline accurate."
-          >
-            <ActivityPanel
-              applicationId={application.id}
-              activities={activities}
-              createAction={createActivityAction}
-              deleteAction={deleteActivityAction}
-              logAppliedAction={logAppliedAction}
-              logFollowupAction={logFollowupAction}
-            />
-          </Section>
+          <div id="activity-log">
+            <Section
+              title="Activity"
+              description="Log each touchpoint and keep the timeline accurate."
+            >
+              <ActivityPanel
+                applicationId={application.id}
+                activities={activities}
+                createAction={createActivityAction}
+                deleteAction={deleteActivityAction}
+                logAppliedAction={logAppliedAction}
+                logFollowupAction={logFollowupAction}
+              />
+            </Section>
+          </div>
         </>
       ) : null}
 

@@ -9,6 +9,9 @@
 ## v0.7.19
 - Answer Pack UX v1: accordion-style answers with per-row copy, copy-all, 90-second-first view, readiness badges, and a compact panel to avoid wall-of-text output.
 
+## v0.7.20
+- Tab UX polish: sticky “Next best actions” bar with tab/anchor deep links, per-application collapsed state, and anchors added across Apply/Evidence/Interview/Activity for consistent navigation.
+
 ## v0.7.15-docs
 - User Guide v1.2 rebuilt for non-technical users: quick path, clearer Evidence/exports guidance, troubleshooting table, and Optional AI Boost workflow.
 

@@ -391,7 +391,7 @@ export default function ApplicationKitPanel({
 
       <div
         className="rounded-2xl border border-black/10 bg-white/70 p-4"
-        id="apply-next-actions"
+        id="followup-autopilot"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
@@ -505,6 +505,7 @@ export default function ApplicationKitPanel({
           type="button"
           onClick={downloadKit}
           disabled={!downloadEnabled || state.status === "loading"}
+          id="kit"
         >
           {state.status === "loading"
             ? "Preparing kit..."

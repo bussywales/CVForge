@@ -12,6 +12,9 @@ Applications capture job title, company, description, status, and optional job a
 ## Application detail tabs
 The application detail page uses tabs (Overview, Apply, Evidence, Interview, Activity, Admin/Debug) so each workflow is easy to reach without scrolling endlessly. The tabs persist per application via localStorage, display lightweight badges for pending apply items, gaps, and activity follow-ups, and all CTA links include `?tab=` so they jump to the right workspace. The Overview tab collapses the edit form for longer or recently updated job descriptions while keeping the job advert card handy.
 
+## Next Best Actions bar
+A sticky “Next best actions” bar appears under the application tabs, showing up to three suggested steps with deep links to the right tab/section.
+
 ## Job Link Fetch v1
 Job advert links can be fetched server-side to store a read-only snapshot. Role Fit, Autopacks, and Interview Packs prefer the fetched snapshot when available.
 Some sites such as Indeed and LinkedIn block automated fetches, so the UI now surfaces a calm “Open advert and paste the text” path, and the API explicitly reports blocked sources with structured tips for manual paste.

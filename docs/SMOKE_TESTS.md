@@ -13,6 +13,7 @@
 - Open an application detail page and confirm the Overview tab shows the collapsible edit form, job advert card, and banner.
 - Switch to the Apply tab and ensure Smart Apply plus Autopacks render without console errors; confirm the CTAs now include `?tab=apply`.
 - Switch to Evidence, Interview, and Activity; verify the tab badges reflect outstanding gaps, practice priority, or due actions.
+- Check the sticky “Next best actions” bar under the tabs: it shows up to three steps, deep links to the right tab/anchor, and remembers the collapsed state after refresh.
 - Reload the page with `/app/applications/<id>?tab=interview` and confirm the requested tab stays active.
 - Switch tabs, reload, and confirm the last selected tab is remembered per application (without a `tab` query param set).
 
