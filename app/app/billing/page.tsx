@@ -7,6 +7,7 @@ import { fetchBillingSettings, upsertBillingSettings } from "@/lib/data/billing"
 import { SUBSCRIPTION_PLANS } from "@/lib/billing/plans";
 import { createServerClient } from "@/lib/supabase/server";
 import { ensureReferralCode } from "@/lib/referrals";
+import CopyIconButton from "@/components/CopyIconButton";
 
 export const dynamic = "force-dynamic";
 
@@ -277,6 +278,13 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                   ""
                 )}/auth/signup?ref=${referral.code}`}
               </p>
+              <CopyIconButton
+                text={`${(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(
+                  /\/$/,
+                  ""
+                )}/auth/signup?ref=${referral.code}`}
+                className="mt-2"
+              />
               <p className="text-xs text-[rgb(var(--muted))]">
                 Copy and share. Credits apply once per new user.
               </p>

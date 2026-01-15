@@ -6,17 +6,27 @@ import AutopackGenerateButton from "./autopack-generate-button";
 type AutopacksSectionProps = {
   applicationId: string;
   autopacks: AutopackRecord[];
+  balance: number;
+  returnTo?: string;
 };
 
 export default function AutopacksSection({
   applicationId,
   autopacks,
+  balance,
+  returnTo,
 }: AutopacksSectionProps) {
   return (
     <Section
       title="Autopacks"
       description="Generate tailored CVs, cover letters, and STAR answers."
-      action={<AutopackGenerateButton applicationId={applicationId} />}
+      action={
+        <AutopackGenerateButton
+          applicationId={applicationId}
+          balance={balance}
+          returnTo={returnTo}
+        />
+      }
     >
       {autopacks.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-black/20 bg-white/60 p-6 text-sm text-[rgb(var(--muted))]">

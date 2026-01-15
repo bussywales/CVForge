@@ -715,7 +715,12 @@ export default async function ApplicationPage({
 
           <div id="apply-kit">
             <div id="apply-autopacks">
-            <AutopacksSection applicationId={application.id} autopacks={autopacks} />
+            <AutopacksSection
+              applicationId={application.id}
+              autopacks={autopacks}
+              balance={credits}
+              returnTo={`/app/applications/${application.id}?tab=apply#apply-autopacks`}
+            />
             </div>
           </div>
         </>

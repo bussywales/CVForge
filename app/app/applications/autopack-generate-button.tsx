@@ -4,9 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/Button";
+import { usePathname, useSearchParams } from "next/navigation";
+import CreditGateModal from "@/app/app/billing/credit-gate-modal";
+import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
 
 type AutopackGenerateButtonProps = {
   applicationId: string;
+  balance: number;
+  returnTo?: string;
 };
 
 type GenerateState = {
@@ -17,9 +22,20 @@ type GenerateState = {
 
 export default function AutopackGenerateButton({
   applicationId,
+  balance,
+  returnTo,
 }: AutopackGenerateButtonProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [state, setState] = useState<GenerateState>({ status: "idle" });
+  const [showGate, setShowGate] = useState(false);
+
+  const currentReturn =
+    returnTo ??
+    `${pathname}${
+      searchParams?.toString() ? `?${searchParams.toString()}` : ""
+    }`;
 
   const handleGenerate = async () => {
     setState({ status: "loading" });
@@ -80,7 +96,19 @@ export default function AutopackGenerateButton({
     <div className="space-y-2">
       <Button
         type="button"
-        onClick={handleGenerate}
+        onClick={() => {
+          if (needsHardGate(balance, 1)) {
+            router.push(
+              `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`
+            );
+            return;
+          }
+          if (shouldSoftGate(balance, 1)) {
+            setShowGate(true);
+            return;
+          }
+          handleGenerate();
+        }}
         disabled={state.status === "loading"}
       >
         {state.status === "loading" ? "Generating..." : "Generate Autopack"}
@@ -98,6 +126,22 @@ export default function AutopackGenerateButton({
           ) : null}
         </div>
       ) : null}
+      <CreditGateModal
+        open={showGate}
+        onClose={() => setShowGate(false)}
+        cost={1}
+        balance={balance}
+        actionLabel="Generate Autopack"
+        onContinue={() => {
+          setShowGate(false);
+          handleGenerate();
+        }}
+        onGoBilling={() =>
+          router.push(
+            `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`
+          )
+        }
+      />
     </div>
   );
 }

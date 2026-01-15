@@ -1,16 +1,23 @@
 # Changelog
 
+## v0.7.30
+- Action gating v1: Autopack generation shows a credit confirm modal when balance > 0 and a billing CTA when balance is 0.
+- Referral copy UX: copy-icon button with quick feedback on Billing/Insights referral links.
+
+## v0.7.29
+- Referral Credits v1: shareable referral codes, idempotent +3 credits to inviter/invitee on signup, self-referral block, and billing/insights CTA surfaces.
+
 ## v0.7.28
 - Subscription + auto-top-up v1: billing settings table, subscription checkout support, portal link, and auto top-up preferences with banners when credits are low.
 - Pack model expanded with Starter/Pro/Power and subscription plan mapping; checkout and webhook now handle subscriptions and monthly credit grants.
 
-## v0.7.25
-- Insights “Coach Mode” with weekly targets, weakest-step detector, and one-click actions (schedule follow-up, create STAR draft, jump to Apply Kit Wizard).
-- Fixes to insights/coach actions to avoid server-side errors and ensure coach banners respect query params.
-
 ## v0.7.27
 - Billing polish: pack selector (Starter/Pro/Power) with Stripe price mapping, ROI panel, and pack CTAs across apply/interview/insights when credits are low.
 - Checkout endpoint now accepts pack keys and return URLs for smooth post-purchase banners.
+
+## v0.7.25
+- Insights “Coach Mode” with weekly targets, weakest-step detector, and one-click actions (schedule follow-up, create STAR draft, jump to Apply Kit Wizard).
+- Fixes to insights/coach actions to avoid server-side errors and ensure coach banners respect query params.
 
 ## v0.7.24
 - First Job Win onboarding card on /app/insights with 5 guided steps (import CV, achievements, work history, application, Apply Kit Wizard).
