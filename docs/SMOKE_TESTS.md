@@ -93,3 +93,11 @@
 - Verify the recent outcomes list updates and an action snapshot shows counts (evidence/outreach/practice/exports/kit/follow-ups).
 - Check pipeline cards show the outcome chip and that the “Hide lost” filter removes rejected/no response roles.
 - Call /api/outcomes/insights (or refresh panel) and confirm “Not enough data” appears until at least three outcomes exist.
+
+## Apply Kit Wizard
+- Open an application detail page (Overview and Apply tabs) and confirm the Apply Kit Wizard shows all five steps.
+- With missing job text, Step 1 blocks and deep-links to the Job advert section.
+- Add evidence for 1–2 gaps; Step 2 updates to partial/ready after refresh.
+- Create a STAR draft; Step 3 shows ready.
+- Download the Application Kit ZIP from Step 4 (uses existing export route).
+- Mark submitted and schedule follow-up from Step 5; verify status updates and next follow-up date is set.

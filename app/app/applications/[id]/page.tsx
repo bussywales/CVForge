@@ -50,6 +50,7 @@ import ApplicationForm from "../application-form";
 import AutopacksSection from "../autopacks-section";
 import DeleteApplicationForm from "../delete-application-form";
 import JobAdvertCard from "../job-advert-card";
+import ApplyKitWizard from "../apply-kit-wizard";
 import NextBestActionsBar from "../next-best-actions-bar";
 import OutcomeLoopPanel from "../outcome-loop-panel";
 import { applicationStatusLabels, normaliseApplicationStatus } from "@/lib/application-status";
@@ -59,6 +60,7 @@ import {
   computeActionSummaryForApplication,
   type ActionSummary,
 } from "@/lib/outcome-loop";
+import { normalizeSelectedEvidence } from "@/lib/evidence";
 
 const RoleFitCard = dynamic(() => import("../role-fit-card"), {
   ssr: false,
@@ -278,7 +280,7 @@ export default async function ApplicationPage({
     console.error("[application.outcomes]", error);
   }
 
-let applyChecklist: ApplyChecklistRecord | null = null;
+  let applyChecklist: ApplyChecklistRecord | null = null;
   try {
     applyChecklist = await fetchApplyChecklist(
       supabase,
@@ -318,6 +320,16 @@ let applyChecklist: ApplyChecklistRecord | null = null;
   });
 
   const kitContents = getKitContentsList();
+  const selectedEvidence = normalizeSelectedEvidence(
+    application.selected_evidence
+  );
+  const evidenceByGap = selectedEvidence.reduce((acc, entry) => {
+    acc[entry.signalId] = (acc[entry.signalId] ?? 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  const evidenceGapsWithSelection = Object.keys(evidenceByGap).length;
+  const starDraftCount = kitChecklist.starDraftCount ?? 0;
+  const jobTextLength = jobDescription.length;
   const jobUrl = application.job_url?.trim() ?? "";
   let safeJobUrl: string | null = null;
   let jobHost = "";
@@ -479,6 +491,26 @@ let applyChecklist: ApplyChecklistRecord | null = null;
       {activeTab === "overview" ? (
         <>
           <Section
+            title="Apply Kit Wizard"
+            description="Guided path: advert → evidence → STAR → kit → submit."
+          >
+            <ApplyKitWizard
+              applicationId={application.id}
+              jobTextLength={jobTextLength}
+              jobTextStatus={jobTextMeta.status}
+              jobTextSource={jobTextMeta.source}
+              hasJobUrl={Boolean(safeJobUrl)}
+              evidenceGapsWithSelection={evidenceGapsWithSelection}
+              totalGaps={roleFit.gapSignals.length}
+              starDraftCount={starDraftCount}
+              autopackReady={Boolean(latestAutopack?.id)}
+              submittedAt={application.submitted_at}
+              setSubmittedAction={setSubmittedAction}
+              scheduleFollowupAction={scheduleFollowupAction}
+            />
+          </Section>
+
+          <Section
             title="Edit application"
             description="Update the role details and keep status current."
           >
@@ -575,6 +607,26 @@ let applyChecklist: ApplyChecklistRecord | null = null;
               title="Smart Apply"
               description="Track readiness, submission steps, and next actions."
             >
+              <ApplyKitWizard
+                applicationId={application.id}
+                jobTextLength={jobTextLength}
+                jobTextStatus={jobTextMeta.status}
+                jobTextSource={jobTextMeta.source}
+                hasJobUrl={Boolean(safeJobUrl)}
+                evidenceGapsWithSelection={evidenceGapsWithSelection}
+                totalGaps={roleFit.gapSignals.length}
+                starDraftCount={starDraftCount}
+                autopackReady={Boolean(latestAutopack?.id)}
+                submittedAt={application.submitted_at}
+                setSubmittedAction={setSubmittedAction}
+                scheduleFollowupAction={scheduleFollowupAction}
+              />
+            </Section>
+            <div id="application-kit">
+              <Section
+                title="Application Kit"
+                description="Checklist, next actions, and kit download."
+              >
               <ApplicationKitPanel
                 applicationId={application.id}
                 closingDate={application.closing_date}
@@ -609,11 +661,14 @@ let applyChecklist: ApplyChecklistRecord | null = null;
                 logFollowupCadenceAction={logFollowupCadenceAction}
                 setOutcomeAction={setOutcomeAction}
               />
-            </Section>
+              </Section>
+            </div>
           </div>
 
-          <div id="apply-autopacks">
+          <div id="apply-kit">
+            <div id="apply-autopacks">
             <AutopacksSection applicationId={application.id} autopacks={autopacks} />
+            </div>
           </div>
         </>
       ) : null}
@@ -718,7 +773,7 @@ let applyChecklist: ApplyChecklistRecord | null = null;
             </Section>
           </div>
 
-          <div id="followup">
+          <div id="followup-autopilot">
             <Section
               title="Follow-up"
               description="Copy templates and set the next reminder."

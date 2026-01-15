@@ -49,6 +49,9 @@ Smart Apply now uses a compact header (readiness, status, closing date, source) 
 ## Outcome Loop v1
 Record outcomes with status/reason/notes, snapshot recent actions (evidence, outreach, practice, exports, kit), and surface lightweight insights. Pipeline cards show outcome chips and filters for active vs lost roles.
 
+## Apply Kit Wizard v1
+Guided path for non-technical users: job text readiness, evidence for gaps, STAR draft, download kit, then mark submitted and schedule follow-up with tab/anchor deep links.
+
 ## Pipeline and tracking
 A pipeline board shows status lanes, next actions, and activity history. The Action Centre provides follow-up templates, activity logging, and calendar invite downloads.
 
