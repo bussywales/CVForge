@@ -71,7 +71,7 @@ Deterministic outreach templates for email and LinkedIn, one-click logging, and 
 DOCX import previews and applies profile fields, achievements, and work history. DOCX export supports Standard and ATS-Minimal variants plus a submission-pack ZIP.
 
 ## Billing and credits
-Stripe Checkout is used for credit purchases, with a credit ledger and webhook-based crediting.
+Stripe Checkout is used for credit purchases, with a credit ledger and webhook-based crediting. Pack selector offers Starter/Pro/Power options and paywall CTAs appear at high-intent points (apply wizard, interview packs, insights).
 
 ## Admin learning
 Opt-in, anonymised JD learning events feed admin-reviewed domain pack proposals that can be published globally.

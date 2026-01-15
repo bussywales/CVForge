@@ -61,6 +61,8 @@ import {
   type ActionSummary,
 } from "@/lib/outcome-loop";
 import { normalizeSelectedEvidence } from "@/lib/evidence";
+import { getUserCredits } from "@/lib/data/credits";
+import PackSelector from "@/app/app/billing/pack-selector";
 
 const RoleFitCard = dynamic(() => import("../role-fit-card"), {
   ssr: false,
@@ -198,6 +200,7 @@ export default async function ApplicationPage({
     user.id,
     application.id
   );
+  const credits = await getUserCredits(supabase, user.id);
   const jobDescription = getEffectiveJobText(application);
   const jobTextMeta = getJobTextMeta(application);
   let dynamicPacks: RoleFitPack[] = [];
@@ -613,6 +616,24 @@ export default async function ApplicationPage({
       {activeTab === "apply" ? (
         <>
           <div id="apply">
+            {credits <= 0 ? (
+              <div className="mb-4 rounded-3xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-800">
+                  Ready to generate? Top up credits to continue.
+                </p>
+                <p className="text-xs text-amber-700">
+                  Applies to Autopacks, Application Kit, and interview exports.
+                </p>
+                <div className="mt-3">
+                  <PackSelector
+                    contextLabel="Generate and export"
+                    returnTo={`/app/applications/${application.id}?tab=apply#apply-autopacks`}
+                    compact
+                    onPurchasedHint="You’ll return here after checkout."
+                  />
+                </div>
+              </div>
+            ) : null}
             <Section
               title="Smart Apply"
               description="Track readiness, submission steps, and next actions."
@@ -723,6 +744,20 @@ export default async function ApplicationPage({
 
       {activeTab === "interview" ? (
         <>
+          {credits <= 0 ? (
+            <div className="mb-4 rounded-3xl border border-amber-200 bg-amber-50 p-4">
+              <p className="text-sm font-semibold text-amber-800">
+                Top up to generate Interview/Answer Packs.
+              </p>
+              <div className="mt-2">
+                <PackSelector
+                  contextLabel="Interview prep"
+                  returnTo={`/app/applications/${application.id}?tab=interview#interview-pack`}
+                  compact
+                />
+              </div>
+            </div>
+          ) : null}
           <div id="interview-lift">
             <Section
               title="Interview Lift"

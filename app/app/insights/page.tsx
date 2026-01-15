@@ -14,6 +14,8 @@ import {
 } from "@/lib/coach-mode";
 import { getEffectiveJobText } from "@/lib/job-text";
 import { normalizeSelectedEvidence } from "@/lib/evidence";
+import { getUserCredits } from "@/lib/data/credits";
+import PackSelector from "@/app/app/billing/pack-selector";
 
 export const dynamic = "force-dynamic";
 
@@ -83,6 +85,7 @@ export default async function InsightsPage({
     applicationsCount: counts.applications,
     latestApplicationId,
   });
+  const credits = await getUserCredits(supabase, user.id);
 
   const handleCreateSample = async () => {
     "use server";
@@ -260,6 +263,20 @@ export default async function InsightsPage({
       <Link href="/app" className="text-sm text-[rgb(var(--muted))]">
         ← Back to dashboard
       </Link>
+      {credits <= 0 ? (
+        <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-semibold text-amber-800">
+            Top up credits to run packs and kits.
+          </p>
+          <div className="mt-2">
+            <PackSelector
+              contextLabel="Continue your Coach plan"
+              returnTo="/app/insights"
+              compact
+            />
+          </div>
+        </div>
+      ) : null}
 
       <Section
         title="Today"

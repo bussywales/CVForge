@@ -2,7 +2,7 @@ import Section from "@/components/Section";
 import { getUserCredits, listCreditActivity } from "@/lib/data/credits";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import CreditActivityTable from "./credit-activity-table";
-import CheckoutButton from "./checkout-button";
+import PackSelector from "./pack-selector";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +23,28 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
   const credits = await getUserCredits(supabase, user.id);
   const activity = await listCreditActivity(supabase, user.id, 20);
+  const appCount =
+    (
+      await supabase
+        .from("applications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+    ).count ?? 0;
+  const autopackCount =
+    (
+      await supabase
+        .from("autopacks")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+    ).count ?? 0;
+  const interviewCount =
+    (
+      await supabase
+        .from("application_outcomes")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .in("outcome_status", ["interview_scheduled", "interview_completed", "offer"])
+    ).count ?? 0;
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -83,9 +105,15 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       <Section
         title="Billing & Credits"
         description="Credits are used to generate new autopacks."
-        action={<CheckoutButton />}
+        action={
+          <PackSelector
+            contextLabel="Top up applications"
+            returnTo="/app/billing"
+            compact
+          />
+        }
       >
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-black/10 bg-white/70 p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
               Current balance
@@ -99,14 +127,22 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           </div>
           <div className="rounded-2xl border border-black/10 bg-white/70 p-5">
             <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
-              Credit pack
-            </p>
-            <p className="mt-3 text-xl font-semibold text-[rgb(var(--ink))]">
-              £9 = 10 credits
+              What 1 credit does
             </p>
             <p className="mt-2 text-sm text-[rgb(var(--muted))]">
-              Use credits for CV + cover letter + STAR answer generation.
+              1 credit generates a tailored CV + cover letter + STAR answers for one
+              application.
             </p>
+          </div>
+          <div className="rounded-2xl border border-black/10 bg-white/70 p-5">
+            <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+              Your ROI so far
+            </p>
+            <div className="mt-2 space-y-1 text-sm text-[rgb(var(--ink))]">
+              <p>Applications created: {appCount}</p>
+              <p>Autopacks generated: {autopackCount}</p>
+              <p>Interviews/offers: {interviewCount}</p>
+            </div>
           </div>
         </div>
       </Section>

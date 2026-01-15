@@ -4,6 +4,10 @@
 - Insights “Coach Mode” with weekly targets, weakest-step detector, and one-click actions (schedule follow-up, create STAR draft, jump to Apply Kit Wizard).
 - Fixes to insights/coach actions to avoid server-side errors and ensure coach banners respect query params.
 
+## v0.7.27
+- Billing polish: pack selector (Starter/Pro/Power) with Stripe price mapping, ROI panel, and pack CTAs across apply/interview/insights when credits are low.
+- Checkout endpoint now accepts pack keys and return URLs for smooth post-purchase banners.
+
 ## v0.7.24
 - First Job Win onboarding card on /app/insights with 5 guided steps (import CV, achievements, work history, application, Apply Kit Wizard).
 - Added schema drift guard for applications queries (wildcard select) to avoid server render errors while schema stabilises.

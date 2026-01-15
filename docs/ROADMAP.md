@@ -127,8 +127,8 @@ Not in scope: storing raw job descriptions or auto-publishing.
 ### Billing and credits
 Outcome: predictable credit purchase and usage tracking.
 Scope boundary: Stripe checkout, webhook crediting, credit ledger.
-Success criteria: credits are accurate and generation is gated correctly.
-Not in scope: subscriptions, invoices, or team billing.
+Success criteria: credits are accurate and generation is gated correctly. (Money Now funnel shipped v0.7.27 with pack selector CTAs and ROI panel.)
+Not in scope: subscriptions, invoices, or team billing (future).
 
 ### Job advert enrichment (v0.7.7)
 Outcome: optional structured fields derived from fetched job adverts.

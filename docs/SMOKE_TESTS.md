@@ -114,6 +114,11 @@
 - Coach actions should deep-link to the right tab/anchor when no mutation is needed (Apply Kit Wizard).
 - Weekly targets reset each week; counts update after logging activities.
 
+## Billing and credits
+- Visit /app/billing and confirm balance plus pack selector (Starter/Pro/Power) render.
+- Start checkout for any pack; on return with `?purchased=1`, a success banner shows.
+- Recent credit activity renders without errors.
+
 ## First Job Win onboarding
 - Visit /app/insights and confirm the First Job Win panel shows five steps with statuses.
 - With zero data, it should offer “Create a sample application.”
