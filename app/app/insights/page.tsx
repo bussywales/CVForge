@@ -16,6 +16,7 @@ import { getEffectiveJobText } from "@/lib/job-text";
 import { normalizeSelectedEvidence } from "@/lib/evidence";
 import { getUserCredits } from "@/lib/data/credits";
 import PackSelector from "@/app/app/billing/pack-selector";
+import { fetchBillingSettings } from "@/lib/data/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -86,6 +87,7 @@ export default async function InsightsPage({
     latestApplicationId,
   });
   const credits = await getUserCredits(supabase, user.id);
+  const billingSettings = await fetchBillingSettings(supabase, user.id);
 
   const handleCreateSample = async () => {
     "use server";
@@ -263,7 +265,22 @@ export default async function InsightsPage({
       <Link href="/app" className="text-sm text-[rgb(var(--muted))]">
         ← Back to dashboard
       </Link>
-      {credits <= 0 ? (
+      {billingSettings &&
+      credits <= (billingSettings.auto_topup_threshold ?? 0) &&
+      billingSettings.auto_topup_enabled ? (
+        <div className="rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
+          <p className="text-sm font-semibold text-emerald-800">
+            Auto top-up is on (when ≤ {billingSettings.auto_topup_threshold} credits).
+          </p>
+          <div className="mt-2">
+            <PackSelector
+              contextLabel="Top up now"
+              returnTo="/app/insights"
+              compact
+            />
+          </div>
+        </div>
+      ) : credits <= 0 ? (
         <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-semibold text-amber-800">
             Top up credits to run packs and kits.

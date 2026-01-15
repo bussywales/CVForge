@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.28
+- Subscription + auto-top-up v1: billing settings table, subscription checkout support, portal link, and auto top-up preferences with banners when credits are low.
+- Pack model expanded with Starter/Pro/Power and subscription plan mapping; checkout and webhook now handle subscriptions and monthly credit grants.
+
 ## v0.7.25
 - Insights “Coach Mode” with weekly targets, weakest-step detector, and one-click actions (schedule follow-up, create STAR draft, jump to Apply Kit Wizard).
 - Fixes to insights/coach actions to avoid server-side errors and ensure coach banners respect query params.

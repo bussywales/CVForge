@@ -2,6 +2,15 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import type Stripe from "stripe";
 import { getStripeClient } from "@/lib/stripe/stripe";
+import {
+  getPackByPriceId,
+  CREDIT_PACKS,
+  resolvePriceIdForPack,
+} from "@/lib/billing/packs";
+import {
+  getPlanByPriceId,
+  SUBSCRIPTION_PLANS,
+} from "@/lib/billing/plans";
 
 export const runtime = "nodejs";
 
@@ -97,6 +106,13 @@ export async function POST(request: Request) {
         },
         { onConflict: "user_id" }
       );
+      await supabaseAdmin.from("billing_settings").upsert(
+        {
+          user_id: userId,
+          stripe_customer_id: customerId,
+        },
+        { onConflict: "user_id" }
+      );
     }
 
     const lineItems = await stripe.checkout.sessions.listLineItems(
@@ -104,20 +120,105 @@ export async function POST(request: Request) {
       { limit: 10 }
     );
     const priceId = lineItems.data[0]?.price?.id ?? null;
-    const creditsPriceId = process.env.STRIPE_CREDITS_PRICE_ID ?? null;
+    const pack = getPackByPriceId(priceId);
+    const plan = getPlanByPriceId(priceId);
 
-    if (priceId && creditsPriceId && priceId === creditsPriceId) {
+    if (session.mode === "payment" && pack) {
       await supabaseAdmin.from("credit_ledger").insert({
         user_id: userId,
-        delta: 10,
+        delta: pack.credits,
         reason: "stripe.checkout",
         ref: session.id,
       });
-    } else {
-      console.warn("[stripe webhook] unknown price id", {
-        sessionId: session.id,
-        priceId,
+    }
+
+    if (session.mode === "subscription" && plan) {
+      const subscriptionId =
+        typeof session.subscription === "string" ? session.subscription : null;
+      await supabaseAdmin.from("billing_settings").upsert(
+        {
+          user_id: userId,
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscriptionId,
+          subscription_status: "active",
+          subscription_plan: plan.key,
+        },
+        { onConflict: "user_id" }
+      );
+      await supabaseAdmin.from("credit_ledger").insert({
+        user_id: userId,
+        delta: plan.creditsPerMonth,
+        reason: "stripe.subscription",
+        ref: session.id,
       });
+    }
+  }
+
+  if (
+    event.type === "customer.subscription.created" ||
+    event.type === "customer.subscription.updated" ||
+    event.type === "customer.subscription.deleted"
+  ) {
+    const subscription = event.data.object as Stripe.Subscription;
+    const customerId =
+      typeof subscription.customer === "string" ? subscription.customer : null;
+    let userId: string | null = null;
+
+    if (customerId) {
+      const { data: mappedCustomer } = await supabaseAdmin
+        .from("stripe_customers")
+        .select("user_id")
+        .eq("stripe_customer_id", customerId)
+        .maybeSingle();
+      userId = mappedCustomer?.user_id ?? null;
+    }
+
+    if (userId && subscription.items.data[0]?.price?.id) {
+      const plan = getPlanByPriceId(subscription.items.data[0].price.id);
+      await supabaseAdmin.from("billing_settings").upsert(
+        {
+          user_id: userId,
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscription.id,
+          subscription_status: subscription.status,
+          subscription_plan: plan?.key ?? null,
+        },
+        { onConflict: "user_id" }
+      );
+    }
+  }
+
+  if (event.type === "invoice.paid") {
+    const invoice = event.data.object as Stripe.Invoice;
+    const customerId =
+      typeof invoice.customer === "string" ? invoice.customer : null;
+    let userId: string | null = null;
+    if (customerId) {
+      const { data: mappedCustomer } = await supabaseAdmin
+        .from("stripe_customers")
+        .select("user_id")
+        .eq("stripe_customer_id", customerId)
+        .maybeSingle();
+      userId = mappedCustomer?.user_id ?? null;
+    }
+    const line = invoice.lines.data[0] as any;
+    const priceId = line?.price?.id ?? null;
+    const plan = getPlanByPriceId(priceId ?? null);
+    if (userId && plan && invoice.id) {
+      const { data: existingCredit } = await supabaseAdmin
+        .from("credit_ledger")
+        .select("id")
+        .eq("ref", invoice.id)
+        .eq("reason", "stripe.subscription")
+        .maybeSingle();
+      if (!existingCredit) {
+        await supabaseAdmin.from("credit_ledger").insert({
+          user_id: userId,
+          delta: plan.creditsPerMonth,
+          reason: "stripe.subscription",
+          ref: invoice.id,
+        });
+      }
     }
   }
 

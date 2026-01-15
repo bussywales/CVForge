@@ -3,6 +3,9 @@ import { getUserCredits, listCreditActivity } from "@/lib/data/credits";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import CreditActivityTable from "./credit-activity-table";
 import PackSelector from "./pack-selector";
+import { fetchBillingSettings, upsertBillingSettings } from "@/lib/data/billing";
+import { SUBSCRIPTION_PLANS } from "@/lib/billing/plans";
+import { createServerClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +26,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
   const credits = await getUserCredits(supabase, user.id);
   const activity = await listCreditActivity(supabase, user.id, 20);
+  const settings = await fetchBillingSettings(supabase, user.id);
   const appCount =
     (
       await supabase
@@ -145,6 +149,114 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             </div>
           </div>
         </div>
+      </Section>
+
+      <Section
+        title="Subscription"
+        description="Optional monthly plan with auto-granted credits."
+      >
+        <div className="flex flex-col gap-3 rounded-2xl border border-black/10 bg-white/80 p-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+              Status
+            </p>
+            <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+              {settings?.subscription_status ?? "None"}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {SUBSCRIPTION_PLANS.slice(0, 1).map((plan) => (
+              <form key={plan.key} action="/api/stripe/checkout" method="POST">
+                <input type="hidden" name="mode" value="subscription" />
+                <input type="hidden" name="planKey" value={plan.key} />
+                <input type="hidden" name="returnTo" value="/app/billing" />
+                <button
+                  type="submit"
+                  className="rounded-full border border-black/10 bg-[rgb(var(--ink))] px-4 py-2 text-sm font-semibold text-white hover:bg-black"
+                >
+                  Subscribe ({plan.creditsPerMonth} credits / mo)
+                </button>
+              </form>
+            ))}
+            <form action="/api/stripe/portal" method="POST">
+              <input type="hidden" name="returnTo" value="/app/billing" />
+              <button
+                type="submit"
+                className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                disabled={!settings?.stripe_customer_id}
+              >
+                Manage in Stripe
+              </button>
+            </form>
+          </div>
+        </div>
+      </Section>
+
+      <Section
+        title="Auto top-up (optional)"
+        description="Turn on auto top-up when credits drop below a threshold."
+      >
+        <form
+          className="space-y-3 rounded-2xl border border-black/10 bg-white/80 p-4"
+          action={async (formData) => {
+            "use server";
+            const client = createServerClient();
+            const {
+              data: { user: current },
+            } = await client.auth.getUser();
+            if (!current) return;
+            const enabled = formData.get("enabled") === "on";
+            const packKey = (formData.get("pack") as string) ?? null;
+            const threshold = Number(formData.get("threshold") ?? 3);
+            await upsertBillingSettings(client, current.id, {
+              auto_topup_enabled: enabled,
+              auto_topup_pack_key: packKey,
+              auto_topup_threshold: Number.isFinite(threshold) ? threshold : 3,
+            });
+          }}
+        >
+          <div className="flex flex-wrap gap-3">
+            <label className="flex items-center gap-2 text-sm font-semibold text-[rgb(var(--ink))]">
+              <input
+                type="checkbox"
+                name="enabled"
+                defaultChecked={settings?.auto_topup_enabled ?? false}
+                className="h-4 w-4 rounded border-black/20"
+              />
+              Enable auto top-up
+            </label>
+            <select
+              name="pack"
+              defaultValue={settings?.auto_topup_pack_key ?? "starter"}
+              className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm"
+            >
+              <option value="starter">Starter (10 credits)</option>
+              <option value="pro">Pro (30 credits)</option>
+              <option value="power">Power (80 credits)</option>
+            </select>
+            <select
+              name="threshold"
+              defaultValue={settings?.auto_topup_threshold ?? 3}
+              className="rounded-lg border border-black/10 bg-white px-3 py-2 text-sm"
+            >
+              {[3, 5, 10].map((t) => (
+                <option key={t} value={t}>
+                  Trigger at {t} credits
+                </option>
+              ))}
+            </select>
+          </div>
+          <p className="text-xs text-[rgb(var(--muted))]">
+            No background charges; you’ll be redirected to checkout when auto
+            top-up is triggered.
+          </p>
+          <button
+            type="submit"
+            className="rounded-full border border-black/10 bg-[rgb(var(--ink))] px-4 py-2 text-sm font-semibold text-white hover:bg-black"
+          >
+            Save settings
+          </button>
+        </form>
       </Section>
 
       <Section

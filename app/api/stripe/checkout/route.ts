@@ -6,6 +6,11 @@ import {
   getPackByKey,
   resolvePriceIdForPack,
 } from "@/lib/billing/packs";
+import {
+  getPlanByKey,
+  resolvePriceIdForPlan,
+} from "@/lib/billing/plans";
+import { fetchBillingSettings, upsertBillingSettings } from "@/lib/data/billing";
 
 export const runtime = "nodejs";
 
@@ -22,8 +27,13 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({} as any));
   const packKey = typeof body?.packKey === "string" ? body.packKey : undefined;
   const returnTo = typeof body?.returnTo === "string" ? body.returnTo : null;
+  const mode = body?.mode === "subscription" ? "subscription" : "payment";
+  const planKey = typeof body?.planKey === "string" ? body.planKey : undefined;
   const pack = getPackByKey(packKey) ?? CREDIT_PACKS[0];
-  const priceId = resolvePriceIdForPack(pack.key);
+  const priceId =
+    mode === "subscription"
+      ? resolvePriceIdForPlan(planKey ?? "monthly_30")
+      : resolvePriceIdForPack(pack.key);
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const baseUrl = siteUrl.replace(/\/$/, "");
@@ -44,16 +54,36 @@ export async function POST(request: Request) {
   }
 
   const stripe = getStripeClient();
+
+  let customerId: string | null = null;
+  if (mode === "subscription") {
+    const existing = await fetchBillingSettings(supabase, user.id);
+    customerId = existing?.stripe_customer_id ?? null;
+    if (!customerId) {
+      const customer = await stripe.customers.create({
+        email: user.email ?? undefined,
+        metadata: { user_id: user.id },
+      });
+      customerId = customer.id;
+      await upsertBillingSettings(supabase, user.id, {
+        stripe_customer_id: customerId,
+      });
+    }
+  }
+
   const session = await stripe.checkout.sessions.create({
-    mode: "payment",
+    mode,
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: buildUrl(returnTo, "purchased"),
     cancel_url: buildUrl(returnTo, "canceled"),
     customer_email: user.email ?? undefined,
     client_reference_id: user.id,
+    customer: customerId ?? undefined,
     metadata: {
       user_id: user.id,
       pack_key: pack.key,
+      plan_key: planKey ?? null,
+      mode,
     },
   });
 

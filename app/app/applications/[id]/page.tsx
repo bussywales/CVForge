@@ -63,6 +63,7 @@ import {
 import { normalizeSelectedEvidence } from "@/lib/evidence";
 import { getUserCredits } from "@/lib/data/credits";
 import PackSelector from "@/app/app/billing/pack-selector";
+import { fetchBillingSettings } from "@/lib/data/billing";
 
 const RoleFitCard = dynamic(() => import("../role-fit-card"), {
   ssr: false,
@@ -201,6 +202,7 @@ export default async function ApplicationPage({
     application.id
   );
   const credits = await getUserCredits(supabase, user.id);
+  const billingSettings = await fetchBillingSettings(supabase, user.id);
   const jobDescription = getEffectiveJobText(application);
   const jobTextMeta = getJobTextMeta(application);
   let dynamicPacks: RoleFitPack[] = [];
@@ -616,7 +618,22 @@ export default async function ApplicationPage({
       {activeTab === "apply" ? (
         <>
           <div id="apply">
-            {credits <= 0 ? (
+            {billingSettings &&
+            credits <= (billingSettings.auto_topup_threshold ?? 0) &&
+            billingSettings.auto_topup_enabled ? (
+              <div className="mb-4 rounded-3xl border border-emerald-200 bg-emerald-50 p-4">
+                <p className="text-sm font-semibold text-emerald-800">
+                  Auto top-up is on (when ≤ {billingSettings.auto_topup_threshold} credits).
+                </p>
+                <div className="mt-2">
+                  <PackSelector
+                    contextLabel="Top up now"
+                    returnTo={`/app/applications/${application.id}?tab=apply#apply-autopacks`}
+                    compact
+                  />
+                </div>
+              </div>
+            ) : credits <= 0 ? (
               <div className="mb-4 rounded-3xl border border-amber-200 bg-amber-50 p-4">
                 <p className="text-sm font-semibold text-amber-800">
                   Ready to generate? Top up credits to continue.

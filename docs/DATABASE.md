@@ -87,6 +87,11 @@ Purpose: Stripe webhook idempotency.
 Key fields: id, type.
 RLS: enabled; writes are service role only.
 
+### billing_settings
+Purpose: per-user billing settings for subscriptions and auto top-up.
+Key fields: stripe_customer_id, stripe_subscription_id, subscription_status, subscription_plan, auto_topup_enabled, auto_topup_pack_key, auto_topup_threshold.
+RLS: user_id = auth.uid(); users can select/update their own row.
+
 ### role_fit_learning_events
 Purpose: opt-in, anonymised JD learning events.
 Key fields: domain_guess, matched_signals, missing_signals, top_terms, created_day.
@@ -126,6 +131,7 @@ RLS: authenticated users can select active packs; admin writes via service role.
 - 0021_job_fetch_status: fetch status metadata on applications.
 - 0022_conversion_outcomes: outreach/outcome helper fields.
 - 0023_outcome_loop: application_outcomes, outcome_action_links, and last_outcome_* columns on applications.
+- 0024_billing_settings: billing settings for subscriptions and auto top-up.
 
 ## Common migration issues
 - Policy already exists: drop the policy or use supabase migration repair to mark it applied.

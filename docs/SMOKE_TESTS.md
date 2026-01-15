@@ -118,6 +118,7 @@
 - Visit /app/billing and confirm balance plus pack selector (Starter/Pro/Power) render.
 - Start checkout for any pack; on return with `?purchased=1`, a success banner shows.
 - Recent credit activity renders without errors.
+- Start a subscription from /app/billing and ensure you are redirected to Stripe; manage portal link works when a customer exists.
 
 ## First Job Win onboarding
 - Visit /app/insights and confirm the First Job Win panel shows five steps with statuses.

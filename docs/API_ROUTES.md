@@ -121,6 +121,24 @@ Output: JSON { ok, status, jobTextChars, truncated? } for success, or { blocked:
 Errors: JSON { error, detail?, hint? } with 400/401/404/502.
 Runtime: nodejs, force-dynamic.
 
+## Billing
+POST /api/stripe/checkout
+Auth: required.
+Input: JSON { mode: "payment" | "subscription", packKey?, planKey?, returnTo? }.
+Output: JSON { url } to Stripe Checkout.
+Errors: JSON { error } with 400/401/500.
+Runtime: nodejs.
+
+POST /api/stripe/portal
+Auth: required.
+Input: JSON { returnTo? }.
+Output: JSON { url } to Stripe Billing Portal.
+Errors: JSON { error } with 400/401/500.
+
+POST /api/stripe/webhook
+Auth: Stripe signature required.
+Handles checkout.session.completed, customer.subscription.* and invoice.paid for packs/subscriptions (credit grants via credit_ledger). Idempotent via stripe_events table.
+
 ## Role Fit and Interview Lift
 GET /api/applications/[id]/interview-lift
 Auth: required.
