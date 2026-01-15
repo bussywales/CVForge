@@ -55,10 +55,12 @@
 - Check that kit.download activity appears in the activity log.
 
 ## Smart Apply
-- Open an application detail page and confirm Smart Apply renders with checklist items.
+- Open an application detail page and confirm the Smart Apply header shows readiness plus “X of Y steps”.
+- Check that the “Next 3 actions” strip lists deterministic actions and that each “Go” button adds the correct `?tab=` (and anchor) to the URL.
+- Confirm the checklist is collapsed by default; expand it, refresh, and verify the collapsed/expanded state persists per application.
 - Set a closing date and source platform and confirm they persist after refresh.
 - Export CV/cover/interview pack and confirm checklist timestamps update.
-- Mark as submitted and schedule a follow-up; verify next action due date updates.
+- Mark as submitted and schedule a follow-up; verify next action due date updates and the follow-up link scrolls to the right anchor.
 
 ## Pipeline Action Centre
 - Visit /app/pipeline and open the Action Centre for a card.

@@ -287,6 +287,10 @@ let applyChecklist: ApplyChecklistRecord | null = null;
     practiceAnswers,
     starDrafts: application.star_drafts,
     activities,
+    contactName: application.contact_name,
+    contactEmail: application.contact_email,
+    contactLinkedin: application.contact_linkedin,
+    status: application.status,
   });
 
   const kitContents = getKitContentsList();
@@ -480,7 +484,7 @@ let applyChecklist: ApplyChecklistRecord | null = null;
 
       {activeTab === "apply" ? (
         <>
-          <div id="application-kit">
+          <div id="apply">
             <Section
               title="Smart Apply"
               description="Track readiness, submission steps, and next actions."
@@ -508,7 +512,7 @@ let applyChecklist: ApplyChecklistRecord | null = null;
             </Section>
           </div>
 
-          <div id="autopacks">
+          <div id="apply-autopacks">
             <AutopacksSection applicationId={application.id} autopacks={autopacks} />
           </div>
         </>

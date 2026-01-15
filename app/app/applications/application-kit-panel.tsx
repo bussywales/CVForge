@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import Button from "@/components/Button";
 import type { ActionState } from "@/lib/actions/types";
@@ -59,6 +59,7 @@ export default function ApplicationKitPanel({
 }: SmartApplyPanelProps) {
   const [state, setState] = useState<ExportState>({ status: "idle" });
   const [showContents, setShowContents] = useState(false);
+  const [checklistCollapsed, setChecklistCollapsed] = useState(false);
 
   const scoreTone = useMemo(() => {
     if (score >= 80) {
@@ -73,6 +74,32 @@ export default function ApplicationKitPanel({
   const submittedLabel = submittedAt
     ? `Submitted ${formatDateTimeUk(submittedAt)}`
     : "Draft";
+  const completedItems = checklist.filter((item) => item.ok).length;
+  const totalItems = checklist.length;
+
+  useEffect(() => {
+    const key = `cvforge.apply.checklistCollapsed:${applicationId}`;
+    const saved =
+      typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
+    if (saved) {
+      setChecklistCollapsed(saved === "true");
+      return;
+    }
+    if (completedItems > 0) {
+      setChecklistCollapsed(true);
+    }
+  }, [applicationId, completedItems]);
+
+  const toggleChecklist = () => {
+    const key = `cvforge.apply.checklistCollapsed:${applicationId}`;
+    setChecklistCollapsed((prev) => {
+      const next = !prev;
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(key, String(next));
+      }
+      return next;
+    });
+  };
 
   const downloadKit = async () => {
     setState({ status: "loading" });
@@ -130,8 +157,8 @@ export default function ApplicationKitPanel({
             <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
               Smart Apply
             </p>
-            <p className="mt-2 text-sm text-[rgb(var(--muted))]">
-              Track readiness, submissions, and next steps in one place.
+            <p className="mt-1 text-xs text-[rgb(var(--muted))]">
+              {completedItems} of {totalItems} steps complete
             </p>
           </div>
           <span
@@ -141,24 +168,24 @@ export default function ApplicationKitPanel({
           </span>
         </div>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-3">
+        <div className="mt-3 grid gap-3 lg:grid-cols-[2fr_2fr_1.5fr]">
           <form
             action={updateClosingDateAction}
-            className="flex flex-col gap-2 rounded-2xl border border-black/10 bg-white/80 p-3"
+            className="flex items-center gap-3 rounded-2xl border border-black/10 bg-white/80 p-3"
           >
             <input type="hidden" name="application_id" value={applicationId} />
-            <label className="text-xs font-semibold text-[rgb(var(--muted))]">
+            <label className="flex flex-1 flex-col text-xs font-semibold text-[rgb(var(--muted))]">
               Closing date
               <input
                 type="date"
                 name="closing_date"
                 defaultValue={toDateInputValue(closingDate)}
-                className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
+                className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm"
               />
             </label>
-            <div className="flex items-center justify-between text-xs text-[rgb(var(--muted))]">
+            <div className="flex flex-col items-end gap-1 text-xs text-[rgb(var(--muted))]">
               <span>{closingDate ? formatUkDate(closingDate) : "Not set"}</span>
-              <Button type="submit" variant="secondary">
+              <Button type="submit" variant="secondary" className="px-3 py-1 text-xs">
                 Save
               </Button>
             </div>
@@ -166,28 +193,31 @@ export default function ApplicationKitPanel({
 
           <form
             action={updateSourcePlatformAction}
-            className="flex flex-col gap-2 rounded-2xl border border-black/10 bg-white/80 p-3"
+            className="flex items-center gap-3 rounded-2xl border border-black/10 bg-white/80 p-3"
           >
             <input type="hidden" name="application_id" value={applicationId} />
-            <label className="text-xs font-semibold text-[rgb(var(--muted))]">
+            <label className="flex flex-1 flex-col text-xs font-semibold text-[rgb(var(--muted))]">
               Source platform
               <input
                 type="text"
                 name="source_platform"
                 defaultValue={sourcePlatform ?? ""}
                 placeholder="LinkedIn, NHS Jobs, Indeed"
-                className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
+                className="mt-2 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm"
               />
             </label>
-            <div className="flex items-center justify-between text-xs text-[rgb(var(--muted))]">
+            <div className="flex flex-col items-end gap-1 text-xs text-[rgb(var(--muted))]">
               <span>{sourcePlatform ? "Saved" : "Not set"}</span>
-              <Button type="submit" variant="secondary">
+              <Button type="submit" variant="secondary" className="px-3 py-1 text-xs">
                 Save
               </Button>
             </div>
           </form>
 
-          <div className="flex flex-col gap-2 rounded-2xl border border-black/10 bg-white/80 p-3">
+          <div
+            className="flex flex-col gap-2 rounded-2xl border border-black/10 bg-white/80 p-3"
+            id="apply-followup"
+          >
             <p className="text-xs font-semibold text-[rgb(var(--muted))]">Status</p>
             <p className="text-sm font-semibold text-[rgb(var(--ink))]">
               {submittedLabel}
@@ -200,14 +230,18 @@ export default function ApplicationKitPanel({
                   name="submitted"
                   value={submittedAt ? "false" : "true"}
                 />
-                <Button type="submit" variant={submittedAt ? "secondary" : "primary"}>
+                <Button
+                  type="submit"
+                  variant={submittedAt ? "secondary" : "primary"}
+                  className="px-3 py-1 text-xs"
+                >
                   {submittedAt ? "Undo Submitted" : "Mark as Submitted"}
                 </Button>
               </form>
               <form action={scheduleFollowupAction}>
                 <input type="hidden" name="application_id" value={applicationId} />
-                <Button type="submit" variant="ghost">
-                  Schedule follow-up (3 business days)
+                <Button type="submit" variant="ghost" className="px-3 py-1 text-xs">
+                  Schedule follow-up
                 </Button>
               </form>
             </div>
@@ -215,57 +249,13 @@ export default function ApplicationKitPanel({
         </div>
       </div>
 
-      <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
-        <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
-          Submission Checklist
-        </p>
-        <div className="mt-3 space-y-3">
-          {checklist.map((item) => {
-            const doneAt = item.doneAt ? formatDateTimeUk(item.doneAt) : "";
-            return (
-              <div
-                key={item.id}
-                className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/10 bg-white/80 p-3"
-              >
-                <div>
-                  <p className="text-sm font-semibold text-[rgb(var(--ink))]">
-                    {item.label}
-                  </p>
-                  <p className="mt-1 text-xs text-[rgb(var(--muted))]">
-                    {item.ok && doneAt
-                      ? `Done: ${doneAt}`
-                      : item.hint}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`rounded-full px-3 py-1 text-[10px] font-semibold ${
-                      item.ok
-                        ? "bg-emerald-100 text-emerald-700"
-                        : "bg-amber-100 text-amber-700"
-                    }`}
-                  >
-                    {item.ok ? "Done" : "Pending"}
-                  </span>
-                  {!item.ok && item.actionHref ? (
-                    <Link
-                      href={item.actionHref}
-                      className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
-                    >
-                      Do it
-                    </Link>
-                  ) : null}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
+      <div
+        className="rounded-2xl border border-black/10 bg-white/70 p-4"
+        id="apply-next-actions"
+      >
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
-            Smart Next Actions
+            Next 3 actions
           </p>
           {nextActions.length === 0 ? (
             <span className="text-xs text-emerald-700">All set.</span>
@@ -301,6 +291,73 @@ export default function ApplicationKitPanel({
             </p>
           ) : null}
         </div>
+      </div>
+
+      <div
+        className="rounded-2xl border border-black/10 bg-white/70 p-4"
+        id="apply-checklist"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+              Submission Checklist
+            </p>
+            <p className="text-xs text-[rgb(var(--muted))]">
+              {completedItems} done • {totalItems - completedItems} pending
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            type="button"
+            className="px-3 py-1 text-xs"
+            onClick={toggleChecklist}
+          >
+            {checklistCollapsed ? "Show checklist" : "Hide checklist"}
+          </Button>
+        </div>
+        {!checklistCollapsed ? (
+          <div className="mt-3 space-y-3">
+            {checklist.map((item) => {
+              const doneAt = item.doneAt ? formatDateTimeUk(item.doneAt) : "";
+              return (
+                <div
+                  key={item.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-black/10 bg-white/80 p-3"
+                >
+                  <div>
+                    <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+                      {item.label}
+                    </p>
+                    <p className="mt-1 text-xs text-[rgb(var(--muted))]">
+                      {item.ok && doneAt
+                        ? `Done: ${doneAt}`
+                        : item.hint}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded-full px-3 py-1 text-[10px] font-semibold ${
+                        item.ok
+                          ? "bg-emerald-100 text-emerald-700"
+                          : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      {item.ok ? "Done" : "Pending"}
+                    </span>
+                    {!item.ok && item.actionHref ? (
+                      <Link
+                        href={item.actionHref}
+                        className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
+                      >
+                        Do it
+                      </Link>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">

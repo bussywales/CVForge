@@ -50,10 +50,10 @@ Scope boundary: checklist + kit download only, no new exports beyond existing as
 Success criteria: kit ZIP includes CV, cover letter, interview pack, and STAR drafts.
 Not in scope: PDF export or automated applications.
 
-### Smart Apply v1 (shipped)
-Outcome: submission checklist, closing dates, and source platforms with automatic export markers (shipped v0.7.3).
-Scope boundary: deterministic checklist + next actions, no automation or external integrations.
-Success criteria: checklist timestamps update from exports and submission status is tracked.
+### Smart Apply v2 (shipped)
+Outcome: compact Smart Apply header with readiness, status, closing date/source, a collapsible checklist, and a “Next 3 actions” strip with tab deep links (shipped v0.7.17).
+Scope boundary: deterministic checklist + next actions; no automation or external integrations.
+Success criteria: checklist timestamps update from exports; next actions deep-link to Apply/Interview/Activity tabs; collapsed state persists per application.
 Not in scope: sending applications or automatic follow-up messages.
 
 ### Job Link Fetch v1 (shipped)

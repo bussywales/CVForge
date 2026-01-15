@@ -40,8 +40,8 @@ Answer Pack generates deterministic interview answers from STAR drafts (Standard
 ## Application Kit v1
 Application Kit aggregates readiness checks, next best actions, and a ZIP download containing CV, cover letter, interview pack, and STAR drafts.
 
-## Smart Apply v1
-Smart Apply tracks submission readiness with a checklist, closing dates, source platforms, and submission status. Exports and kit downloads update the checklist automatically and prompt follow-up scheduling.
+## Smart Apply v2
+Smart Apply now uses a compact header (readiness, status, closing date, source) plus a “Next 3 actions” strip with tab deep links. The submission checklist is collapsible by default and remembers your preference per application. Exports, kit downloads, and follow-up scheduling still update the checklist automatically.
 
 ## Pipeline and tracking
 A pipeline board shows status lanes, next actions, and activity history. The Action Centre provides follow-up templates, activity logging, and calendar invite downloads.

@@ -54,6 +54,10 @@ export type KitChecklistInput = {
   practiceAnswers: Record<string, PracticeAnswerSnapshot>;
   starDrafts: unknown;
   activities: Array<{ type: string; occurred_at?: string | null }>;
+  contactName?: string | null;
+  contactEmail?: string | null;
+  contactLinkedin?: string | null;
+  status?: string | null;
 };
 
 const KIT_CONTENTS = [
@@ -235,11 +239,47 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
   const nextActions: KitNextAction[] = [];
 
   if (!autopackExists) {
-      nextActions.push({
-        id: "autopack",
-        label: "Generate Autopack",
-        href: `/app/applications/${input.applicationId}?tab=apply`,
+    nextActions.push({
+      id: "autopack",
+      label: "Generate Autopack",
+      href: `/app/applications/${input.applicationId}?tab=apply#apply-autopacks`,
       reason: "Required to unlock kit exports and readiness checks.",
+    });
+  }
+
+  const outreachContactExists = Boolean(
+    input.contactName || input.contactEmail || input.contactLinkedin
+  );
+
+  if (!outreachOk && outreachContactExists) {
+    nextActions.push({
+      id: "outreach",
+      label: "Send outreach Step 1",
+      href: "/app/pipeline?tab=activity",
+      reason: "Boost visibility with a warm intro before submitting.",
+    });
+  }
+
+  const interviewPackExported = Boolean(input.checklist?.interview_pack_exported_at);
+  if (!interviewPackExported || !practiceOk) {
+    nextActions.push({
+      id: "practice",
+      label: "Practise weakest questions",
+      href: `/app/applications/${input.applicationId}?tab=interview`,
+      reason: "Improve interview readiness with targeted drills.",
+    });
+  }
+
+  const statusValue = input.status?.toString().toLowerCase() ?? "";
+  const isSubmittedOrApplied =
+    statusValue.includes("submitted") || statusValue.includes("applied");
+
+  if (isSubmittedOrApplied && !followupOk) {
+    nextActions.push({
+      id: "followup",
+      label: "Schedule follow-up",
+      href: `/app/applications/${input.applicationId}?tab=apply#apply-followup`,
+      reason: "Stay on top of responses after submitting.",
     });
   }
 
@@ -248,10 +288,10 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
     !submittedOk &&
     daysUntil(input.closingDate) <= 3;
   if (closingUrgent) {
-      nextActions.push({
-        id: "closing",
-        label: "Apply today and export the kit",
-        href: `/app/applications/${input.applicationId}?tab=apply`,
+    nextActions.push({
+      id: "closing",
+      label: "Apply today and export the kit",
+      href: `/app/applications/${input.applicationId}?tab=apply#apply`,
       reason: "Closing date is within 3 days.",
     });
   }
@@ -269,53 +309,8 @@ export function computeKitChecklist(input: KitChecklistInput): KitChecklistResul
     nextActions.push({
       id: "kit",
       label: "Download Application Kit ZIP",
-      href: `/app/applications/${input.applicationId}#application-kit`,
+      href: `/app/applications/${input.applicationId}?tab=apply#apply`,
       reason: "Bundle the ready-to-submit documents.",
-    });
-  }
-
-  if (!outreachOk && !submittedOk) {
-    nextActions.push({
-      id: "outreach",
-      label: "Send outreach Step 1",
-      href: "/app/pipeline",
-      reason: "Boost visibility before submitting.",
-    });
-  }
-
-  if (submittedOk && !followupOk) {
-    nextActions.push({
-      id: "followup",
-      label: "Schedule follow-up in 3 business days",
-      href: `/app/applications/${input.applicationId}#smart-apply`,
-      reason: "Keep the application warm after submission.",
-    });
-  }
-
-  if (!practiceOk) {
-    nextActions.push({
-      id: "practice",
-      label: "Score your 2 lowest questions in Drill Mode",
-      href: `/app/applications/${input.applicationId}/practice/drill`,
-      reason: "Raise interview readiness quickly.",
-    });
-  }
-
-  if (!metricsOk) {
-    nextActions.push({
-      id: "metrics",
-      label: "Add 1 metric to an achievement",
-      href: "/app/profile#achievements",
-      reason: "Metrics improve CV and interview impact.",
-    });
-  }
-
-  if (!starOk) {
-    nextActions.push({
-      id: "star",
-      label: "Create 1 STAR draft from a scored question",
-      href: `/app/applications/${input.applicationId}/practice`,
-      reason: "Strengthen examples for common questions.",
     });
   }
 

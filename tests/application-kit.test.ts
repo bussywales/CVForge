@@ -84,7 +84,9 @@ describe("computeKitChecklist", () => {
       activities: [],
     });
 
-    expect(result.nextActions[0]?.id).toBe("closing");
+    expect(result.nextActions.some((action) => action.id === "closing")).toBe(
+      true
+    );
   });
 
   it("recommends scheduling follow-up after submission", () => {
@@ -103,6 +105,7 @@ describe("computeKitChecklist", () => {
       closingDate: null,
       submittedAt: new Date().toISOString(),
       nextActionDue: null,
+      status: "submitted",
       practiceQuestions: [],
       practiceAnswers: {},
       starDrafts: [],
