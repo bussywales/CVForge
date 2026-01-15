@@ -54,32 +54,47 @@ export async function getInsightsSummary(
   supabase: SupabaseClient,
   userId: string
 ): Promise<InsightSummary> {
-  const [applicationsRes, outcomesRes, activitiesRes, practiceRes] =
-    await Promise.all([
-      supabase
-        .from("applications")
-        .select("*")
-        .eq("user_id", userId),
-      supabase
-        .from("application_outcomes")
-        .select("application_id,outcome_status,happened_at")
-        .eq("user_id", userId),
-      supabase
-        .from("application_activities")
-        .select("application_id,type,occurred_at")
-        .eq("user_id", userId),
-      supabase
-        .from("interview_practice_answers")
-        .select("application_id")
-        .eq("user_id", userId),
-    ]);
+  const empty: InsightSummary = {
+    topActions: [],
+    funnel: {
+      drafted: 0,
+      submitted: 0,
+      interview: 0,
+      offer: 0,
+      rejected: 0,
+      noResponse: 0,
+      responseRate: 0,
+    },
+    correlations: [{ text: "Not enough data yet — keep logging outcomes and actions." }],
+  };
 
-  const applications = (applicationsRes.data ?? []) as ApplicationRecord[];
-  const outcomes = outcomesRes.data ?? [];
-  const activities = activitiesRes.data ?? [];
-  const practiceApps = new Set(
-    (practiceRes.data ?? []).map((row: any) => row.application_id)
-  );
+  try {
+    const [applicationsRes, outcomesRes, activitiesRes, practiceRes] =
+      await Promise.all([
+        supabase
+          .from("applications")
+          .select("*")
+          .eq("user_id", userId),
+        supabase
+          .from("application_outcomes")
+          .select("application_id,outcome_status,happened_at")
+          .eq("user_id", userId),
+        supabase
+          .from("application_activities")
+          .select("application_id,type,occurred_at")
+          .eq("user_id", userId),
+        supabase
+          .from("interview_practice_answers")
+          .select("application_id")
+          .eq("user_id", userId),
+      ]);
+
+    const applications = (applicationsRes.data ?? []) as ApplicationRecord[];
+    const outcomes = outcomesRes.data ?? [];
+    const activities = activitiesRes.data ?? [];
+    const practiceApps = new Set(
+      (practiceRes.data ?? []).map((row: any) => row.application_id)
+    );
 
   const interviewApps = new Set<string>();
   outcomes.forEach((outcome: any) => {
@@ -238,17 +253,21 @@ export async function getInsightsSummary(
     ? "Interviews correlate with timely follow-ups, evidence selection, and STAR drafts in the last 90 days."
     : "Not enough data yet — keep logging outcomes and actions.";
 
-  return {
-    topActions: Array.from(unique.values()),
-    funnel: {
-      drafted,
-      submitted,
-      interview,
-      offer,
-      rejected,
-      noResponse,
-      responseRate,
-    },
-    correlations: [{ text: correlationText }],
-  };
+    return {
+      topActions: Array.from(unique.values()),
+      funnel: {
+        drafted,
+        submitted,
+        interview,
+        offer,
+        rejected,
+        noResponse,
+        responseRate,
+      },
+      correlations: [{ text: correlationText }],
+    };
+  } catch (error) {
+    console.error("[insights.summary]", error);
+    return empty;
+  }
 }
