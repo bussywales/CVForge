@@ -43,6 +43,9 @@ const baseApplication: ApplicationRecord = {
   outreach_next_due_at: null,
   outreach_channel_pref: "email",
   source: null,
+  outcome_status: null,
+  outcome_at: null,
+  outcome_note: null,
   created_at: "2024-01-01T00:00:00Z",
 };
 

@@ -25,7 +25,6 @@ import { outreachLogSchema } from "@/lib/validators/outreach";
 import { getFieldErrors } from "@/lib/validators/utils";
 import type { ApplicationStatusValue } from "@/lib/application-status";
 import { getNextOutreachStep, getOutreachSteps } from "@/lib/outreach-templates";
-
 export async function createApplicationAction(
   formData: FormData
 ): Promise<ActionState> {
@@ -518,6 +517,64 @@ export async function logFollowupAction(
     return { status: "success", message: "Follow-up logged." };
   } catch (error) {
     console.error("[logFollowupAction]", error);
+    return {
+      status: "error",
+      message: "Unable to log the follow-up right now.",
+    };
+  }
+}
+
+export async function logFollowupCadenceAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to log a follow-up.",
+    };
+  }
+
+  const applicationId = getFormString(formData, "application_id");
+  const channel = getFormString(formData, "channel") ?? "email";
+  const templateId = getFormString(formData, "template_id") ?? "post-apply";
+  const nextDueRaw = getFormString(formData, "next_due");
+  const parsedNextDue =
+    nextDueRaw && /^\d{4}-\d{2}-\d{2}$/.test(nextDueRaw)
+      ? new Date(`${nextDueRaw}T12:00:00Z`)
+      : null;
+  if (!applicationId) {
+    return { status: "error", message: "Missing application id." };
+  }
+
+  const now = new Date();
+  const nextActionDate =
+    parsedNextDue ?? addBusinessDays(now, 5);
+
+  try {
+    await createApplicationActivity(supabase, user.id, {
+      application_id: applicationId,
+      type: "followup",
+      channel,
+      subject: "Follow-up logged",
+      body: JSON.stringify({ templateId }),
+      occurred_at: now.toISOString(),
+    });
+
+    await updateApplication(supabase, user.id, applicationId, {
+      last_touch_at: now.toISOString(),
+      last_activity_at: now.toISOString(),
+      next_action_due: nextActionDate.toISOString().slice(0, 10),
+      next_action_type: "follow_up",
+    });
+
+    revalidatePath(`/app/applications/${applicationId}`);
+    revalidatePath("/app/pipeline");
+
+    return { status: "success", message: "Follow-up logged." };
+  } catch (error) {
+    console.error("[logFollowupCadenceAction]", error);
     return {
       status: "error",
       message: "Unable to log the follow-up right now.",
@@ -1096,6 +1153,57 @@ export async function scheduleFollowupAction(
     return {
       status: "error",
       message: "Unable to schedule the follow-up right now.",
+    };
+  }
+}
+
+export async function setOutcomeAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to update the outcome.",
+    };
+  }
+
+  const applicationId = getFormString(formData, "application_id");
+  const outcomeStatus = getFormString(formData, "outcome_status");
+  const outcomeNote = getFormString(formData, "outcome_note");
+
+  if (!applicationId) {
+    return { status: "error", message: "Missing application id." };
+  }
+
+  const now = new Date().toISOString();
+
+  try {
+    await updateApplication(supabase, user.id, applicationId, {
+      outcome_status: toNullable(outcomeStatus ?? ""),
+      outcome_note: toNullable(outcomeNote ?? ""),
+      outcome_at: outcomeStatus ? now : null,
+    });
+
+    await createApplicationActivity(supabase, user.id, {
+      application_id: applicationId,
+      type: "application.outcome",
+      channel: null,
+      subject: outcomeStatus ?? "Outcome updated",
+      body: outcomeNote ?? null,
+      occurred_at: now,
+    });
+
+    revalidatePath(`/app/applications/${applicationId}`);
+    revalidatePath("/app/pipeline");
+
+    return { status: "success", message: "Outcome saved." };
+  } catch (error) {
+    console.error("[setOutcomeAction]", error);
+    return {
+      status: "error",
+      message: "Unable to save outcome right now.",
     };
   }
 }

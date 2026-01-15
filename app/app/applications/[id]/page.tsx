@@ -14,13 +14,14 @@ import {
   fetchApplyChecklist,
   type ApplyChecklistRecord,
 } from "@/lib/apply-checklist";
-import { buildFollowupTemplates } from "@/lib/followup-templates";
+import { buildFollowupTemplates, buildLinkedInTemplate } from "@/lib/followup-templates";
 import { getEffectiveJobText, getJobTextMeta } from "@/lib/job-text";
 import { buildInterviewLift } from "@/lib/interview-lift";
 import { buildInterviewPack } from "@/lib/interview-pack";
 import { inferDomainGuess } from "@/lib/jd-learning";
 import { calculateRoleFit } from "@/lib/role-fit";
 import type { RoleFitPack } from "@/lib/role-fit";
+import { buildCadence } from "@/lib/conversion-cadence";
 import { buildQuestionKey } from "@/lib/interview-practice";
 import {
   computeKitChecklist,
@@ -34,8 +35,10 @@ import {
   deleteApplicationAction,
   logAppliedAction,
   logFollowupAction,
+  logFollowupCadenceAction,
   scheduleFollowupAction,
   setSubmittedAction,
+  setOutcomeAction,
   updateApplicationAction,
   updateClosingDateAction,
   updateSourcePlatformAction,
@@ -333,18 +336,6 @@ let applyChecklist: ApplyChecklistRecord | null = null;
     console.error("[star-library.count]", error);
   }
 
-  const followupTemplates = buildFollowupTemplates({
-    contactName: application.contact_name,
-    companyName: application.company_name ?? application.company,
-    jobTitle: application.job_title,
-    appliedAt: application.applied_at,
-    jobUrl: application.job_url,
-    fullName: profile?.full_name,
-  });
-  const calendarUrl = application.next_followup_at
-    ? `/api/calendar/followup?applicationId=${application.id}`
-    : null;
-
   const status = normaliseApplicationStatus(application.status);
   const statusLabel =
     applicationStatusLabels[status] ??
@@ -396,6 +387,33 @@ let applyChecklist: ApplyChecklistRecord | null = null;
     interviewPriority,
     hasDueAction,
   });
+
+  const cadence = buildCadence({
+    status: application.status,
+    lastActivityAt: application.last_activity_at ?? application.last_touch_at,
+    nextActionDue: application.next_action_due,
+    closingDate: application.closing_date,
+  });
+
+  const followupTemplates = buildFollowupTemplates({
+    contactName: application.contact_name,
+    companyName: application.company_name ?? application.company,
+    jobTitle: application.job_title,
+    appliedAt: application.applied_at,
+    jobUrl: application.job_url,
+    fullName: profile?.full_name,
+  });
+  const calendarUrl = application.next_followup_at
+    ? `/api/calendar/followup?applicationId=${application.id}`
+    : null;
+  const cadenceTemplate =
+    cadence.nextAction?.channel === "linkedin"
+      ? buildLinkedInTemplate({
+          contactName: application.contact_name,
+          companyName: application.company_name ?? application.company,
+          jobTitle: application.job_title,
+        })
+      : followupTemplates[0] ?? null;
 
   return (
     <div className="space-y-6">
@@ -494,9 +512,21 @@ let applyChecklist: ApplyChecklistRecord | null = null;
                 closingDate={application.closing_date}
                 submittedAt={application.submitted_at}
                 sourcePlatform={application.source_platform}
+                outcomeStatus={application.outcome_status}
+                outcomeNote={application.outcome_note}
                 checklist={kitChecklist.items}
                 score={kitChecklist.score}
                 nextActions={kitChecklist.nextActions}
+                cadence={cadence.nextAction ?? null}
+                followupTemplate={
+                  cadenceTemplate
+                    ? {
+                        subject: cadenceTemplate.subject,
+                        body: cadenceTemplate.body,
+                        label: cadenceTemplate.label,
+                      }
+                    : null
+                }
                 downloadEnabled={Boolean(latestAutopack?.id)}
                 downloadHint={
                   latestAutopack?.id
@@ -508,6 +538,8 @@ let applyChecklist: ApplyChecklistRecord | null = null;
                 updateSourcePlatformAction={updateSourcePlatformAction}
                 setSubmittedAction={setSubmittedAction}
                 scheduleFollowupAction={scheduleFollowupAction}
+                logFollowupCadenceAction={logFollowupCadenceAction}
+                setOutcomeAction={setOutcomeAction}
               />
             </Section>
           </div>

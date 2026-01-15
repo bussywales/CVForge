@@ -11,6 +11,7 @@ import {
   buildFollowupTemplates,
   buildLinkedInTemplate,
 } from "@/lib/followup-templates";
+import { buildCadence } from "@/lib/conversion-cadence";
 import {
   nextActionTypeOptions,
 } from "@/lib/validators/application-tracking";
@@ -109,6 +110,16 @@ export default function PipelineActionCentre({
     const emailTemplate = buildFollowupTemplates(baseInput)[0];
     const linkedinTemplate = buildLinkedInTemplate(baseInput);
     return { emailTemplate, linkedinTemplate };
+  }, [application]);
+
+  const cadence = useMemo(() => {
+    if (!application) return null;
+    return buildCadence({
+      status: application.status,
+      lastActivityAt: application.last_activity_at ?? application.last_touch_at,
+      nextActionDue: application.next_action_due,
+      closingDate: application.closing_date,
+    }).nextAction;
   }, [application]);
 
   useEffect(() => {
@@ -241,6 +252,31 @@ export default function PipelineActionCentre({
         router.refresh();
       } else if (result.message) {
         setToast(result.message);
+      }
+    });
+  };
+
+  const handleLogCadence = () => {
+    if (!application || !cadence) return;
+    const formData = new FormData();
+    formData.set("application_id", application.id);
+    formData.set("type", "followup");
+    formData.set("channel", cadence.channel ?? "email");
+    formData.set("subject", cadence.label);
+    formData.set("body", cadence.reason ?? "");
+    logPipelineActivityAction(formData).then(() => {
+      if (cadence.dueAt) {
+        const nextForm = new FormData();
+        nextForm.set("application_id", application.id);
+        nextForm.set("next_action_due", cadence.dueAt);
+        nextForm.set("next_action_type", "follow_up");
+        updateNextActionAction(nextForm).finally(() => {
+          router.refresh();
+          setToast("Follow-up logged");
+        });
+      } else {
+        router.refresh();
+        setToast("Follow-up logged");
       }
     });
   };
@@ -558,6 +594,53 @@ export default function PipelineActionCentre({
               </div>
             )}
           </section>
+
+          {cadence ? (
+            <section className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+                    Follow-up Autopilot
+                  </p>
+                  <p className="text-xs text-[rgb(var(--muted))]">
+                    {cadence.reason ?? "Next best follow-up for this application."}
+                  </p>
+                </div>
+                {cadence.dueAt ? (
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] text-[rgb(var(--muted))]">
+                    Due {cadence.dueAt}
+                  </span>
+                ) : null}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" variant="secondary" onClick={() => {
+                  if (!templates || !cadence) return;
+                  const template =
+                    cadence.channel === "linkedin"
+                      ? templates.linkedinTemplate
+                      : templates.emailTemplate;
+                  if (!template) return;
+                  navigator.clipboard
+                    .writeText(`${template.subject}\n\n${template.body}`)
+                    .then(() => setToast("Template copied"))
+                    .catch(() => setToast("Copy failed"));
+                }}>
+                  Copy template
+                </Button>
+                <Button type="button" onClick={handleLogCadence} disabled={isPending}>
+                  Log + schedule
+                </Button>
+                {calendarUrl ? (
+                  <a
+                    href={calendarUrl}
+                    className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
+                  >
+                    ICS
+                  </a>
+                ) : null}
+              </div>
+            </section>
+          ) : null}
 
           <section className="space-y-3">
             <div>

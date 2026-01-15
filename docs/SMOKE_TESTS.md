@@ -61,6 +61,8 @@
 - Set a closing date and source platform and confirm they persist after refresh.
 - Export CV/cover/interview pack and confirm checklist timestamps update.
 - Mark as submitted and schedule a follow-up; verify next action due date updates and the follow-up link scrolls to the right anchor.
+- In the Follow-up Autopilot strip, copy a template, click Log + schedule, and confirm an activity is created and `next_action_due` moves forward.
+- Set an outcome (interview invite / rejected / offer) and confirm it shows on the Apply tab and pipeline badges.
 
 ## Pipeline Action Centre
 - Visit /app/pipeline and open the Action Centre for a card.

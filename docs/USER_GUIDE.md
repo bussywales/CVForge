@@ -38,7 +38,7 @@ If you are applying *right now*, do this in order:
 1. **Overview tab** → add/paste the job description and job link.
 2. **Evidence tab** → pick 1–3 gaps and select best-matching evidence (aim for “Good/Strong” matches).
 3. Still in **Evidence tab** → set targets to CV ✅, Cover ✅, STAR ✅ (when practising/interviewing soon).
-4. **Apply tab** → generate an Autopack, export ATS-Minimal CV + cover, and download the Application Kit ZIP.
+4. **Apply tab** → generate an Autopack, export ATS-Minimal CV + cover, use Follow-up Autopilot to copy/log the next follow-up, and download the Application Kit ZIP.
 5. **Activity tab** → log “Submitted” or your real status and set the next follow-up date.
 
 **Rule of thumb:** If time is short, select strong evidence for the top gaps before exporting.

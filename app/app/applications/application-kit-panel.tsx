@@ -17,9 +17,20 @@ type SmartApplyPanelProps = {
   closingDate: string | null;
   submittedAt: string | null;
   sourcePlatform: string | null;
+  outcomeStatus?: string | null;
+  outcomeNote?: string | null;
   checklist: KitChecklistItem[];
   score: number;
   nextActions: KitNextAction[];
+  cadence?: {
+    id: string;
+    label: string;
+    dueAt?: string | null;
+    channel?: "email" | "linkedin";
+    templateId?: string;
+    reason?: string;
+  } | null;
+  followupTemplate?: { subject: string; body: string; label: string } | null;
   downloadEnabled: boolean;
   downloadHint?: string;
   contents: string[];
@@ -27,6 +38,8 @@ type SmartApplyPanelProps = {
   updateSourcePlatformAction: (formData: FormData) => Promise<ActionState>;
   setSubmittedAction: (formData: FormData) => Promise<ActionState>;
   scheduleFollowupAction: (formData: FormData) => Promise<ActionState>;
+  logFollowupCadenceAction: (formData: FormData) => Promise<ActionState>;
+  setOutcomeAction: (formData: FormData) => Promise<ActionState>;
 };
 
 function getFilenameFromDisposition(
@@ -46,9 +59,13 @@ export default function ApplicationKitPanel({
   closingDate,
   submittedAt,
   sourcePlatform,
+  outcomeStatus,
+  outcomeNote,
   checklist,
   score,
   nextActions,
+  cadence,
+  followupTemplate,
   downloadEnabled,
   downloadHint,
   contents,
@@ -56,6 +73,8 @@ export default function ApplicationKitPanel({
   updateSourcePlatformAction,
   setSubmittedAction,
   scheduleFollowupAction,
+  logFollowupCadenceAction,
+  setOutcomeAction,
 }: SmartApplyPanelProps) {
   const [state, setState] = useState<ExportState>({ status: "idle" });
   const [showContents, setShowContents] = useState(false);
@@ -76,6 +95,9 @@ export default function ApplicationKitPanel({
     : "Draft";
   const completedItems = checklist.filter((item) => item.ok).length;
   const totalItems = checklist.length;
+  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "error">(
+    "idle"
+  );
 
   useEffect(() => {
     const key = `cvforge.apply.checklistCollapsed:${applicationId}`;
@@ -149,6 +171,20 @@ export default function ApplicationKitPanel({
     }
   };
 
+  const copyTemplate = async () => {
+    if (!followupTemplate) return;
+    try {
+      await navigator.clipboard.writeText(
+        `${followupTemplate.subject}\n\n${followupTemplate.body}`
+      );
+      setCopyStatus("copied");
+      setTimeout(() => setCopyStatus("idle"), 1500);
+    } catch (error) {
+      console.error("[followup.copy]", error);
+      setCopyStatus("error");
+    }
+  };
+
   return (
     <div className="space-y-5" id="smart-apply">
       <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
@@ -168,7 +204,7 @@ export default function ApplicationKitPanel({
           </span>
         </div>
 
-        <div className="mt-3 grid gap-3 lg:grid-cols-[2fr_2fr_1.5fr]">
+        <div className="mt-3 grid gap-3 lg:grid-cols-[1.5fr_1.5fr_1fr_1fr]">
           <form
             action={updateClosingDateAction}
             className="flex items-center gap-3 rounded-2xl border border-black/10 bg-white/80 p-3"
@@ -214,6 +250,32 @@ export default function ApplicationKitPanel({
             </div>
           </form>
 
+          <div className="flex flex-col gap-2 rounded-2xl border border-black/10 bg-white/80 p-3">
+            <p className="text-xs font-semibold text-[rgb(var(--muted))]">Outcome</p>
+            <form action={setOutcomeAction} className="space-y-2 text-xs">
+              <input type="hidden" name="application_id" value={applicationId} />
+              <select
+                name="outcome_status"
+                defaultValue={outcomeStatus ?? ""}
+                className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm"
+              >
+                <option value="">Not set</option>
+                <option value="interview_invite">Interview invite</option>
+                <option value="rejected">Rejected</option>
+                <option value="offer">Offer</option>
+              </select>
+              <textarea
+                name="outcome_note"
+                defaultValue={outcomeNote ?? ""}
+                placeholder="Optional note"
+                className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm"
+              />
+              <Button type="submit" variant="secondary" className="px-3 py-1 text-xs">
+                Save outcome
+              </Button>
+            </form>
+          </div>
+
           <div
             className="flex flex-col gap-2 rounded-2xl border border-black/10 bg-white/80 p-3"
             id="apply-followup"
@@ -247,6 +309,84 @@ export default function ApplicationKitPanel({
             </div>
           </div>
         </div>
+      </div>
+
+      <div
+        className="rounded-2xl border border-black/10 bg-white/70 p-4"
+        id="apply-next-actions-list"
+      >
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+            Follow-up Autopilot
+          </p>
+          {cadence?.dueAt ? (
+            <span className="text-xs text-[rgb(var(--muted))]">
+              Due {cadence.dueAt}
+            </span>
+          ) : null}
+        </div>
+        {cadence ? (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-dashed border-black/10 bg-white/70 p-3">
+            <div>
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+                {cadence.label}
+              </p>
+              {cadence.reason ? (
+                <p className="mt-1 text-xs text-[rgb(var(--muted))]">
+                  {cadence.reason}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <Button
+                type="button"
+                variant="secondary"
+                className="px-3 py-1 text-xs"
+                onClick={copyTemplate}
+                disabled={!followupTemplate}
+              >
+                {copyStatus === "copied"
+                  ? "Copied"
+                  : copyStatus === "error"
+                    ? "Copy failed"
+                    : "Copy template"}
+              </Button>
+              <form action={logFollowupCadenceAction}>
+                <input type="hidden" name="application_id" value={applicationId} />
+                <input
+                  type="hidden"
+                  name="channel"
+                  value={cadence.channel ?? "email"}
+                />
+                <input
+                  type="hidden"
+                  name="template_id"
+                  value={cadence.templateId ?? "post-apply"}
+                />
+                {cadence.dueAt ? (
+                  <input
+                    type="hidden"
+                    name="next_due"
+                    value={cadence.dueAt}
+                  />
+                ) : null}
+                <Button type="submit" className="px-3 py-1 text-xs">
+                  Log + schedule
+                </Button>
+              </form>
+              <Link
+                href={`/api/calendar/followup?applicationId=${applicationId}`}
+                className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
+              >
+                ICS
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <p className="mt-2 text-xs text-[rgb(var(--muted))]">
+            No follow-up needed right now.
+          </p>
+        )}
       </div>
 
       <div

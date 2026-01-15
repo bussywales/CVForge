@@ -43,6 +43,7 @@ export default function PipelineBoard({
   const [quickFilter, setQuickFilter] = useState<"today" | "overdue" | null>(
     null
   );
+  const [invitesOnly, setInvitesOnly] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -54,6 +55,9 @@ export default function PipelineBoard({
         return false;
       }
       if (needsFollowupOnly && !deriveNeedsFollowUp(status, app.next_action_due)) {
+        return false;
+      }
+      if (invitesOnly && app.outcome_status !== "interview_invite") {
         return false;
       }
       if (quickFilter === "today" && !isDueToday(app.next_action_due)) {
@@ -72,7 +76,7 @@ export default function PipelineBoard({
       }
       return true;
     });
-  }, [applications, needsFollowupOnly, quickFilter, search, selectedStatuses]);
+  }, [applications, needsFollowupOnly, invitesOnly, quickFilter, search, selectedStatuses]);
 
   const grouped = useMemo(() => {
     const map: Record<string, ApplicationRecord[]> = {};
@@ -182,6 +186,14 @@ export default function PipelineBoard({
                 />
                 Needs follow-up
               </label>
+              <label className="flex items-center gap-2 text-xs text-[rgb(var(--muted))]">
+                <input
+                  type="checkbox"
+                  checked={invitesOnly}
+                  onChange={(event) => setInvitesOnly(event.target.checked)}
+                />
+                Interview invites only
+              </label>
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -239,6 +251,11 @@ export default function PipelineBoard({
                         <p className="text-xs text-[rgb(var(--muted))]">
                           {app.company_name || app.company || "Company not set"}
                         </p>
+                        {app.outcome_status ? (
+                          <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-700">
+                            {app.outcome_status.replace("_", " ")}
+                          </span>
+                        ) : null}
                         <div className="mt-3 space-y-1 text-xs text-[rgb(var(--muted))]">
                           <p>Last activity: {lastActivityLabel}</p>
                           <p>Next action: {nextActionLabel}</p>

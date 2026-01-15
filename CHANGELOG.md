@@ -3,6 +3,9 @@
 ## v0.7.17
 - Smart Apply v2: compact header, collapsible checklist, and “Next 3 actions” with deep links to Apply/Interview/Activity tabs; anchors added for follow-up and Autopacks.
 
+## v0.7.18
+- Interview Conversion Loop v1: follow-up cadence helper, Follow-up Autopilot strip in Apply tab, outcomes on applications, and cadence/logging surfaced in pipeline Action Centre. Checklist stays collapsible and deep links respect tab anchors.
+
 ## v0.7.15-docs
 - User Guide v1.2 rebuilt for non-technical users: quick path, clearer Evidence/exports guidance, troubleshooting table, and Optional AI Boost workflow.
 
