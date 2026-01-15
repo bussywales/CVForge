@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/Button";
 import { usePathname, useSearchParams } from "next/navigation";
 import CreditGateModal from "@/app/app/billing/credit-gate-modal";
 import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
+import {
+  clearPendingAction,
+  savePendingAction,
+} from "@/lib/billing/pending-action";
 
 type AutopackGenerateButtonProps = {
   applicationId: string;
@@ -37,8 +41,14 @@ export default function AutopackGenerateButton({
       searchParams?.toString() ? `?${searchParams.toString()}` : ""
     }`;
 
-  const handleGenerate = async () => {
+  const handleGenerate = useCallback(async () => {
     setState({ status: "loading" });
+
+    try {
+      clearPendingAction();
+    } catch {
+      /* ignore */
+    }
 
     try {
       const response = await fetch("/api/autopack/generate", {
@@ -90,7 +100,18 @@ export default function AutopackGenerateButton({
         message: "Unable to generate an autopack right now.",
       });
     }
-  };
+  }, [applicationId, router]);
+
+  useEffect(() => {
+    const callback = (event: Event) => {
+      const custom = event as CustomEvent;
+      if (custom.detail?.applicationId === applicationId) {
+        handleGenerate();
+      }
+    };
+    window.addEventListener("cvf-resume-autopack", callback);
+    return () => window.removeEventListener("cvf-resume-autopack", callback);
+  }, [applicationId, handleGenerate]);
 
   return (
     <div className="space-y-2">
@@ -98,12 +119,24 @@ export default function AutopackGenerateButton({
         type="button"
         onClick={() => {
           if (needsHardGate(balance, 1)) {
+            savePendingAction({
+              type: "autopack_generate",
+              applicationId,
+              returnTo: currentReturn,
+              createdAt: Date.now(),
+            });
             router.push(
               `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`
             );
             return;
           }
           if (shouldSoftGate(balance, 1)) {
+            savePendingAction({
+              type: "autopack_generate",
+              applicationId,
+              returnTo: currentReturn,
+              createdAt: Date.now(),
+            });
             setShowGate(true);
             return;
           }

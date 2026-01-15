@@ -64,6 +64,7 @@ import { normalizeSelectedEvidence } from "@/lib/evidence";
 import { getUserCredits } from "@/lib/data/credits";
 import PackSelector from "@/app/app/billing/pack-selector";
 import { fetchBillingSettings } from "@/lib/data/billing";
+import AutopackResumeBanner from "../autopack-resume-banner";
 
 const RoleFitCard = dynamic(() => import("../role-fit-card"), {
   ssr: false,
@@ -484,6 +485,7 @@ export default async function ApplicationPage({
       <Link href="/app/applications" className="text-sm text-[rgb(var(--muted))]">
         ← Back to applications
       </Link>
+      <AutopackResumeBanner applicationId={application.id} />
 
       {searchParams?.created ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
