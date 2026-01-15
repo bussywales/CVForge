@@ -6,10 +6,22 @@ import OnboardingPanel from "./onboarding-panel";
 import { computeOnboardingSteps } from "@/lib/onboarding";
 import { createServerClient } from "@/lib/supabase/server";
 import { createApplicationAction } from "../applications/actions";
+import CoachModePanel from "./coach-mode-panel";
+import {
+  computeWeeklyTargets,
+  detectWeakestStep,
+  pickCoachActions,
+} from "@/lib/coach-mode";
+import { getEffectiveJobText } from "@/lib/job-text";
+import { normalizeSelectedEvidence } from "@/lib/evidence";
 
 export const dynamic = "force-dynamic";
 
-export default async function InsightsPage() {
+export default async function InsightsPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[]>;
+}) {
   const { supabase, user } = await getSupabaseUser();
 
   if (!user) {
@@ -53,7 +65,7 @@ export default async function InsightsPage() {
   try {
     const { count, data, error } = await supabase
       .from("applications")
-      .select("id", { count: "exact" })
+      .select("*", { count: "exact" })
       .eq("user_id", user.id)
       .order("created_at", { ascending: false })
       .limit(1);
@@ -92,6 +104,157 @@ export default async function InsightsPage() {
     await createApplicationAction(formData);
   };
 
+  // Coach mode data
+  let followupsThisWeek = 0;
+  let submissionsThisWeek = 0;
+  let starThisWeek = 0;
+  let practiceThisWeek: number | null = null;
+  let overdueAppId: string | null = null;
+  let missingJobCount = 0;
+  let missingJobApp: string | null = null;
+  let evidenceLowCount = 0;
+  let evidenceApp: string | null = null;
+  let starMissingCount = 0;
+  let starApp: string | null = null;
+
+  const { start, end } = (() => {
+    const now = new Date();
+    const weekStart = new Date(now);
+    const day = weekStart.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    weekStart.setDate(weekStart.getDate() + diff);
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+    return { start: weekStart, end: weekEnd };
+  })();
+
+  try {
+    const { data, error } = await supabase
+      .from("application_activities")
+      .select("application_id,type,occurred_at")
+      .eq("user_id", user.id)
+      .gte("occurred_at", start.toISOString())
+      .lt("occurred_at", end.toISOString());
+    if (!error && data) {
+      data.forEach((row) => {
+        if (
+          ["followup.sent", "followup.logged", "outreach.sent", "outreach.logged"].includes(
+            row.type ?? ""
+          )
+        ) {
+          followupsThisWeek += 1;
+        }
+        if (row.type === "apply.submitted") {
+          submissionsThisWeek += 1;
+        }
+      });
+    }
+  } catch (error) {
+    console.error("[coach.activities]", error);
+  }
+
+  try {
+    const { count, error } = await supabase
+      .from("star_library")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", start.toISOString())
+      .lt("created_at", end.toISOString());
+    if (!error) starThisWeek = count ?? 0;
+  } catch (error) {
+    console.error("[coach.star]", error);
+  }
+
+  try {
+    const { count, error } = await supabase
+      .from("interview_practice_answers")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .gte("created_at", start.toISOString())
+      .lt("created_at", end.toISOString());
+    if (!error) practiceThisWeek = count ?? 0;
+  } catch (error) {
+    // table may not exist
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("applications")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (!error && data) {
+      data.forEach((app: any) => {
+        const jobText = getEffectiveJobText(app as any);
+        if (jobText.trim().length < 200 && !missingJobApp) {
+          missingJobApp = app.id;
+          missingJobCount += 1;
+        }
+        if (
+          app.next_action_due &&
+          new Date(app.next_action_due).getTime() <= new Date().getTime() &&
+          !overdueAppId
+        ) {
+          overdueAppId = app.id;
+        }
+        const selectedEvidence = normalizeSelectedEvidence(app.selected_evidence);
+        if (selectedEvidence.length === 0 && !evidenceApp) {
+          evidenceApp = app.id;
+          evidenceLowCount += 1;
+        }
+        const hasStar =
+          Array.isArray(app.star_drafts) && (app.star_drafts as any[]).length > 0;
+        if (!hasStar && !starApp) {
+          starApp = app.id;
+          starMissingCount += 1;
+        }
+      });
+    }
+  } catch (error) {
+    console.error("[coach.applications]", error);
+  }
+
+  const weeklyTargets = computeWeeklyTargets({
+    followups: followupsThisWeek,
+    submissions: submissionsThisWeek,
+    starDrafts: starThisWeek,
+    practice: practiceThisWeek ?? null,
+  });
+
+  const weakest = detectWeakestStep({
+    overdueFollowups: overdueAppId ? 1 : 0,
+    missingJobDetails: missingJobCount,
+    lowEvidence: evidenceLowCount,
+    missingStar: starMissingCount,
+    firstOverdueApp: overdueAppId,
+    firstMissingJobApp: missingJobApp,
+    firstEvidenceApp: evidenceApp,
+    firstStarApp: starApp,
+  });
+
+  const coachActions = pickCoachActions({
+    overdueAppId,
+    starAppId: starApp,
+    latestAppId: latestApplicationId,
+  });
+
+  const coachMessage = (() => {
+    const params = new URLSearchParams(
+      Object.entries(searchParams ?? {}).flatMap(([key, value]) =>
+        Array.isArray(value) ? value.map((v) => [key, v]) : [[key, value]]
+      )
+    );
+    const flag = params.get("coach");
+    if (!flag) return null;
+    if (flag === "scheduled") return "Follow-up scheduled";
+    if (flag === "star_created") return "STAR draft created";
+    if (flag === "missing_app") return "Pick an application to coach";
+    if (flag === "error") return "Coach action failed. Try again.";
+    return null;
+  })();
+
   return (
     <div className="space-y-6">
       <Link href="/app" className="text-sm text-[rgb(var(--muted))]">
@@ -102,6 +265,12 @@ export default async function InsightsPage() {
         title="Today"
         description="Top actions across your applications."
       >
+        <CoachModePanel
+          weeklyTargets={weeklyTargets}
+          weakest={weakest}
+          coachActions={coachActions}
+          coachMessage={coachMessage}
+        />
         <div className="mb-4">
           <OnboardingPanel
             steps={onboarding.steps}

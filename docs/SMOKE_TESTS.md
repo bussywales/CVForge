@@ -108,6 +108,12 @@
 - Ensure response rate shows a percentage or 0% when none.
 - Behaviour insights should show text or “Not enough data yet.”
 
+## Coach Mode (Insights)
+- Visit /app/insights and confirm Coach Mode shows weekly targets and a weakest-step card.
+- Trigger a coach action (schedule follow-up or create STAR); confirm redirect and a coach banner on return.
+- Coach actions should deep-link to the right tab/anchor when no mutation is needed (Apply Kit Wizard).
+- Weekly targets reset each week; counts update after logging activities.
+
 ## First Job Win onboarding
 - Visit /app/insights and confirm the First Job Win panel shows five steps with statuses.
 - With zero data, it should offer “Create a sample application.”

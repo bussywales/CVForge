@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.25
+- Insights “Coach Mode” with weekly targets, weakest-step detector, and one-click actions (schedule follow-up, create STAR draft, jump to Apply Kit Wizard).
+- Fixes to insights/coach actions to avoid server-side errors and ensure coach banners respect query params.
+
 ## v0.7.24
 - First Job Win onboarding card on /app/insights with 5 guided steps (import CV, achievements, work history, application, Apply Kit Wizard).
 - Added schema drift guard for applications queries (wildcard select) to avoid server render errors while schema stabilises.
