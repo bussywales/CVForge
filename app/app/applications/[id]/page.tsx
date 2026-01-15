@@ -162,7 +162,17 @@ export default async function ApplicationPage({
     );
   }
 
-  const application = await fetchApplication(supabase, user.id, params.id);
+  let application;
+  try {
+    application = await fetchApplication(supabase, user.id, params.id);
+  } catch (error) {
+    console.error("[application.load]", error);
+    return (
+      <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+        Unable to load this application right now. Please refresh or try again.
+      </div>
+    );
+  }
 
   if (!application) {
     return (

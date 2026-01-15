@@ -29,7 +29,17 @@ export default async function PipelinePage() {
     );
   }
 
-  const applications = await listApplications(supabase, user.id);
+  let applications = [];
+  try {
+    applications = await listApplications(supabase, user.id);
+  } catch (error) {
+    console.error("[pipeline.applications]", error);
+    return (
+      <div className="rounded-3xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
+        Unable to load applications right now. Please refresh or try again.
+      </div>
+    );
+  }
   let lastActivityById: Record<string, string> = {};
   try {
     const activitySummaries = await listLatestActivities(
