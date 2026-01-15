@@ -2,6 +2,10 @@ import Link from "next/link";
 import Section from "@/components/Section";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { getInsightsSummary } from "@/lib/insights";
+import OnboardingPanel from "./onboarding-panel";
+import { computeOnboardingSteps } from "@/lib/onboarding";
+import { createServerClient } from "@/lib/supabase/server";
+import { createApplicationAction } from "../applications/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +22,76 @@ export default async function InsightsPage() {
 
   const summary = await getInsightsSummary(supabase, user.id);
 
+  // Onboarding counts
+  const counts = {
+    achievements: 0,
+    workHistory: 0,
+    applications: 0,
+  };
+  let latestApplicationId: string | null = null;
+
+  try {
+    const { count, error } = await supabase
+      .from("achievements")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    if (!error) counts.achievements = count ?? 0;
+  } catch (error) {
+    console.error("[insights.onboarding.achievements]", error);
+  }
+
+  try {
+    const { count, error } = await supabase
+      .from("work_history")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+    if (!error) counts.workHistory = count ?? 0;
+  } catch (error) {
+    console.error("[insights.onboarding.work_history]", error);
+  }
+
+  try {
+    const { count, data, error } = await supabase
+      .from("applications")
+      .select("id", { count: "exact" })
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (!error) {
+      counts.applications = count ?? 0;
+      latestApplicationId = data?.[0]?.id ?? null;
+    }
+  } catch (error) {
+    console.error("[insights.onboarding.applications]", error);
+  }
+
+  const onboarding = computeOnboardingSteps({
+    achievementsCount: counts.achievements,
+    workHistoryCount: counts.workHistory,
+    applicationsCount: counts.applications,
+    latestApplicationId,
+  });
+
+  const handleCreateSample = async () => {
+    "use server";
+    const client = createServerClient();
+    const {
+      data: { user: current },
+    } = await client.auth.getUser();
+    if (!current) {
+      return;
+    }
+    const formData = new FormData();
+    formData.set("job_title", "Sample Role");
+    formData.set("company", "Demo Company");
+    formData.set(
+      "job_description",
+      "We need someone to improve reliability, deliver features, and communicate with stakeholders."
+    );
+    formData.set("status", "draft");
+    await createApplicationAction(formData);
+  };
+
   return (
     <div className="space-y-6">
       <Link href="/app" className="text-sm text-[rgb(var(--muted))]">
@@ -28,6 +102,15 @@ export default async function InsightsPage() {
         title="Today"
         description="Top actions across your applications."
       >
+        <div className="mb-4">
+          <OnboardingPanel
+            steps={onboarding.steps}
+            completed={onboarding.completed}
+            total={onboarding.total}
+            hasApplications={counts.applications > 0}
+            onCreateSample={counts.applications === 0 ? handleCreateSample : undefined}
+          />
+        </div>
         <div className="space-y-3">
           {summary.topActions.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-black/10 bg-white/60 p-4 text-sm text-[rgb(var(--muted))]">
