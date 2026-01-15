@@ -107,3 +107,8 @@
 - Check funnel counters populate (drafted/submitted/interview/offer/rejected/no response).
 - Ensure response rate shows a percentage or 0% when none.
 - Behaviour insights should show text or “Not enough data yet.”
+
+## First Job Win onboarding
+- Visit /app/insights and confirm the First Job Win panel shows five steps with statuses.
+- With zero data, it should offer “Create a sample application.”
+- After adding achievements/work history/applications, progress updates and links deep-link to the correct tab/anchor (profile, new application, Apply Kit Wizard).

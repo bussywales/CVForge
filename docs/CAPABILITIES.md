@@ -52,6 +52,9 @@ Record outcomes with status/reason/notes, snapshot recent actions (evidence, out
 ## Apply Kit Wizard v1
 Guided path for non-technical users: job text readiness, evidence for gaps, STAR draft, download kit, then mark submitted and schedule follow-up with tab/anchor deep links.
 
+## First Job Win onboarding
+On /app/insights, a five-step onboarding card (import CV, add achievements, add work history, create application, run Apply Kit Wizard) plus a sample application shortcut for zero-data accounts.
+
 ## Insights Dashboard v1
 Non-technical summary at /app/insights showing today’s top actions, a simple funnel (drafted/submitted/interview/offer/rejected/no response), response rate, and lightweight behavioural insights based on logged actions.
 

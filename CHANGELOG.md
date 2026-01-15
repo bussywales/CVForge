@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.24
+- First Job Win onboarding card on /app/insights with 5 guided steps (import CV, achievements, work history, application, Apply Kit Wizard).
+- Added schema drift guard for applications queries (wildcard select) to avoid server render errors while schema stabilises.
+
 ## v0.7.22
 - Apply Kit Wizard v1: guided steps (job text → evidence → STAR → kit → submit) with deep links across Overview/Apply, readiness states, and quick submit/follow-up controls.
 
