@@ -39,6 +39,7 @@
 - Export the Interview Pack in Standard and ATS-Minimal variants.
 - Toggle Practice Mode, score an answer, generate a rewrite, and confirm the draft persists after refresh.
 - Open the Practice Dashboard and start Drill Mode to practise the lowest-score question.
+- In Drill Mode, generate the Answer Pack (90-second first) and confirm answers appear in an accordion with per-answer copy and copy-all; toggle to Standard and copy still works.
 
 ## STAR Library
 - From the application detail page, create a STAR draft for a gap.

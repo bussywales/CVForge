@@ -35,7 +35,7 @@ Practice Mode adds per-question STAR drafting with deterministic scoring, recomm
 STAR Library creates per-gap STAR drafts from STAR-target evidence, with editable fields and links into Drill Mode for practice.
 
 ## Answer Pack v1
-Answer Pack generates deterministic interview answers from STAR drafts (Standard and 90-second variants) and applies them into Practice drafts.
+Answer Pack generates deterministic interview answers from STAR drafts (Standard and 90-second variants), now shown in a compact accordion with per-answer copy and copy-all to avoid wall-of-text previews, and applies them into Practice drafts.
 
 ## Application Kit v1
 Application Kit aggregates readiness checks, next best actions, and a ZIP download containing CV, cover letter, interview pack, and STAR drafts.

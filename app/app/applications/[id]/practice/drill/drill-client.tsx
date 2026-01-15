@@ -14,6 +14,10 @@ import {
   orderPracticeQuestions,
   type OrderedPracticeQuestion,
 } from "@/lib/practice-dashboard";
+import {
+  buildCopyAllText,
+  computeAnswerPackReadiness,
+} from "@/lib/answer-pack-ui";
 
 type DrillQuestion = {
   questionKey: string;
@@ -56,6 +60,136 @@ type DrillClientProps = {
   >;
   initialAnswers: Record<string, PracticeAnswer>;
 };
+
+type AnswerPackPanelProps = {
+  variant: AnswerPackVariant;
+  entry: AnswerPackEntry | null;
+  question: string;
+  onCopy: (text: string) => void;
+  onApply: () => void;
+  applying: boolean;
+};
+
+function AnswerPackPanel({
+  variant,
+  entry,
+  question,
+  onCopy,
+  onApply,
+  applying,
+}: AnswerPackPanelProps) {
+  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+  const items = entry
+    ? [
+        {
+          question: question || "Interview question",
+          answer: entry.answerText ?? "",
+        },
+      ]
+    : [];
+  const { readyCount, total } = computeAnswerPackReadiness(items);
+  const copyAll = () => {
+    const text = buildCopyAllText(items);
+    if (text) {
+      onCopy(text);
+    }
+  };
+
+  if (!entry) {
+    return (
+      <div className="mt-3 text-xs text-[rgb(var(--muted))]">
+        No answer generated yet for this question.{" "}
+        <a
+          href="?tab=evidence"
+          className="font-semibold text-[rgb(var(--ink))] underline-offset-2 hover:underline"
+        >
+          Create STAR drafts first.
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mt-4 space-y-3">
+      <div className="flex items-center justify-between text-xs text-[rgb(var(--muted))]">
+        <span className="font-semibold text-[rgb(var(--ink))]">
+          Ready: {readyCount} / {total}
+        </span>
+        <Button
+          type="button"
+          variant="secondary"
+          className="px-3 py-1 text-xs"
+          onClick={copyAll}
+        >
+          Copy all ({variant})
+        </Button>
+      </div>
+      <div className="space-y-2">
+        {items.map((item, index) => {
+          const isExpanded = expanded[index] ?? false;
+          const ready = Boolean(item.answer && item.answer.trim());
+          return (
+            <div
+              key={index}
+              className="rounded-xl border border-black/10 bg-white/70 p-3 text-xs text-[rgb(var(--muted))]"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpanded((prev) => ({
+                        ...prev,
+                        [index]: !isExpanded,
+                      }))
+                    }
+                    className="font-semibold text-[rgb(var(--ink))] underline-offset-2 hover:underline"
+                  >
+                    {item.question.length > 60
+                      ? `${item.question.slice(0, 60)}…`
+                      : item.question}
+                  </button>
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
+                      ready
+                        ? "bg-emerald-100 text-emerald-700"
+                        : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    {ready ? "Ready" : "Empty"}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="px-3 py-1 text-[10px]"
+                    onClick={() => onCopy(item.answer)}
+                  >
+                    Copy
+                  </Button>
+                  <Button
+                    type="button"
+                    className="px-3 py-1 text-[10px]"
+                    onClick={onApply}
+                    disabled={applying}
+                  >
+                    {applying ? "Applying..." : "Apply to draft"}
+                  </Button>
+                </div>
+              </div>
+              {isExpanded ? (
+                <pre className="mt-2 whitespace-pre-wrap text-xs text-[rgb(var(--muted))]">
+                  {item.answer}
+                </pre>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 type ToastState = { message: string; variant?: "success" | "error" };
 
@@ -127,7 +261,7 @@ export default function DrillClient({
     short90: AnswerPackEntry | null;
   }>({ standard: null, short90: null });
   const [answerPackVariant, setAnswerPackVariant] =
-    useState<AnswerPackVariant>("standard");
+    useState<AnswerPackVariant>("short90");
   const [answerPackLoading, setAnswerPackLoading] = useState(false);
   const [answerPackError, setAnswerPackError] = useState<string | null>(null);
 
@@ -234,7 +368,7 @@ export default function DrillClient({
     }
     setShowBreakdown(false);
     setAnswerPackError(null);
-    setAnswerPackVariant("standard");
+    setAnswerPackVariant("short90");
     void loadAnswerPack(currentKey);
   }, [currentKey, initialQuestionKey, initialRewriteOpen, loadAnswerPack]);
 
@@ -809,21 +943,15 @@ export default function DrillClient({
 
             <div className="rounded-2xl border border-black/10 bg-white/80 p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-xs font-semibold text-[rgb(var(--ink))]">
-                  Answer Pack
-                </p>
+                <div>
+                  <p className="text-xs font-semibold text-[rgb(var(--ink))]">
+                    Answer Pack
+                  </p>
+                  <p className="text-xs text-[rgb(var(--muted))]">
+                    Deterministic answers from STAR drafts. No AI rewriting.
+                  </p>
+                </div>
                 <div className="flex flex-wrap items-center gap-2 text-[10px]">
-                  <button
-                    type="button"
-                    onClick={() => setAnswerPackVariant("standard")}
-                    className={`rounded-full border px-3 py-1 font-semibold ${
-                      answerPackVariant === "standard"
-                        ? "border-emerald-200 bg-emerald-600 text-white"
-                        : "border-black/10 bg-white text-[rgb(var(--ink))]"
-                    }`}
-                  >
-                    Standard
-                  </button>
                   <button
                     type="button"
                     onClick={() => setAnswerPackVariant("short90")}
@@ -835,11 +963,19 @@ export default function DrillClient({
                   >
                     90-second
                   </button>
+                  <button
+                    type="button"
+                    onClick={() => setAnswerPackVariant("standard")}
+                    className={`rounded-full border px-3 py-1 font-semibold ${
+                      answerPackVariant === "standard"
+                        ? "border-emerald-200 bg-emerald-600 text-white"
+                        : "border-black/10 bg-white text-[rgb(var(--ink))]"
+                    }`}
+                  >
+                    Standard
+                  </button>
                 </div>
               </div>
-              <p className="mt-2 text-xs text-[rgb(var(--muted))]">
-                Deterministic answers from STAR drafts. No AI rewriting.
-              </p>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 <Button
@@ -847,7 +983,7 @@ export default function DrillClient({
                   onClick={() => handleGenerateAnswer(answerPackVariant)}
                   disabled={answerPackLoading}
                 >
-                  {answerPackLoading ? "Generating..." : "Generate answer"}
+                  {answerPackLoading ? "Generating..." : "Generate"}
                 </Button>
                 <Button
                   type="button"
@@ -863,63 +999,16 @@ export default function DrillClient({
                 <p className="mt-2 text-xs text-red-600">{answerPackError}</p>
               ) : null}
 
-              {answerPack[answerPackVariant] ? (
-                <div className="mt-4 space-y-3">
-                  <div className="rounded-xl border border-dashed border-black/10 bg-white/70 p-3">
-                    <p className="text-[10px] font-semibold text-[rgb(var(--ink))]">
-                      Preview
-                    </p>
-                    <pre className="mt-2 whitespace-pre-wrap text-xs text-[rgb(var(--muted))]">
-                      {answerPack[answerPackVariant]?.answerText}
-                    </pre>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">
-                    <div>
-                      <span className="font-semibold text-[rgb(var(--ink))]">
-                        STAR used:
-                      </span>{" "}
-                      {answerPack[answerPackVariant]?.starTitle ??
-                        answerPack[answerPackVariant]?.starGapKey}
-                      {answerPack[answerPackVariant]?.starGapKey ? (
-                        <a
-                          href={`/app/applications/${applicationId}/star/${encodeURIComponent(
-                            answerPack[answerPackVariant]!.starGapKey
-                          )}`}
-                          className="ml-2 font-semibold text-[rgb(var(--ink))] underline-offset-2 hover:underline"
-                        >
-                          Open
-                        </a>
-                      ) : null}
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() =>
-                        handleCopy(
-                          answerPack[answerPackVariant]?.answerText ?? ""
-                        )
-                      }
-                    >
-                      Copy answer
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => handleApplyAnswer(answerPackVariant)}
-                      disabled={pendingKey === `apply-${currentKey}-${answerPackVariant}`}
-                    >
-                      {pendingKey === `apply-${currentKey}-${answerPackVariant}`
-                        ? "Applying..."
-                        : "Apply to draft"}
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <p className="mt-3 text-xs text-[rgb(var(--muted))]">
-                  No answer generated yet for this question.
-                </p>
-              )}
+              <AnswerPackPanel
+                variant={answerPackVariant}
+                entry={answerPack[answerPackVariant]}
+                onCopy={(text) => handleCopy(text)}
+                onApply={() => handleApplyAnswer(answerPackVariant)}
+                applying={
+                  pendingKey === `apply-${currentKey}-${answerPackVariant}`
+                }
+                question={currentQuestion?.questionText ?? ""}
+              />
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2">

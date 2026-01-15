@@ -6,6 +6,9 @@
 ## v0.7.18
 - Interview Conversion Loop v1: follow-up cadence helper, Follow-up Autopilot strip in Apply tab, outcomes on applications, and cadence/logging surfaced in pipeline Action Centre. Checklist stays collapsible and deep links respect tab anchors.
 
+## v0.7.19
+- Answer Pack UX v1: accordion-style answers with per-row copy, copy-all, 90-second-first view, readiness badges, and a compact panel to avoid wall-of-text output.
+
 ## v0.7.15-docs
 - User Guide v1.2 rebuilt for non-technical users: quick path, clearer Evidence/exports guidance, troubleshooting table, and Optional AI Boost workflow.
 
