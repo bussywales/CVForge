@@ -1,7 +1,7 @@
 # Changelog
 
 ## v0.7.15-docs
-- User Guide v1.2 polish with “Apply in 20 minutes,” Optional AI Boost rewrite loop, troubleshooting table, and friendly exports note.
+- User Guide v1.2 rebuilt for non-technical users: quick path, clearer Evidence/exports guidance, troubleshooting table, and Optional AI Boost workflow.
 
 ## v0.7.14-docs
 - CVForge User Guide v1.1 polish: added table of contents, refined workflows, mini-maps, and cross-links plus glossary guidance.

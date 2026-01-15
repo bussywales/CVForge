@@ -1,84 +1,187 @@
-# CVForge User Guide v1.2
+# CVForge User Guide v1.2 (for non-technical users)
+
+CVForge helps you turn a job advert into a *submission-ready* CV + cover letter + interview answers — using **deterministic** guidance (clear rules, not magic). You stay in control: you choose evidence, approve changes, and exports are sanitised.
+
+---
 
 ## On this page
 - [What CVForge is](#what-cvforge-is)
-- [Apply in 20 minutes](#apply-in-20-minutes)
-- [By-tab workflows](#by-tab-workflows)
-- [Optional AI Boost (Rewrite Coach)](#optional-ai-boost-rewrite-coach)
-- [Common paths](#common-paths)
-- [Common issues and how to recover](#common-issues-and-how-to-recover)
+- [Apply in 20 minutes](#apply-in-20-minutes-quick-path)
+- [The Application Detail tabs](#the-application-detail-tabs)
+- [Core workflows](#core-workflows)
+- [Optional AI Boost workflow](#optional-ai-boost-workflow-rewrite-coach)
+- [Troubleshooting](#troubleshooting)
 - [Best practices](#best-practices)
-- [Which export should I use](#which-export-should-i-use)
-- [What CVForge does/doesn't do](#what-cvforge-doesdoesnt-do)
+- [What CVForge does and doesn’t do](#what-cvforge-does-and-doesnt-do)
+- [Privacy and data handling](#privacy-and-data-handling)
 - [Appendix](#appendix)
 
+---
+
 ## What CVForge is
-CVForge keeps your job applications, evidence, exports, practice sessions, and activity logging together in a single workspace. It tracks role-fit signals, lets you choose which experience proves each gap, builds ATS‑friendly CVs/cover letters, and helps you practise STAR answers. Everything stays deterministic: you review each change, approve evidence, and push updates on demand.
+CVForge is your job-application workspace. For each application, it helps you:
+- bring the job advert in (paste or fetch where allowed),
+- highlight what the advert is asking for (Role Fit),
+- match your own experience (Evidence Engine),
+- generate clean exports (CV + cover, Standard or ATS-Minimal),
+- prepare for interviews (STAR drafts, Practice/Drill Mode, Answer Pack),
+- track follow-ups and next actions (Activity + Outreach Engine),
+- download a complete submission bundle (Application Kit ZIP).
 
-## Apply in 20 minutes
-1. **Overview tab** – tidy the job details and job advert; paste text if fetch is blocked so Role Fit has a solid base.
-2. **Evidence tab** – spot your gaps, select matching achievements/work-history bullets, and toggle evidence targets (CV, cover, STAR) so exports and interviews share the same proof.
-3. **Apply tab** – generate an Autopack, complete the Smart Apply checklist, export ATS-minimal CV + cover, and download the Application Kit ZIP.
-4. **Interview tab** – practise the weakest question, open Drill Mode, and generate Answer Pack variants (Standard + 90-second) for practice drafts.
-5. **Activity tab** – log the latest touchpoint, set the next action due, and use outreach templates when needed.
-**Next:** follow one of the Common paths below to keep the engine humming.
+It is designed to increase interview rate by enforcing the basics recruiters and ATS systems reward: **relevance, evidence, measurable outcomes, and consistency**.
 
-## By-tab workflows
-- **Overview**: edit the job/ad details, paste relative text, use “Open & paste” when fetch is blocked, and keep the collapsible form tidy.
-  - Next: refresh the job advert whenever data changes so Role Fit is accurate.
-- **Evidence**: select gap evidence, pick which outputs (CV/cover/STAR) need each clip, and rely on the STAR Library for drafts.
-  - Next: make sure each gap has a selected item before touching an autopack.
-- **Apply**: view the Smart Apply checklist, mark exports, download the kit, and regenerate autopacks when evidence changes.
-  - Next: export ATS-minimal for submission, Standard for humans.
-- **Interview**: Interview Lift suggests actions, the Interview Pack + Practice Dashboard feed Drill Mode, and Answer Pack gives ready-to-copy responses.
-  - Next: drill a low-score question, copy the 90-second answer, and log the practice under Activity.
-- **Activity**: record calls, follow-ups, interviews; set next_action_due; share outreach templates; ICS download keeps reminders handy.
-  - Next: keep the Activity badge green by logging every touchpoint.
-- **Admin/Debug**: delete applications or check low-use controls without cluttering daily workflows.
-  - Next: tidy admin only once a role is archived.
+---
 
-## Optional AI Boost (Rewrite Coach)
-Use Rewrite Coach when you already drafted a STAR answer and need cleaner structure or stronger metrics. The coach rewrites based on your words; you stay in control, compare versions, and paste the improved text back into Practice.
-1. Draft your STAR answer in Practice.
-2. Tap Score to see the rubric.
-3. Hit Rewrite Coach to generate the polished version.
-4. Compare the original vs improved text.
-5. Apply the improved answer back into your practice draft.
-**Next:** only use Rewrite Coach after adding evidence, and double-check all inserted placeholders ([X], [Y]) before saving.
+## Apply in 20 minutes (quick path)
+If you are applying *right now*, do this in order:
 
-## Common paths
-- **Applying today**: Overview → Evidence → Apply checklist → Activity (mark submitted).
-- **Building profile this week**: iterate Evidence → STAR Library → Practice → Smart Apply readiness.
-- **Interview prep**: Interview tab → Drill Mode → Answer Pack, then log practice and add follow-up reminders.
-- **Following up**: Activity + Outreach templates → schedule next_action_due → record outreach in the log.
-**Next:** jot down the path you followed and keep the same checklist for the next job.
+1. **Overview tab** → add/paste the job description and job link.
+2. **Evidence tab** → pick 1–3 gaps and select best-matching evidence (aim for “Good/Strong” matches).
+3. Still in **Evidence tab** → set targets to CV ✅, Cover ✅, STAR ✅ (when practising/interviewing soon).
+4. **Apply tab** → generate an Autopack, export ATS-Minimal CV + cover, and download the Application Kit ZIP.
+5. **Activity tab** → log “Submitted” or your real status and set the next follow-up date.
 
-## Common issues and how to recover
-| Symptom | Cause | Fix |
+**Rule of thumb:** If time is short, select strong evidence for the top gaps before exporting.
+
+---
+
+## The Application Detail tabs
+### Overview
+- Edit role details, pasted JD, and job advert fetch status.
+- Blocked sites show a calm “Open & paste” prompt.
+- Quick links to Apply/Evidence/Interview.
+
+**Next:** ensure the job advert text is present and refreshed.
+
+### Apply
+- Smart Apply checklist + readiness score.
+- Autopacks + Standard/ATS-Minimal exports.
+- Application Kit ZIP download.
+
+**Next:** export the ATS-Minimal CV + cover for online submission.
+
+### Evidence
+- Role Fit score + gap list.
+- Evidence suggestions with quality ratings.
+- Targets (CV/Cover/STAR) plus the STAR Library per gap.
+
+**Next:** pick 1–3 strong evidence items and target them to CV/Cover.
+
+### Interview
+- Interview Lift guidance.
+- Interview Pack + Practice Dashboard + Drill Mode.
+- Answer Pack (Standard + 90-second).
+
+**Next:** draft a STAR story for the key gap and practise via Answer Pack.
+
+### Activity
+- Tracking + outreach templates.
+- Log emails/calls/interviews and schedule reminders.
+- next_action_due and ICS downloads.
+
+**Next:** register your most recent touchpoint and set the follow-up.
+
+### Admin/Debug (if enabled)
+- Danger zone tools and low-frequency settings.
+
+**Next:** only use this when archiving an application.
+
+---
+
+## Core workflows
+
+### 1) Evidence → Autopack precision
+1. Evidence tab: pick a Role Fit gap.
+2. Select the best evidence suggestion(s).
+3. Set targets (CV/Cover/STAR).
+4. Apply tab: regenerate Autopack.
+5. Autopack editor: check “Evidence used in this pack.”
+
+### 2) STAR Library → Practice → Answer Pack
+1. Evidence tab: ensure at least one STAR-targeted item.
+2. Create a STAR draft (STAR Library).
+3. Interview tab: Practice Dashboard → Drill Mode.
+4. Generate Answer Pack (Standard + 90-second).
+5. Apply improved answers back into Practice drafts.
+
+### 3) Outreach Engine (follow-ups)
+1. Pipeline/Activity: copy email/LinkedIn template.
+2. Log as “sent.”
+3. Schedule next_action_due (+ download ICS if needed).
+
+### 4) Application Kit (bundle everything)
+Apply tab → download Application Kit ZIP:
+- CV (ATS-Minimal)
+- Cover letter (ATS-Minimal)
+- Interview Pack (Standard)
+- STAR drafts JSON
+
+---
+
+## Optional AI Boost workflow (Rewrite Coach)
+Rewrite Coach is optional. Use it **after** you’ve written a draft and selected evidence.
+
+Best use:
+- You already have a STAR draft but want clearer structure and tighter metrics.
+
+Flow:
+1. Write your draft answer (your own words).
+2. Score it (deterministic rubric).
+3. Use Rewrite Coach to generate an improved version.
+4. Compare original vs improved.
+5. Apply the improved version only if it’s accurate.
+
+**Important:** Review placeholders like [X], [Y] and remove anything untrue before saving/exporting.
+
+---
+
+## Troubleshooting
+
+| Problem | What it means | Fix |
 | --- | --- | --- |
-| Job link fetch fails | Indeed/LinkedIn block bots | Open advert, paste text manually, keep the link in case you need to refer back |
-| STAR Library shows zero | No STAR-target evidence selected | Pick the STAR-labelled evidence item in the Evidence tab first |
-| Evidence suggestions weak | Missing keywords/metrics in achievements | Add achievements/work-history bullets with the gap keywords and measurable metrics |
-| Smart Apply checklist stuck | No autopack export yet | Generate/autopack and export the CV + cover + interview pack, then mark checklist items done |
-**Next:** hit the relevant fix before moving on to the next section.
+| Job fetch fails (Indeed/LinkedIn) | Those sites block automated fetches | Open the job advert in your browser, copy the JD, paste it into the JD field |
+| “No matching evidence found” | Your achievements/work history lack the right keywords or metrics | Add bullets that mention the gap terms/metrics; refresh Role Fit |
+| STAR Library shows 0 | No STAR-targeted evidence selected | Choose the STAR-labelled evidence item before creating a draft |
+| Apply checklist stays pending | No autopack exported yet | Generate an autopack, export CV/Cover/Interview Pack, then mark checklist items |
+
+**Next:** fix the specific issue before continuing along your chosen path.
+
+---
 
 ## Best practices
-- Keep **metrics ≤120 characters**, include percentages/time, and avoid filler.
-- Keep **achievements atomic** so you can reuse them for multiple gaps.
-- Use **work history bullets** for operational duties, achievements for impact.
-- Default to **ATS-minimal** for submission, use Standard when emailing PDFs later.
-**Next:** revisit metrics after each application to stay sharp.
+- Keep **metrics ≤120 characters** with scale (people, %, time, £).
+- Make **achievements atomic** (one impact per entry).
+- Use **work history bullets** for responsibilities, achievements for impact.
+- Export choice: ATS-Minimal for online forms, Standard for recruiter review.
+
+**Next:** revisit your metrics after each application.
+
+---
 
 ## Which export should I use
-- **ATS-minimal**: online applications and ATS forms where clean, plain bullet structure matters.
-- **Standard**: recruiter conversations, PDF reviews, or any time you need a richer layout.
-**Next:** choose ATS-minimal before you hit submit, switch to Standard when sharing with humans.
+- **ATS-Minimal**: online applications/ATS forms where plain bullets win.
+- **Standard**: recruiter emails, PDFs, or richer formatting.
 
-## What CVForge does/doesn't do
-CVForge stores applications, job advert snapshots, evidence, STAR drafts, and activity logs; it does not auto-send emails or scrape third-party sites beyond the manual fetch you initiate.
-It does not invent stories: you select the evidence, approve the Rewrite Coach suggestions, and keep every export deterministic.
-**Next:** remind your team that CVForge keeps you in control—no automatic submissions.
+**Next:** default to ATS-Minimal when submitting, Standard when sharing with humans.
+
+---
+
+## What CVForge does and doesn’t do
+**Does store**: applications, pasted job descriptions, allowed fetched snapshots, evidence selections, STAR drafts, practice answers, activity logs.
+**Doesn’t do**: auto-send applications, invent experience, or bypass blocked sites (it guides you to paste manually).
+
+**Next:** remind collaborators that CVForge keeps control in your hands.
+
+---
+
+## Privacy and data handling
+- CVForge stores the data you enter: applications, job advert snapshots (where allowed), evidence, STAR drafts, practice answers, activities.
+- Opt-in learning (if enabled) only captures anonymised terms; practise answers and STAR drafts stay with your account.
+
+**Next:** review privacy if you change teams or workspace ownership.
+
+---
 
 ## Appendix
-- **Glossary:** [Key terms](GLOSSARY.md)
-- **Other docs:** [See the index](INDEX.md) for developer-focused references.
+- Glossary: [docs/GLOSSARY.md](GLOSSARY.md).
+- Documentation index: [docs/INDEX.md](INDEX.md).
