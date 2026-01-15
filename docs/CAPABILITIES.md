@@ -52,6 +52,9 @@ Record outcomes with status/reason/notes, snapshot recent actions (evidence, out
 ## Apply Kit Wizard v1
 Guided path for non-technical users: job text readiness, evidence for gaps, STAR draft, download kit, then mark submitted and schedule follow-up with tab/anchor deep links.
 
+## Insights Dashboard v1
+Non-technical summary at /app/insights showing today’s top actions, a simple funnel (drafted/submitted/interview/offer/rejected/no response), response rate, and lightweight behavioural insights based on logged actions.
+
 ## Pipeline and tracking
 A pipeline board shows status lanes, next actions, and activity history. The Action Centre provides follow-up templates, activity logging, and calendar invite downloads.
 

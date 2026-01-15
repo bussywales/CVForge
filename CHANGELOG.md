@@ -3,6 +3,9 @@
 ## v0.7.22
 - Apply Kit Wizard v1: guided steps (job text → evidence → STAR → kit → submit) with deep links across Overview/Apply, readiness states, and quick submit/follow-up controls.
 
+## v0.7.23
+- Insights Dashboard v1: new /app/insights page with Today’s top actions, a simple funnel (drafted → submitted → interview → offer/rejected/no response), response rate, and lightweight behaviour insights using logged actions.
+
 ## v0.7.21
 - Outcome Loop v1: record outcomes with status/reason/notes, capture action snapshots, surface simple insights, and show outcome chips/filters in pipeline and application detail.
 

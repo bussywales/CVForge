@@ -101,3 +101,9 @@
 - Create a STAR draft; Step 3 shows ready.
 - Download the Application Kit ZIP from Step 4 (uses existing export route).
 - Mark submitted and schedule follow-up from Step 5; verify status updates and next follow-up date is set.
+
+## Insights Dashboard
+- Visit /app/insights and confirm “Today” lists up to five actions with Go links.
+- Check funnel counters populate (drafted/submitted/interview/offer/rejected/no response).
+- Ensure response rate shows a percentage or 0% when none.
+- Behaviour insights should show text or “Not enough data yet.”
