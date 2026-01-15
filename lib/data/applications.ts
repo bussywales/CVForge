@@ -41,6 +41,10 @@ export type ApplicationRecord = {
   outreach_next_due_at: string | null;
   outreach_channel_pref: string | null;
   source: string | null;
+  last_outcome_status: string | null;
+  last_outcome_reason: string | null;
+  last_outcome_at: string | null;
+  last_outcome_id: string | null;
   outcome_status: string | null;
   outcome_at: string | null;
   outcome_note: string | null;
@@ -85,6 +89,10 @@ export type ApplicationInsert = Pick<
   outreach_next_due_at?: string | null;
   outreach_channel_pref?: string | null;
   source?: string | null;
+  last_outcome_status?: string | null;
+  last_outcome_reason?: string | null;
+  last_outcome_at?: string | null;
+  last_outcome_id?: string | null;
   outcome_status?: string | null;
   outcome_at?: string | null;
   outcome_note?: string | null;
@@ -93,7 +101,7 @@ export type ApplicationInsert = Pick<
 export type ApplicationUpdate = Partial<ApplicationInsert>;
 
 const applicationSelect =
-  "id, user_id, job_title, company, company_name, contact_name, contact_role, contact_email, contact_linkedin, job_url, job_description, job_text, job_text_source, job_fetched_at, job_fetch_status, job_fetch_error, job_fetch_etag, job_fetch_last_modified, job_text_hash, job_source_url, status, selected_evidence, applied_at, closing_date, submitted_at, source_platform, last_activity_at, last_touch_at, star_drafts, last_lift_action, lift_completed_at, next_action_type, next_action_due, next_followup_at, outreach_stage, outreach_last_sent_at, outreach_next_due_at, outreach_channel_pref, source, outcome_status, outcome_at, outcome_note, created_at";
+  "id, user_id, job_title, company, company_name, contact_name, contact_role, contact_email, contact_linkedin, job_url, job_description, job_text, job_text_source, job_fetched_at, job_fetch_status, job_fetch_error, job_fetch_etag, job_fetch_last_modified, job_text_hash, job_source_url, status, selected_evidence, applied_at, closing_date, submitted_at, source_platform, last_activity_at, last_touch_at, star_drafts, last_lift_action, lift_completed_at, next_action_type, next_action_due, next_followup_at, outreach_stage, outreach_last_sent_at, outreach_next_due_at, outreach_channel_pref, source, last_outcome_status, last_outcome_reason, last_outcome_at, last_outcome_id, outcome_status, outcome_at, outcome_note, created_at";
 
 export async function listApplications(
   supabase: SupabaseClient,

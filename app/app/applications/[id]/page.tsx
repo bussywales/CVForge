@@ -51,8 +51,14 @@ import AutopacksSection from "../autopacks-section";
 import DeleteApplicationForm from "../delete-application-form";
 import JobAdvertCard from "../job-advert-card";
 import NextBestActionsBar from "../next-best-actions-bar";
+import OutcomeLoopPanel from "../outcome-loop-panel";
 import { applicationStatusLabels, normaliseApplicationStatus } from "@/lib/application-status";
 import { computeTabBadges, ApplicationDetailTabKey, parseTab } from "@/lib/ui/tabs";
+import { listOutcomes, type OutcomeRecord } from "@/lib/data/outcomes";
+import {
+  computeActionSummaryForApplication,
+  type ActionSummary,
+} from "@/lib/outcome-loop";
 
 const RoleFitCard = dynamic(() => import("../role-fit-card"), {
   ssr: false,
@@ -259,6 +265,19 @@ export default async function ApplicationPage({
     console.error("[application.kit.practice]", error);
   }
 
+  let outcomes: OutcomeRecord[] = [];
+  let outcomeActions: ActionSummary | null = null;
+  try {
+    outcomes = await listOutcomes(supabase, user.id, application.id, 10);
+    outcomeActions = await computeActionSummaryForApplication(
+      supabase,
+      user.id,
+      application.id
+    );
+  } catch (error) {
+    console.error("[application.outcomes]", error);
+  }
+
 let applyChecklist: ApplyChecklistRecord | null = null;
   try {
     applyChecklist = await fetchApplyChecklist(
@@ -428,6 +447,9 @@ let applyChecklist: ApplyChecklistRecord | null = null;
     practiceTotal: kitChecklist.stats.total,
     practiceScored: kitChecklist.stats.scored,
     hasDueFollowup: hasDueAction,
+    isSubmitted:
+      application.status === "submitted" || Boolean(application.submitted_at),
+    outcomeRecorded: Boolean(application.last_outcome_status),
   });
 
   return (
@@ -516,6 +538,31 @@ let applyChecklist: ApplyChecklistRecord | null = null;
                 </Link>
               </div>
             )}
+            </Section>
+          </div>
+
+          <div id="outcome">
+            <Section
+              title="Outcome loop"
+              description="Record outcomes and see what actions you took."
+            >
+              <OutcomeLoopPanel
+                applicationId={application.id}
+                initialOutcomes={outcomes}
+                actionSummary={
+                  outcomeActions ?? {
+                    evidence_selected: 0,
+                    outreach_logged: 0,
+                    practice_answers: 0,
+                    answer_pack_generated: 0,
+                    kit_downloaded: 0,
+                    exports: 0,
+                    followups_logged: 0,
+                  }
+                }
+                lastOutcomeStatus={application.last_outcome_status}
+                lastOutcomeAt={application.last_outcome_at}
+              />
             </Section>
           </div>
         </>

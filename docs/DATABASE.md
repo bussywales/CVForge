@@ -57,6 +57,16 @@ Purpose: generated CV/cover letter drafts and STAR answers.
 Key fields: application_id, version, cv_text, cover_letter, answers_json, evidence_trace.
 RLS: user_id = auth.uid().
 
+### application_outcomes
+Purpose: record outcomes per application with status, reason, notes, and timestamp.
+Key fields: outcome_status, outcome_reason, outcome_notes, happened_at.
+RLS: user_id = auth.uid().
+
+### outcome_action_links
+Purpose: snapshot actions taken around an outcome (evidence selection, outreach, practice, exports, follow-ups, kit download).
+Key fields: action_key, action_count, outcome_id.
+RLS: user_id = auth.uid().
+
 ### audit_log
 Purpose: operational audit trail (imports, generation, credits).
 Key fields: action, meta.
@@ -113,6 +123,9 @@ RLS: authenticated users can select active packs; admin writes via service role.
 - 0018_autopack_evidence_trace: evidence_trace on autopacks.
 - 0019_star_library: STAR Library drafts per application.
 - 0020_answer_pack: interview_answer_pack storage for deterministic answers.
+- 0021_job_fetch_status: fetch status metadata on applications.
+- 0022_conversion_outcomes: outreach/outcome helper fields.
+- 0023_outcome_loop: application_outcomes, outcome_action_links, and last_outcome_* columns on applications.
 
 ## Common migration issues
 - Policy already exists: drop the policy or use supabase migration repair to mark it applied.

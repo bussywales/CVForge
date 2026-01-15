@@ -44,6 +44,7 @@ export default function PipelineBoard({
     null
   );
   const [invitesOnly, setInvitesOnly] = useState(false);
+  const [hideLost, setHideLost] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -57,7 +58,19 @@ export default function PipelineBoard({
       if (needsFollowupOnly && !deriveNeedsFollowUp(status, app.next_action_due)) {
         return false;
       }
-      if (invitesOnly && app.outcome_status !== "interview_invite") {
+      const outcomeStatus = app.last_outcome_status ?? app.outcome_status;
+      if (
+        invitesOnly &&
+        !["interview_scheduled", "interview_completed", "offer", "accepted"].includes(
+          outcomeStatus ?? ""
+        )
+      ) {
+        return false;
+      }
+      if (
+        hideLost &&
+        ["rejected", "no_response", "withdrawn"].includes(outcomeStatus ?? "")
+      ) {
         return false;
       }
       if (quickFilter === "today" && !isDueToday(app.next_action_due)) {
@@ -76,7 +89,15 @@ export default function PipelineBoard({
       }
       return true;
     });
-  }, [applications, needsFollowupOnly, invitesOnly, quickFilter, search, selectedStatuses]);
+  }, [
+    applications,
+    needsFollowupOnly,
+    invitesOnly,
+    hideLost,
+    quickFilter,
+    search,
+    selectedStatuses,
+  ]);
 
   const grouped = useMemo(() => {
     const map: Record<string, ApplicationRecord[]> = {};
@@ -194,6 +215,14 @@ export default function PipelineBoard({
                 />
                 Interview invites only
               </label>
+              <label className="flex items-center gap-2 text-xs text-[rgb(var(--muted))]">
+                <input
+                  type="checkbox"
+                  checked={hideLost}
+                  onChange={(event) => setHideLost(event.target.checked)}
+                />
+                Hide lost
+              </label>
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -223,6 +252,9 @@ export default function PipelineBoard({
                   lastActivityById[app.id] ??
                   app.last_activity_at ??
                   app.last_touch_at;
+                const outcomeStatus = app.last_outcome_status ?? app.outcome_status;
+                const outcomeDate =
+                  app.last_outcome_at ?? app.outcome_at ?? undefined;
                 const lastActivityLabel = lastActivity
                   ? formatDateUk(lastActivity)
                   : "No activity yet";
@@ -251,9 +283,16 @@ export default function PipelineBoard({
                         <p className="text-xs text-[rgb(var(--muted))]">
                           {app.company_name || app.company || "Company not set"}
                         </p>
-                        {app.outcome_status ? (
-                          <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-700">
-                            {app.outcome_status.replace("_", " ")}
+                        {outcomeStatus ? (
+                          <span
+                            title={
+                              outcomeDate
+                                ? `Recorded ${formatDateUk(outcomeDate)}`
+                                : undefined
+                            }
+                            className="mt-2 inline-flex rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.15em] text-emerald-700"
+                          >
+                            {outcomeStatus.replace("_", " ")}
                           </span>
                         ) : null}
                         <div className="mt-3 space-y-1 text-xs text-[rgb(var(--muted))]">

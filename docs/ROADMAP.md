@@ -62,6 +62,12 @@ Scope boundary: deterministic fetch + extraction only, no scraping automation or
 Success criteria: fetched snapshots are stored and preferred when available.
 Not in scope: storing raw HTML or automatic job description rewriting.
 
+### Outcome Loop v1 (shipped)
+Outcome: record outcomes with status/reason/notes, snapshot nearby actions (evidence, outreach, practice, exports, kit, follow-ups), and surface lightweight insights plus pipeline badges (shipped v0.7.21).
+Scope boundary: deterministic forms, action snapshots, and simple insights only.
+Success criteria: outcomes save and show in pipeline cards; insights render or show “not enough data yet”; suggested next steps link to the correct tab/anchor.
+Not in scope: heavy analytics dashboards, charts, or automated decisions.
+
 ### Evidence Engine v1 (shipped)
 Outcome: evidence suggestions for Role Fit gaps with one-click apply actions (shipped v0.7.5).
 Scope boundary: deterministic matching using existing taxonomies only.

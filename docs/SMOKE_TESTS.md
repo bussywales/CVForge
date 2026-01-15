@@ -87,3 +87,9 @@
 ## Job Link Fetch resilience
 - Provide an Indeed or LinkedIn job URL and confirm the fetch endpoint reports the source as blocked (instead of a scary HTTP error).
 - When blocked, the Job advert card should show a calm notice plus “Open,” “Copy link,” and “Paste job text” buttons while disabling the Fetch/Refresh button.
+
+## Outcome Loop
+- On an application, open the Outcome Loop panel (Overview tab) and record an outcome with status + optional reason.
+- Verify the recent outcomes list updates and an action snapshot shows counts (evidence/outreach/practice/exports/kit/follow-ups).
+- Check pipeline cards show the outcome chip and that the “Hide lost” filter removes rejected/no response roles.
+- Call /api/outcomes/insights (or refresh panel) and confirm “Not enough data” appears until at least three outcomes exist.

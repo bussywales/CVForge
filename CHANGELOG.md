@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.7.21
+- Outcome Loop v1: record outcomes with status/reason/notes, capture action snapshots, surface simple insights, and show outcome chips/filters in pipeline and application detail.
+
 ## v0.7.17
 - Smart Apply v2: compact header, collapsible checklist, and “Next 3 actions” with deep links to Apply/Interview/Activity tabs; anchors added for follow-up and Autopacks.
 

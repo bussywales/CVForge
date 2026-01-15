@@ -255,6 +255,29 @@ Output: JSON { status: "updated" }.
 Errors: JSON { error } with 400/401/403/500.
 Runtime: nodejs, force-dynamic.
 
+## Outcomes
+POST /api/outcomes/create
+Auth: required.
+Input: JSON { applicationId, status, reason?, notes? }.
+Output: JSON { ok, outcome, actionSummary }.
+Errors: JSON { error } 400/401/404/500. Runtime: nodejs, force-dynamic.
+
+GET /api/outcomes/summary?applicationId=...
+Auth: required.
+Output: JSON { ok, summary, actionSummary, suggestedNext[] }.
+Errors: JSON { error } 400/401/500. Runtime: nodejs, force-dynamic.
+
+GET /api/outcomes/insights
+Auth: required.
+Output: JSON { ok, insights|null, message? }.
+Errors: JSON { error } 401/500. Runtime: nodejs, force-dynamic.
+
+POST /api/outcomes/link-action
+Auth: required.
+Input: JSON { outcomeId, applicationId, actionType, actionCount? }.
+Output: JSON { ok }.
+Errors: JSON { error } 400/401/500. Runtime: nodejs, force-dynamic.
+
 ## Utility
 GET /api/me
 Auth: required.

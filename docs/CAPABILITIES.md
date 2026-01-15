@@ -46,6 +46,9 @@ Application Kit aggregates readiness checks, next best actions, and a ZIP downlo
 ## Smart Apply v2
 Smart Apply now uses a compact header (readiness, status, closing date, source) plus a “Next 3 actions” strip with tab deep links. The submission checklist is collapsible by default and remembers your preference per application. A Follow-up Autopilot strip suggests the next cadence step with copy/log/schedule controls, and outcomes (interview invite/rejected/offer) can be recorded. Exports, kit downloads, and follow-up scheduling still update the checklist automatically.
 
+## Outcome Loop v1
+Record outcomes with status/reason/notes, snapshot recent actions (evidence, outreach, practice, exports, kit), and surface lightweight insights. Pipeline cards show outcome chips and filters for active vs lost roles.
+
 ## Pipeline and tracking
 A pipeline board shows status lanes, next actions, and activity history. The Action Centre provides follow-up templates, activity logging, and calendar invite downloads.
 

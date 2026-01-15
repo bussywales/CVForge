@@ -16,6 +16,8 @@ export type NextBestInput = {
   practiceTotal?: number;
   practiceScored?: number;
   hasDueFollowup?: boolean;
+  isSubmitted?: boolean;
+  outcomeRecorded?: boolean;
 };
 
 export function buildNextBestActions(input: NextBestInput): NextBestAction[] {
@@ -43,6 +45,15 @@ export function buildNextBestActions(input: NextBestInput): NextBestAction[] {
       label: "Complete submission checklist",
       why: "Pending items block a ready-to-submit kit.",
       href: `/app/applications/${applicationId}?tab=apply#apply-checklist`,
+    });
+  }
+
+  if (input.isSubmitted && !input.outcomeRecorded) {
+    add({
+      id: "record-outcome",
+      label: "Record outcome",
+      why: "Track responses to learn what works.",
+      href: `/app/applications/${applicationId}?tab=overview#outcome`,
     });
   }
 
