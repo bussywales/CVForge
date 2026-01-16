@@ -7,6 +7,7 @@ type SectionProps = {
   description?: string;
   action?: ReactNode;
   children: ReactNode;
+  id?: string;
 };
 
 export default function Section({
@@ -14,9 +15,13 @@ export default function Section({
   description,
   action,
   children,
+  id,
 }: SectionProps) {
   return (
-    <section className="rounded-3xl border border-black/10 bg-white/80 p-6 shadow-sm">
+    <section
+      id={id}
+      className="rounded-3xl border border-black/10 bg-white/80 p-6 shadow-sm"
+    >
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h2 className="text-xl font-semibold">{title}</h2>

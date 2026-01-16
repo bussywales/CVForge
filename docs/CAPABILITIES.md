@@ -73,6 +73,9 @@ DOCX import previews and applies profile fields, achievements, and work history.
 ## Billing and credits
 Stripe Checkout is used for credit purchases, with a credit ledger and webhook-based crediting. Pack selector offers Starter/Pro/Power options and paywall CTAs appear at high-intent points (apply wizard, interview packs, insights). Optional subscriptions + auto top-up preferences live in Billing; webhook grants monthly credits.
 
+## Monetisation analytics
+Credit gates, checkout starts/successes, resume clicks, and autopack completions are logged deterministically. Insights shows a revenue funnel (7d/30d) plus top surfaces for gates and billing clicks to spot leaks quickly.
+
 ## Referrals
 Shareable referral link gives +3 credits to inviter and invitee once on signup; redeeming is idempotent and self-referrals are blocked.
 

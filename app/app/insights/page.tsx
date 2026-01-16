@@ -19,6 +19,7 @@ import PackSelector from "@/app/app/billing/pack-selector";
 import { fetchBillingSettings } from "@/lib/data/billing";
 import { ensureReferralCode } from "@/lib/referrals";
 import ReferralCta from "./referral-cta";
+import { getMonetisationSummary } from "@/lib/monetisation-funnel";
 
 export const dynamic = "force-dynamic";
 
@@ -91,6 +92,7 @@ export default async function InsightsPage({
   const credits = await getUserCredits(supabase, user.id);
   const billingSettings = await fetchBillingSettings(supabase, user.id);
   const referral = await ensureReferralCode(supabase, user.id);
+  const monetisation = await getMonetisationSummary(supabase, user.id);
 
   const handleCreateSample = async () => {
     "use server";
@@ -405,6 +407,92 @@ export default async function InsightsPage({
             </div>
           ))}
         </div>
+      </Section>
+
+      <Section
+        title="Revenue Funnel"
+        description="Last 7 / 30 days of credit gating and checkout."
+      >
+        {monetisation.last30.gate_shown === 0 ? (
+          <div className="rounded-2xl border border-dashed border-black/10 bg-white/70 p-4 text-sm text-[rgb(var(--muted))]">
+            No monetisation events yet. Try generating an Autopack, go to billing, complete checkout, then resume.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid gap-3 md:grid-cols-3">
+              {[
+                { label: "Gate shown", value: monetisation.last7.gate_shown },
+                { label: "Billing clicked", value: monetisation.last7.billing_clicked },
+                { label: "Checkout started", value: monetisation.last7.checkout_started },
+                { label: "Checkout success", value: monetisation.last7.checkout_success },
+                { label: "Resume clicked", value: monetisation.last7.resume_clicked },
+                { label: "Autopack generated", value: monetisation.last7.autopack_generated },
+              ].map((item) => (
+                <div
+                  key={item.label}
+                  className="rounded-2xl border border-black/10 bg-white/80 p-4"
+                >
+                  <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+                    {item.label} (7d)
+                  </p>
+                  <p className="text-2xl font-semibold text-[rgb(var(--ink))]">
+                    {item.value}
+                  </p>
+                  <p className="text-[11px] text-[rgb(var(--muted))]">
+                    30d: {
+                      (monetisation.last30 as any)[
+                        item.label.toLowerCase().replace(/ /g, "_")
+                      ] ?? 0
+                    }
+                  </p>
+                </div>
+              ))}
+            </div>
+            <div className="rounded-2xl border border-black/10 bg-white/80 p-4 text-sm text-[rgb(var(--muted))]">
+              Conversions (7d):
+              <div className="mt-2 grid gap-2 md:grid-cols-3">
+                {Object.entries(monetisation.last7.conversions).map(([key, val]) => (
+                  <div key={key} className="rounded-xl border border-black/10 bg-white px-3 py-2">
+                    <p className="text-[11px] uppercase tracking-[0.18em] text-[rgb(var(--muted))]">
+                      {key}
+                    </p>
+                    <p className="text-lg font-semibold text-[rgb(var(--ink))]">{val}%</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="rounded-2xl border border-black/10 bg-white/80 p-4">
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">Top surfaces (30d)</p>
+              <div className="mt-2 grid gap-3 md:grid-cols-2">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--muted))]">
+                    Gate shown
+                  </p>
+                  {Object.entries(monetisation.surfaces.gate_shown).map(([surface, count]) => (
+                    <p key={surface} className="text-sm text-[rgb(var(--ink))]">
+                      {surface}: {count}
+                    </p>
+                  ))}
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--muted))]">
+                    Billing clicked
+                  </p>
+                  {Object.entries(monetisation.surfaces.billing_clicked).map(
+                    ([surface, count]) => (
+                      <p key={surface} className="text-sm text-[rgb(var(--ink))]">
+                        {surface}: {count}
+                      </p>
+                    )
+                  )}
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-[rgb(var(--muted))]">
+                Counts are per event; checkout success is Stripe-confirmed when available.
+              </p>
+            </div>
+          </div>
+        )}
       </Section>
     </div>
   );

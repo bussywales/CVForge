@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { CREDIT_PACKS, formatGbp, type CreditPack } from "@/lib/billing/packs";
+import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type Props = {
   contextLabel?: string;
   returnTo?: string;
   compact?: boolean;
   onPurchasedHint?: string;
+  applicationId?: string;
 };
 
 type CheckoutState = {
@@ -56,17 +58,19 @@ export default function PackSelector({
   returnTo,
   compact,
   onPurchasedHint,
+  applicationId,
 }: Props) {
   const [state, setState] = useState<CheckoutState>({ status: "idle" });
 
   const startCheckout = async (packKey: CreditPack["key"]) => {
     setState({ status: "loading" });
+    logMonetisationClientEvent("checkout_started", applicationId ?? "", "billing");
     try {
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ packKey, returnTo }),
+        body: JSON.stringify({ packKey, returnTo, applicationId }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload?.url) {

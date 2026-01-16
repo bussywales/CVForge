@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { clearPendingAction, loadPendingAction } from "@/lib/billing/pending-action";
+import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type Props = {
   applicationId: string;
@@ -25,6 +26,7 @@ export default function AutopackResumeBanner({ applicationId }: Props) {
       purchased
     ) {
       setShow(true);
+      logMonetisationClientEvent("resume_banner_shown", applicationId, "applications");
     }
   }, [applicationId, searchParams]);
 
@@ -55,6 +57,7 @@ export default function AutopackResumeBanner({ applicationId }: Props) {
           onClick={() => {
             clearPendingAction();
             setShow(false);
+            logMonetisationClientEvent("resume_clicked", applicationId, "applications");
             router.push(resumeHref);
             window.dispatchEvent(
               new CustomEvent("cvf-resume-autopack", {

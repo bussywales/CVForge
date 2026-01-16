@@ -107,6 +107,8 @@
 - Check funnel counters populate (drafted/submitted/interview/offer/rejected/no response).
 - Ensure response rate shows a percentage or 0% when none.
 - Behaviour insights should show text or “Not enough data yet.”
+- Revenue funnel shows gate/billing/checkout/resume/autopack counts for 7d/30d or a calm empty state when no events.
+- Trigger a credit gate, click through to billing, complete checkout, and resume; refresh Insights and confirm funnel counts increase accordingly.
 
 ## Coach Mode (Insights)
 - Visit /app/insights and confirm Coach Mode shows weekly targets and a weakest-step card.

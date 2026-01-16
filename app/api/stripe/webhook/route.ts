@@ -130,6 +130,21 @@ export async function POST(request: Request) {
         reason: "stripe.checkout",
         ref: session.id,
       });
+      if (session.metadata?.application_id) {
+        await supabaseAdmin.from("application_activities").insert({
+          user_id: userId,
+          application_id: session.metadata.application_id,
+          type: "monetisation.checkout_success",
+          channel: null,
+          subject: "Checkout success",
+          body: JSON.stringify({
+            pack_key: pack.key,
+            mode: "payment",
+            return_to: session.metadata.return_to ?? null,
+          }),
+          occurred_at: new Date().toISOString(),
+        });
+      }
     }
 
     if (session.mode === "subscription" && plan) {
@@ -151,6 +166,21 @@ export async function POST(request: Request) {
         reason: "stripe.subscription",
         ref: session.id,
       });
+      if (session.metadata?.application_id) {
+        await supabaseAdmin.from("application_activities").insert({
+          user_id: userId,
+          application_id: session.metadata.application_id,
+          type: "monetisation.checkout_success",
+          channel: null,
+          subject: "Checkout success",
+          body: JSON.stringify({
+            plan_key: plan.key,
+            mode: "subscription",
+            return_to: session.metadata.return_to ?? null,
+          }),
+          occurred_at: new Date().toISOString(),
+        });
+      }
     }
   }
 

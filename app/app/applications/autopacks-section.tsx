@@ -18,6 +18,7 @@ export default function AutopacksSection({
 }: AutopacksSectionProps) {
   return (
     <Section
+      id="apply-autopacks"
       title="Autopacks"
       description="Generate tailored CVs, cover letters, and STAR answers."
       action={

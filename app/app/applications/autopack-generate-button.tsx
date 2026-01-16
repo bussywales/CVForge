@@ -11,6 +11,7 @@ import {
   clearPendingAction,
   savePendingAction,
 } from "@/lib/billing/pending-action";
+import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type AutopackGenerateButtonProps = {
   applicationId: string;
@@ -87,6 +88,12 @@ export default function AutopackGenerateButton({
           params.set("used", "0");
         }
 
+        logMonetisationClientEvent(
+          "autopack_generated",
+          applicationId,
+          "applications"
+        );
+
         router.push(
           `/app/applications/${applicationId}/autopacks/${autopackId}?${params.toString()}`
         );
@@ -125,6 +132,16 @@ export default function AutopackGenerateButton({
               returnTo: currentReturn,
               createdAt: Date.now(),
             });
+            logMonetisationClientEvent(
+              "gate_blocked",
+              applicationId,
+              "applications"
+            );
+            logMonetisationClientEvent(
+              "billing_clicked",
+              applicationId,
+              "applications"
+            );
             router.push(
               `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`
             );
@@ -137,6 +154,11 @@ export default function AutopackGenerateButton({
               returnTo: currentReturn,
               createdAt: Date.now(),
             });
+            logMonetisationClientEvent(
+              "gate_shown",
+              applicationId,
+              "applications"
+            );
             setShowGate(true);
             return;
           }
@@ -170,9 +192,16 @@ export default function AutopackGenerateButton({
           handleGenerate();
         }}
         onGoBilling={() =>
-          router.push(
-            `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`
-          )
+          {
+            logMonetisationClientEvent(
+              "billing_clicked",
+              applicationId,
+              "applications"
+            );
+            router.push(
+              `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`
+            );
+          }
         }
       />
     </div>

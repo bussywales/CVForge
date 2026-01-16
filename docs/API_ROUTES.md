@@ -249,7 +249,7 @@ Runtime: nodejs, force-dynamic.
 ## Billing (Stripe)
 POST /api/stripe/checkout
 Auth: required.
-Input: none (uses STRIPE_CREDITS_PRICE_ID).
+Input: JSON { mode: "payment"|"subscription", packKey?, planKey?, applicationId?, returnTo? }.
 Output: JSON { url } for Stripe Checkout.
 Errors: JSON { error } with 400/401/500.
 Runtime: nodejs.
@@ -260,6 +260,13 @@ Input: raw webhook payload; header stripe-signature.
 Output: JSON { received: true }.
 Errors: JSON { error } with 400/500.
 Runtime: nodejs.
+
+POST /api/monetisation/log
+Auth: required.
+Input: JSON { event: "gate_shown" | "gate_blocked" | "billing_clicked" | "checkout_started" | "checkout_success" | "resume_banner_shown" | "resume_clicked" | "autopack_generated", applicationId?: string, surface?: string, meta?: object }.
+Output: JSON { ok: true }.
+Errors: JSON { error } with 400/401/500.
+Runtime: nodejs, force-dynamic.
 
 ## Admin learning
 POST /api/admin/packs/publish

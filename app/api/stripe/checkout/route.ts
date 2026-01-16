@@ -27,6 +27,8 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({} as any));
   const packKey = typeof body?.packKey === "string" ? body.packKey : undefined;
   const returnTo = typeof body?.returnTo === "string" ? body.returnTo : null;
+  const applicationId =
+    typeof body?.applicationId === "string" ? body.applicationId : null;
   const mode = body?.mode === "subscription" ? "subscription" : "payment";
   const planKey = typeof body?.planKey === "string" ? body.planKey : undefined;
   const pack = getPackByKey(packKey) ?? CREDIT_PACKS[0];
@@ -84,6 +86,8 @@ export async function POST(request: Request) {
       pack_key: pack.key,
       plan_key: planKey ?? null,
       mode,
+      application_id: applicationId,
+      return_to: returnTo ?? undefined,
     },
   });
 
