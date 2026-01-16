@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.48a
+- Billing page now shows a subscription recommendation card under the hero with deterministic copy, Stripe checkout, and manage-portal access when subscribed.
+- Subscription CTAs disable when plan price IDs are missing with clear helper text and logging; checkout failures surface inline retry/dismiss with monetisation events.
+- Added a small subscription reco unit test and updated smoke tests for billing subscription flows.
+
 ## v0.7.45-hotfix
 - Guard Stripe checkout when price IDs are missing or mode is invalid, returning explicit JSON errors instead of silent failures.
 - Disable unavailable packs in billing/resume surfaces with helper text and logging, plus inline checkout failure banners with retry/dismiss.

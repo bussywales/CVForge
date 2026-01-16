@@ -4,9 +4,9 @@ import { getSupabaseUser } from "@/lib/data/supabase";
 import CreditActivityTable from "./credit-activity-table";
 import PackSelector from "./pack-selector";
 import { fetchBillingSettings, upsertBillingSettings } from "@/lib/data/billing";
-import { SUBSCRIPTION_PLANS } from "@/lib/billing/plans";
 import { recommendPack } from "@/lib/billing/recommendation";
 import { CREDIT_PACKS, formatGbp } from "@/lib/billing/packs";
+import { recommendSubscription } from "@/lib/billing/subscription-reco";
 import { createServerClient } from "@/lib/supabase/server";
 import { ensureReferralCode } from "@/lib/referrals";
 import CopyIconButton from "@/components/CopyIconButton";
@@ -14,6 +14,7 @@ import BillingEventLogger from "./billing-event-logger";
 import ProofChips from "./proof-chips";
 import RecommendedCta from "./recommended-cta";
 import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
+import BillingSubscriptionRecoCard from "./subscription-reco-card";
 
 export const dynamic = "force-dynamic";
 
@@ -90,6 +91,25 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const recommendedPack =
     CREDIT_PACKS.find((pack) => pack.key === recommendation.recommendedPack) ??
     CREDIT_PACKS[0];
+  const subscriptionRecoRaw = recommendSubscription({
+    credits,
+    activeApplications: appCount,
+    dueFollowups,
+    practiceBacklog,
+    autopackCount,
+  });
+  const subscriptionReco =
+    subscriptionRecoRaw.recommendedPlanKey || settings?.stripe_customer_id
+      ? {
+          ...subscriptionRecoRaw,
+          recommendedPlanKey: subscriptionRecoRaw.recommendedPlanKey ?? "monthly_30",
+          reasonKey: subscriptionRecoRaw.recommendedPlanKey
+            ? subscriptionRecoRaw.reasonKey
+            : "unknown",
+        }
+      : subscriptionRecoRaw;
+  const showSubscriptionRecoCard =
+    subscriptionReco.recommendedPlanKey !== null || Boolean(settings?.stripe_customer_id);
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -213,6 +233,15 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         </div>
       </Section>
 
+      {showSubscriptionRecoCard ? (
+        <BillingSubscriptionRecoCard
+          reco={subscriptionReco}
+          applicationId={latestApplicationId}
+          hasSubscription={Boolean(settings?.stripe_customer_id)}
+          returnTo="/app/billing"
+        />
+      ) : null}
+
       <Section title="Need more or less?" description="Secondary options if you prefer another size.">
         <PackSelector
           contextLabel="Other packs"
@@ -262,50 +291,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               <p>Autopacks generated: {autopackCount}</p>
               <p>Interviews/offers: {interviewCount}</p>
             </div>
-          </div>
-        </div>
-      </Section>
-
-      <Section
-        title="Subscription"
-        description="Optional monthly plan with auto-granted credits."
-      >
-        <div className="flex flex-col gap-3 rounded-2xl border border-black/10 bg-white/80 p-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
-              Status
-            </p>
-            <p className="text-sm font-semibold text-[rgb(var(--ink))]">
-              {settings?.subscription_status ?? "None"}
-            </p>
-            <p className="text-xs text-[rgb(var(--muted))]">
-              Monthly credits + optional safety net when you’re running low.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {SUBSCRIPTION_PLANS.slice(0, 1).map((plan) => (
-              <form key={plan.key} action="/api/stripe/checkout" method="POST">
-                <input type="hidden" name="mode" value="subscription" />
-                <input type="hidden" name="planKey" value={plan.key} />
-                <input type="hidden" name="returnTo" value="/app/billing" />
-                <button
-                  type="submit"
-                  className="rounded-full border border-black/10 bg-[rgb(var(--ink))] px-4 py-2 text-sm font-semibold text-white hover:bg-black"
-                >
-                  Start monthly credits ({plan.creditsPerMonth}/mo)
-                </button>
-              </form>
-            ))}
-            <form action="/api/stripe/portal" method="POST">
-              <input type="hidden" name="returnTo" value="/app/billing" />
-              <button
-                type="submit"
-                className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
-                disabled={!settings?.stripe_customer_id}
-              >
-                Manage in Stripe
-              </button>
-            </form>
           </div>
         </div>
       </Section>

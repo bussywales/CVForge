@@ -123,6 +123,10 @@
 - Recent credit activity renders without errors.
 - Start a subscription from /app/billing and ensure you are redirected to Stripe; manage portal link works when a customer exists.
 - Recommended pack shows with reasons; pack selector defaults to the recommended pack.
+- Subscription recommendation card appears for eligible users under the billing hero.
+- Subscription CTA disables with helper text if the plan env var is missing and logs `billing_plan_unavailable`.
+- Subscription checkout opens Stripe; return still lands on /app/billing.
+- Forcing a failed subscription checkout shows an inline banner with retry/dismiss.
 - Credit gate modal shows action name + ROI line; referral hint links to the billing referral anchor.
 - Returning with a pending action and `resume=1` shows the Resume Accelerator banner with a 3s countdown and auto-jump to the saved tab/anchor; manual Resume still works and logging stays clean.
 - Billing page shows only one primary purchase hero; alternate packs are secondary and the balance/usage row has no duplicate pack selector.
