@@ -13,6 +13,7 @@ import CopyIconButton from "@/components/CopyIconButton";
 import BillingEventLogger from "./billing-event-logger";
 import ProofChips from "./proof-chips";
 import RecommendedCta from "./recommended-cta";
+import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -135,11 +136,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
   return (
     <div className="space-y-6">
-      {searchParams?.success ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">
-          Payment received. Your credits will appear shortly.
-        </div>
-      ) : null}
+      <PostPurchaseSuccessBanner show={Boolean(searchParams?.success)} />
       {searchParams?.canceled ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
           Checkout was canceled. You can try again anytime.

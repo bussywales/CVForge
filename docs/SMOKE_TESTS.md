@@ -125,6 +125,7 @@
 - Credit gate modal shows action name + ROI line; referral hint links to the billing referral anchor.
 - After checkout return with a pending action, resume banner shows and resumes on click; logging does not error.
 - Billing page shows only one primary purchase hero; alternate packs are secondary and the balance/usage row has no duplicate pack selector.
+- After checkout success with a pending action, a “Top up successful — resume” banner appears; Resume returns to the correct tab/anchor; dismiss hides it until the next purchase.
 
 ## Referrals
 - Fetch your referral link on /app/billing; copy and share.
