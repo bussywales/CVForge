@@ -150,69 +150,83 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       />
 
       <Section
-        title="Recommended for you"
-        description="Personalised top-up based on your current workload."
+        title="Top up to finish your next applications"
+        description={`Based on your current workload: ${appCount} active application${appCount === 1 ? "" : "s"}.`}
       >
-        <div className="space-y-3 rounded-2xl border border-black/10 bg-white/80 p-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <p className="text-sm font-semibold text-[rgb(var(--ink))]">
-                {recommendedPack.name} · {formatGbp(recommendedPack.priceGbp)} ·{" "}
-                {recommendedPack.credits} credits
-              </p>
-              <p className="text-xs text-[rgb(var(--muted))]">
-                Confidence: {recommendation.confidence}
-              </p>
+        <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
+          <div className="space-y-3 rounded-2xl border border-black/10 bg-white/80 p-5">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-lg font-semibold text-[rgb(var(--ink))]">
+                  {recommendedPack.name}
+                </p>
+                <p className="text-sm text-[rgb(var(--muted))]">
+                  {recommendedPack.credits} credits · {formatGbp(recommendedPack.priceGbp)}
+                </p>
+              </div>
+              <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-800">
+                Recommended
+              </span>
             </div>
             <PackSelector
-              contextLabel="Top up applications"
+              contextLabel="Buy now"
               returnTo="/app/billing"
               compact
               applicationId={latestApplicationId ?? undefined}
               recommendedPackKey={recommendation.recommendedPack}
+              packs={[recommendedPack]}
             />
-          </div>
-          <div className="grid gap-3 md:grid-cols-2">
-            <div className="space-y-1">
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
-                Why this pack
-              </p>
-              <ul className="list-disc space-y-1 pl-5 text-sm text-[rgb(var(--muted))]">
-                {recommendation.reasons.map((reason) => (
-                  <li key={reason}>{reason}</li>
-                ))}
-              </ul>
-              <div className="mt-2 space-y-1 text-xs text-[rgb(var(--muted))]">
-                <p className="font-semibold text-[rgb(var(--ink))]">
-                  What you get immediately
-                </p>
-                <p>Generate tailored CV + cover letter</p>
-                <p>Download Application Kit ZIP</p>
-                <p>Export Interview Pack + Answer Pack</p>
-              </div>
+            <p className="text-xs text-[rgb(var(--muted))]">
+              Resume your last action immediately after checkout.
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {recommendation.reasons.map((reason) => (
+                <span
+                  key={reason}
+                  className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700"
+                >
+                  {reason}
+                </span>
+              ))}
             </div>
-            <div className="space-y-2 rounded-2xl border border-black/10 bg-slate-50 p-3 text-xs text-[rgb(var(--muted))]">
+          </div>
+          <div className="space-y-3 rounded-2xl border border-black/10 bg-white/70 p-5">
+            <div>
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+                Your next steps with this pack
+              </p>
+              <ul className="mt-2 space-y-1 text-sm text-[rgb(var(--muted))]">
+                <li>Generate Autopack(s)</li>
+                <li>Export Interview + Answer Pack</li>
+                <li>Download Application Kit, submit, and schedule follow-up</li>
+              </ul>
+            </div>
+            <div className="space-y-1 rounded-2xl border border-black/10 bg-slate-50 p-3 text-xs text-[rgb(var(--muted))]">
               <p className="text-sm font-semibold text-[rgb(var(--ink))]">
                 Trust & safeguards
               </p>
-              <p>Deterministic by default; you approve every output.</p>
-              <p>Blocked job sites? Paste the job text safely.</p>
-              <p>ATS-minimal exports always available.</p>
+              <p>You approve every output.</p>
+              <p>Blocked job sites? Paste job text safely.</p>
+              <p>ATS-minimal export always available.</p>
             </div>
           </div>
         </div>
       </Section>
 
+      <Section title="Choose a different pack" description="Secondary options if you prefer another size.">
+        <PackSelector
+          contextLabel="Other packs"
+          returnTo="/app/billing"
+          compact
+          applicationId={latestApplicationId ?? undefined}
+          packs={CREDIT_PACKS.filter((pack) => pack.key !== recommendation.recommendedPack)}
+          compactCards
+        />
+      </Section>
+
       <Section
-        title="Billing & Credits"
-        description="Credits are used to generate new autopacks."
-        action={
-          <PackSelector
-            contextLabel="Top up applications"
-            returnTo="/app/billing"
-            compact
-          />
-        }
+        title="Balance & usage"
+        description="Credits power Autopacks, Interview Pack, Answer Pack, and Application Kits."
       >
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-black/10 bg-white/70 p-5">
@@ -231,8 +245,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               What 1 credit does
             </p>
             <p className="mt-2 text-sm text-[rgb(var(--muted))]">
-              1 credit generates a tailored CV + cover letter + STAR answers for one
-              application.
+              1 credit generates a tailored CV + cover letter + STAR answers for one application.
             </p>
           </div>
           <div className="rounded-2xl border border-black/10 bg-white/70 p-5">
@@ -259,6 +272,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             </p>
             <p className="text-sm font-semibold text-[rgb(var(--ink))]">
               {settings?.subscription_status ?? "None"}
+            </p>
+            <p className="text-xs text-[rgb(var(--muted))]">
+              Auto credits each month when active.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -312,7 +328,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             });
           }}
         >
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 text-sm font-semibold text-[rgb(var(--ink))]">
               <input
                 type="checkbox"
@@ -342,17 +358,16 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 </option>
               ))}
             </select>
+            <button
+              type="submit"
+              className="rounded-full border border-black/10 bg-[rgb(var(--ink))] px-4 py-2 text-sm font-semibold text-white hover:bg-black"
+            >
+              Save
+            </button>
           </div>
           <p className="text-xs text-[rgb(var(--muted))]">
-            No background charges; you’ll be redirected to checkout when auto
-            top-up is triggered.
+            No background charges; you’ll be redirected to checkout when auto top-up is triggered.
           </p>
-          <button
-            type="submit"
-            className="rounded-full border border-black/10 bg-[rgb(var(--ink))] px-4 py-2 text-sm font-semibold text-white hover:bg-black"
-          >
-            Save settings
-          </button>
         </form>
       </Section>
 
@@ -367,20 +382,22 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               <p className="text-sm font-semibold text-[rgb(var(--ink))]">
                 Your invite link
               </p>
-              <p className="break-all rounded-lg border border-black/10 bg-white px-3 py-2 text-sm">
-                {`${(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(
-                  /\/$/,
-                  ""
-                )}/auth/signup?ref=${referral.code}`}
-              </p>
-              <CopyIconButton
-                text={`${(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(
-                  /\/$/,
-                  ""
-                )}/auth/signup?ref=${referral.code}`}
-                className="mt-2"
-                iconOnly
-              />
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="flex-1 break-all rounded-lg border border-black/10 bg-white px-3 py-2 text-sm">
+                  {`${(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(
+                    /\/$/,
+                    ""
+                  )}/auth/signup?ref=${referral.code}`}
+                </p>
+                <CopyIconButton
+                  text={`${(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(
+                    /\/$/,
+                    ""
+                  )}/auth/signup?ref=${referral.code}`}
+                  className="shrink-0"
+                  iconOnly
+                />
+              </div>
               <p className="text-xs text-[rgb(var(--muted))]">
                 Copy and share. Credits apply once per new user.
               </p>

@@ -124,6 +124,7 @@
 - Recommended pack shows with reasons; pack selector defaults to the recommended pack.
 - Credit gate modal shows action name + ROI line; referral hint links to the billing referral anchor.
 - After checkout return with a pending action, resume banner shows and resumes on click; logging does not error.
+- Billing page shows only one primary purchase hero; alternate packs are secondary and the balance/usage row has no duplicate pack selector.
 
 ## Referrals
 - Fetch your referral link on /app/billing; copy and share.

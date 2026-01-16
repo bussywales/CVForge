@@ -11,6 +11,8 @@ type Props = {
   onPurchasedHint?: string;
   applicationId?: string;
   recommendedPackKey?: CreditPack["key"];
+  packs?: CreditPack[];
+  compactCards?: boolean;
 };
 
 type CheckoutState = {
@@ -21,12 +23,18 @@ type CheckoutState = {
 function PackCard({
   pack,
   onSelect,
+  compact,
 }: {
   pack: CreditPack;
   onSelect: (key: CreditPack["key"]) => void;
+  compact?: boolean;
 }) {
   return (
-    <div className="flex flex-1 flex-col gap-2 rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm">
+    <div
+      className={`flex flex-1 flex-col gap-2 rounded-2xl border border-black/10 bg-white/80 shadow-sm ${
+        compact ? "p-3" : "p-4"
+      }`}
+    >
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-[rgb(var(--ink))]">
@@ -46,7 +54,9 @@ function PackCard({
       <button
         type="button"
         onClick={() => onSelect(pack.key)}
-        className="inline-flex items-center justify-center rounded-full border border-black/10 bg-[rgb(var(--ink))] px-4 py-2 text-sm font-semibold text-white hover:bg-black"
+        className={`inline-flex items-center justify-center rounded-full border border-black/10 bg-[rgb(var(--ink))] text-sm font-semibold text-white hover:bg-black ${
+          compact ? "px-3 py-2" : "px-4 py-2"
+        }`}
       >
         Buy {pack.credits} credits
       </button>
@@ -61,6 +71,8 @@ export default function PackSelector({
   onPurchasedHint,
   applicationId,
   recommendedPackKey,
+  packs,
+  compactCards,
 }: Props) {
   const [state, setState] = useState<CheckoutState>({ status: "idle" });
 
@@ -107,7 +119,7 @@ export default function PackSelector({
           compact ? "flex-col md:flex-row" : "flex-col lg:flex-row"
         }`}
       >
-        {[...CREDIT_PACKS]
+        {[...(packs ?? CREDIT_PACKS)]
           .sort((a, b) => {
             if (!recommendedPackKey) return 0;
             if (a.key === recommendedPackKey) return -1;
@@ -115,7 +127,12 @@ export default function PackSelector({
             return 0;
           })
           .map((pack) => (
-          <PackCard key={pack.key} pack={pack} onSelect={startCheckout} />
+          <PackCard
+            key={pack.key}
+            pack={pack}
+            onSelect={startCheckout}
+            compact={compactCards}
+          />
         ))}
       </div>
       {onPurchasedHint ? (
