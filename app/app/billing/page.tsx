@@ -12,6 +12,7 @@ import { ensureReferralCode } from "@/lib/referrals";
 import CopyIconButton from "@/components/CopyIconButton";
 import BillingEventLogger from "./billing-event-logger";
 import ProofChips from "./proof-chips";
+import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 export const dynamic = "force-dynamic";
 
@@ -155,21 +156,16 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         description={`Based on your current workload: ${appCount} active application${appCount === 1 ? "" : "s"}.`}
       >
         <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-6 shadow-sm">
+          <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/70 p-6 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
                   Recommended
                 </p>
-                <p className="text-xl font-semibold text-[rgb(var(--ink))]">
-                  {recommendedPack.name}
+                <p className="text-2xl font-semibold text-[rgb(var(--ink))]">
+                  {recommendedPack.name} • {formatGbp(recommendedPack.priceGbp)}
                 </p>
                 <p className="text-sm text-[rgb(var(--muted))]">
-                  {recommendedPack.credits} credits · {formatGbp(recommendedPack.priceGbp)}
-                </p>
-              </div>
-              <div className="text-right text-xs text-[rgb(var(--muted))]">
-                <p className="font-semibold text-[rgb(var(--ink))]">
                   {recommendedPack.credits} credits · enough for{" "}
                   {appCount > 0
                     ? `${Math.min(appCount, recommendedPack.credits)} application${
@@ -177,60 +173,68 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                       }`
                     : "your next 1–3 applications"}
                 </p>
-                <p>
-                  Now: {credits} → After: {credits + recommendedPack.credits}
-                </p>
+              </div>
+              <div className="rounded-xl border border-emerald-200 bg-white px-3 py-2 text-xs text-[rgb(var(--ink))] shadow-sm">
+                Now: {credits} → After: {credits + recommendedPack.credits}
               </div>
             </div>
-            <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-[rgb(var(--ink))]">
-                  Top up with {recommendedPack.name}
-                </div>
-                <PackSelector
-                  contextLabel={undefined}
-                  returnTo="/app/billing"
-                  compact
-                  applicationId={latestApplicationId ?? undefined}
-                  recommendedPackKey={recommendation.recommendedPack}
-                  packs={[recommendedPack]}
-                />
-              </div>
-              <p className="mt-2 text-xs text-[rgb(var(--muted))]">
-                You’ll return to your application and continue where you left off.
-              </p>
-              <ProofChips reasons={recommendation.reasons} />
-              <div className="mt-3 flex flex-wrap gap-2 text-xs text-[rgb(var(--muted))]">
-                <span className="flex items-center gap-1 rounded-full bg-white px-3 py-1">
-                  ✓ Autopacks
-                </span>
-                <span className="flex items-center gap-1 rounded-full bg-white px-3 py-1">
-                  ✓ Interview Pack
-                </span>
-                <span className="flex items-center gap-1 rounded-full bg-white px-3 py-1">
-                  ✓ Answer Pack
-                </span>
-              </div>
+            <button
+              type="button"
+              onClick={async () => {
+                if (latestApplicationId) {
+                  logMonetisationClientEvent("checkout_started", latestApplicationId, "billing", {
+                    packKey: recommendedPack.key,
+                  });
+                }
+                try {
+                  const response = await fetch("/api/stripe/checkout", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    credentials: "include",
+                    body: JSON.stringify({
+                      packKey: recommendedPack.key,
+                      returnTo: "/app/billing",
+                      applicationId: latestApplicationId ?? undefined,
+                    }),
+                  });
+                  const payload = await response.json().catch(() => ({}));
+                  if (payload?.url) {
+                    window.location.href = payload.url as string;
+                  }
+                } catch {
+                  /* ignore best-effort */
+                }
+              }}
+              className="w-full rounded-full bg-[rgb(var(--accent))] px-4 py-3 text-sm font-semibold text-white shadow hover:bg-[rgb(var(--accent-strong))]"
+            >
+              Top up {formatGbp(recommendedPack.priceGbp)} ({recommendedPack.name})
+            </button>
+            <p className="text-xs text-[rgb(var(--muted))]">
+              You’ll return and resume where you left off.
+            </p>
+            <ProofChips reasons={recommendation.reasons} />
+            <div className="rounded-2xl border border-emerald-100 bg-white px-3 py-2 text-xs text-[rgb(var(--muted))]">
+              Includes: Autopacks · Interview Pack · Answer Pack
             </div>
           </div>
           <div className="space-y-3 rounded-2xl border border-black/10 bg-white/70 p-5">
             <div>
               <p className="text-sm font-semibold text-[rgb(var(--ink))]">
-                Your next steps with this pack
+                What you can do next
               </p>
               <ul className="mt-2 space-y-1 text-sm text-[rgb(var(--muted))]">
                 <li>Generate Autopack(s)</li>
                 <li>Export Interview + Answer Pack</li>
-                <li>Download Application Kit, submit, and schedule follow-up</li>
+                <li>Download Application Kit, submit, schedule follow-up</li>
               </ul>
             </div>
-            <div className="space-y-1 rounded-2xl border border-black/10 bg-slate-50 p-3 text-xs text-[rgb(var(--muted))]">
+            <div className="space-y-1 rounded-2xl border border-black/10 bg-slate-50 p-3 text-[11px] text-[rgb(var(--muted))]">
               <p className="text-sm font-semibold text-[rgb(var(--ink))]">
                 Trust & safeguards
               </p>
               <p>You approve every output.</p>
               <p>Blocked job sites? Paste job text safely.</p>
-              <p>ATS-minimal export always available.</p>
+              <p>ATS-minimal export available anytime.</p>
             </div>
           </div>
         </div>
