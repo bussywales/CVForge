@@ -17,11 +17,14 @@ import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
 import BillingSubscriptionRecoCard from "./subscription-reco-card";
 import CompareCard from "./compare-card";
 import { getBillingOfferComparison } from "@/lib/billing/compare";
+import BillingDiagnostics from "./billing-diagnostics";
+import { resolvePriceIdForPack } from "@/lib/billing/packs";
+import { resolvePriceIdForPlan } from "@/lib/billing/plans";
 
 export const dynamic = "force-dynamic";
 
 type BillingPageProps = {
-  searchParams?: { success?: string; canceled?: string };
+  searchParams?: { success?: string; canceled?: string; diag?: string };
 };
 
 export default async function BillingPage({ searchParams }: BillingPageProps) {
@@ -121,6 +124,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     recommendedPlanKey: subscriptionReco.recommendedPlanKey ?? undefined,
     recommendedPackKey: recommendedPack.key,
   });
+  const anyPackMissing = CREDIT_PACKS.some((pack) => !resolvePriceIdForPack(pack.key));
+  const anySubMissing = !resolvePriceIdForPlan("monthly_30") || !resolvePriceIdForPlan("monthly_80");
+  const diagParam = searchParams?.diag === "1";
+  const isProd = process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
+  const showDiagnostics = (anyPackMissing || anySubMissing) && (diagParam || !isProd);
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -253,6 +261,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         recommendedPack={recommendedPack}
         returnTo="/app/billing"
       />
+
+      {showDiagnostics ? <BillingDiagnostics show={true} /> : null}
 
       {showSubscriptionRecoCard ? (
         <BillingSubscriptionRecoCard
