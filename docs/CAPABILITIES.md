@@ -79,6 +79,9 @@ Credit gates, checkout starts/successes, resume clicks, and autopack completions
 ## Marketing site
 A public landing page explains the 20-minute flow (job advert → evidence → STAR → kit → submit), shows product tour cards, transparent pricing teaser, FAQ, and an optional AI Boost note. CTAs deep-link to signup/login or billing depending on auth.
 
+## Dashboard v2
+Signed-in users land on the Activation Command Centre: greeting with credits, top next-best actions, a compact active applications list with deep links into tabs/anchors, a coach nudge, and a funnel snapshot with response rate and a shortcut to Insights.
+
 ## Referrals
 Shareable referral link gives +3 credits to inviter and invitee once on signup; redeeming is idempotent and self-referrals are blocked.
 

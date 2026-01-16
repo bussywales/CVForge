@@ -49,6 +49,7 @@ export type ApplicationRecord = {
   outcome_at: string | null;
   outcome_note: string | null;
   created_at: string;
+  updated_at?: string | null;
 };
 
 export type ApplicationInsert = Pick<

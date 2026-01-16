@@ -135,3 +135,10 @@
 ## Landing page
 - Visit / (marketing landing) and confirm hero, how-it-works, product tour, pricing teaser, FAQ, and Optional AI Boost sections render cleanly.
 - “See how it works” scrolls to the section; primary CTA goes to signup (or application create when signed in); pricing CTA deep-links to billing/signup.
+
+## Dashboard v2
+- Visit /app after login: header shows credits and a Continue/Create CTA.
+- Next best actions list up to five items with Go links to the correct application tab/anchor.
+- Active applications shows recent roles with status and next action; Continue links to Apply tab anchor.
+- Coach nudge renders weakest step or “on track” with a Fix button.
+- Funnel snapshot shows counts or 0s and links to Insights.
