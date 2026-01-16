@@ -125,6 +125,25 @@ export function addBusinessDays(date: Date, days: number) {
   return result;
 }
 
+export function formatRelativeTime(value: string | number | Date) {
+  const target =
+    typeof value === "string" || typeof value === "number"
+      ? new Date(value)
+      : value;
+  const delta = Date.now() - target.getTime();
+  const abs = Math.abs(delta);
+  const minutes = Math.round(abs / (1000 * 60));
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) {
+    return `${hours}h ago`;
+  }
+  const days = Math.round(hours / 24);
+  return `${days}d ago`;
+}
+
 function parseDateValue(value: string | null) {
   if (!value) {
     return null;

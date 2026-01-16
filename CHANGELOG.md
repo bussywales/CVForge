@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.7.43
+- Applications Command Centre: queue view with next-action CTA, readiness score, follow-up badges, filters/tabs, and search/sort by urgency.
+
 ## v0.7.42
 - Post-purchase completion nudges: success banner renders on billing and application surfaces with session guard; resume completion events/logs extended to new flows.
 

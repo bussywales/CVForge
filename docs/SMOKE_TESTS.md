@@ -154,3 +154,9 @@
 - Attempt Application Kit download with 0 credits → billing CTA; after purchase, resume banner resumes the download.
 - Attempt Answer Pack generation in Drill Mode with 0 credits → billing CTA; after purchase, resume banner resumes generation.
 - With credits available, soft gate/modal appears (or proceeds) and the action succeeds.
+
+## Applications Command Centre (v0.7.43)
+- /app/applications shows Queue with next-action CTA and readiness 0–5.
+- Tabs filter between Queue/Drafts/Submitted/Interview/Closed.
+- Search finds job title/company and preserves filters.
+- CTA deep-links into application detail tab + anchor (Apply/Evidence/Interview/Activity).
