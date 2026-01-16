@@ -21,6 +21,9 @@ import {
 import { logCompletion, logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { getActionRoiLine } from "@/lib/billing/action-roi";
 import SubscriptionGateNudge from "@/app/app/billing/subscription-gate-nudge";
+import { getBillingOfferComparison } from "@/lib/billing/compare";
+import CompareMini from "@/app/app/billing/compare-mini";
+import { CREDIT_PACKS } from "@/lib/billing/packs";
 
 type InterviewPackPanelProps = {
   applicationId: string;
@@ -30,6 +33,7 @@ type InterviewPackPanelProps = {
   returnTo?: string;
   recommendedPlanKey?: "monthly_30" | "monthly_80" | null;
   hasSubscription?: boolean;
+  recommendedPackKey?: string | null;
 };
 
 type ToastState = { message: string; variant?: "success" | "error" };
@@ -99,6 +103,7 @@ export default function InterviewPackPanel({
   returnTo,
   recommendedPlanKey,
   hasSubscription,
+  recommendedPackKey,
 }: InterviewPackPanelProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -752,6 +757,25 @@ export default function InterviewPackPanel({
               onSubscribedStart={() => setShowGate(false)}
             />
           ) : null
+        }
+        comparison={
+          <CompareMini
+            comparison={getBillingOfferComparison({
+              credits: balance,
+              activeApplications: 0,
+              pendingAction: true,
+              hasSubscription,
+              recommendedPlanKey: recommendedPlanKey ?? undefined,
+              recommendedPackKey: recommendedPackKey ?? CREDIT_PACKS[0].key,
+            })}
+            applicationId={applicationId}
+            pack={
+              CREDIT_PACKS.find((p) => p.key === (recommendedPackKey ?? CREDIT_PACKS[0].key)) ??
+              CREDIT_PACKS[0]
+            }
+            returnTo={resumeReturnTo}
+            surface="gate"
+          />
         }
       />
 

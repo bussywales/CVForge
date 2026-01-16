@@ -436,6 +436,7 @@ export default async function ApplicationPage({
   const hasSubscription =
     Boolean(billingSettings?.subscription_status) &&
     billingSettings?.subscription_status !== "canceled";
+  const recommendedGatePackKey = credits >= 20 ? "pro" : "starter";
 
   const checklistFields = [
     "cv_exported_at",
@@ -771,6 +772,7 @@ export default async function ApplicationPage({
                 returnTo={`/app/applications/${application.id}?tab=apply#application-kit`}
                 recommendedPlanKey={recommendedSubscriptionPlan}
                 hasSubscription={hasSubscription}
+                recommendedPackKey={recommendedGatePackKey}
               />
               </Section>
             </div>
@@ -785,6 +787,7 @@ export default async function ApplicationPage({
               returnTo={`/app/applications/${application.id}?tab=apply#apply-autopacks`}
               recommendedPlanKey={recommendedSubscriptionPlan}
               hasSubscription={hasSubscription}
+              recommendedPackKey={recommendedGatePackKey}
             />
             </div>
           </div>
@@ -890,6 +893,7 @@ export default async function ApplicationPage({
                 returnTo={`/app/applications/${application.id}?tab=interview#interview-pack`}
                 recommendedPlanKey={recommendedSubscriptionPlan}
                 hasSubscription={hasSubscription}
+                recommendedPackKey={recommendedGatePackKey}
               />
               <div id="answer-pack" />
             </Section>

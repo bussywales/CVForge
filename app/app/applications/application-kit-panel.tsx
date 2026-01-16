@@ -12,6 +12,9 @@ import { addResumeParam, savePendingAction, buildReturnToUrl } from "@/lib/billi
 import { logCompletion, logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { getActionRoiLine } from "@/lib/billing/action-roi";
 import SubscriptionGateNudge from "@/app/app/billing/subscription-gate-nudge";
+import CompareMini from "@/app/app/billing/compare-mini";
+import { getBillingOfferComparison } from "@/lib/billing/compare";
+import { CREDIT_PACKS } from "@/lib/billing/packs";
 
 type ExportState = {
   status: "idle" | "loading" | "error";
@@ -44,6 +47,7 @@ type SmartApplyPanelProps = {
   returnTo?: string;
   recommendedPlanKey?: "monthly_30" | "monthly_80" | null;
   hasSubscription?: boolean;
+  recommendedPackKey?: string | null;
   updateClosingDateAction: (formData: FormData) => Promise<ActionState>;
   updateSourcePlatformAction: (formData: FormData) => Promise<ActionState>;
   setSubmittedAction: (formData: FormData) => Promise<ActionState>;
@@ -83,6 +87,7 @@ export default function ApplicationKitPanel({
   returnTo,
   recommendedPlanKey,
   hasSubscription,
+  recommendedPackKey,
   updateClosingDateAction,
   updateSourcePlatformAction,
   setSubmittedAction,
@@ -651,6 +656,25 @@ export default function ApplicationKitPanel({
               onSubscribedStart={() => setShowGate(false)}
             />
           ) : null
+        }
+        comparison={
+          <CompareMini
+            comparison={getBillingOfferComparison({
+              credits: balance,
+              activeApplications: 0,
+              pendingAction: true,
+              hasSubscription,
+              recommendedPlanKey: recommendedPlanKey ?? undefined,
+              recommendedPackKey: recommendedPackKey ?? CREDIT_PACKS[0].key,
+            })}
+            applicationId={applicationId}
+            pack={
+              CREDIT_PACKS.find((p) => p.key === (recommendedPackKey ?? CREDIT_PACKS[0].key)) ??
+              CREDIT_PACKS[0]
+            }
+            returnTo={resumeReturnTo}
+            surface="gate"
+          />
         }
       />
 

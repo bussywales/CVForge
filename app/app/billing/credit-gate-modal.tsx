@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import Button from "@/components/Button";
 
 type Props = {
@@ -15,6 +16,7 @@ type Props = {
   reasons?: string[];
   referralHref?: string;
   subscriptionNudge?: React.ReactNode;
+  comparison?: React.ReactNode;
 };
 
 export default function CreditGateModal({
@@ -30,6 +32,7 @@ export default function CreditGateModal({
   reasons,
   referralHref,
   subscriptionNudge,
+  comparison,
 }: Props) {
   if (!open) return null;
   return (
@@ -86,6 +89,7 @@ export default function CreditGateModal({
           </button>
         </div>
         {subscriptionNudge ? <div className="mt-3">{subscriptionNudge}</div> : null}
+        {comparison ? <div className="mt-3">{comparison}</div> : null}
       </div>
     </div>
   );

@@ -130,6 +130,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Subscription checkout opens Stripe; return still lands on /app/billing.
 - Forcing a failed subscription checkout shows an inline banner with retry/dismiss.
 - In credit gates (Autopack/Interview Pack/Application Kit/Answer Pack), the subscription nudge appears when recommended and starts subscription checkout with the same return link.
+- Billing and gate modals show the Top up vs Subscribe comparison card; recommended column is highlighted and CTAs start the correct checkout flows.
 - Credit gate modal shows action name + ROI line; referral hint links to the billing referral anchor.
 - Returning with a pending action and `resume=1` shows the Resume Accelerator banner with a 3s countdown and auto-jump to the saved tab/anchor; manual Resume still works and logging stays clean.
 - Billing page shows only one primary purchase hero; alternate packs are secondary and the balance/usage row has no duplicate pack selector.

@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.50
+- Added deterministic Top-up vs Subscription compare blocks on Billing and gate modals with recommended styling, availability guards, and monetisation logging.
+- New comparison helper chooses subscription vs top-up based on cadence/availability, driving consistent CTAs across billing and soft gates.
+- Soft gates now show compact compare with resume-aware checkout; added helper tests for comparison logic.
+
 ## v0.7.49
 - Subscription checkout now triggers the same Resume Accelerator as credit top-ups: success detects subscription returns, shows a subscription-specific banner, and auto-resumes pending actions with resume=1.
 - Added subscription post-purchase logging events and completion watchdog hooks, plus a resume URL helper test.

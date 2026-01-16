@@ -15,6 +15,8 @@ import ProofChips from "./proof-chips";
 import RecommendedCta from "./recommended-cta";
 import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
 import BillingSubscriptionRecoCard from "./subscription-reco-card";
+import CompareCard from "./compare-card";
+import { getBillingOfferComparison } from "@/lib/billing/compare";
 
 export const dynamic = "force-dynamic";
 
@@ -110,6 +112,15 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       : subscriptionRecoRaw;
   const showSubscriptionRecoCard =
     subscriptionReco.recommendedPlanKey !== null || Boolean(settings?.stripe_customer_id);
+  const hasSubscription =
+    Boolean(settings?.subscription_status) && settings?.subscription_status !== "canceled";
+  const comparison = getBillingOfferComparison({
+    credits,
+    activeApplications: appCount,
+    hasSubscription,
+    recommendedPlanKey: subscriptionReco.recommendedPlanKey ?? undefined,
+    recommendedPackKey: recommendedPack.key,
+  });
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -235,6 +246,13 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           </div>
         </div>
       </Section>
+
+      <CompareCard
+        comparison={comparison}
+        applicationId={latestApplicationId}
+        recommendedPack={recommendedPack}
+        returnTo="/app/billing"
+      />
 
       {showSubscriptionRecoCard ? (
         <BillingSubscriptionRecoCard

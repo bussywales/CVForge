@@ -10,6 +10,7 @@ type AutopacksSectionProps = {
   returnTo?: string;
   recommendedPlanKey?: "monthly_30" | "monthly_80" | null;
   hasSubscription?: boolean;
+  recommendedPackKey?: string | null;
 };
 
 export default function AutopacksSection({
@@ -19,6 +20,7 @@ export default function AutopacksSection({
   returnTo,
   recommendedPlanKey,
   hasSubscription,
+  recommendedPackKey,
 }: AutopacksSectionProps) {
   return (
     <Section
@@ -32,6 +34,7 @@ export default function AutopacksSection({
           returnTo={returnTo}
           recommendedPlanKey={recommendedPlanKey}
           hasSubscription={hasSubscription}
+          recommendedPackKey={recommendedPackKey}
         />
       }
     >
