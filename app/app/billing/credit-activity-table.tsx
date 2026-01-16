@@ -61,7 +61,6 @@ export default function CreditActivityTable({ rows }: CreditActivityTableProps) 
                   {row.ref ? (
                     <CopyIconButton
                       text={row.ref}
-                      className="px-2"
                       label="Copy ref"
                       iconOnly
                     />

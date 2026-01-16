@@ -7,6 +7,7 @@ import Button from "@/components/Button";
 import { usePathname, useSearchParams } from "next/navigation";
 import CreditGateModal from "@/app/app/billing/credit-gate-modal";
 import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
+import { getActionRoiLine } from "@/lib/billing/action-roi";
 import {
   clearPendingAction,
   savePendingAction,
@@ -187,6 +188,8 @@ export default function AutopackGenerateButton({
         cost={1}
         balance={balance}
         actionLabel="Generate Autopack"
+        roiLine={getActionRoiLine("autopack.generate")}
+        referralHref="/app/billing#refer"
         onContinue={() => {
           setShowGate(false);
           handleGenerate();

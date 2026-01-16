@@ -34,7 +34,7 @@ export default function CopyIconButton({
       aria-label={label ?? "Copy"}
       className={`inline-flex items-center gap-1 ${
         iconOnly
-          ? "rounded-md p-1 text-[16px] text-[rgb(var(--muted))] transition hover:text-[rgb(var(--ink))]"
+          ? "p-0 text-[rgb(var(--muted))] transition hover:text-[rgb(var(--ink))]"
           : "rounded-full border border-black/10 bg-white px-2.5 py-1 text-xs font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
       } ${className ?? ""}`}
     >
@@ -43,7 +43,7 @@ export default function CopyIconButton({
       ) : (
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          className="h-[16px] w-[16px]"
+          className="h-[18px] w-[18px]"
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"

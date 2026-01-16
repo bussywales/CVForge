@@ -26,6 +26,7 @@ import {
   buildReturnToUrl,
 } from "@/lib/billing/pending-action";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { getActionRoiLine } from "@/lib/billing/action-roi";
 
 type DrillQuestion = {
   questionKey: string;
@@ -1099,6 +1100,8 @@ export default function DrillClient({
                 cost={1}
                 balance={balance}
                 actionLabel="Generate Answer Pack"
+                roiLine={getActionRoiLine("answerPack.generate")}
+                referralHref="/app/billing#refer"
                 onContinue={() => {
                   setShowGate(false);
                   handleGenerateAnswer(pendingVariant);

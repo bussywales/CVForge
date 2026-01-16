@@ -486,6 +486,18 @@ export default async function ApplicationPage({
         ← Back to applications
       </Link>
       <AutopackResumeBanner applicationId={application.id} />
+      {credits <= 2 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          Low credits.{" "}
+          <Link
+            href={`/app/billing?returnTo=${encodeURIComponent(`/app/applications/${application.id}?tab=${activeTab}`)}`}
+            className="font-semibold underline-offset-2 hover:underline"
+          >
+            Top up to keep moving
+          </Link>
+          .
+        </div>
+      ) : null}
 
       {searchParams?.created ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700">

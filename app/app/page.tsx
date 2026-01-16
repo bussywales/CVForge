@@ -123,6 +123,14 @@ export default async function AppPage() {
             <span className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] shadow-sm">
               Credits: {credits}
             </span>
+            {credits <= 2 ? (
+              <Link
+                href={`/app/billing?returnTo=${encodeURIComponent("/app")}`}
+                className="rounded-full border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              >
+                Low credits · Top up
+              </Link>
+            ) : null}
             <Link
               href={primaryCta}
               className="rounded-full bg-[rgb(var(--accent))] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[rgb(var(--accent-strong))]"

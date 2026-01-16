@@ -5,9 +5,12 @@ import CreditActivityTable from "./credit-activity-table";
 import PackSelector from "./pack-selector";
 import { fetchBillingSettings, upsertBillingSettings } from "@/lib/data/billing";
 import { SUBSCRIPTION_PLANS } from "@/lib/billing/plans";
+import { recommendPack } from "@/lib/billing/recommendation";
+import { CREDIT_PACKS, formatGbp } from "@/lib/billing/packs";
 import { createServerClient } from "@/lib/supabase/server";
 import { ensureReferralCode } from "@/lib/referrals";
 import CopyIconButton from "@/components/CopyIconButton";
+import BillingEventLogger from "./billing-event-logger";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +55,38 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         .eq("user_id", user.id)
         .in("outcome_status", ["interview_scheduled", "interview_completed", "offer"])
     ).count ?? 0;
+  const dueFollowups =
+    (
+      await supabase
+        .from("applications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .lte("next_action_due", new Date().toISOString())
+    ).count ?? 0;
+  const practiceBacklog =
+    (
+      await supabase
+        .from("interview_practice_answers")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+    ).count ?? 0;
+  const latestAppRes = await supabase
+    .from("applications")
+    .select("id")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false })
+    .limit(1);
+  const latestApplicationId = latestAppRes.data?.[0]?.id ?? null;
+  const recommendation = recommendPack({
+    credits,
+    activeApplications: appCount,
+    dueFollowups,
+    practiceBacklog,
+    stage: interviewCount > 0 ? "interview" : appCount > 0 ? "draft" : "draft",
+  });
+  const recommendedPack =
+    CREDIT_PACKS.find((pack) => pack.key === recommendation.recommendedPack) ??
+    CREDIT_PACKS[0];
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -108,6 +143,65 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           Checkout was canceled. You can try again anytime.
         </div>
       ) : null}
+
+      <BillingEventLogger
+        applicationId={latestApplicationId}
+        recommendedPackKey={recommendation.recommendedPack}
+      />
+
+      <Section
+        title="Recommended for you"
+        description="Personalised top-up based on your current workload."
+      >
+        <div className="space-y-3 rounded-2xl border border-black/10 bg-white/80 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+                {recommendedPack.name} · {formatGbp(recommendedPack.priceGbp)} ·{" "}
+                {recommendedPack.credits} credits
+              </p>
+              <p className="text-xs text-[rgb(var(--muted))]">
+                Confidence: {recommendation.confidence}
+              </p>
+            </div>
+            <PackSelector
+              contextLabel="Top up applications"
+              returnTo="/app/billing"
+              compact
+              applicationId={latestApplicationId ?? undefined}
+              recommendedPackKey={recommendation.recommendedPack}
+            />
+          </div>
+          <div className="grid gap-3 md:grid-cols-2">
+            <div className="space-y-1">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+                Why this pack
+              </p>
+              <ul className="list-disc space-y-1 pl-5 text-sm text-[rgb(var(--muted))]">
+                {recommendation.reasons.map((reason) => (
+                  <li key={reason}>{reason}</li>
+                ))}
+              </ul>
+              <div className="mt-2 space-y-1 text-xs text-[rgb(var(--muted))]">
+                <p className="font-semibold text-[rgb(var(--ink))]">
+                  What you get immediately
+                </p>
+                <p>Generate tailored CV + cover letter</p>
+                <p>Download Application Kit ZIP</p>
+                <p>Export Interview Pack + Answer Pack</p>
+              </div>
+            </div>
+            <div className="space-y-2 rounded-2xl border border-black/10 bg-slate-50 p-3 text-xs text-[rgb(var(--muted))]">
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+                Trust & safeguards
+              </p>
+              <p>Deterministic by default; you approve every output.</p>
+              <p>Blocked job sites? Paste the job text safely.</p>
+              <p>ATS-minimal exports always available.</p>
+            </div>
+          </div>
+        </div>
+      </Section>
 
       <Section
         title="Billing & Credits"
@@ -263,6 +357,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       </Section>
 
       <Section
+        id="refer"
         title="Refer a friend"
         description="Invite a friend; you both get +3 credits when they join."
       >

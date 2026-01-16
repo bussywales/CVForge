@@ -18,6 +18,7 @@ import {
   savePendingAction,
 } from "@/lib/billing/pending-action";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { getActionRoiLine } from "@/lib/billing/action-roi";
 
 type InterviewPackPanelProps = {
   applicationId: string;
@@ -707,6 +708,8 @@ export default function InterviewPackPanel({
         cost={1}
         balance={balance}
         actionLabel="Export Interview Pack"
+        roiLine={getActionRoiLine("interviewPack.export")}
+        referralHref="/app/billing#refer"
         onContinue={() => {
           setShowGate(false);
           downloadInterviewPack();

@@ -77,6 +77,8 @@ export default async function PracticeDrillPage({
     console.error("[practice-drill.credits]", error);
   }
 
+  const billingReturn = `/app/applications/${application.id}/practice/drill`;
+
   const profile = await fetchProfile(supabase, user.id);
   const achievements = await listAchievements(supabase, user.id);
   const autopacks = await listAutopacks(supabase, user.id, application.id);
@@ -229,6 +231,19 @@ export default async function PracticeDrillPage({
       </div>
 
       <AutopackResumeBanner applicationId={application.id} />
+
+      {credits <= 2 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800">
+          Low credits.{" "}
+          <Link
+            href={`/app/billing?returnTo=${encodeURIComponent(billingReturn)}`}
+            className="font-semibold underline-offset-2 hover:underline"
+          >
+            Top up
+          </Link>{" "}
+          to keep generating packs.
+        </div>
+      ) : null}
 
       <DrillClient
         applicationId={application.id}

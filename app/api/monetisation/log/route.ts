@@ -10,10 +10,14 @@ const allowedEvents = [
   "gate_shown",
   "gate_blocked",
   "billing_clicked",
+  "billing_viewed",
+  "billing_return",
+  "pack_recommended",
   "checkout_started",
   "checkout_success",
   "resume_banner_shown",
   "resume_clicked",
+  "resume_dismissed",
   "autopack_generated",
 ] as const;
 

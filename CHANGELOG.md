@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.36
+- Billing conversion lift: personalised pack recommendation, ROI copy in gates, referral hint, and low-credit nudges with return-to-action checkout/resume.
+- Credit gate/resume logging extended (billing viewed/return, pack recommended, resume dismiss).
+
 ## v0.7.32
 - Revenue Funnel Analytics v1: monetisation event logging, checkout/gate/resume tracking, and a funnel panel on Insights using the shared helper.
 - Fixed monetisation logging API parsing and aligned gating/resume flows to log events consistently.

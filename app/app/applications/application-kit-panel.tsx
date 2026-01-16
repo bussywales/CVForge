@@ -10,6 +10,7 @@ import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
 import CreditGateModal from "@/app/app/billing/credit-gate-modal";
 import { savePendingAction, buildReturnToUrl } from "@/lib/billing/pending-action";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { getActionRoiLine } from "@/lib/billing/action-roi";
 
 type ExportState = {
   status: "idle" | "loading" | "error";
@@ -609,6 +610,8 @@ export default function ApplicationKitPanel({
         cost={1}
         balance={balance}
         actionLabel="Download Application Kit"
+        roiLine={getActionRoiLine("applicationKit.download")}
+        referralHref="/app/billing#refer"
         onContinue={() => {
           setShowGate(false);
           downloadKit();

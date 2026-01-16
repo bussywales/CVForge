@@ -10,6 +10,7 @@ type Props = {
   compact?: boolean;
   onPurchasedHint?: string;
   applicationId?: string;
+  recommendedPackKey?: CreditPack["key"];
 };
 
 type CheckoutState = {
@@ -59,12 +60,17 @@ export default function PackSelector({
   compact,
   onPurchasedHint,
   applicationId,
+  recommendedPackKey,
 }: Props) {
   const [state, setState] = useState<CheckoutState>({ status: "idle" });
 
   const startCheckout = async (packKey: CreditPack["key"]) => {
     setState({ status: "loading" });
-    logMonetisationClientEvent("checkout_started", applicationId ?? "", "billing");
+    if (applicationId) {
+      logMonetisationClientEvent("checkout_started", applicationId, "billing", {
+        packKey,
+      });
+    }
     try {
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -101,7 +107,14 @@ export default function PackSelector({
           compact ? "flex-col md:flex-row" : "flex-col lg:flex-row"
         }`}
       >
-        {CREDIT_PACKS.map((pack) => (
+        {[...CREDIT_PACKS]
+          .sort((a, b) => {
+            if (!recommendedPackKey) return 0;
+            if (a.key === recommendedPackKey) return -1;
+            if (b.key === recommendedPackKey) return 1;
+            return 0;
+          })
+          .map((pack) => (
           <PackCard key={pack.key} pack={pack} onSelect={startCheckout} />
         ))}
       </div>

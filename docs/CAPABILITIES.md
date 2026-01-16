@@ -71,7 +71,7 @@ Deterministic outreach templates for email and LinkedIn, one-click logging, and 
 DOCX import previews and applies profile fields, achievements, and work history. DOCX export supports Standard and ATS-Minimal variants plus a submission-pack ZIP.
 
 ## Billing and credits
-Stripe Checkout is used for credit purchases, with a credit ledger and webhook-based crediting. Pack selector offers Starter/Pro/Power options and paywall CTAs appear at high-intent points (apply wizard, interview packs, insights). Optional subscriptions + auto top-up preferences live in Billing; webhook grants monthly credits.
+Stripe Checkout is used for credit purchases, with a credit ledger and webhook-based crediting. Pack selector offers Starter/Pro/Power options and paywall CTAs appear at high-intent points (apply wizard, interview packs, answer packs). The Billing page now recommends a pack based on workload, shows ROI copy in gates, and threads return-to-action plus resume banners after checkout. Optional subscriptions + auto top-up preferences live in Billing; webhook grants monthly credits.
 
 ## Monetisation analytics
 Credit gates, checkout starts/successes, resume clicks, and autopack completions are logged deterministically. Insights shows a revenue funnel (7d/30d) plus top surfaces for gates and billing clicks to spot leaks quickly.

@@ -121,6 +121,9 @@
 - Start checkout for any pack; on return with `?purchased=1`, a success banner shows.
 - Recent credit activity renders without errors.
 - Start a subscription from /app/billing and ensure you are redirected to Stripe; manage portal link works when a customer exists.
+- Recommended pack shows with reasons; pack selector defaults to the recommended pack.
+- Credit gate modal shows action name + ROI line; referral hint links to the billing referral anchor.
+- After checkout return with a pending action, resume banner shows and resumes on click; logging does not error.
 
 ## Referrals
 - Fetch your referral link on /app/billing; copy and share.
