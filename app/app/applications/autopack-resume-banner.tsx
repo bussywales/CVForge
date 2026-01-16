@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   buildReturnToUrl,
   clearPendingAction,
@@ -16,11 +16,12 @@ type Props = {
 
 export default function AutopackResumeBanner({ applicationId }: Props) {
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
+  const resumeRequested = searchParams?.get("resume") === "1";
   const [pending, setPending] = useState<PendingAction | null>(null);
 
   useEffect(() => {
+    if (resumeRequested) return;
     const params = new URLSearchParams(searchParams ?? undefined);
     const purchased = params.has("purchased") || params.get("checkout") === "success";
     const pending = loadPendingAction();
@@ -34,7 +35,7 @@ export default function AutopackResumeBanner({ applicationId }: Props) {
         actionKey: pending.type,
       });
     }
-  }, [applicationId, searchParams]);
+  }, [applicationId, resumeRequested, searchParams]);
 
   const resumeHref = useMemo(() => {
     if (!pending) return null;
@@ -42,23 +43,23 @@ export default function AutopackResumeBanner({ applicationId }: Props) {
     return url.pathname + url.search + url.hash;
   }, [pending]);
 
-  if (!pending || !resumeHref) return null;
+  if (!pending || !resumeHref || resumeRequested) return null;
 
   const messages: Record<PendingAction["type"], { title: string; body: string }> = {
     autopack_generate: {
-      title: "Credits added. Ready to generate your Autopack.",
+      title: "Ready to generate your Autopack.",
       body: "We saved where you left off. Resume when you’re ready.",
     },
     interview_pack_export: {
-      title: "Credits added. Ready to export your Interview Pack.",
+      title: "Ready to export your Interview Pack.",
       body: "Resume the export now.",
     },
     application_kit_download: {
-      title: "Credits added. Ready to download your Application Kit.",
+      title: "Ready to download your Application Kit.",
       body: "Resume the kit download now.",
     },
     answer_pack_generate: {
-      title: "Credits added. Ready to generate your Answer Pack.",
+      title: "Ready to generate your Answer Pack.",
       body: "Resume the answer generation now.",
     },
   };

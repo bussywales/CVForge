@@ -8,7 +8,7 @@ import type { KitChecklistItem, KitNextAction } from "@/lib/application-kit";
 import { formatDateTimeUk, formatUkDate, toDateInputValue } from "@/lib/tracking-utils";
 import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
 import CreditGateModal from "@/app/app/billing/credit-gate-modal";
-import { savePendingAction, buildReturnToUrl } from "@/lib/billing/pending-action";
+import { addResumeParam, savePendingAction, buildReturnToUrl } from "@/lib/billing/pending-action";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { getActionRoiLine } from "@/lib/billing/action-roi";
 
@@ -91,6 +91,7 @@ export default function ApplicationKitPanel({
   const currentReturn =
     returnTo ??
     `/app/applications/${applicationId}?tab=apply#application-kit`;
+  const resumeReturnTo = addResumeParam(currentReturn);
   const [showGate, setShowGate] = useState(false);
 
   const scoreTone = useMemo(() => {
@@ -167,7 +168,7 @@ export default function ApplicationKitPanel({
       logMonetisationClientEvent("billing_clicked", applicationId, "applications", {
         actionKey: "application_kit_download",
       });
-      window.location.href = `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`;
+      window.location.href = `/app/billing?returnTo=${encodeURIComponent(resumeReturnTo)}`;
       return;
     }
     if (shouldSoftGate(balance, 1)) {
@@ -631,7 +632,7 @@ export default function ApplicationKitPanel({
           logMonetisationClientEvent("billing_clicked", applicationId, "applications", {
             actionKey: "application_kit_download",
           });
-          window.location.href = `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`;
+          window.location.href = `/app/billing?returnTo=${encodeURIComponent(resumeReturnTo)}`;
         }}
       />
 

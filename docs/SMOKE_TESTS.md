@@ -123,10 +123,10 @@
 - Start a subscription from /app/billing and ensure you are redirected to Stripe; manage portal link works when a customer exists.
 - Recommended pack shows with reasons; pack selector defaults to the recommended pack.
 - Credit gate modal shows action name + ROI line; referral hint links to the billing referral anchor.
-- After checkout return with a pending action, resume banner shows and resumes on click; logging does not error.
+- Returning with a pending action and `resume=1` shows the Resume Accelerator banner with a 3s countdown and auto-jump to the saved tab/anchor; manual Resume still works and logging stays clean.
 - Billing page shows only one primary purchase hero; alternate packs are secondary and the balance/usage row has no duplicate pack selector.
-- After checkout success with a pending action, a “Top up successful — resume” banner appears; Resume returns to the correct tab/anchor; dismiss hides it until the next purchase.
-- Success banner also appears on the application/drill pages when returning from billing; session guard prevents repeat spam; completion nudge appears after the resumed action finishes with a CTA to the next best step.
+- After checkout success with a pending action, the Resume Accelerator banner appears with neutral copy; Resume returns to the correct tab/anchor and hides after use or dismiss.
+- Success banner also appears on the application/drill pages when returning from billing; session guard prevents repeat spam; completion nudge appears after the resumed action finishes with a CTA to the next best step and auto-dismisses after a short time.
 
 ## Referrals
 - Fetch your referral link on /app/billing; copy and share.
@@ -150,9 +150,9 @@
 - Funnel snapshot shows counts or 0s and links to Insights.
 
 ## Paywall + resume (credits)
-- Attempt Interview Pack export with 0 credits → billing CTA; after purchase, resume banner appears and export works.
-- Attempt Application Kit download with 0 credits → billing CTA; after purchase, resume banner resumes the download.
-- Attempt Answer Pack generation in Drill Mode with 0 credits → billing CTA; after purchase, resume banner resumes generation.
+- Attempt Interview Pack export with 0 credits → billing CTA; after purchase and return with `resume=1`, auto-resume kicks off the export without manual clicks.
+- Attempt Application Kit download with 0 credits → billing CTA; after purchase and return with `resume=1`, auto-resume starts the kit download.
+- Attempt Answer Pack generation in Drill Mode with 0 credits → billing CTA; after purchase and return with `resume=1`, auto-resume triggers generation.
 - With credits available, soft gate/modal appears (or proceeds) and the action succeeds.
 
 ## Applications Command Centre (v0.7.43)

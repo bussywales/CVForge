@@ -14,6 +14,7 @@ import {
 import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
 import CreditGateModal from "@/app/app/billing/credit-gate-modal";
 import {
+  addResumeParam,
   buildReturnToUrl,
   savePendingAction,
 } from "@/lib/billing/pending-action";
@@ -124,6 +125,7 @@ export default function InterviewPackPanel({
     `${pathname}${
       searchParams?.toString() ? `?${searchParams.toString()}` : ""
     }`;
+  const resumeReturnTo = addResumeParam(currentReturn);
 
   const questionsWithKeys = useMemo(
     () =>
@@ -548,7 +550,7 @@ export default function InterviewPackPanel({
       logMonetisationClientEvent("billing_clicked", applicationId, "applications", {
         actionKey: "interview_pack_export",
       });
-      router.push(`/app/billing?returnTo=${encodeURIComponent(currentReturn)}`);
+      router.push(`/app/billing?returnTo=${encodeURIComponent(resumeReturnTo)}`);
       return;
     }
     if (shouldSoftGate(balance, 1)) {
@@ -729,7 +731,7 @@ export default function InterviewPackPanel({
           logMonetisationClientEvent("billing_clicked", applicationId, "applications", {
             actionKey: "interview_pack_export",
           });
-          router.push(`/app/billing?returnTo=${encodeURIComponent(currentReturn)}`);
+          router.push(`/app/billing?returnTo=${encodeURIComponent(resumeReturnTo)}`);
         }}
       />
 

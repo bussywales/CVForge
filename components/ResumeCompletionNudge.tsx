@@ -30,6 +30,12 @@ export default function ResumeCompletionNudge({ applicationId, actions }: Props)
     return () => window.removeEventListener("cvf-resume-completed", handler);
   }, [actions, applicationId]);
 
+  useEffect(() => {
+    if (!visible) return;
+    const timer = window.setTimeout(() => setVisible(false), 8000);
+    return () => window.clearTimeout(timer);
+  }, [visible]);
+
   if (!visible || !nextAction) return null;
 
   return (

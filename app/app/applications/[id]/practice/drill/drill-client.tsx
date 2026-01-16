@@ -22,6 +22,7 @@ import {
 import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
 import CreditGateModal from "@/app/app/billing/credit-gate-modal";
 import {
+  addResumeParam,
   savePendingAction,
   buildReturnToUrl,
 } from "@/lib/billing/pending-action";
@@ -289,6 +290,7 @@ export default function DrillClient({
     `${pathname}${
       searchParams?.toString() ? `?${searchParams.toString()}` : ""
     }`;
+  const resumeReturnTo = addResumeParam(currentReturn);
 
   const questionMap = useMemo(() => {
     return questions.reduce((acc, question) => {
@@ -447,7 +449,7 @@ export default function DrillClient({
         actionKey: "answer_pack_generate",
         variant,
       });
-      router.push(`/app/billing?returnTo=${encodeURIComponent(currentReturn)}`);
+      router.push(`/app/billing?returnTo=${encodeURIComponent(resumeReturnTo)}`);
       return;
     }
     if (shouldSoftGate(balance, 1)) {
@@ -1118,17 +1120,17 @@ export default function DrillClient({
                   handleGenerateAnswer(pendingVariant);
                 }}
                 onGoBilling={() => {
-                  logMonetisationClientEvent(
-                    "billing_clicked",
-                    applicationId,
-                    "applications",
-                    { actionKey: "answer_pack_generate", variant: pendingVariant }
-                  );
-                  router.push(
-                    `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`
-                  );
-                }}
-              />
+                    logMonetisationClientEvent(
+                      "billing_clicked",
+                      applicationId,
+                      "applications",
+                      { actionKey: "answer_pack_generate", variant: pendingVariant }
+                    );
+                    router.push(
+                      `/app/billing?returnTo=${encodeURIComponent(resumeReturnTo)}`
+                    );
+                  }}
+                />
             </div>
 
             <div className="flex flex-wrap items-center justify-between gap-2">

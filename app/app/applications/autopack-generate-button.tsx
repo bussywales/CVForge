@@ -9,6 +9,7 @@ import CreditGateModal from "@/app/app/billing/credit-gate-modal";
 import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
 import { getActionRoiLine } from "@/lib/billing/action-roi";
 import {
+  addResumeParam,
   clearPendingAction,
   savePendingAction,
 } from "@/lib/billing/pending-action";
@@ -42,6 +43,7 @@ export default function AutopackGenerateButton({
     `${pathname}${
       searchParams?.toString() ? `?${searchParams.toString()}` : ""
     }`;
+  const resumeReturnTo = addResumeParam(currentReturn);
 
   const handleGenerate = useCallback(async () => {
     setState({ status: "loading" });
@@ -141,7 +143,7 @@ export default function AutopackGenerateButton({
             savePendingAction({
               type: "autopack_generate",
               applicationId,
-              returnTo: currentReturn,
+              returnTo: resumeReturnTo,
               createdAt: Date.now(),
             });
             logMonetisationClientEvent(
@@ -155,7 +157,7 @@ export default function AutopackGenerateButton({
               "applications"
             );
             router.push(
-              `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`
+              `/app/billing?returnTo=${encodeURIComponent(resumeReturnTo)}`
             );
             return;
           }
@@ -163,7 +165,7 @@ export default function AutopackGenerateButton({
             savePendingAction({
               type: "autopack_generate",
               applicationId,
-              returnTo: currentReturn,
+              returnTo: resumeReturnTo,
               createdAt: Date.now(),
             });
             logMonetisationClientEvent(
@@ -213,7 +215,7 @@ export default function AutopackGenerateButton({
               "applications"
             );
             router.push(
-              `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`
+              `/app/billing?returnTo=${encodeURIComponent(resumeReturnTo)}`
             );
           }
         }

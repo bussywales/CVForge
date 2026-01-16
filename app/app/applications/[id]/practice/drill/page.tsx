@@ -12,6 +12,7 @@ import { buildInterviewPack } from "@/lib/interview-pack";
 import { inferDomainGuess } from "@/lib/jd-learning";
 import { getEffectiveJobText } from "@/lib/job-text";
 import { buildQuestionKey } from "@/lib/interview-practice";
+import { addResumeParam } from "@/lib/billing/pending-action";
 import type { InterviewPracticeScore } from "@/lib/interview-practice";
 import type { InterviewRewriteNotes } from "@/lib/interview-rewrite";
 import { calculateRoleFit } from "@/lib/role-fit";
@@ -78,7 +79,9 @@ export default async function PracticeDrillPage({
     console.error("[practice-drill.credits]", error);
   }
 
-  const billingReturn = `/app/applications/${application.id}/practice/drill`;
+  const billingReturn = addResumeParam(
+    `/app/applications/${application.id}/practice/drill`
+  );
 
   const profile = await fetchProfile(supabase, user.id);
   const achievements = await listAchievements(supabase, user.id);

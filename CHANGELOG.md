@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.44
+- Resume Accelerator: returning with `resume=1` and a saved pending action now shows a neutral success banner with a 3s countdown, auto-navigates to the saved tab/anchor, and triggers the pending action without extra clicks.
+- Billing return links now append `resume=1` for all gated actions so resume flows kick in automatically while keeping monetisation logging intact and avoiding payment-specific copy.
+- Completion nudges now auto-dismiss shortly after the resumed action finishes to keep the UI calm.
+
 ## v0.7.43
 - Applications Command Centre: queue view with next-action CTA, readiness score, follow-up badges, filters/tabs, and search/sort by urgency.
 
