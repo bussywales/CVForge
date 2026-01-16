@@ -284,6 +284,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                   ""
                 )}/auth/signup?ref=${referral.code}`}
                 className="mt-2"
+                iconOnly
               />
               <p className="text-xs text-[rgb(var(--muted))]">
                 Copy and share. Credits apply once per new user.

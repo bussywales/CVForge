@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import CopyIconButton from "@/components/CopyIconButton";
 
 type CreditActivityRow = {
   id: string;
@@ -23,35 +23,6 @@ const deltaToneStyles: Record<CreditActivityRow["deltaTone"], string> = {
 };
 
 export default function CreditActivityTable({ rows }: CreditActivityTableProps) {
-  const [copiedId, setCopiedId] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!copiedId) {
-      return;
-    }
-
-    const timer = window.setTimeout(() => {
-      setCopiedId(null);
-    }, 2000);
-
-    return () => {
-      window.clearTimeout(timer);
-    };
-  }, [copiedId]);
-
-  const handleCopy = async (rowId: string, ref?: string | null) => {
-    if (!ref) {
-      return;
-    }
-
-    try {
-      await navigator.clipboard.writeText(ref);
-      setCopiedId(rowId);
-    } catch (error) {
-      console.error("[billing.copy_ref]", error);
-    }
-  };
-
   return (
     <div className="overflow-hidden rounded-2xl border border-black/10 bg-white/70">
       <table className="w-full border-collapse text-left text-sm">
@@ -88,13 +59,12 @@ export default function CreditActivityTable({ rows }: CreditActivityTableProps) 
                     {row.refShort}
                   </span>
                   {row.ref ? (
-                    <button
-                      type="button"
-                      onClick={() => handleCopy(row.id, row.ref)}
-                      className="rounded-full border border-black/10 bg-white/80 px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] transition hover:bg-white"
-                    >
-                      {copiedId === row.id ? "Copied" : "Copy ref"}
-                    </button>
+                    <CopyIconButton
+                      text={row.ref}
+                      className="px-2"
+                      label="Copy ref"
+                      iconOnly
+                    />
                   ) : null}
                 </div>
               </td>
