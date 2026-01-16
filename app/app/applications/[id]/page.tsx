@@ -65,6 +65,8 @@ import { getUserCredits } from "@/lib/data/credits";
 import PackSelector from "@/app/app/billing/pack-selector";
 import { fetchBillingSettings } from "@/lib/data/billing";
 import AutopackResumeBanner from "../autopack-resume-banner";
+import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
+import ResumeCompletionNudge from "@/components/ResumeCompletionNudge";
 
 const RoleFitCard = dynamic(() => import("../role-fit-card"), {
   ssr: false,
@@ -149,7 +151,7 @@ const ActivityPanel = dynamic(() => import("../activity-panel"), {
 
 type ApplicationPageProps = {
   params: { id: string };
-  searchParams?: { created?: string; tab?: string };
+  searchParams?: { created?: string; tab?: string; success?: string; purchased?: string };
 };
 
 export default async function ApplicationPage({
@@ -482,6 +484,11 @@ export default async function ApplicationPage({
 
   return (
     <div className="space-y-6">
+      <PostPurchaseSuccessBanner
+        applicationId={application.id}
+        surface="applications"
+        show={Boolean(searchParams?.success || searchParams?.purchased)}
+      />
       <Link href="/app/applications" className="text-sm text-[rgb(var(--muted))]">
         ← Back to applications
       </Link>
@@ -513,6 +520,10 @@ export default async function ApplicationPage({
         badges={tabBadges}
       />
       <NextBestActionsBar
+        applicationId={application.id}
+        actions={nextBestActions}
+      />
+      <ResumeCompletionNudge
         applicationId={application.id}
         actions={nextBestActions}
       />

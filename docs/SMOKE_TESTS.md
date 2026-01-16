@@ -126,6 +126,7 @@
 - After checkout return with a pending action, resume banner shows and resumes on click; logging does not error.
 - Billing page shows only one primary purchase hero; alternate packs are secondary and the balance/usage row has no duplicate pack selector.
 - After checkout success with a pending action, a “Top up successful — resume” banner appears; Resume returns to the correct tab/anchor; dismiss hides it until the next purchase.
+- Success banner also appears on the application/drill pages when returning from billing; session guard prevents repeat spam; completion nudge appears after the resumed action finishes with a CTA to the next best step.
 
 ## Referrals
 - Fetch your referral link on /app/billing; copy and share.

@@ -508,6 +508,17 @@ export default function DrillClient({
         ...prev,
         [variant]: entry,
       }));
+      logMonetisationClientEvent(
+        "resume_completed",
+        applicationId,
+        "applications",
+        { actionKey: "answer_pack_generate", variant }
+      );
+      window.dispatchEvent(
+        new CustomEvent("cvf-resume-completed", {
+          detail: { applicationId, actionKey: "answer_pack_generate" },
+        })
+      );
       setAnswerPackVariant(variant);
       setToast({ message: "Answer generated.", variant: "success" });
     } catch (error) {

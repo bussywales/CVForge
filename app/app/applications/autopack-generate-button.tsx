@@ -94,6 +94,17 @@ export default function AutopackGenerateButton({
           applicationId,
           "applications"
         );
+        logMonetisationClientEvent(
+          "resume_completed",
+          applicationId,
+          "applications",
+          { actionKey: "autopack_generate" }
+        );
+        window.dispatchEvent(
+          new CustomEvent("cvf-resume-completed", {
+            detail: { applicationId, actionKey: "autopack_generate" },
+          })
+        );
 
         router.push(
           `/app/applications/${applicationId}/autopacks/${autopackId}?${params.toString()}`

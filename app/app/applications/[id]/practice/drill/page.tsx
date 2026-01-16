@@ -19,6 +19,7 @@ import type { RoleFitPack } from "@/lib/role-fit";
 import { orderPracticeQuestions } from "@/lib/practice-dashboard";
 import DrillClient from "./drill-client";
 import AutopackResumeBanner from "../../../autopack-resume-banner";
+import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
 
 export const dynamic = "force-dynamic";
 
@@ -40,7 +41,7 @@ export default async function PracticeDrillPage({
   searchParams,
 }: {
   params: { id: string };
-  searchParams?: { questionKey?: string; rewrite?: string };
+  searchParams?: { questionKey?: string; rewrite?: string; success?: string; purchased?: string };
 }) {
   const { supabase, user } = await getSupabaseUser();
 
@@ -215,6 +216,11 @@ export default async function PracticeDrillPage({
 
   return (
     <div className="space-y-4">
+      <PostPurchaseSuccessBanner
+        applicationId={application.id}
+        surface="applications"
+        show={Boolean(searchParams?.success || searchParams?.purchased)}
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link
           href={`/app/applications/${application.id}/practice`}

@@ -224,6 +224,17 @@ export default function ApplicationKitPanel({
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
+      logMonetisationClientEvent(
+        "resume_completed",
+        applicationId,
+        "applications",
+        { actionKey: "application_kit_download" }
+      );
+      window.dispatchEvent(
+        new CustomEvent("cvf-resume-completed", {
+          detail: { applicationId, actionKey: "application_kit_download" },
+        })
+      );
       setState({ status: "idle" });
     } catch (error) {
       console.error("[smart-apply.export]", error);

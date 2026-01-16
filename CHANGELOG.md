@@ -1,5 +1,8 @@
 # Changelog
 
+## v0.7.42
+- Post-purchase completion nudges: success banner renders on billing and application surfaces with session guard; resume completion events/logs extended to new flows.
+
 ## v0.7.40
 - Billing hero simplification: single recommended decision card with dominant CTA, concise proof chips, and lighter secondary packs.
 

@@ -608,6 +608,17 @@ export default function InterviewPackPanel({
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
+      logMonetisationClientEvent(
+        "resume_completed",
+        applicationId,
+        "applications",
+        { actionKey: "interview_pack_export", variant: chosenVariant }
+      );
+      window.dispatchEvent(
+        new CustomEvent("cvf-resume-completed", {
+          detail: { applicationId, actionKey: "interview_pack_export" },
+        })
+      );
       setExportState({ status: "idle" });
     } catch (error) {
       console.error("[interview-pack.export]", error);
