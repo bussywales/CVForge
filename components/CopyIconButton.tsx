@@ -32,12 +32,26 @@ export default function CopyIconButton({
       type="button"
       onClick={handleCopy}
       aria-label={label ?? "Copy"}
-      className={`inline-flex items-center gap-1 rounded-full border border-black/10 bg-white px-2.5 py-1 text-xs font-semibold text-[rgb(var(--ink))] hover:bg-slate-50 ${className ?? ""}`}
+      className={`inline-flex items-center gap-1 ${
+        iconOnly
+          ? "rounded-md p-1 text-[16px] text-[rgb(var(--muted))] transition hover:text-[rgb(var(--ink))]"
+          : "rounded-full border border-black/10 bg-white px-2.5 py-1 text-xs font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+      } ${className ?? ""}`}
     >
       {copied ? (
         <span className="text-[rgb(var(--accent-strong))]">✓</span>
       ) : (
-        <span className="text-base leading-none">⎘</span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          className="h-[16px] w-[16px]"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          strokeWidth="1.6"
+        >
+          <rect x="9" y="9" width="10" height="10" rx="2" />
+          <rect x="5" y="5" width="10" height="10" rx="2" />
+        </svg>
       )}
       {!iconOnly && !copied ? <span>{label ?? "Copy"}</span> : null}
       {!iconOnly && copied ? <span>Copied</span> : null}
