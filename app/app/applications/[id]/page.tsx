@@ -710,6 +710,8 @@ export default async function ApplicationPage({
                 scheduleFollowupAction={scheduleFollowupAction}
                 logFollowupCadenceAction={logFollowupCadenceAction}
                 setOutcomeAction={setOutcomeAction}
+                balance={credits}
+                returnTo={`/app/applications/${application.id}?tab=apply#application-kit`}
               />
               </Section>
             </div>
@@ -821,6 +823,8 @@ export default async function ApplicationPage({
                   title: achievement.title,
                   metrics: achievement.metrics,
                 }))}
+                balance={credits}
+                returnTo={`/app/applications/${application.id}?tab=interview#interview-pack`}
               />
               <div id="answer-pack" />
             </Section>

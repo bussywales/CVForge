@@ -7,6 +7,10 @@
 ## v0.7.34
 - Dashboard v2 “Activation Command Centre”: greeting with credits, top actions, compact active applications list, coach nudge, and funnel snapshot with deep links into application tabs/anchors.
 
+## v0.7.35
+- Paywall consistency: Interview Pack export, Application Kit download, and Answer Pack generation now use the same credit gate + billing return flow with pending-action resume banners.
+- Return-to-action preserved across checkout; resume banners trigger the blocked action with one click and log monetisation events.
+
 ## v0.7.33
 - Marketing landing page rebuilt for conversion: clear 20-minute flow, product tour, transparent “does/doesn’t” section, pricing teaser, FAQ, and optional AI Boost note with CTA routing for signed-in vs new users.
 

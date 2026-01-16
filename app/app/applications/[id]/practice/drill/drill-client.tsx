@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/Button";
 import type { InterviewPracticeScore } from "@/lib/interview-practice";
 import type { InterviewRewriteNotes } from "@/lib/interview-rewrite";
@@ -18,6 +19,13 @@ import {
   buildCopyAllText,
   computeAnswerPackReadiness,
 } from "@/lib/answer-pack-ui";
+import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
+import CreditGateModal from "@/app/app/billing/credit-gate-modal";
+import {
+  savePendingAction,
+  buildReturnToUrl,
+} from "@/lib/billing/pending-action";
+import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type DrillQuestion = {
   questionKey: string;
@@ -59,6 +67,8 @@ type DrillClientProps = {
     }
   >;
   initialAnswers: Record<string, PracticeAnswer>;
+  balance: number;
+  returnTo?: string;
 };
 
 type AnswerPackPanelProps = {
@@ -240,7 +250,12 @@ export default function DrillClient({
   questionGapMap,
   starLibraryMap,
   initialAnswers,
+  balance,
+  returnTo,
 }: DrillClientProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [answers, setAnswers] = useState<Record<string, PracticeAnswer>>(
     initialAnswers
@@ -264,6 +279,15 @@ export default function DrillClient({
     useState<AnswerPackVariant>("short90");
   const [answerPackLoading, setAnswerPackLoading] = useState(false);
   const [answerPackError, setAnswerPackError] = useState<string | null>(null);
+  const [showGate, setShowGate] = useState(false);
+  const [pendingVariant, setPendingVariant] =
+    useState<AnswerPackVariant>("short90");
+
+  const currentReturn =
+    returnTo ??
+    `${pathname}${
+      searchParams?.toString() ? `?${searchParams.toString()}` : ""
+    }`;
 
   const questionMap = useMemo(() => {
     return questions.reduce((acc, question) => {
@@ -358,6 +382,21 @@ export default function DrillClient({
   }, [toast]);
 
   useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent).detail as {
+        applicationId?: string;
+        mode?: AnswerPackVariant;
+      };
+      if (detail?.applicationId === applicationId) {
+        void handleGenerateAnswer(detail.mode ?? "short90");
+      }
+    };
+    window.addEventListener("cvf-resume-answer-pack", handler);
+    return () => window.removeEventListener("cvf-resume-answer-pack", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applicationId]);
+
+  useEffect(() => {
     if (!currentKey) {
       return;
     }
@@ -384,6 +423,51 @@ export default function DrillClient({
 
   const handleGenerateAnswer = async (variant: AnswerPackVariant) => {
     if (!currentQuestion) {
+      return;
+    }
+    if (needsHardGate(balance, 1)) {
+      savePendingAction({
+        type: "answer_pack_generate",
+        applicationId,
+        mode: variant === "short90" ? "short90" : "standard",
+        returnTo: buildReturnToUrl({
+          type: "answer_pack_generate",
+          applicationId,
+          mode: variant === "short90" ? "short90" : "standard",
+          createdAt: Date.now(),
+        } as any),
+        createdAt: Date.now(),
+      });
+      logMonetisationClientEvent("gate_blocked", applicationId, "applications", {
+        actionKey: "answer_pack_generate",
+        variant,
+      });
+      logMonetisationClientEvent("billing_clicked", applicationId, "applications", {
+        actionKey: "answer_pack_generate",
+        variant,
+      });
+      router.push(`/app/billing?returnTo=${encodeURIComponent(currentReturn)}`);
+      return;
+    }
+    if (shouldSoftGate(balance, 1)) {
+      setPendingVariant(variant);
+      savePendingAction({
+        type: "answer_pack_generate",
+        applicationId,
+        mode: variant === "short90" ? "short90" : "standard",
+        returnTo: buildReturnToUrl({
+          type: "answer_pack_generate",
+          applicationId,
+          mode: variant === "short90" ? "short90" : "standard",
+          createdAt: Date.now(),
+        } as any),
+        createdAt: Date.now(),
+      });
+      logMonetisationClientEvent("gate_shown", applicationId, "applications", {
+        actionKey: "answer_pack_generate",
+        variant,
+      });
+      setShowGate(true);
       return;
     }
     setAnswerPackError(null);
@@ -1008,6 +1092,28 @@ export default function DrillClient({
                   pendingKey === `apply-${currentKey}-${answerPackVariant}`
                 }
                 question={currentQuestion?.questionText ?? ""}
+              />
+              <CreditGateModal
+                open={showGate}
+                onClose={() => setShowGate(false)}
+                cost={1}
+                balance={balance}
+                actionLabel="Generate Answer Pack"
+                onContinue={() => {
+                  setShowGate(false);
+                  handleGenerateAnswer(pendingVariant);
+                }}
+                onGoBilling={() => {
+                  logMonetisationClientEvent(
+                    "billing_clicked",
+                    applicationId,
+                    "applications",
+                    { actionKey: "answer_pack_generate", variant: pendingVariant }
+                  );
+                  router.push(
+                    `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`
+                  );
+                }}
               />
             </div>
 

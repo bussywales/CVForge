@@ -16,14 +16,15 @@ export type MonetisationClientEvent = (typeof ALLOWED)[number];
 export function logMonetisationClientEvent(
   event: MonetisationClientEvent,
   applicationId: string,
-  surface: string
+  surface: string,
+  meta?: Record<string, any>
 ) {
   if (typeof window === "undefined") return;
   try {
     fetch("/api/monetisation/log", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event, applicationId, surface }),
+      body: JSON.stringify({ event, applicationId, surface, meta }),
       credentials: "include",
     }).catch(() => undefined);
   } catch {

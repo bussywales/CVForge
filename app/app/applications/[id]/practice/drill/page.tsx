@@ -6,6 +6,7 @@ import { listActiveDomainPacks } from "@/lib/data/domain-packs";
 import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { listStarLibrary } from "@/lib/data/star-library";
+import { getUserCredits } from "@/lib/data/credits";
 import { buildInterviewLift } from "@/lib/interview-lift";
 import { buildInterviewPack } from "@/lib/interview-pack";
 import { inferDomainGuess } from "@/lib/jd-learning";
@@ -17,6 +18,7 @@ import { calculateRoleFit } from "@/lib/role-fit";
 import type { RoleFitPack } from "@/lib/role-fit";
 import { orderPracticeQuestions } from "@/lib/practice-dashboard";
 import DrillClient from "./drill-client";
+import AutopackResumeBanner from "../../../autopack-resume-banner";
 
 export const dynamic = "force-dynamic";
 
@@ -66,6 +68,13 @@ export default async function PracticeDrillPage({
         </div>
       </div>
     );
+  }
+
+  let credits = 0;
+  try {
+    credits = await getUserCredits(supabase, user.id);
+  } catch (error) {
+    console.error("[practice-drill.credits]", error);
   }
 
   const profile = await fetchProfile(supabase, user.id);
@@ -219,6 +228,8 @@ export default async function PracticeDrillPage({
         </Link>
       </div>
 
+      <AutopackResumeBanner applicationId={application.id} />
+
       <DrillClient
         applicationId={application.id}
         questions={questions}
@@ -230,6 +241,10 @@ export default async function PracticeDrillPage({
         questionGapMap={questionGapMap}
         starLibraryMap={starLibraryMap}
         initialAnswers={answersMap}
+        balance={credits}
+        returnTo={`/app/applications/${application.id}/practice/drill${
+          searchParams?.questionKey ? `?questionKey=${encodeURIComponent(searchParams.questionKey)}` : ""
+        }`}
       />
     </div>
   );

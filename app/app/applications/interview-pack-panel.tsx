@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Button from "@/components/Button";
 import FormField from "@/components/FormField";
 import type { InterviewPack, InterviewPackWeakSpot } from "@/lib/interview-pack";
@@ -11,11 +11,20 @@ import {
   buildQuestionKey,
   type InterviewPracticeScore,
 } from "@/lib/interview-practice";
+import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
+import CreditGateModal from "@/app/app/billing/credit-gate-modal";
+import {
+  buildReturnToUrl,
+  savePendingAction,
+} from "@/lib/billing/pending-action";
+import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type InterviewPackPanelProps = {
   applicationId: string;
   pack: InterviewPack;
   achievements: Array<{ id: string; title: string; metrics: string | null }>;
+  balance: number;
+  returnTo?: string;
 };
 
 type ToastState = { message: string; variant?: "success" | "error" };
@@ -81,14 +90,19 @@ export default function InterviewPackPanel({
   applicationId,
   pack,
   achievements,
+  balance,
+  returnTo,
 }: InterviewPackPanelProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [toast, setToast] = useState<ToastState | null>(null);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [variant, setVariant] = useState<ExportVariant>("standard");
   const [exportState, setExportState] = useState<ExportState>({
     status: "idle",
   });
+  const [showGate, setShowGate] = useState(false);
   const [selectedAchievementId, setSelectedAchievementId] = useState(
     achievements[0]?.id ?? ""
   );
@@ -104,6 +118,11 @@ export default function InterviewPackPanel({
   const [openBreakdowns, setOpenBreakdowns] = useState<Record<string, boolean>>(
     {}
   );
+  const currentReturn =
+    returnTo ??
+    `${pathname}${
+      searchParams?.toString() ? `?${searchParams.toString()}` : ""
+    }`;
 
   const questionsWithKeys = useMemo(
     () =>
@@ -121,6 +140,18 @@ export default function InterviewPackPanel({
     const timer = window.setTimeout(() => setToast(null), 3200);
     return () => window.clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { applicationId?: string; variant?: string } | undefined;
+      if (detail?.applicationId === applicationId) {
+        void downloadInterviewPack(detail?.variant as ExportVariant | undefined);
+      }
+    };
+    window.addEventListener("cvf-resume-interview-pack", handler);
+    return () => window.removeEventListener("cvf-resume-interview-pack", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applicationId]);
 
   useEffect(() => {
     if (achievements.length) {
@@ -495,12 +526,54 @@ export default function InterviewPackPanel({
     setOpenRewrites((prev) => ({ ...prev, [questionKey]: false }));
   };
 
-  const downloadInterviewPack = async () => {
+  const downloadInterviewPack = async (overrideVariant?: ExportVariant) => {
+    const chosenVariant = overrideVariant ?? variant;
+    if (needsHardGate(balance, 1)) {
+      savePendingAction({
+        type: "interview_pack_export",
+        applicationId,
+        variant: chosenVariant,
+        returnTo: buildReturnToUrl({
+          type: "interview_pack_export",
+          applicationId,
+          variant: chosenVariant,
+          createdAt: Date.now(),
+        } as any),
+        createdAt: Date.now(),
+      });
+      logMonetisationClientEvent("gate_blocked", applicationId, "applications", {
+        actionKey: "interview_pack_export",
+      });
+      logMonetisationClientEvent("billing_clicked", applicationId, "applications", {
+        actionKey: "interview_pack_export",
+      });
+      router.push(`/app/billing?returnTo=${encodeURIComponent(currentReturn)}`);
+      return;
+    }
+    if (shouldSoftGate(balance, 1)) {
+      savePendingAction({
+        type: "interview_pack_export",
+        applicationId,
+        variant: chosenVariant,
+        returnTo: buildReturnToUrl({
+          type: "interview_pack_export",
+          applicationId,
+          variant: chosenVariant,
+          createdAt: Date.now(),
+        } as any),
+        createdAt: Date.now(),
+      });
+      logMonetisationClientEvent("gate_shown", applicationId, "applications", {
+        actionKey: "interview_pack_export",
+      });
+      setShowGate(true);
+      return;
+    }
     setExportState({ status: "loading" });
 
     try {
       const response = await fetch(
-        `/api/export/interview-pack.docx?applicationId=${applicationId}&variant=${variant}`,
+        `/api/export/interview-pack.docx?applicationId=${applicationId}&variant=${chosenVariant}`,
         { credentials: "include" }
       );
 
@@ -606,7 +679,7 @@ export default function InterviewPackPanel({
         <div className="mt-4 flex flex-wrap items-center gap-3">
           <Button
             type="button"
-            onClick={downloadInterviewPack}
+            onClick={() => downloadInterviewPack()}
             disabled={exportState.status === "loading"}
           >
             {exportState.status === "loading"
@@ -628,6 +701,23 @@ export default function InterviewPackPanel({
           </p>
         ) : null}
       </div>
+      <CreditGateModal
+        open={showGate}
+        onClose={() => setShowGate(false)}
+        cost={1}
+        balance={balance}
+        actionLabel="Export Interview Pack"
+        onContinue={() => {
+          setShowGate(false);
+          downloadInterviewPack();
+        }}
+        onGoBilling={() => {
+          logMonetisationClientEvent("billing_clicked", applicationId, "applications", {
+            actionKey: "interview_pack_export",
+          });
+          router.push(`/app/billing?returnTo=${encodeURIComponent(currentReturn)}`);
+        }}
+      />
 
       <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
         <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">

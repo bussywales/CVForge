@@ -82,6 +82,9 @@ A public landing page explains the 20-minute flow (job advert → evidence → S
 ## Dashboard v2
 Signed-in users land on the Activation Command Centre: greeting with credits, top next-best actions, a compact active applications list with deep links into tabs/anchors, a coach nudge, and a funnel snapshot with response rate and a shortcut to Insights.
 
+## Paywalls and resume
+Credit gating is consistent across Autopacks, Interview Pack exports, Application Kit downloads, and Answer Pack generation. If credits are 0 you’re routed to billing with a saved return link; after purchase a resume banner lets you trigger the blocked action with one click (never auto-spends).
+
 ## Referrals
 Shareable referral link gives +3 credits to inviter and invitee once on signup; redeeming is idempotent and self-referrals are blocked.
 

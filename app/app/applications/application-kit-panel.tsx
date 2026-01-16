@@ -6,6 +6,10 @@ import Button from "@/components/Button";
 import type { ActionState } from "@/lib/actions/types";
 import type { KitChecklistItem, KitNextAction } from "@/lib/application-kit";
 import { formatDateTimeUk, formatUkDate, toDateInputValue } from "@/lib/tracking-utils";
+import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
+import CreditGateModal from "@/app/app/billing/credit-gate-modal";
+import { savePendingAction, buildReturnToUrl } from "@/lib/billing/pending-action";
+import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type ExportState = {
   status: "idle" | "loading" | "error";
@@ -34,6 +38,8 @@ type SmartApplyPanelProps = {
   downloadEnabled: boolean;
   downloadHint?: string;
   contents: string[];
+  balance: number;
+  returnTo?: string;
   updateClosingDateAction: (formData: FormData) => Promise<ActionState>;
   updateSourcePlatformAction: (formData: FormData) => Promise<ActionState>;
   setSubmittedAction: (formData: FormData) => Promise<ActionState>;
@@ -69,6 +75,8 @@ export default function ApplicationKitPanel({
   downloadEnabled,
   downloadHint,
   contents,
+  balance,
+  returnTo,
   updateClosingDateAction,
   updateSourcePlatformAction,
   setSubmittedAction,
@@ -79,6 +87,10 @@ export default function ApplicationKitPanel({
   const [state, setState] = useState<ExportState>({ status: "idle" });
   const [showContents, setShowContents] = useState(false);
   const [checklistCollapsed, setChecklistCollapsed] = useState(false);
+  const currentReturn =
+    returnTo ??
+    `/app/applications/${applicationId}?tab=apply#application-kit`;
+  const [showGate, setShowGate] = useState(false);
 
   const scoreTone = useMemo(() => {
     if (score >= 80) {
@@ -110,7 +122,20 @@ export default function ApplicationKitPanel({
     if (completedItems > 0) {
       setChecklistCollapsed(true);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applicationId, completedItems]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent).detail as { applicationId?: string } | undefined;
+      if (detail?.applicationId === applicationId) {
+        void downloadKit();
+      }
+    };
+    window.addEventListener("cvf-resume-kit", handler);
+    return () => window.removeEventListener("cvf-resume-kit", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [applicationId]);
 
   const toggleChecklist = () => {
     const key = `cvforge.apply.checklistCollapsed:${applicationId}`;
@@ -124,6 +149,43 @@ export default function ApplicationKitPanel({
   };
 
   const downloadKit = async () => {
+    if (needsHardGate(balance, 1)) {
+      savePendingAction({
+        type: "application_kit_download",
+        applicationId,
+        returnTo: buildReturnToUrl({
+          type: "application_kit_download",
+          applicationId,
+          createdAt: Date.now(),
+        } as any),
+        createdAt: Date.now(),
+      });
+      logMonetisationClientEvent("gate_blocked", applicationId, "applications", {
+        actionKey: "application_kit_download",
+      });
+      logMonetisationClientEvent("billing_clicked", applicationId, "applications", {
+        actionKey: "application_kit_download",
+      });
+      window.location.href = `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`;
+      return;
+    }
+    if (shouldSoftGate(balance, 1)) {
+      savePendingAction({
+        type: "application_kit_download",
+        applicationId,
+        returnTo: buildReturnToUrl({
+          type: "application_kit_download",
+          applicationId,
+          createdAt: Date.now(),
+        } as any),
+        createdAt: Date.now(),
+      });
+      logMonetisationClientEvent("gate_shown", applicationId, "applications", {
+        actionKey: "application_kit_download",
+      });
+      setShowGate(true);
+      return;
+    }
     setState({ status: "loading" });
     try {
       const response = await fetch(
@@ -540,6 +602,24 @@ export default function ApplicationKitPanel({
           </ul>
         </div>
       ) : null}
+
+      <CreditGateModal
+        open={showGate}
+        onClose={() => setShowGate(false)}
+        cost={1}
+        balance={balance}
+        actionLabel="Download Application Kit"
+        onContinue={() => {
+          setShowGate(false);
+          downloadKit();
+        }}
+        onGoBilling={() => {
+          logMonetisationClientEvent("billing_clicked", applicationId, "applications", {
+            actionKey: "application_kit_download",
+          });
+          window.location.href = `/app/billing?returnTo=${encodeURIComponent(currentReturn)}`;
+        }}
+      />
 
       {state.status === "error" && state.message ? (
         <p className="text-xs text-red-600">{state.message}</p>

@@ -142,3 +142,9 @@
 - Active applications shows recent roles with status and next action; Continue links to Apply tab anchor.
 - Coach nudge renders weakest step or “on track” with a Fix button.
 - Funnel snapshot shows counts or 0s and links to Insights.
+
+## Paywall + resume (credits)
+- Attempt Interview Pack export with 0 credits → billing CTA; after purchase, resume banner appears and export works.
+- Attempt Application Kit download with 0 credits → billing CTA; after purchase, resume banner resumes the download.
+- Attempt Answer Pack generation in Drill Mode with 0 credits → billing CTA; after purchase, resume banner resumes generation.
+- With credits available, soft gate/modal appears (or proceeds) and the action succeeds.
