@@ -10,6 +10,7 @@ type WatchPayload = {
   href: string;
   startedAt: number;
   auto?: boolean;
+  subscription?: boolean;
 };
 
 type Props = {
@@ -53,6 +54,14 @@ export default function CompletionWatchdogNudge({
     const completeHandler = (event: Event) => {
       const detail = (event as CustomEvent).detail as { applicationId?: string } | undefined;
       if (detail?.applicationId !== applicationId) return;
+      if (payload?.subscription) {
+        logMonetisationClientEvent(
+          "sub_completion_nudge_completed",
+          applicationId,
+          surface,
+          { actionKey: payload.actionKey }
+        );
+      }
       setShow(false);
       setPayload(null);
       if (typeof window !== "undefined") {
@@ -65,7 +74,7 @@ export default function CompletionWatchdogNudge({
       window.removeEventListener("cvf-watchdog-start", startHandler);
       window.removeEventListener("cvf-action-completed", completeHandler);
     };
-  }, [applicationId]);
+  }, [applicationId, payload, surface]);
 
   useEffect(() => {
     if (!payload) return;
@@ -73,6 +82,14 @@ export default function CompletionWatchdogNudge({
     const remaining = Math.max(deadline - Date.now(), 0);
     const timer = window.setTimeout(() => {
       setShow(true);
+      if (payload.subscription) {
+        logMonetisationClientEvent(
+          "sub_completion_nudge_view",
+          applicationId,
+          surface,
+          { actionKey: payload.actionKey }
+        );
+      }
       logMonetisationClientEvent(
         "completion_watchdog_view",
         applicationId,
@@ -98,17 +115,17 @@ export default function CompletionWatchdogNudge({
           <Link
             href={href}
             className="rounded-full bg-amber-700 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-800"
-            onClick={() =>
-              logMonetisationClientEvent(
-                "completion_watchdog_back_click",
-                applicationId,
-                surface,
-                { actionKey: payload.actionKey }
-              )
-            }
-          >
-            Take me back
-          </Link>
+          onClick={() =>
+            logMonetisationClientEvent(
+              "completion_watchdog_back_click",
+              applicationId,
+              surface,
+              { actionKey: payload.actionKey }
+            )
+          }
+        >
+          Take me back
+        </Link>
           <button
             type="button"
             className="rounded-full border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100"
@@ -117,6 +134,14 @@ export default function CompletionWatchdogNudge({
               setPayload(null);
               if (typeof window !== "undefined") {
                 window.sessionStorage.removeItem(STORAGE_KEY);
+              }
+              if (payload.subscription) {
+                logMonetisationClientEvent(
+                  "sub_completion_nudge_dismiss",
+                  applicationId,
+                  surface,
+                  { actionKey: payload.actionKey, action: "mark_done" }
+                );
               }
               logMonetisationClientEvent(
                 "completion_watchdog_mark_done",
@@ -136,6 +161,14 @@ export default function CompletionWatchdogNudge({
               setPayload(null);
               if (typeof window !== "undefined") {
                 window.sessionStorage.removeItem(STORAGE_KEY);
+              }
+              if (payload.subscription) {
+                logMonetisationClientEvent(
+                  "sub_completion_nudge_dismiss",
+                  applicationId,
+                  surface,
+                  { actionKey: payload.actionKey, action: "dismiss" }
+                );
               }
               logMonetisationClientEvent(
                 "completion_watchdog_dismiss",

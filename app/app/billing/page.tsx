@@ -156,7 +156,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
   return (
     <div className="space-y-6">
-      <PostPurchaseSuccessBanner show={Boolean(searchParams?.success)} />
+      <PostPurchaseSuccessBanner
+        show={Boolean(searchParams?.success)}
+        subscriptionStatus={settings?.subscription_status ?? null}
+      />
       {searchParams?.canceled ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
           Checkout was canceled. You can try again anytime.

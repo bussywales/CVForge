@@ -1,5 +1,9 @@
 # Changelog
 
+## v0.7.49
+- Subscription checkout now triggers the same Resume Accelerator as credit top-ups: success detects subscription returns, shows a subscription-specific banner, and auto-resumes pending actions with resume=1.
+- Added subscription post-purchase logging events and completion watchdog hooks, plus a resume URL helper test.
+
 ## v0.7.48b
 - Added a subscription nudge inside credit gates (Autopack, Interview Pack, Application Kit, Answer Pack) with plan availability guard, inline errors, and monetisation logging.
 - Subscription gate CTA respects pending-action return links with `resume=1` and hides quietly when dismissed.

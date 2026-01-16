@@ -136,6 +136,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - After checkout success with a pending action, the Resume Accelerator banner appears with neutral copy; Resume returns to the correct tab/anchor and hides after use or dismiss.
 - Success banner also appears on the application/drill pages when returning from billing; session guard prevents repeat spam; completion nudge appears after the resumed action finishes with a CTA to the next best step and auto-dismisses after a short time.
 - If the resumed action is not completed within ~90s, completion watchdog nudge appears with Take me back/Mark as done/Dismiss and logs interactions.
+- Subscription checkout return shows “Subscription active — resuming…” banner, auto-redirects with `resume=1`, and the completion nudge behaves the same as top-ups.
 
 ## Referrals
 - Fetch your referral link on /app/billing; copy and share.

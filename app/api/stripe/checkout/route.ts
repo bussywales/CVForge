@@ -88,11 +88,20 @@ export async function POST(request: Request) {
     }
   }
 
+  const successUrl = new URL(buildUrl(returnTo, "purchased"));
+  successUrl.searchParams.set("mode", mode);
+  if (mode === "subscription") {
+    successUrl.searchParams.set("sub", "1");
+  }
+
+  const cancelUrl = new URL(buildUrl(returnTo, "canceled"));
+  cancelUrl.searchParams.set("mode", mode);
+
   const session = await stripe.checkout.sessions.create({
     mode,
     line_items: [{ price: priceId, quantity: 1 }],
-    success_url: buildUrl(returnTo, "purchased"),
-    cancel_url: buildUrl(returnTo, "canceled"),
+    success_url: successUrl.toString(),
+    cancel_url: cancelUrl.toString(),
     customer_email: user.email ?? undefined,
     client_reference_id: user.id,
     customer: customerId ?? undefined,

@@ -14,12 +14,14 @@ type Props = {
   show?: boolean;
   applicationId?: string;
   surface?: "billing" | "applications" | "practice";
+  subscriptionStatus?: string | null;
 };
 
 export default function PostPurchaseSuccessBanner({
   show = false,
   applicationId,
   surface = "billing",
+  subscriptionStatus,
 }: Props) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -28,6 +30,8 @@ export default function PostPurchaseSuccessBanner({
   const [resumeMode, setResumeMode] = useState(false);
   const [countdown, setCountdown] = useState<number | null>(null);
   const [resuming, setResuming] = useState(false);
+  const [isSubscription, setIsSubscription] = useState(false);
+  const [successOnly, setSuccessOnly] = useState(false);
 
   const pendingHref = useMemo(() => {
     if (!pending) return null;
@@ -44,6 +48,7 @@ export default function PostPurchaseSuccessBanner({
         href,
         startedAt: Date.now(),
         auto,
+        subscription: isSubscription,
       };
       try {
         window.sessionStorage.setItem("cvf-watchdog-pending", JSON.stringify(payload));
@@ -52,7 +57,7 @@ export default function PostPurchaseSuccessBanner({
       }
       window.dispatchEvent(new CustomEvent("cvf-watchdog-start", { detail: payload }));
     },
-    []
+    [isSubscription]
   );
 
   const handleResume = useCallback(
@@ -64,6 +69,23 @@ export default function PostPurchaseSuccessBanner({
       setPending(null);
       setHidden(true);
       markWatchdogStart(pending, pendingHref, auto);
+      if (isSubscription) {
+        if (auto) {
+          logMonetisationClientEvent(
+            "sub_post_purchase_auto_redirect",
+            pending.applicationId,
+            surface,
+            { actionKey: pending.type }
+          );
+        } else {
+          logMonetisationClientEvent(
+            "sub_post_purchase_resume_click",
+            pending.applicationId,
+            surface,
+            { actionKey: pending.type }
+          );
+        }
+      }
       logMonetisationClientEvent(
         "billing_success_banner_resume_click",
         pending.applicationId,
@@ -90,7 +112,7 @@ export default function PostPurchaseSuccessBanner({
         );
       }
     },
-    [pending, pendingHref, resuming, router, surface, markWatchdogStart]
+    [pending, pendingHref, resuming, router, surface, markWatchdogStart, isSubscription]
   );
 
   useEffect(() => {
@@ -102,6 +124,12 @@ export default function PostPurchaseSuccessBanner({
       params.has("purchased") ||
       params.get("checkout") === "success" ||
       resumeRequested;
+    const subscriptionFlag =
+      params.get("mode") === "subscription" ||
+      params.get("sub") === "1" ||
+      Boolean(params.get("planKey")) ||
+      Boolean(subscriptionStatus && subscriptionStatus !== "canceled");
+    setIsSubscription(subscriptionFlag);
 
     if (!success) return;
 
@@ -131,11 +159,27 @@ export default function PostPurchaseSuccessBanner({
           surface,
           { actionKey: nextPending.type }
         );
+        if (subscriptionFlag) {
+          logMonetisationClientEvent(
+            "sub_post_purchase_auto_redirect",
+            nextPending.applicationId,
+            surface,
+            { actionKey: nextPending.type, countdown: true }
+          );
+        }
       } else {
         setCountdown(null);
       }
       if (typeof window !== "undefined") {
         window.sessionStorage.setItem(guardKey, "1");
+      }
+      if (subscriptionFlag) {
+        logMonetisationClientEvent(
+          "sub_post_purchase_view",
+          nextPending.applicationId,
+          surface,
+          { actionKey: nextPending.type, resume: resumeRequested }
+        );
       }
       logMonetisationClientEvent(
         "billing_success_banner_view",
@@ -143,8 +187,17 @@ export default function PostPurchaseSuccessBanner({
         surface,
         { actionKey: nextPending.type, resume: resumeRequested }
       );
+    } else {
+      setSuccessOnly(true);
+      setHidden(false);
+      if (subscriptionFlag && applicationId) {
+        logMonetisationClientEvent("sub_post_purchase_view", applicationId, surface, {
+          actionKey: "none",
+          resume: false,
+        });
+      }
     }
-  }, [searchParams, show, applicationId, surface, pending]);
+  }, [searchParams, show, applicationId, surface, pending, subscriptionStatus]);
 
   useEffect(() => {
     if (!resumeMode || countdown === null || resuming) return;
@@ -159,6 +212,32 @@ export default function PostPurchaseSuccessBanner({
     return () => window.clearTimeout(timer);
   }, [resumeMode, countdown, resuming, handleResume]);
 
+  if (successOnly && !hidden) {
+    return (
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-sm font-semibold text-emerald-800">
+              {isSubscription ? "Subscription active." : "Payment successful."}
+            </p>
+            <p className="text-xs text-emerald-700">
+              {isSubscription
+                ? "You can keep going without running out of credits."
+                : "You’re all set."}
+            </p>
+          </div>
+          <button
+            type="button"
+            className="rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+            onClick={() => setHidden(true)}
+          >
+            Dismiss
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (!pending || !pendingHref || hidden) return null;
 
   const actionLabels: Record<PendingAction["type"], string> = {
@@ -171,13 +250,16 @@ export default function PostPurchaseSuccessBanner({
     resumeMode && countdown !== null
       ? `Auto-resuming in ${countdown}s…`
       : "We saved your last step. Resume when you’re ready.";
+  const title = isSubscription
+    ? "Subscription active — resuming your next step…"
+    : "Resume Accelerator ready.";
 
   return (
     <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-emerald-800">
-            Resume Accelerator ready.
+            {title}
           </p>
           <p className="text-xs text-emerald-700">{subtitle}</p>
         </div>
@@ -200,6 +282,14 @@ export default function PostPurchaseSuccessBanner({
               setCountdown(null);
               setPending(null);
               clearPendingAction();
+              if (isSubscription) {
+                logMonetisationClientEvent(
+                  "sub_post_purchase_not_now",
+                  pending.applicationId,
+                  surface,
+                  { actionKey: pending.type }
+                );
+              }
               logMonetisationClientEvent(
                 "billing_success_banner_dismiss",
                 pending.applicationId,
