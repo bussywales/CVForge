@@ -1,11 +1,14 @@
 # Changelog
 
-## v0.7.36
-- Billing conversion lift: personalised pack recommendation, ROI copy in gates, referral hint, and low-credit nudges with return-to-action checkout/resume.
-- Credit gate/resume logging extended (billing viewed/return, pack recommended, resume dismiss).
+## v0.7.40
+- Billing hero simplification: single recommended decision card with dominant CTA, concise proof chips, and lighter secondary packs.
 
 ## v0.7.37
 - Billing UX uplift: single hero recommendation with clear reasons, de-emphasised alternate packs, cleaner balance/usage, and polished referral copy icon layout.
+
+## v0.7.36
+- Billing conversion lift: personalised pack recommendation, ROI copy in gates, referral hint, and low-credit nudges with return-to-action checkout/resume.
+- Credit gate/resume logging extended (billing viewed/return, pack recommended, resume dismiss).
 
 ## v0.7.32
 - Revenue Funnel Analytics v1: monetisation event logging, checkout/gate/resume tracking, and a funnel panel on Insights using the shared helper.

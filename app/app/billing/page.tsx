@@ -12,7 +12,7 @@ import { ensureReferralCode } from "@/lib/referrals";
 import CopyIconButton from "@/components/CopyIconButton";
 import BillingEventLogger from "./billing-event-logger";
 import ProofChips from "./proof-chips";
-import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import RecommendedCta from "./recommended-cta";
 
 export const dynamic = "force-dynamic";
 
@@ -178,37 +178,13 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 Now: {credits} → After: {credits + recommendedPack.credits}
               </div>
             </div>
-            <button
-              type="button"
-              onClick={async () => {
-                if (latestApplicationId) {
-                  logMonetisationClientEvent("checkout_started", latestApplicationId, "billing", {
-                    packKey: recommendedPack.key,
-                  });
-                }
-                try {
-                  const response = await fetch("/api/stripe/checkout", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    credentials: "include",
-                    body: JSON.stringify({
-                      packKey: recommendedPack.key,
-                      returnTo: "/app/billing",
-                      applicationId: latestApplicationId ?? undefined,
-                    }),
-                  });
-                  const payload = await response.json().catch(() => ({}));
-                  if (payload?.url) {
-                    window.location.href = payload.url as string;
-                  }
-                } catch {
-                  /* ignore best-effort */
-                }
-              }}
-              className="w-full rounded-full bg-[rgb(var(--accent))] px-4 py-3 text-sm font-semibold text-white shadow hover:bg-[rgb(var(--accent-strong))]"
-            >
-              Top up {formatGbp(recommendedPack.priceGbp)} ({recommendedPack.name})
-            </button>
+            <RecommendedCta
+              packKey={recommendedPack.key}
+              priceLabel={formatGbp(recommendedPack.priceGbp)}
+              packName={recommendedPack.name}
+              applicationId={latestApplicationId}
+              returnTo="/app/billing"
+            />
             <p className="text-xs text-[rgb(var(--muted))]">
               You’ll return and resume where you left off.
             </p>
