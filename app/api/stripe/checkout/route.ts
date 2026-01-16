@@ -29,12 +29,25 @@ export async function POST(request: Request) {
   const returnTo = typeof body?.returnTo === "string" ? body.returnTo : null;
   const applicationId =
     typeof body?.applicationId === "string" ? body.applicationId : null;
-  const mode = body?.mode === "subscription" ? "subscription" : "payment";
+  const rawMode = typeof body?.mode === "string" ? body.mode : null;
+  const mode =
+    rawMode === "subscription"
+      ? "subscription"
+      : rawMode === "payment" || rawMode === null
+        ? "payment"
+        : null;
   const planKey = typeof body?.planKey === "string" ? body.planKey : undefined;
   const pack = getPackByKey(packKey) ?? CREDIT_PACKS[0];
+  const plan = getPlanByKey(planKey ?? "monthly_30");
+  const planKeyResolved = plan?.key ?? planKey ?? "monthly_30";
+
+  if (!mode) {
+    return NextResponse.json({ error: "INVALID_MODE" }, { status: 400 });
+  }
+
   const priceId =
     mode === "subscription"
-      ? resolvePriceIdForPlan(planKey ?? "monthly_30")
+      ? resolvePriceIdForPlan(planKeyResolved)
       : resolvePriceIdForPack(pack.key);
 
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -50,7 +63,9 @@ export async function POST(request: Request) {
 
   if (!priceId) {
     return NextResponse.json(
-      { error: "Missing priceId for pack", pack: pack.key },
+      mode === "subscription"
+        ? { error: "MISSING_SUBSCRIPTION_PRICE_ID", planKey: planKeyResolved }
+        : { error: "MISSING_PRICE_ID", packKey: pack.key },
       { status: 400 }
     );
   }

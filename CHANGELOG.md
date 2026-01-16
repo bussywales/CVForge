@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.45-hotfix
+- Guard Stripe checkout when price IDs are missing or mode is invalid, returning explicit JSON errors instead of silent failures.
+- Disable unavailable packs in billing/resume surfaces with helper text and logging, plus inline checkout failure banners with retry/dismiss.
+- Document required Stripe pack/subscription env vars and site URL; update env example for hotfix rollout.
+
 ## v0.7.44
 - Resume Accelerator: returning with `resume=1` and a saved pending action now shows a neutral success banner with a 3s countdown, auto-navigates to the saved tab/anchor, and triggers the pending action without extra clicks.
 - Billing return links now append `resume=1` for all gated actions so resume flows kick in automatically while keeping monetisation logging intact and avoiding payment-specific copy.

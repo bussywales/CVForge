@@ -14,11 +14,13 @@ export type MonetisationEventName =
   | "resume_next_step_click"
   | "pack_recommended"
   | "checkout_started"
+  | "checkout_start_failed"
   | "checkout_success"
   | "resume_banner_shown"
   | "resume_clicked"
   | "resume_dismissed"
-  | "autopack_generated";
+  | "autopack_generated"
+  | "billing_pack_unavailable";
 
 export async function logMonetisationEvent(
   supabase: SupabaseClient,

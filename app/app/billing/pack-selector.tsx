@@ -1,7 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { CREDIT_PACKS, formatGbp, type CreditPack } from "@/lib/billing/packs";
+import { useEffect, useState } from "react";
+import {
+  CREDIT_PACKS,
+  formatGbp,
+  resolvePriceIdForPack,
+  type CreditPack,
+} from "@/lib/billing/packs";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type Props = {
@@ -13,10 +18,12 @@ type Props = {
   recommendedPackKey?: CreditPack["key"];
   packs?: CreditPack[];
   compactCards?: boolean;
+  surface?: "billing" | "insights" | "apply" | "interview" | "gate";
 };
 
 type CheckoutState = {
   status: "idle" | "loading" | "error";
+  packKey?: CreditPack["key"] | null;
   message?: string;
 };
 
@@ -24,11 +31,28 @@ function PackCard({
   pack,
   onSelect,
   compact,
+  priceId,
+  surface,
+  applicationId,
+  isLoading,
 }: {
   pack: CreditPack;
   onSelect: (key: CreditPack["key"]) => void;
   compact?: boolean;
+  priceId?: string | null;
+  surface: Props["surface"];
+  applicationId?: string;
+  isLoading?: boolean;
 }) {
+  const unavailable = !priceId;
+
+  useEffect(() => {
+    if (!unavailable) return;
+    logMonetisationClientEvent("billing_pack_unavailable", applicationId, surface, {
+      packKey: pack.key,
+    });
+  }, [applicationId, pack.key, surface, unavailable]);
+
   return (
     <div
       className={`flex flex-1 flex-col gap-2 rounded-2xl border border-black/10 bg-white/80 shadow-sm ${
@@ -57,9 +81,13 @@ function PackCard({
         className={`inline-flex items-center justify-center rounded-full border border-black/10 bg-[rgb(var(--ink))] text-sm font-semibold text-white hover:bg-black ${
           compact ? "px-3 py-2" : "px-4 py-2"
         }`}
+        disabled={unavailable || isLoading}
       >
-        Buy {pack.credits} credits
+        {isLoading ? "Starting checkout..." : `Buy ${pack.credits} credits`}
       </button>
+      {unavailable ? (
+        <p className="text-xs text-amber-700">This pack isn’t available right now.</p>
+      ) : null}
     </div>
   );
 }
@@ -73,13 +101,14 @@ export default function PackSelector({
   recommendedPackKey,
   packs,
   compactCards,
+  surface = "billing",
 }: Props) {
-  const [state, setState] = useState<CheckoutState>({ status: "idle" });
+  const [state, setState] = useState<CheckoutState>({ status: "idle", packKey: null });
 
   const startCheckout = async (packKey: CreditPack["key"]) => {
-    setState({ status: "loading" });
+    setState({ status: "loading", packKey });
     if (applicationId) {
-      logMonetisationClientEvent("checkout_started", applicationId, "billing", {
+      logMonetisationClientEvent("checkout_started", applicationId, surface, {
         packKey,
       });
     }
@@ -92,16 +121,26 @@ export default function PackSelector({
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok || !payload?.url) {
+        logMonetisationClientEvent("checkout_start_failed", applicationId, surface, {
+          packKey,
+          status: response.status,
+        });
         setState({
           status: "error",
+          packKey,
           message: payload?.error ?? "Unable to start checkout.",
         });
         return;
       }
       window.location.href = payload.url as string;
     } catch (error) {
+      logMonetisationClientEvent("checkout_start_failed", applicationId, surface, {
+        packKey,
+        status: "network_error",
+      });
       setState({
         status: "error",
+        packKey,
         message: "Unable to start checkout.",
       });
     }
@@ -132,14 +171,46 @@ export default function PackSelector({
             pack={pack}
             onSelect={startCheckout}
             compact={compactCards}
+            priceId={resolvePriceIdForPack(pack.key)}
+            surface={surface}
+            applicationId={applicationId}
+            isLoading={state.status === "loading" && state.packKey === pack.key}
           />
         ))}
       </div>
       {onPurchasedHint ? (
         <p className="text-xs text-[rgb(var(--muted))]">{onPurchasedHint}</p>
       ) : null}
-      {state.status === "error" && state.message ? (
-        <p className="text-xs text-red-600">{state.message}</p>
+      {state.status === "error" ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <p className="font-semibold">Checkout couldn’t start.</p>
+          <p className="text-xs text-amber-700">
+            Please try again. If it keeps happening, choose another pack or try again in a moment.
+            {state.message ? ` (${state.message})` : ""}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full bg-amber-700 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-800"
+              onClick={() => {
+                if (state.packKey) {
+                  startCheckout(state.packKey);
+                } else {
+                  setState({ status: "idle", packKey: null });
+                }
+              }}
+            >
+              Retry
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              onClick={() => setState({ status: "idle", packKey: null })}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
       ) : null}
     </div>
   );

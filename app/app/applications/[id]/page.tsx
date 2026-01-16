@@ -655,6 +655,8 @@ export default async function ApplicationPage({
                     contextLabel="Top up now"
                     returnTo={`/app/applications/${application.id}?tab=apply#apply-autopacks`}
                     compact
+                    applicationId={application.id}
+                    surface="apply"
                   />
                 </div>
               </div>
@@ -672,6 +674,8 @@ export default async function ApplicationPage({
                     returnTo={`/app/applications/${application.id}?tab=apply#apply-autopacks`}
                     compact
                     onPurchasedHint="You’ll return here after checkout."
+                    applicationId={application.id}
+                    surface="apply"
                   />
                 </div>
               </div>
@@ -803,6 +807,8 @@ export default async function ApplicationPage({
                   contextLabel="Interview prep"
                   returnTo={`/app/applications/${application.id}?tab=interview#interview-pack`}
                   compact
+                  applicationId={application.id}
+                  surface="interview"
                 />
               </div>
             </div>

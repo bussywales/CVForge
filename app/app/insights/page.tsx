@@ -282,6 +282,7 @@ export default async function InsightsPage({
               contextLabel="Top up now"
               returnTo="/app/insights"
               compact
+              surface="insights"
             />
           </div>
         </div>
@@ -295,6 +296,7 @@ export default async function InsightsPage({
               contextLabel="Continue your Coach plan"
               returnTo="/app/insights"
               compact
+              surface="insights"
             />
           </div>
         </div>

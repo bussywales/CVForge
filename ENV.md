@@ -3,7 +3,7 @@
 - `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL from Settings > API.
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase anon public key from Settings > API.
 - `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key (server-only, used by webhooks).
-- `NEXT_PUBLIC_SITE_URL`: Base URL for redirects (local or production).
+- `NEXT_PUBLIC_SITE_URL`: Base URL for redirects (local or production, e.g. `https://www.cvforge.space`).
 - `STRIPE_SECRET_KEY`: Stripe secret key from the Developers dashboard.
 - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Stripe publishable key (client-side use later).
 - `STRIPE_WEBHOOK_SECRET`: Signing secret for the Stripe webhook endpoint.
@@ -11,6 +11,8 @@
 - `STRIPE_PACK_STARTER_PRICE_ID`: Stripe Price ID for the starter pack (£9 → 10 credits).
 - `STRIPE_PACK_PRO_PRICE_ID`: Stripe Price ID for the pro pack (£19 → 30 credits).
 - `STRIPE_PACK_POWER_PRICE_ID`: Stripe Price ID for the power pack (£39 → 80 credits).
+- `STRIPE_SUB_MONTHLY_30_PRICE_ID`: Stripe Price ID for the Monthly 30 subscription (30 credits/month).
+- `STRIPE_SUB_MONTHLY_80_PRICE_ID`: Stripe Price ID for the Monthly 80 subscription (80 credits/month).
 - `OPENAI_API_KEY`: OpenAI API key for autopack generation.
 - `CVFORGE_ALLOW_NO_CREDITS`: Set to `true` to bypass credit checks in development.
 - `CVFORGE_ADMIN_EMAILS`: Comma-separated list of admin emails allowed to access `/app/admin/learning`.
