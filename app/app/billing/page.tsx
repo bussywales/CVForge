@@ -11,7 +11,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { ensureReferralCode } from "@/lib/referrals";
 import CopyIconButton from "@/components/CopyIconButton";
 import BillingEventLogger from "./billing-event-logger";
-import SeeMoreChips from "./see-more-chips";
+import ProofChips from "./proof-chips";
 
 export const dynamic = "force-dynamic";
 
@@ -155,7 +155,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         description={`Based on your current workload: ${appCount} active application${appCount === 1 ? "" : "s"}.`}
       >
         <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-4 rounded-2xl border border-black/10 bg-white/80 p-6">
+          <div className="space-y-4 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-6 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-sm uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
@@ -169,23 +169,23 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 </p>
               </div>
               <div className="text-right text-xs text-[rgb(var(--muted))]">
-                <p>
-                  After purchase: {credits + recommendedPack.credits} credits
-                </p>
-                <p>
-                  Enough for{" "}
+                <p className="font-semibold text-[rgb(var(--ink))]">
+                  {recommendedPack.credits} credits · enough for{" "}
                   {appCount > 0
                     ? `${Math.min(appCount, recommendedPack.credits)} application${
                         Math.min(appCount, recommendedPack.credits) === 1 ? "" : "s"
                       }`
                     : "your next 1–3 applications"}
                 </p>
+                <p>
+                  Now: {credits} → After: {credits + recommendedPack.credits}
+                </p>
               </div>
             </div>
             <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="text-sm font-semibold text-[rgb(var(--ink))]">
-                  Buy {recommendedPack.name}
+                  Top up with {recommendedPack.name}
                 </div>
                 <PackSelector
                   contextLabel={undefined}
@@ -197,21 +197,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                 />
               </div>
               <p className="mt-2 text-xs text-[rgb(var(--muted))]">
-                Resume your last action immediately after checkout.
+                You’ll return to your application and continue where you left off.
               </p>
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                {recommendation.reasons.slice(0, 3).map((reason) => (
-                  <span
-                    key={reason}
-                    className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700"
-                  >
-                    {reason}
-                  </span>
-                ))}
-                {recommendation.reasons.length > 3 ? (
-                  <SeeMoreChips reasons={recommendation.reasons} />
-                ) : null}
-              </div>
+              <ProofChips reasons={recommendation.reasons} />
               <div className="mt-3 flex flex-wrap gap-2 text-xs text-[rgb(var(--muted))]">
                 <span className="flex items-center gap-1 rounded-full bg-white px-3 py-1">
                   ✓ Autopacks
@@ -248,7 +236,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         </div>
       </Section>
 
-      <Section title="Choose a different pack" description="Secondary options if you prefer another size.">
+      <Section title="Need more or less?" description="Secondary options if you prefer another size.">
         <PackSelector
           contextLabel="Other packs"
           returnTo="/app/billing"
