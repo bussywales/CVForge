@@ -1,5 +1,7 @@
 # Smoke tests
 
+Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
+
 ## Login
 - Request a magic link from /login.
 - Confirm redirect to /app after /auth/callback.

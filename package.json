@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
+    "test": "vitest run --threads=false",
+    "test:ci": "vitest run --threads=false",
     "test:watch": "vitest",
     "test:unit": "vitest run"
   },
