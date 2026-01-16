@@ -28,6 +28,7 @@ import {
 } from "@/lib/billing/pending-action";
 import { logCompletion, logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { getActionRoiLine } from "@/lib/billing/action-roi";
+import SubscriptionGateNudge from "@/app/app/billing/subscription-gate-nudge";
 
 type DrillQuestion = {
   questionKey: string;
@@ -71,6 +72,8 @@ type DrillClientProps = {
   initialAnswers: Record<string, PracticeAnswer>;
   balance: number;
   returnTo?: string;
+  recommendedPlanKey?: "monthly_30" | "monthly_80" | null;
+  hasSubscription?: boolean;
 };
 
 type AnswerPackPanelProps = {
@@ -254,6 +257,8 @@ export default function DrillClient({
   initialAnswers,
   balance,
   returnTo,
+  recommendedPlanKey,
+  hasSubscription,
 }: DrillClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -1133,6 +1138,18 @@ export default function DrillClient({
                       `/app/billing?returnTo=${encodeURIComponent(resumeReturnTo)}`
                     );
                   }}
+                subscriptionNudge={
+                  recommendedPlanKey ? (
+                    <SubscriptionGateNudge
+                      recommendedPlanKey={recommendedPlanKey}
+                      context="answer_pack"
+                      returnTo={resumeReturnTo}
+                      applicationId={applicationId}
+                      hasSubscription={hasSubscription}
+                      onSubscribedStart={() => setShowGate(false)}
+                    />
+                  ) : null
+                }
                 />
             </div>
 

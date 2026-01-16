@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.7.48b
+- Added a subscription nudge inside credit gates (Autopack, Interview Pack, Application Kit, Answer Pack) with plan availability guard, inline errors, and monetisation logging.
+- Subscription gate CTA respects pending-action return links with `resume=1` and hides quietly when dismissed.
+
+## v0.7.48a-hotfix
+- Stabilised Vitest in sandbox/CI by running tests single-threaded; documented local vs CI commands.
+
 ## v0.7.48a
 - Billing page now shows a subscription recommendation card under the hero with deterministic copy, Stripe checkout, and manage-portal access when subscribed.
 - Subscription CTAs disable when plan price IDs are missing with clear helper text and logging; checkout failures surface inline retry/dismiss with monetisation events.

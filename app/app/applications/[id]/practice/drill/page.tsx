@@ -6,6 +6,7 @@ import { listActiveDomainPacks } from "@/lib/data/domain-packs";
 import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { listStarLibrary } from "@/lib/data/star-library";
+import { fetchBillingSettings } from "@/lib/data/billing";
 import { getUserCredits } from "@/lib/data/credits";
 import { buildInterviewLift } from "@/lib/interview-lift";
 import { buildInterviewPack } from "@/lib/interview-pack";
@@ -18,6 +19,7 @@ import type { InterviewRewriteNotes } from "@/lib/interview-rewrite";
 import { calculateRoleFit } from "@/lib/role-fit";
 import type { RoleFitPack } from "@/lib/role-fit";
 import { orderPracticeQuestions } from "@/lib/practice-dashboard";
+import { recommendSubscription } from "@/lib/billing/subscription-reco";
 import DrillClient from "./drill-client";
 import AutopackResumeBanner from "../../../autopack-resume-banner";
 import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
@@ -186,6 +188,31 @@ export default async function PracticeDrillPage({
     console.error("[practice-drill.answers]", error);
   }
 
+  const activeApplications =
+    (
+      await supabase
+        .from("applications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+    ).count ?? 0;
+  const dueFollowups =
+    application.next_action_due && new Date(application.next_action_due) <= new Date()
+      ? 1
+      : 0;
+  const practiceBacklog = Object.keys(answersMap).length;
+  const subscriptionReco = recommendSubscription({
+    credits,
+    activeApplications,
+    dueFollowups,
+    practiceBacklog,
+    autopackCount: autopacks.length,
+  });
+  const recommendedSubscriptionPlan = subscriptionReco.recommendedPlanKey;
+  const billingSettings = await fetchBillingSettings(supabase, user.id);
+  const hasSubscription =
+    Boolean(billingSettings?.subscription_status) &&
+    billingSettings?.subscription_status !== "canceled";
+
   const orderedQuestions = orderPracticeQuestions(
     questions.map(({ questionKey, questionText }) => ({
       questionKey,
@@ -275,6 +302,8 @@ export default async function PracticeDrillPage({
         returnTo={`/app/applications/${application.id}/practice/drill${
           searchParams?.questionKey ? `?questionKey=${encodeURIComponent(searchParams.questionKey)}` : ""
         }`}
+        recommendedPlanKey={recommendedSubscriptionPlan}
+        hasSubscription={hasSubscription}
       />
     </div>
   );

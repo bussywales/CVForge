@@ -14,11 +14,14 @@ import {
   savePendingAction,
 } from "@/lib/billing/pending-action";
 import { logCompletion, logMonetisationClientEvent } from "@/lib/monetisation-client";
+import SubscriptionGateNudge from "@/app/app/billing/subscription-gate-nudge";
 
 type AutopackGenerateButtonProps = {
   applicationId: string;
   balance: number;
   returnTo?: string;
+  recommendedPlanKey?: "monthly_30" | "monthly_80" | null;
+  hasSubscription?: boolean;
 };
 
 type GenerateState = {
@@ -31,6 +34,8 @@ export default function AutopackGenerateButton({
   applicationId,
   balance,
   returnTo,
+  recommendedPlanKey,
+  hasSubscription,
 }: AutopackGenerateButtonProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -221,6 +226,18 @@ export default function AutopackGenerateButton({
               `/app/billing?returnTo=${encodeURIComponent(resumeReturnTo)}`
             );
           }
+        }
+        subscriptionNudge={
+          recommendedPlanKey ? (
+            <SubscriptionGateNudge
+              recommendedPlanKey={recommendedPlanKey}
+              context="autopack"
+              returnTo={resumeReturnTo}
+              applicationId={applicationId}
+              hasSubscription={hasSubscription}
+              onSubscribedStart={() => setShowGate(false)}
+            />
+          ) : null
         }
       />
     </div>

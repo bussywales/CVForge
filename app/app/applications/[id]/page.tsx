@@ -29,6 +29,7 @@ import {
   getKitContentsList,
 } from "@/lib/application-kit";
 import type { PracticeAnswerSnapshot } from "@/lib/practice-dashboard";
+import { recommendSubscription } from "@/lib/billing/subscription-reco";
 import {
   createActivityAction,
   createFollowupFromTemplateAction,
@@ -207,6 +208,21 @@ export default async function ApplicationPage({
   );
   const credits = await getUserCredits(supabase, user.id);
   const billingSettings = await fetchBillingSettings(supabase, user.id);
+  const activeApplications =
+    (
+      await supabase
+        .from("applications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+    ).count ?? 0;
+  const dueFollowups =
+    (
+      await supabase
+        .from("applications")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .lte("next_action_due", new Date().toISOString())
+    ).count ?? 0;
   const jobDescription = getEffectiveJobText(application);
   const jobTextMeta = getJobTextMeta(application);
   let dynamicPacks: RoleFitPack[] = [];
@@ -285,6 +301,7 @@ export default async function ApplicationPage({
   } catch (error) {
     console.error("[application.kit.practice]", error);
   }
+  const practiceBacklog = Object.keys(practiceAnswers).length;
 
   let outcomes: OutcomeRecord[] = [];
   let outcomeActions: ActionSummary | null = null;
@@ -408,6 +425,17 @@ export default async function ApplicationPage({
   const activeTab = parseTab(searchParams?.tab);
   const hasTabParam = Boolean(searchParams?.tab);
   const createdParam = searchParams?.created ?? null;
+  const subscriptionReco = recommendSubscription({
+    credits,
+    activeApplications,
+    dueFollowups,
+    practiceBacklog,
+    autopackCount: autopacks.length,
+  });
+  const recommendedSubscriptionPlan = subscriptionReco.recommendedPlanKey;
+  const hasSubscription =
+    Boolean(billingSettings?.subscription_status) &&
+    billingSettings?.subscription_status !== "canceled";
 
   const checklistFields = [
     "cv_exported_at",
@@ -741,6 +769,8 @@ export default async function ApplicationPage({
                 setOutcomeAction={setOutcomeAction}
                 balance={credits}
                 returnTo={`/app/applications/${application.id}?tab=apply#application-kit`}
+                recommendedPlanKey={recommendedSubscriptionPlan}
+                hasSubscription={hasSubscription}
               />
               </Section>
             </div>
@@ -753,6 +783,8 @@ export default async function ApplicationPage({
               autopacks={autopacks}
               balance={credits}
               returnTo={`/app/applications/${application.id}?tab=apply#apply-autopacks`}
+              recommendedPlanKey={recommendedSubscriptionPlan}
+              hasSubscription={hasSubscription}
             />
             </div>
           </div>
@@ -856,6 +888,8 @@ export default async function ApplicationPage({
                 }))}
                 balance={credits}
                 returnTo={`/app/applications/${application.id}?tab=interview#interview-pack`}
+                recommendedPlanKey={recommendedSubscriptionPlan}
+                hasSubscription={hasSubscription}
               />
               <div id="answer-pack" />
             </Section>

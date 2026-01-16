@@ -11,6 +11,7 @@ import CreditGateModal from "@/app/app/billing/credit-gate-modal";
 import { addResumeParam, savePendingAction, buildReturnToUrl } from "@/lib/billing/pending-action";
 import { logCompletion, logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { getActionRoiLine } from "@/lib/billing/action-roi";
+import SubscriptionGateNudge from "@/app/app/billing/subscription-gate-nudge";
 
 type ExportState = {
   status: "idle" | "loading" | "error";
@@ -41,6 +42,8 @@ type SmartApplyPanelProps = {
   contents: string[];
   balance: number;
   returnTo?: string;
+  recommendedPlanKey?: "monthly_30" | "monthly_80" | null;
+  hasSubscription?: boolean;
   updateClosingDateAction: (formData: FormData) => Promise<ActionState>;
   updateSourcePlatformAction: (formData: FormData) => Promise<ActionState>;
   setSubmittedAction: (formData: FormData) => Promise<ActionState>;
@@ -78,6 +81,8 @@ export default function ApplicationKitPanel({
   contents,
   balance,
   returnTo,
+  recommendedPlanKey,
+  hasSubscription,
   updateClosingDateAction,
   updateSourcePlatformAction,
   setSubmittedAction,
@@ -635,6 +640,18 @@ export default function ApplicationKitPanel({
           });
           window.location.href = `/app/billing?returnTo=${encodeURIComponent(resumeReturnTo)}`;
         }}
+        subscriptionNudge={
+          recommendedPlanKey ? (
+            <SubscriptionGateNudge
+              recommendedPlanKey={recommendedPlanKey}
+              context="kit"
+              returnTo={resumeReturnTo}
+              applicationId={applicationId}
+              hasSubscription={hasSubscription}
+              onSubscribedStart={() => setShowGate(false)}
+            />
+          ) : null
+        }
       />
 
       {state.status === "error" && state.message ? (

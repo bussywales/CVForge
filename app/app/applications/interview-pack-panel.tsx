@@ -20,6 +20,7 @@ import {
 } from "@/lib/billing/pending-action";
 import { logCompletion, logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { getActionRoiLine } from "@/lib/billing/action-roi";
+import SubscriptionGateNudge from "@/app/app/billing/subscription-gate-nudge";
 
 type InterviewPackPanelProps = {
   applicationId: string;
@@ -27,6 +28,8 @@ type InterviewPackPanelProps = {
   achievements: Array<{ id: string; title: string; metrics: string | null }>;
   balance: number;
   returnTo?: string;
+  recommendedPlanKey?: "monthly_30" | "monthly_80" | null;
+  hasSubscription?: boolean;
 };
 
 type ToastState = { message: string; variant?: "success" | "error" };
@@ -94,6 +97,8 @@ export default function InterviewPackPanel({
   achievements,
   balance,
   returnTo,
+  recommendedPlanKey,
+  hasSubscription,
 }: InterviewPackPanelProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -736,6 +741,18 @@ export default function InterviewPackPanel({
           });
           router.push(`/app/billing?returnTo=${encodeURIComponent(resumeReturnTo)}`);
         }}
+        subscriptionNudge={
+          recommendedPlanKey ? (
+            <SubscriptionGateNudge
+              recommendedPlanKey={recommendedPlanKey}
+              context="interview_pack"
+              returnTo={resumeReturnTo}
+              applicationId={applicationId}
+              hasSubscription={hasSubscription}
+              onSubscribedStart={() => setShowGate(false)}
+            />
+          ) : null
+        }
       />
 
       <div className="rounded-2xl border border-black/10 bg-white/70 p-4">

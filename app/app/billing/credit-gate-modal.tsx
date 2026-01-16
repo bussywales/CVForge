@@ -14,6 +14,7 @@ type Props = {
   recommendedPackName?: string;
   reasons?: string[];
   referralHref?: string;
+  subscriptionNudge?: React.ReactNode;
 };
 
 export default function CreditGateModal({
@@ -28,6 +29,7 @@ export default function CreditGateModal({
   recommendedPackName,
   reasons,
   referralHref,
+  subscriptionNudge,
 }: Props) {
   if (!open) return null;
   return (
@@ -83,6 +85,7 @@ export default function CreditGateModal({
             Not now
           </button>
         </div>
+        {subscriptionNudge ? <div className="mt-3">{subscriptionNudge}</div> : null}
       </div>
     </div>
   );

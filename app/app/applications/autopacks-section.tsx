@@ -8,6 +8,8 @@ type AutopacksSectionProps = {
   autopacks: AutopackRecord[];
   balance: number;
   returnTo?: string;
+  recommendedPlanKey?: "monthly_30" | "monthly_80" | null;
+  hasSubscription?: boolean;
 };
 
 export default function AutopacksSection({
@@ -15,6 +17,8 @@ export default function AutopacksSection({
   autopacks,
   balance,
   returnTo,
+  recommendedPlanKey,
+  hasSubscription,
 }: AutopacksSectionProps) {
   return (
     <Section
@@ -26,6 +30,8 @@ export default function AutopacksSection({
           applicationId={applicationId}
           balance={balance}
           returnTo={returnTo}
+          recommendedPlanKey={recommendedPlanKey}
+          hasSubscription={hasSubscription}
         />
       }
     >
