@@ -131,3 +131,7 @@
 - Visit /app/insights and confirm the First Job Win panel shows five steps with statuses.
 - With zero data, it should offer “Create a sample application.”
 - After adding achievements/work history/applications, progress updates and links deep-link to the correct tab/anchor (profile, new application, Apply Kit Wizard).
+
+## Landing page
+- Visit / (marketing landing) and confirm hero, how-it-works, product tour, pricing teaser, FAQ, and Optional AI Boost sections render cleanly.
+- “See how it works” scrolls to the section; primary CTA goes to signup (or application create when signed in); pricing CTA deep-links to billing/signup.

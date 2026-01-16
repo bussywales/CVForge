@@ -4,6 +4,9 @@
 - Revenue Funnel Analytics v1: monetisation event logging, checkout/gate/resume tracking, and a funnel panel on Insights using the shared helper.
 - Fixed monetisation logging API parsing and aligned gating/resume flows to log events consistently.
 
+## v0.7.33
+- Marketing landing page rebuilt for conversion: clear 20-minute flow, product tour, transparent “does/doesn’t” section, pricing teaser, FAQ, and optional AI Boost note with CTA routing for signed-in vs new users.
+
 ## v0.7.30
 - Action gating v1: Autopack generation shows a credit confirm modal when balance > 0 and a billing CTA when balance is 0.
 - Referral copy UX: copy-icon button with quick feedback on Billing/Insights referral links.
