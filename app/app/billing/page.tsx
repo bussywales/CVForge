@@ -11,6 +11,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { ensureReferralCode } from "@/lib/referrals";
 import CopyIconButton from "@/components/CopyIconButton";
 import BillingEventLogger from "./billing-event-logger";
+import SeeMoreChips from "./see-more-chips";
 
 export const dynamic = "force-dynamic";
 
@@ -154,40 +155,74 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         description={`Based on your current workload: ${appCount} active application${appCount === 1 ? "" : "s"}.`}
       >
         <div className="grid gap-4 md:grid-cols-[1.1fr_0.9fr]">
-          <div className="space-y-3 rounded-2xl border border-black/10 bg-white/80 p-5">
-            <div className="flex items-center justify-between">
+          <div className="space-y-4 rounded-2xl border border-black/10 bg-white/80 p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-lg font-semibold text-[rgb(var(--ink))]">
+                <p className="text-sm uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+                  Recommended
+                </p>
+                <p className="text-xl font-semibold text-[rgb(var(--ink))]">
                   {recommendedPack.name}
                 </p>
                 <p className="text-sm text-[rgb(var(--muted))]">
                   {recommendedPack.credits} credits · {formatGbp(recommendedPack.priceGbp)}
                 </p>
               </div>
-              <span className="rounded-full bg-emerald-100 px-3 py-1 text-[11px] font-semibold text-emerald-800">
-                Recommended
-              </span>
+              <div className="text-right text-xs text-[rgb(var(--muted))]">
+                <p>
+                  After purchase: {credits + recommendedPack.credits} credits
+                </p>
+                <p>
+                  Enough for{" "}
+                  {appCount > 0
+                    ? `${Math.min(appCount, recommendedPack.credits)} application${
+                        Math.min(appCount, recommendedPack.credits) === 1 ? "" : "s"
+                      }`
+                    : "your next 1–3 applications"}
+                </p>
+              </div>
             </div>
-            <PackSelector
-              contextLabel="Buy now"
-              returnTo="/app/billing"
-              compact
-              applicationId={latestApplicationId ?? undefined}
-              recommendedPackKey={recommendation.recommendedPack}
-              packs={[recommendedPack]}
-            />
-            <p className="text-xs text-[rgb(var(--muted))]">
-              Resume your last action immediately after checkout.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {recommendation.reasons.map((reason) => (
-                <span
-                  key={reason}
-                  className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700"
-                >
-                  {reason}
+            <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-[rgb(var(--ink))]">
+                  Buy {recommendedPack.name}
+                </div>
+                <PackSelector
+                  contextLabel={undefined}
+                  returnTo="/app/billing"
+                  compact
+                  applicationId={latestApplicationId ?? undefined}
+                  recommendedPackKey={recommendation.recommendedPack}
+                  packs={[recommendedPack]}
+                />
+              </div>
+              <p className="mt-2 text-xs text-[rgb(var(--muted))]">
+                Resume your last action immediately after checkout.
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                {recommendation.reasons.slice(0, 3).map((reason) => (
+                  <span
+                    key={reason}
+                    className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-slate-700"
+                  >
+                    {reason}
+                  </span>
+                ))}
+                {recommendation.reasons.length > 3 ? (
+                  <SeeMoreChips reasons={recommendation.reasons} />
+                ) : null}
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2 text-xs text-[rgb(var(--muted))]">
+                <span className="flex items-center gap-1 rounded-full bg-white px-3 py-1">
+                  ✓ Autopacks
                 </span>
-              ))}
+                <span className="flex items-center gap-1 rounded-full bg-white px-3 py-1">
+                  ✓ Interview Pack
+                </span>
+                <span className="flex items-center gap-1 rounded-full bg-white px-3 py-1">
+                  ✓ Answer Pack
+                </span>
+              </div>
             </div>
           </div>
           <div className="space-y-3 rounded-2xl border border-black/10 bg-white/70 p-5">
@@ -222,6 +257,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           packs={CREDIT_PACKS.filter((pack) => pack.key !== recommendation.recommendedPack)}
           compactCards
         />
+        <div className="mt-3 grid gap-2 text-xs text-[rgb(var(--muted))] md:grid-cols-3">
+          <p>Starter: Best for 1–2 applications this week.</p>
+          <p>Pro: Best for active searches.</p>
+          <p>Power: Best for batch applying.</p>
+        </div>
       </Section>
 
       <Section
@@ -274,7 +314,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               {settings?.subscription_status ?? "None"}
             </p>
             <p className="text-xs text-[rgb(var(--muted))]">
-              Auto credits each month when active.
+              Monthly credits + optional safety net when you’re running low.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -287,7 +327,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                   type="submit"
                   className="rounded-full border border-black/10 bg-[rgb(var(--ink))] px-4 py-2 text-sm font-semibold text-white hover:bg-black"
                 >
-                  Subscribe ({plan.creditsPerMonth} credits / mo)
+                  Start monthly credits ({plan.creditsPerMonth}/mo)
                 </button>
               </form>
             ))}
@@ -366,7 +406,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             </button>
           </div>
           <p className="text-xs text-[rgb(var(--muted))]">
-            No background charges; you’ll be redirected to checkout when auto top-up is triggered.
+            You’ll be redirected to Stripe to confirm any payment.
           </p>
         </form>
       </Section>

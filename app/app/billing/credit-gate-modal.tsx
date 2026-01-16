@@ -35,15 +35,17 @@ export default function CreditGateModal({
       <div className="w-full max-w-md rounded-2xl border border-black/10 bg-white p-5 shadow-xl">
         <div className="space-y-2">
           <p className="text-sm font-semibold text-[rgb(var(--ink))]">
-            {actionLabel} will use {cost} credit{cost === 1 ? "" : "s"}
+            Top up to continue
           </p>
           <p className="text-xs text-[rgb(var(--muted))]">
-            Current balance: {balance}
-            {roiLine ? ` · ${roiLine}` : null}
+            {actionLabel} will use {cost} credit{cost === 1 ? "" : "s"}. Current balance: {balance}
           </p>
+          {roiLine ? (
+            <p className="text-xs text-[rgb(var(--muted))]">{roiLine}</p>
+          ) : null}
           {recommendedPackName ? (
             <p className="text-xs text-[rgb(var(--muted))]">
-              Best fit: {recommendedPackName}
+              Suggested pack: {recommendedPackName}
             </p>
           ) : null}
           {reasons && reasons.length > 0 ? (
