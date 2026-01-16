@@ -21,6 +21,7 @@ export default function RecommendedCta({
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [helpOpen, setHelpOpen] = useState(false);
   const priceId = resolvePriceIdForPack(packKey);
   const unavailable = !priceId;
 
@@ -46,22 +47,29 @@ export default function RecommendedCta({
         packKey,
       });
     }
-      try {
-        const response = await fetch("/api/stripe/checkout", {
-          method: "POST",
+    try {
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({ packKey, returnTo, applicationId: applicationId ?? undefined }),
       });
-        const payload = await response.json().catch(() => ({}));
-        if (payload?.url) {
-          window.location.href = payload.url as string;
-          return;
-        }
-        logMonetisationClientEvent("checkout_start_failed", applicationId ?? null, "billing", {
-          packKey,
-          status: response.status,
-        });
+      const payload = await response.json().catch(() => ({}));
+      if (payload?.url) {
+        const timer = window.setTimeout(() => {
+          setError("Checkout didn’t open. Try again or disable pop-up blocking.");
+          logMonetisationClientEvent("checkout_redirect_failed", applicationId ?? null, "billing", {
+            packKey,
+          });
+        }, 2000);
+        window.location.href = payload.url as string;
+        window.setTimeout(() => window.clearTimeout(timer), 2500);
+        return;
+      }
+      logMonetisationClientEvent("checkout_start_failed", applicationId ?? null, "billing", {
+        packKey,
+        status: response.status,
+      });
       } catch {
         logMonetisationClientEvent("checkout_start_failed", applicationId ?? null, "billing", {
           packKey,
@@ -99,7 +107,12 @@ export default function RecommendedCta({
             <button
               type="button"
               className="rounded-full bg-amber-700 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-800"
-              onClick={handleCheckout}
+              onClick={() => {
+                logMonetisationClientEvent("checkout_retry_click", applicationId ?? null, "billing", {
+                  packKey,
+                });
+                handleCheckout();
+              }}
               disabled={loading || unavailable}
             >
               Retry
@@ -111,7 +124,26 @@ export default function RecommendedCta({
             >
               Dismiss
             </button>
+            <button
+              type="button"
+              className="rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              onClick={() => {
+                setHelpOpen((prev) => !prev);
+                if (!helpOpen) {
+                  logMonetisationClientEvent("checkout_help_open", applicationId ?? null, "billing", {
+                    packKey,
+                  });
+                }
+              }}
+            >
+              Help
+            </button>
           </div>
+          {helpOpen ? (
+            <p className="mt-2 text-xs text-[rgb(var(--muted))]">
+              If checkout didn’t open, disable pop-up blocking or paste the billing link into a new tab.
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

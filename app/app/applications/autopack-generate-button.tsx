@@ -13,7 +13,7 @@ import {
   clearPendingAction,
   savePendingAction,
 } from "@/lib/billing/pending-action";
-import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { logCompletion, logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type AutopackGenerateButtonProps = {
   applicationId: string;
@@ -96,6 +96,9 @@ export default function AutopackGenerateButton({
           applicationId,
           "applications"
         );
+        logCompletion("autopack_generate_completed", applicationId, "applications", {
+          autopackId,
+        });
         logMonetisationClientEvent(
           "resume_completed",
           applicationId,

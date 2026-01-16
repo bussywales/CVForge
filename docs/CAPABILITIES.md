@@ -75,6 +75,7 @@ Stripe Checkout is used for credit purchases, with a credit ledger and webhook-b
 
 ## Monetisation analytics
 Credit gates, checkout starts/successes, resume clicks, and autopack completions are logged deterministically. Insights shows a revenue funnel (7d/30d) plus top surfaces for gates and billing clicks to spot leaks quickly.
+Recovery tile tracks checkout started/returned/completed and shows conversion hints to reduce drop-off; completion events are standardised across Autopack, Interview Pack export, Application Kit download, and Answer Pack generation.
 
 ## Marketing site
 A public landing page explains the 20-minute flow (job advert → evidence → STAR → kit → submit), shows product tour cards, transparent pricing teaser, FAQ, and an optional AI Boost note. CTAs deep-link to signup/login or billing depending on auth.

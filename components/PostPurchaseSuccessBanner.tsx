@@ -35,6 +35,26 @@ export default function PostPurchaseSuccessBanner({
     return `${url.pathname}${url.search}${url.hash}`;
   }, [pending]);
 
+  const markWatchdogStart = useCallback(
+    (action: PendingAction, href: string, auto: boolean) => {
+      if (typeof window === "undefined") return;
+      const payload = {
+        applicationId: action.applicationId,
+        actionKey: action.type,
+        href,
+        startedAt: Date.now(),
+        auto,
+      };
+      try {
+        window.sessionStorage.setItem("cvf-watchdog-pending", JSON.stringify(payload));
+      } catch {
+        /* ignore */
+      }
+      window.dispatchEvent(new CustomEvent("cvf-watchdog-start", { detail: payload }));
+    },
+    []
+  );
+
   const handleResume = useCallback(
     (auto = false) => {
       if (!pending || !pendingHref || resuming) return;
@@ -43,6 +63,7 @@ export default function PostPurchaseSuccessBanner({
       clearPendingAction();
       setPending(null);
       setHidden(true);
+      markWatchdogStart(pending, pendingHref, auto);
       logMonetisationClientEvent(
         "billing_success_banner_resume_click",
         pending.applicationId,
@@ -69,7 +90,7 @@ export default function PostPurchaseSuccessBanner({
         );
       }
     },
-    [pending, pendingHref, resuming, router, surface]
+    [pending, pendingHref, resuming, router, surface, markWatchdogStart]
   );
 
   useEffect(() => {

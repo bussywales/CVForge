@@ -4,6 +4,8 @@ import { listApplications } from "@/lib/data/applications";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import ApplicationsCommandCentre from "./applications-command-centre";
 import { buildCommandCentreItems } from "@/lib/applications-command-centre";
+import { getUserCredits } from "@/lib/data/credits";
+import CreditsIdleNudge from "@/components/CreditsIdleNudge";
 
 export default async function ApplicationsPage() {
   const { supabase, user } = await getSupabaseUser();
@@ -17,6 +19,7 @@ export default async function ApplicationsPage() {
   }
 
   const applications = await listApplications(supabase, user.id);
+  const credits = await getUserCredits(supabase, user.id);
   const [evidenceRows, starRows, autopackRows] = await Promise.all([
     supabase
       .from("application_evidence")
@@ -77,38 +80,57 @@ export default async function ApplicationsPage() {
     star: starCounts,
     autopack: autopackCounts,
   });
+  const paidItem =
+    credits > 0
+      ? items.find((item) =>
+          /apply-autopacks|interview-pack|application-kit|answer-pack|practice\/drill/.test(
+            item.nextActionHref
+          )
+        )
+      : null;
 
   return (
-    <Section
-      title="Applications"
-      description="Your next actions across roles."
-      action={
-        <Link
-          href="/app/applications/new"
-          className="rounded-2xl bg-[rgb(var(--accent))] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[rgb(var(--accent-strong))]"
-        >
-          New application
-        </Link>
-      }
-    >
-      {items.length === 0 ? (
-        <div className="space-y-3 rounded-2xl border border-dashed border-black/20 bg-white/70 p-6 text-sm text-[rgb(var(--muted))]">
-          <p>Create your first application to start the command centre.</p>
-          <ol className="list-decimal space-y-1 pl-4 text-xs">
-            <li>Create application with job link/text.</li>
-            <li>Add evidence and STAR draft.</li>
-            <li>Generate Autopack and submit.</li>
-          </ol>
+    <>
+      {paidItem ? (
+        <div className="mb-4">
+          <CreditsIdleNudge
+            applicationId={paidItem.id}
+            href={paidItem.nextActionHref}
+            surface="applications"
+          />
+        </div>
+      ) : null}
+      <Section
+        title="Applications"
+        description="Your next actions across roles."
+        action={
           <Link
             href="/app/applications/new"
-            className="inline-flex w-fit rounded-full border border-black/10 bg-[rgb(var(--ink))] px-4 py-2 text-xs font-semibold text-white hover:bg-black"
+            className="rounded-2xl bg-[rgb(var(--accent))] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-[rgb(var(--accent-strong))]"
           >
-            Create application
+            New application
           </Link>
-        </div>
-      ) : (
-        <ApplicationsCommandCentre items={items} />
-      )}
-    </Section>
+        }
+      >
+        {items.length === 0 ? (
+          <div className="space-y-3 rounded-2xl border border-dashed border-black/20 bg-white/70 p-6 text-sm text-[rgb(var(--muted))]">
+            <p>Create your first application to start the command centre.</p>
+            <ol className="list-decimal space-y-1 pl-4 text-xs">
+              <li>Create application with job link/text.</li>
+              <li>Add evidence and STAR draft.</li>
+              <li>Generate Autopack and submit.</li>
+            </ol>
+            <Link
+              href="/app/applications/new"
+              className="inline-flex w-fit rounded-full border border-black/10 bg-[rgb(var(--ink))] px-4 py-2 text-xs font-semibold text-white hover:bg-black"
+            >
+              Create application
+            </Link>
+          </div>
+        ) : (
+          <ApplicationsCommandCentre items={items} />
+        )}
+      </Section>
+    </>
   );
 }

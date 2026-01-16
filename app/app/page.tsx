@@ -8,6 +8,7 @@ import { getInsightsSummary } from "@/lib/insights";
 import { buildDashboardActions, selectActiveApplications } from "@/lib/dashboard";
 import { detectWeakestStep } from "@/lib/coach-mode";
 import TelemetryBanner from "./telemetry-banner";
+import CreditsIdleNudge from "@/components/CreditsIdleNudge";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +64,11 @@ export default async function AppPage() {
   const insights = await getInsightsSummary(supabase, user.id);
   const actions = buildDashboardActions(insights.topActions, 5);
   const activeApps = selectActiveApplications(applications as any, 5);
+  const paidAction = actions.find((action) =>
+    /apply-autopacks|interview-pack|application-kit|answer-pack|practice\/drill|autopacks/.test(
+      action.href
+    )
+  );
 
   const overdueFollowups = (applications as any[]).filter((app) => {
     const due = app.next_action_due as string | null;
@@ -110,6 +116,13 @@ export default async function AppPage() {
   return (
     <div className="space-y-6">
       <TelemetryBanner telemetryOptIn={telemetryOptIn} />
+      {credits > 0 && paidAction ? (
+        <CreditsIdleNudge
+          applicationId={paidAction.applicationId}
+          href={paidAction.href}
+          surface="dashboard"
+        />
+      ) : null}
 
       <Section
         title={`Welcome back${user?.email ? `, ${user.email}` : ""}.`}

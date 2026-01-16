@@ -18,7 +18,7 @@ import {
   buildReturnToUrl,
   savePendingAction,
 } from "@/lib/billing/pending-action";
-import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { logCompletion, logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { getActionRoiLine } from "@/lib/billing/action-roi";
 
 type InterviewPackPanelProps = {
@@ -621,6 +621,9 @@ export default function InterviewPackPanel({
           detail: { applicationId, actionKey: "interview_pack_export" },
         })
       );
+      logCompletion("interview_pack_export_completed", applicationId, "applications", {
+        variant: chosenVariant,
+      });
       setExportState({ status: "idle" });
     } catch (error) {
       console.error("[interview-pack.export]", error);

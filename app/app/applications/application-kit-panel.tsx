@@ -9,7 +9,7 @@ import { formatDateTimeUk, formatUkDate, toDateInputValue } from "@/lib/tracking
 import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
 import CreditGateModal from "@/app/app/billing/credit-gate-modal";
 import { addResumeParam, savePendingAction, buildReturnToUrl } from "@/lib/billing/pending-action";
-import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { logCompletion, logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { getActionRoiLine } from "@/lib/billing/action-roi";
 
 type ExportState = {
@@ -236,6 +236,7 @@ export default function ApplicationKitPanel({
           detail: { applicationId, actionKey: "application_kit_download" },
         })
       );
+      logCompletion("application_kit_download_completed", applicationId, "applications");
       setState({ status: "idle" });
     } catch (error) {
       console.error("[smart-apply.export]", error);

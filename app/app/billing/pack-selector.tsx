@@ -104,8 +104,24 @@ export default function PackSelector({
   surface = "billing",
 }: Props) {
   const [state, setState] = useState<CheckoutState>({ status: "idle", packKey: null });
+  const [redirectIssue, setRedirectIssue] = useState(false);
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const startCheckout = async (packKey: CreditPack["key"]) => {
+    const priceId = resolvePriceIdForPack(packKey);
+    if (!priceId) {
+      logMonetisationClientEvent("billing_pack_unavailable", applicationId, surface, {
+        packKey,
+      });
+      setState({
+        status: "error",
+        packKey,
+        message: "Pack unavailable.",
+      });
+      return;
+    }
+    setRedirectIssue(false);
+    setHelpOpen(false);
     setState({ status: "loading", packKey });
     if (applicationId) {
       logMonetisationClientEvent("checkout_started", applicationId, surface, {
@@ -132,7 +148,22 @@ export default function PackSelector({
         });
         return;
       }
+      const timer = window.setTimeout(() => {
+        setRedirectIssue(true);
+        setState({
+          status: "error",
+          packKey,
+          message: "Checkout didn’t open.",
+        });
+        logMonetisationClientEvent(
+          "checkout_redirect_failed",
+          applicationId,
+          surface,
+          { packKey }
+        );
+      }, 2000);
       window.location.href = payload.url as string;
+      window.setTimeout(() => window.clearTimeout(timer), 2500);
     } catch (error) {
       logMonetisationClientEvent("checkout_start_failed", applicationId, surface, {
         packKey,
@@ -194,6 +225,12 @@ export default function PackSelector({
               className="rounded-full bg-amber-700 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-800"
               onClick={() => {
                 if (state.packKey) {
+                  logMonetisationClientEvent(
+                    "checkout_retry_click",
+                    applicationId,
+                    surface,
+                    { packKey: state.packKey }
+                  );
                   startCheckout(state.packKey);
                 } else {
                   setState({ status: "idle", packKey: null });
@@ -205,11 +242,44 @@ export default function PackSelector({
             <button
               type="button"
               className="rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
-              onClick={() => setState({ status: "idle", packKey: null })}
+              onClick={() => {
+                setState({ status: "idle", packKey: null });
+                setRedirectIssue(false);
+                setHelpOpen(false);
+              }}
             >
               Dismiss
             </button>
+            <button
+              type="button"
+              className="rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              onClick={() => {
+                setHelpOpen((prev) => {
+                  if (!prev && state.packKey) {
+                    logMonetisationClientEvent(
+                      "checkout_help_open",
+                      applicationId,
+                      surface,
+                      { packKey: state.packKey }
+                    );
+                  }
+                  return !prev;
+                });
+              }}
+            >
+              Help
+            </button>
           </div>
+          {redirectIssue ? (
+            <p className="mt-2 text-xs text-amber-700">
+              Checkout didn’t open. Try disabling pop-up blocking or use another tab.
+            </p>
+          ) : null}
+          {helpOpen ? (
+            <p className="mt-2 text-xs text-[rgb(var(--muted))]">
+              If nothing opens, copy the billing link into a new tab or ensure your browser allows redirects for this site.
+            </p>
+          ) : null}
         </div>
       ) : null}
     </div>

@@ -5,6 +5,11 @@
 - Disable unavailable packs in billing/resume surfaces with helper text and logging, plus inline checkout failure banners with retry/dismiss.
 - Document required Stripe pack/subscription env vars and site URL; update env example for hotfix rollout.
 
+## v0.7.46
+- Standardised completion events for Autopack generation, Interview Pack export, Application Kit download, and Answer Pack generation with a shared helper.
+- Added checkout recovery: inline retry/help when redirects fail, completion watchdog after purchase returns, and credits-idle nudges on dashboard/command centre.
+- Insights now shows a Recovery tile (checkout started → returned → completed) with conversion hints; monetisation logging allowlist extended for new events.
+
 ## v0.7.44
 - Resume Accelerator: returning with `resume=1` and a saved pending action now shows a neutral success banner with a 3s countdown, auto-navigates to the saved tab/anchor, and triggers the pending action without extra clicks.
 - Billing return links now append `resume=1` for all gated actions so resume flows kick in automatically while keeping monetisation logging intact and avoiding payment-specific copy.

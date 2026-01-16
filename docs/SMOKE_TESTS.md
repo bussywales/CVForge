@@ -119,6 +119,7 @@
 ## Billing and credits
 - Visit /app/billing and confirm balance plus pack selector (Starter/Pro/Power) render.
 - Start checkout for any pack; on return with `?purchased=1`, a success banner shows.
+- If checkout URL fails to open, inline banner appears with retry/help/dismiss and retry works.
 - Recent credit activity renders without errors.
 - Start a subscription from /app/billing and ensure you are redirected to Stripe; manage portal link works when a customer exists.
 - Recommended pack shows with reasons; pack selector defaults to the recommended pack.
@@ -127,6 +128,7 @@
 - Billing page shows only one primary purchase hero; alternate packs are secondary and the balance/usage row has no duplicate pack selector.
 - After checkout success with a pending action, the Resume Accelerator banner appears with neutral copy; Resume returns to the correct tab/anchor and hides after use or dismiss.
 - Success banner also appears on the application/drill pages when returning from billing; session guard prevents repeat spam; completion nudge appears after the resumed action finishes with a CTA to the next best step and auto-dismisses after a short time.
+- If the resumed action is not completed within ~90s, completion watchdog nudge appears with Take me back/Mark as done/Dismiss and logs interactions.
 
 ## Referrals
 - Fetch your referral link on /app/billing; copy and share.
@@ -154,6 +156,7 @@
 - Attempt Application Kit download with 0 credits → billing CTA; after purchase and return with `resume=1`, auto-resume starts the kit download.
 - Attempt Answer Pack generation in Drill Mode with 0 credits → billing CTA; after purchase and return with `resume=1`, auto-resume triggers generation.
 - With credits available, soft gate/modal appears (or proceeds) and the action succeeds.
+- Credits idle: when credits > 0 and a paid action is ready, dashboard/command centre shows a nudge; Go deep-links correctly and dismiss hides it.
 
 ## Applications Command Centre (v0.7.43)
 - /app/applications shows Queue with next-action CTA and readiness 0–5.

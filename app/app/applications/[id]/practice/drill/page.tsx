@@ -21,6 +21,7 @@ import { orderPracticeQuestions } from "@/lib/practice-dashboard";
 import DrillClient from "./drill-client";
 import AutopackResumeBanner from "../../../autopack-resume-banner";
 import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
+import CompletionWatchdogNudge from "@/components/CompletionWatchdogNudge";
 
 export const dynamic = "force-dynamic";
 
@@ -223,6 +224,11 @@ export default async function PracticeDrillPage({
         applicationId={application.id}
         surface="applications"
         show={Boolean(searchParams?.success || searchParams?.purchased)}
+      />
+      <CompletionWatchdogNudge
+        applicationId={application.id}
+        surface="applications"
+        fallbackHref={`/app/applications/${application.id}/practice`}
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Link

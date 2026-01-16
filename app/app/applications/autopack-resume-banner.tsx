@@ -20,6 +20,23 @@ export default function AutopackResumeBanner({ applicationId }: Props) {
   const resumeRequested = searchParams?.get("resume") === "1";
   const [pending, setPending] = useState<PendingAction | null>(null);
 
+  const markWatchdogStart = (action: PendingAction, href: string, auto: boolean) => {
+    if (typeof window === "undefined") return;
+    const payload = {
+      applicationId: action.applicationId,
+      actionKey: action.type,
+      href,
+      startedAt: Date.now(),
+      auto,
+    };
+    try {
+      window.sessionStorage.setItem("cvf-watchdog-pending", JSON.stringify(payload));
+    } catch {
+      /* ignore */
+    }
+    window.dispatchEvent(new CustomEvent("cvf-watchdog-start", { detail: payload }));
+  };
+
   useEffect(() => {
     if (resumeRequested) return;
     const params = new URLSearchParams(searchParams ?? undefined);
@@ -82,6 +99,7 @@ export default function AutopackResumeBanner({ applicationId }: Props) {
             logMonetisationClientEvent("resume_clicked", applicationId, "applications", {
               actionKey: pending.type,
             });
+            markWatchdogStart(pending, resumeHref, false);
             router.push(resumeHref);
             const eventNameMap: Record<PendingAction["type"], string> = {
               autopack_generate: "cvf-resume-autopack",

@@ -67,6 +67,7 @@ import { fetchBillingSettings } from "@/lib/data/billing";
 import AutopackResumeBanner from "../autopack-resume-banner";
 import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
 import ResumeCompletionNudge from "@/components/ResumeCompletionNudge";
+import CompletionWatchdogNudge from "@/components/CompletionWatchdogNudge";
 
 const RoleFitCard = dynamic(() => import("../role-fit-card"), {
   ssr: false,
@@ -527,6 +528,7 @@ export default async function ApplicationPage({
         applicationId={application.id}
         actions={nextBestActions}
       />
+      <CompletionWatchdogNudge applicationId={application.id} />
 
       {activeTab === "overview" ? (
         <>

@@ -26,7 +26,7 @@ import {
   savePendingAction,
   buildReturnToUrl,
 } from "@/lib/billing/pending-action";
-import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { logCompletion, logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { getActionRoiLine } from "@/lib/billing/action-roi";
 
 type DrillQuestion = {
@@ -510,6 +510,9 @@ export default function DrillClient({
         ...prev,
         [variant]: entry,
       }));
+      logCompletion("answer_pack_generate_completed", applicationId, "applications", {
+        variant,
+      });
       logMonetisationClientEvent(
         "resume_completed",
         applicationId,

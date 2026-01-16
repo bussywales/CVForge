@@ -7,6 +7,7 @@ export type DashboardAction = {
   why: string;
   href: string;
   badge?: string;
+  applicationId: string;
 };
 
 export function buildDashboardActions(
@@ -19,6 +20,7 @@ export function buildDashboardActions(
     label: action.label,
     why: action.why,
     href: action.href,
+    applicationId: action.applicationId,
     badge: action.href.includes("tab=apply")
       ? "Apply"
       : action.href.includes("tab=evidence")

@@ -357,8 +357,77 @@ export default async function InsightsPage({
           >
             View all due follow-ups in Pipeline →
           </Link>
-        </div>
-      </Section>
+            </div>
+          </Section>
+
+          <Section
+            title="Recovery"
+            description="Checkout → return → completion in the last 7/30 days."
+          >
+            {monetisation.recovery.last30.started === 0 ? (
+              <div className="rounded-2xl border border-dashed border-black/10 bg-white/70 p-4 text-sm text-[rgb(var(--muted))]">
+                No recent checkout attempts yet.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="grid gap-3 md:grid-cols-3">
+                  {[
+                    {
+                      label: "Checkout started",
+                      value: monetisation.recovery.last7.started,
+                      sub: monetisation.recovery.last30.started,
+                    },
+                    {
+                      label: "Checkout returned",
+                      value: monetisation.recovery.last7.returned,
+                      sub: monetisation.recovery.last30.returned,
+                    },
+                    {
+                      label: "Actions completed",
+                      value: monetisation.recovery.last7.completed,
+                      sub: monetisation.recovery.last30.completed,
+                    },
+                  ].map((item) => (
+                    <div
+                      key={item.label}
+                      className="rounded-2xl border border-black/10 bg-white/80 p-4"
+                    >
+                      <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+                        {item.label} (7d)
+                      </p>
+                      <p className="text-2xl font-semibold text-[rgb(var(--ink))]">
+                        {item.value}
+                      </p>
+                      <p className="text-[11px] text-[rgb(var(--muted))]">30d: {item.sub}</p>
+                    </div>
+                  ))}
+                </div>
+                <div className="rounded-2xl border border-black/10 bg-white/80 p-4 text-sm text-[rgb(var(--muted))]">
+                  Conversions:
+                  <div className="mt-2 grid gap-2 md:grid-cols-2">
+                    {Object.entries(monetisation.recovery.last7.conversions).map(
+                      ([key, val]) => (
+                        <div key={key} className="rounded-xl border border-black/10 bg-white px-3 py-2">
+                          <p className="text-[11px] uppercase tracking-[0.18em] text-[rgb(var(--muted))]">
+                            {key}
+                          </p>
+                          <p className="text-lg font-semibold text-[rgb(var(--ink))]">
+                            {val}%
+                          </p>
+                        </div>
+                      )
+                    )}
+                  </div>
+                  {monetisation.recovery.last7.conversions["returned->completed"] < 50 ? (
+                    <p className="mt-3 text-xs text-[rgb(var(--muted))]">
+                      Tip: Add evidence and run the Apply Kit Wizard before paid actions for higher
+                      completion.
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            )}
+          </Section>
 
       <Section
         title="Pipeline funnel"

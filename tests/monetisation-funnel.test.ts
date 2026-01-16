@@ -9,10 +9,13 @@ describe("monetisation funnel", () => {
       { type: "monetisation.billing_clicked", application_id: "a1", occurred_at: now, body: null },
       { type: "monetisation.checkout_started", application_id: "a1", occurred_at: now, body: null },
       { type: "monetisation.checkout_success", application_id: "a1", occurred_at: now, body: null },
+      { type: "monetisation.autopack_generate_completed", application_id: "a1", occurred_at: now, body: null },
     ];
     const summary = computeFunnel(events as any);
     expect(summary.last7.gate_shown).toBe(1);
     expect(summary.last7.checkout_success).toBe(1);
+    expect(summary.last7.action_completed).toBe(1);
     expect(summary.last7.conversions["gate_shown->billing_clicked"]).toBe(100);
+    expect(summary.recovery.last7.conversions["returned->completed"]).toBe(100);
   });
 });
