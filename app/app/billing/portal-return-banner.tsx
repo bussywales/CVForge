@@ -10,9 +10,10 @@ type Props = {
   applicationId: string | null;
   state: PortalReturnState;
   isActive: boolean;
+  portalKey: string;
 };
 
-export default function PortalReturnBanner({ applicationId, state, isActive }: Props) {
+export default function PortalReturnBanner({ applicationId, state, isActive, portalKey }: Props) {
   const [visible, setVisible] = useState(false);
   const weekKey = getIsoWeekKey(new Date());
   const [outcomeLogged, setOutcomeLogged] = useState(false);
@@ -21,21 +22,28 @@ export default function PortalReturnBanner({ applicationId, state, isActive }: P
     const dismissed = typeof window !== "undefined"
       ? window.localStorage.getItem(portalDismissKey(weekKey))
       : null;
+    const guardKey = `cvf:portalReturnLogged:${portalKey || weekKey}`;
+    const alreadyLogged = typeof window !== "undefined" ? window.sessionStorage.getItem(guardKey) : null;
     if (state.portal && !dismissed) {
       setVisible(true);
-      logMonetisationClientEvent("sub_portal_return_view", applicationId, "billing", {
-        flow: state.flow,
-        plan: state.plan,
-        active: isActive,
-        source: "billing",
-      });
+      if (!alreadyLogged) {
+        logMonetisationClientEvent("sub_portal_return_view", applicationId, "billing", {
+          flow: state.flow,
+          plan: state.plan,
+          active: isActive,
+          source: "billing",
+        });
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem(guardKey, "1");
+        }
+      }
     }
-  }, [applicationId, isActive, state.flow, state.plan, state.portal, weekKey]);
+  }, [applicationId, isActive, portalKey, state.flow, state.plan, state.portal, weekKey]);
 
   useEffect(() => {
     if (!state.portal || outcomeLogged === true) return;
-    const key = `portal_return_outcome_${weekKey}`;
-    const seen = typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
+    const key = `portal_return_outcome_${portalKey || weekKey}`;
+    const seen = typeof window !== "undefined" ? window.sessionStorage.getItem(key) : null;
     if (seen) {
       setOutcomeLogged(true);
       return;
@@ -53,10 +61,10 @@ export default function PortalReturnBanner({ applicationId, state, isActive }: P
       { flow: state.flow, plan: state.plan, active: isActive }
     );
     if (typeof window !== "undefined") {
-      window.localStorage.setItem(key, "1");
+      window.sessionStorage.setItem(key, "1");
     }
     setOutcomeLogged(true);
-  }, [applicationId, isActive, outcomeLogged, state.flow, state.plan, state.portal, weekKey]);
+  }, [applicationId, isActive, outcomeLogged, portalKey, state.flow, state.plan, state.portal, weekKey]);
 
   if (!visible || !state.portal) return null;
 

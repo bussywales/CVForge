@@ -14,6 +14,7 @@ type Props = {
   returnTo?: string;
   show: boolean;
   onDismiss?: () => void;
+  portalKey: string;
 };
 
 export default function SubSaveOfferCard({
@@ -24,6 +25,7 @@ export default function SubSaveOfferCard({
   returnTo = "/app/billing",
   show,
   onDismiss,
+  portalKey,
 }: Props) {
   const [visible, setVisible] = useState(false);
 
@@ -31,15 +33,22 @@ export default function SubSaveOfferCard({
     if (!show) return;
     const key = portalSaveOfferDismissKey(weekKey);
     const dismissed = typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
+    const guardKey = `cvf:portalReturnLogged:${portalKey || weekKey}:save_offer`;
+    const logged = typeof window !== "undefined" ? window.sessionStorage.getItem(guardKey) : null;
     if (!dismissed) {
       setVisible(true);
-      logMonetisationClientEvent("sub_save_offer_view", applicationId ?? null, "billing", {
-        flow: reco.portalFlow,
-        plan: reco.portalPlan ?? planKey,
-        variant: reco.variant,
-      });
+      if (!logged) {
+        logMonetisationClientEvent("sub_save_offer_view", applicationId ?? null, "billing", {
+          flow: reco.portalFlow,
+          plan: reco.portalPlan ?? planKey,
+          variant: reco.variant,
+        });
+        if (typeof window !== "undefined") {
+          window.sessionStorage.setItem(guardKey, "1");
+        }
+      }
     }
-  }, [applicationId, planKey, reco.portalFlow, reco.portalPlan, reco.variant, show, weekKey]);
+  }, [applicationId, planKey, portalKey, reco.portalFlow, reco.portalPlan, reco.variant, show, weekKey]);
 
   if (!visible) return null;
 

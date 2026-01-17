@@ -28,9 +28,10 @@ import { buildWeeklyReviewSummary, getIsoWeekKey } from "@/lib/weekly-review";
 import PortalReturnBanner from "./portal-return-banner";
 import StreakSaverBanner from "./streak-saver-banner";
 import SubscriptionHome from "./subscription-home";
-import { parsePortalReturn } from "@/lib/billing/portal-return";
+import { parsePortalReturn, portalReturnKey } from "@/lib/billing/portal-return";
 import SubSaveOfferCard from "./sub-save-offer-card";
 import { recommendSaveOffer } from "@/lib/billing/sub-save-offer";
+import SubCancelReasons from "./sub-cancel-reasons";
 
 export const dynamic = "force-dynamic";
 
@@ -197,6 +198,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         weekKey,
       })
     : null;
+  const portalKey = portalReturnKey(portalState, weekKey);
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -265,23 +267,36 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           applicationId={latestApplicationId}
           state={portalState}
           isActive={hasSubscription}
+          portalKey={portalKey}
         />
       ) : null}
       {showPortalReturn && portalState.flow === "cancel" && (hasSubscription || subscriptionStatus.currentPlanKey) && retentionSummary ? (
-        <SubSaveOfferCard
-          weekKey={weekKey}
-          reco={recommendSaveOffer({
-            planKey: (subscriptionStatus.currentPlanKey ?? "monthly_30") as "monthly_30" | "monthly_80",
-            creditsUsed: retentionSummary.creditsUsed,
-            completions: retentionSummary.completions,
-            movedForward: retentionSummary.movedForward,
-            risk: retentionSummary.risk,
-          })}
-          planKey={(subscriptionStatus.currentPlanKey ?? "monthly_30") as "monthly_30" | "monthly_80"}
-          applicationId={latestApplicationId}
-          returnTo="/app/billing"
-          show
-        />
+        <div className="space-y-3">
+          <SubSaveOfferCard
+            weekKey={weekKey}
+            reco={recommendSaveOffer({
+              planKey: (subscriptionStatus.currentPlanKey ?? "monthly_30") as "monthly_30" | "monthly_80",
+              creditsUsed: retentionSummary.creditsUsed,
+              completions: retentionSummary.completions,
+              movedForward: retentionSummary.movedForward,
+              risk: retentionSummary.risk,
+            })}
+            planKey={(subscriptionStatus.currentPlanKey ?? "monthly_30") as "monthly_30" | "monthly_80"}
+            applicationId={latestApplicationId}
+            returnTo="/app/billing"
+            show
+            portalKey={portalKey}
+          />
+          <div className="mt-3">
+            <SubCancelReasons
+              weekKey={weekKey}
+              portalKey={portalKey}
+              state={{ flow: portalState.flow, plan: portalState.plan }}
+              applicationId={latestApplicationId}
+              returnTo="/app/billing"
+            />
+          </div>
+        </div>
       ) : null}
 
       <BillingEventLogger

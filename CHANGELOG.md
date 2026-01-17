@@ -20,6 +20,11 @@
 - Save-offer events allowlisted; portal API accepts flow/plan from body and appends to return URLs; outcome lines log active/inactive once.
 - New save-offer helper and test guide deterministic variant/portal flow selection; docs updated for cancel-flow smoke.
 
+## v0.7.66
+- Added cancellation reason picker with premium buckets, pause hint, and portal reopen CTA on cancel returns; selection persists per week.
+- Portal return logging hardened with a stable return key to dedupe view/save-offer logs; new return-key test added.
+- Allowlist extended for cancel-reason/pause hint events; docs updated for cancel-return smoke.
+
 ## v0.7.61a
 - Added streak saver subscription funnel instrumentation end-to-end (view/dismiss/CTA, billing banner, plan select, checkout start/failed, return, active detected).
 - Billing now respects `from=streak_saver&plan=` params, preselects plan, shows a streak banner with logging, and threads plan through checkout.
