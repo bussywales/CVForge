@@ -12,6 +12,7 @@ import {
   detectWeakestStep,
   pickCoachActions,
 } from "@/lib/coach-mode";
+import { buildWeeklyCoachPlan } from "@/lib/weekly-coach";
 import { getEffectiveJobText } from "@/lib/job-text";
 import { normalizeSelectedEvidence } from "@/lib/evidence";
 import { getUserCredits } from "@/lib/data/credits";
@@ -21,6 +22,7 @@ import { ensureReferralCode } from "@/lib/referrals";
 import ReferralCta from "./referral-cta";
 import { getMonetisationSummary } from "@/lib/monetisation-funnel";
 import { getPackAvailability } from "@/lib/billing/availability";
+import WeeklyCoachCard from "./weekly-coach-card";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +50,7 @@ export default async function InsightsPage({
     applications: 0,
   };
   let latestApplicationId: string | null = null;
+  let applicationsForInsights: any[] = [];
 
   try {
     const { count, error } = await supabase
@@ -198,7 +201,8 @@ export default async function InsightsPage({
       .order("created_at", { ascending: false })
       .limit(20);
     if (!error && data) {
-      data.forEach((app: any) => {
+      applicationsForInsights = data;
+      applicationsForInsights.forEach((app: any) => {
         const jobText = getEffectiveJobText(app as any);
         if (jobText.trim().length < 200 && !missingJobApp) {
           missingJobApp = app.id;
@@ -250,6 +254,77 @@ export default async function InsightsPage({
     overdueAppId,
     starAppId: starApp,
     latestAppId: latestApplicationId,
+  });
+  const isSubscribed =
+    Boolean(billingSettings?.subscription_status) &&
+    billingSettings?.subscription_status !== "canceled";
+
+  const weeklyApps = applicationsForInsights
+    .filter((app: any) => {
+      const status = String(app.status ?? "").toLowerCase();
+      return !["withdrawn", "rejected", "closed", "offer", "accepted"].includes(status);
+    })
+    .slice(0, 8);
+  const weeklyAppIds = weeklyApps.map((app: any) => app.id).filter(Boolean);
+  const autopackAppIds = new Set<string>();
+  const answerPackAppIds = new Set<string>();
+
+  if (weeklyAppIds.length > 0) {
+    try {
+      const { data, error } = await supabase
+        .from("autopacks")
+        .select("application_id")
+        .eq("user_id", user.id)
+        .in("application_id", weeklyAppIds);
+      if (!error && data) {
+        data.forEach((row: any) => {
+          if (row.application_id) {
+            autopackAppIds.add(row.application_id);
+          }
+        });
+      }
+    } catch (error) {
+      console.error("[weekly-coach.autopacks]", error);
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from("interview_answer_pack")
+        .select("application_id")
+        .eq("user_id", user.id)
+        .in("application_id", weeklyAppIds);
+      if (!error && data) {
+        data.forEach((row: any) => {
+          if (row.application_id) {
+            answerPackAppIds.add(row.application_id);
+          }
+        });
+      }
+    } catch (error) {
+      console.error("[weekly-coach.answer_pack]", error);
+    }
+  }
+
+  const weeklyCoachPlan = buildWeeklyCoachPlan({
+    activeApps: weeklyApps.map((app: any) => {
+      const jobText = getEffectiveJobText(app as any);
+      const selectedEvidence = normalizeSelectedEvidence(app.selected_evidence);
+      const starDrafts = Array.isArray(app.star_drafts) ? (app.star_drafts as any[]) : [];
+      return {
+        id: app.id,
+        company: app.company_name ?? app.company ?? null,
+        role: app.job_title ?? null,
+        nextActionDue: app.next_action_due ?? null,
+        hasJobText: jobText.trim().length >= 200,
+        hasEvidenceSelected: selectedEvidence.length > 0,
+        hasStarDraft: starDrafts.length > 0,
+        hasAutopack: autopackAppIds.has(app.id),
+        hasAnswerPack: answerPackAppIds.has(app.id),
+        hasInterviewPack: Boolean((app as any).interview_pack_exported_at),
+      };
+    }),
+    isSubscribed,
+    hasCredits: credits > 0,
   });
 
   const coachMessage = (() => {
@@ -306,6 +381,10 @@ export default async function InsightsPage({
         </div>
       ) : null}
       {referral?.code ? <ReferralCta code={referral.code} /> : null}
+
+      <Section title="This Week" description={weeklyCoachPlan.weekLabel}>
+        <WeeklyCoachCard plan={weeklyCoachPlan} />
+      </Section>
 
       <Section
         title="Today"

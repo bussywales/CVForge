@@ -105,6 +105,9 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Mark submitted and schedule follow-up from Step 5; verify status updates and next follow-up date is set.
 
 ## Insights Dashboard
+- “This Week” card shows the current week range with 3–5 actions and “Do it” links.
+- Clicking a “Do it” CTA deep-links to the expected tab/anchor for that application.
+- Weekly targets on the card show follow-ups, practice, and applications without errors.
 - Visit /app/insights and confirm “Today” lists up to five actions with Go links.
 - Check funnel counters populate (drafted/submitted/interview/offer/rejected/no response).
 - Ensure response rate shows a percentage or 0% when none.

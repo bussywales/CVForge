@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.55
+- Added Weekly Coach Loop v1 on /app/insights with a “This Week” card, deterministic deep links, and simple weekly targets.
+- New weekly plan helper (server-deterministic) plus a lightweight client card with monetisation logging on view/click.
+- Included a small unit test and smoke/docs updates for the new insights card.
+
 ## v0.7.51
 - Billing availability now comes from server-side price ID checks; client components receive booleans so packs/subscriptions stay enabled when env vars exist.
 - Added a client env guard wired into lint to block Stripe env usage or server-only billing imports in client components.
