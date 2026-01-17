@@ -30,20 +30,27 @@ export async function GET(request: Request) {
     return NextResponse.redirect("/app/insights?coach=missing_app");
   }
 
-  const application = await fetchApplication(
-    supabase,
-    user.id,
-    parsed.data.applicationId
-  );
-  if (!application) {
-    return NextResponse.redirect("/app/insights?coach=missing_app");
+  let application;
+  let existingDrafts;
+  try {
+    application = await fetchApplication(
+      supabase,
+      user.id,
+      parsed.data.applicationId
+    );
+    if (!application) {
+      return NextResponse.redirect("/app/insights?coach=missing_app");
+    }
+    existingDrafts = await listStarLibrary(
+      supabase,
+      user.id,
+      application.id
+    );
+  } catch (error) {
+    console.error("[coach.star.fetch]", error);
+    return NextResponse.redirect("/app/insights?coach=error");
   }
 
-  const existingDrafts = await listStarLibrary(
-    supabase,
-    user.id,
-    application.id
-  );
   const selectedEvidence = normalizeSelectedEvidence(
     application.selected_evidence
   );
