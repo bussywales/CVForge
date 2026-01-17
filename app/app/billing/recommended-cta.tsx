@@ -22,7 +22,7 @@ export default function RecommendedCta({
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [redirectIssue, setRedirectIssue] = useState(false);
   const unavailable = !packAvailable;
 
   useEffect(() => {
@@ -42,6 +42,7 @@ export default function RecommendedCta({
     }
     setLoading(true);
     setError(null);
+    setRedirectIssue(false);
     if (applicationId) {
       logMonetisationClientEvent("checkout_started", applicationId, "billing", {
         packKey,
@@ -57,8 +58,8 @@ export default function RecommendedCta({
       const payload = await response.json().catch(() => ({}));
       if (payload?.url) {
         const timer = window.setTimeout(() => {
-          setError("Checkout didn’t open. Try again or disable pop-up blocking.");
-          logMonetisationClientEvent("checkout_redirect_failed", applicationId ?? null, "billing", {
+          setRedirectIssue(true);
+          logMonetisationClientEvent("checkout_redirect_blocked", applicationId ?? null, "billing", {
             packKey,
           });
         }, 2000);
@@ -70,15 +71,15 @@ export default function RecommendedCta({
         packKey,
         status: response.status,
       });
-      } catch {
-        logMonetisationClientEvent("checkout_start_failed", applicationId ?? null, "billing", {
-          packKey,
-          status: "network_error",
-        });
-      }
-      setError("Checkout couldn’t start. Please try again.");
-      setLoading(false);
-    };
+    } catch {
+      logMonetisationClientEvent("checkout_start_failed", applicationId ?? null, "billing", {
+        packKey,
+        status: "network_error",
+      });
+    }
+    setError("Checkout couldn’t start. Please try again.");
+    setLoading(false);
+  };
 
   return (
     <div className="space-y-2">
@@ -108,7 +109,7 @@ export default function RecommendedCta({
               type="button"
               className="rounded-full bg-amber-700 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-800"
               onClick={() => {
-                logMonetisationClientEvent("checkout_retry_click", applicationId ?? null, "billing", {
+                logMonetisationClientEvent("checkout_try_again", applicationId ?? null, "billing", {
                   packKey,
                 });
                 handleCheckout();
@@ -128,22 +129,54 @@ export default function RecommendedCta({
               type="button"
               className="rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
               onClick={() => {
-                setHelpOpen((prev) => !prev);
-                if (!helpOpen) {
-                  logMonetisationClientEvent("checkout_help_open", applicationId ?? null, "billing", {
-                    packKey,
-                  });
-                }
+                logMonetisationClientEvent("checkout_open_new_tab", applicationId ?? null, "billing", {
+                  packKey,
+                });
+                window.open("/app/billing", "_blank");
               }}
             >
-              Help
+              Open billing
             </button>
           </div>
-          {helpOpen ? (
-            <p className="mt-2 text-xs text-[rgb(var(--muted))]">
-              If checkout didn’t open, disable pop-up blocking or paste the billing link into a new tab.
+          {redirectIssue ? (
+            <p className="mt-2 text-xs text-amber-700">
+              If nothing opened, your browser may be blocking redirects.
             </p>
           ) : null}
+        </div>
+      ) : null}
+      {redirectIssue ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <p className="font-semibold">
+            If nothing opened, your browser may be blocking redirects.
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full bg-amber-700 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-800"
+              onClick={() => {
+                logMonetisationClientEvent("checkout_try_again", applicationId ?? null, "billing", {
+                  packKey,
+                });
+                handleCheckout();
+              }}
+              disabled={loading || unavailable}
+            >
+              Try again
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              onClick={() => {
+                logMonetisationClientEvent("checkout_open_new_tab", applicationId ?? null, "billing", {
+                  packKey,
+                });
+                window.open("/app/billing", "_blank");
+              }}
+            >
+              Open billing
+            </button>
+          </div>
         </div>
       ) : null}
     </div>

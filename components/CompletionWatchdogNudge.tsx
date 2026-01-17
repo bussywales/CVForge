@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
@@ -28,6 +28,8 @@ export default function CompletionWatchdogNudge({
 }: Props) {
   const [payload, setPayload] = useState<WatchPayload | null>(null);
   const [show, setShow] = useState(false);
+  const [promptVisible, setPromptVisible] = useState(false);
+  const promptVisibleRef = useRef(false);
 
   const href = useMemo(() => payload?.href ?? fallbackHref ?? "", [payload, fallbackHref]);
 
@@ -40,6 +42,7 @@ export default function CompletionWatchdogNudge({
         const parsed = JSON.parse(raw) as WatchPayload;
         if (!parsed?.applicationId || parsed.applicationId !== applicationId) return;
         setPayload(parsed);
+        setPromptVisible(true);
       } catch {
         /* ignore */
       }
@@ -50,6 +53,7 @@ export default function CompletionWatchdogNudge({
       if (!detail?.applicationId || detail.applicationId !== applicationId) return;
       setPayload(detail);
       setShow(false);
+      setPromptVisible(true);
     };
     const completeHandler = (event: Event) => {
       const detail = (event as CustomEvent).detail as { applicationId?: string } | undefined;
@@ -63,6 +67,7 @@ export default function CompletionWatchdogNudge({
         );
       }
       setShow(false);
+      setPromptVisible(false);
       setPayload(null);
       if (typeof window !== "undefined") {
         window.sessionStorage.removeItem(STORAGE_KEY);
@@ -77,10 +82,15 @@ export default function CompletionWatchdogNudge({
   }, [applicationId, payload, surface]);
 
   useEffect(() => {
+    promptVisibleRef.current = promptVisible;
+  }, [promptVisible]);
+
+  useEffect(() => {
     if (!payload) return;
     const deadline = payload.startedAt + 90_000;
     const remaining = Math.max(deadline - Date.now(), 0);
     const timer = window.setTimeout(() => {
+      if (promptVisibleRef.current) return;
       setShow(true);
       if (payload.subscription) {
         logMonetisationClientEvent(
@@ -100,32 +110,97 @@ export default function CompletionWatchdogNudge({
     return () => window.clearTimeout(timer);
   }, [applicationId, payload, surface]);
 
-  if (!payload || !show || !href) return null;
+  useEffect(() => {
+    if (promptVisible && payload) {
+      logMonetisationClientEvent(
+        "completion_watchdog_view",
+        applicationId,
+        surface,
+        { actionKey: payload.actionKey, mode: "prompt" }
+      );
+    }
+  }, [applicationId, payload, promptVisible, surface]);
+
+  if (!payload || (!show && !promptVisible) || !href) return null;
+
+  if (promptVisible) {
+    return (
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-semibold">Finish this step to keep your momentum.</p>
+            <p className="text-xs text-emerald-700">
+              Jump back to the exact spot and complete it now.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href={href}
+              className="rounded-full bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
+              onClick={() =>
+                logMonetisationClientEvent(
+                  "completion_watchdog_back_click",
+                  applicationId,
+                  surface,
+                  { actionKey: payload.actionKey, mode: "prompt" }
+                )
+              }
+            >
+              Do it now
+            </Link>
+            <button
+              type="button"
+              className="rounded-full border border-emerald-200 px-3 py-2 text-xs font-semibold text-emerald-800 hover:bg-emerald-100"
+              onClick={() => {
+                setPromptVisible(false);
+                if (payload.subscription) {
+                  logMonetisationClientEvent(
+                    "sub_completion_nudge_dismiss",
+                    applicationId,
+                    surface,
+                    { actionKey: payload.actionKey, action: "dismiss_prompt" }
+                  );
+                }
+                logMonetisationClientEvent(
+                  "completion_watchdog_dismiss",
+                  applicationId,
+                  surface,
+                  { actionKey: payload.actionKey, mode: "prompt" }
+                );
+              }}
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <p className="font-semibold">Quick check: did you finish the step you unlocked?</p>
+          <p className="font-semibold">Still not finished?</p>
           <p className="text-xs text-amber-700">
-            If not, jump back to the exact spot and complete it now.
+            Continue where you left off to keep momentum.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Link
             href={href}
             className="rounded-full bg-amber-700 px-3 py-2 text-xs font-semibold text-white hover:bg-amber-800"
-          onClick={() =>
-            logMonetisationClientEvent(
-              "completion_watchdog_back_click",
-              applicationId,
-              surface,
-              { actionKey: payload.actionKey }
-            )
-          }
-        >
-          Take me back
-        </Link>
+            onClick={() =>
+              logMonetisationClientEvent(
+                "completion_watchdog_back_click",
+                applicationId,
+                surface,
+                { actionKey: payload.actionKey }
+              )
+            }
+          >
+            Continue
+          </Link>
           <button
             type="button"
             className="rounded-full border border-amber-200 px-3 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100"

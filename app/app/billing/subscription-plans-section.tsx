@@ -43,6 +43,7 @@ export default function SubscriptionPlansSection({
 }: Props) {
   const [selectedPlanKey, setSelectedPlanKey] = useState<PlanKey>(initialPlanKey ?? recommendedPlanKey);
   const [loading, setLoading] = useState(false);
+  const [redirectIssue, setRedirectIssue] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const reasonLogged = useRef(false);
@@ -94,6 +95,7 @@ export default function SubscriptionPlansSection({
     }
     setLoading(true);
     setError(null);
+    setRedirectIssue(false);
     logMonetisationClientEvent("sub_selector_start_checkout", applicationId ?? null, "billing", {
       planKey: selectedPlanKey,
     });
@@ -120,7 +122,17 @@ export default function SubscriptionPlansSection({
       });
       const payload = await response.json().catch(() => ({}));
       if (response.ok && payload?.url) {
+        const timer = window.setTimeout(() => {
+          setRedirectIssue(true);
+          logMonetisationClientEvent(
+            "checkout_redirect_blocked",
+            applicationId ?? null,
+            "billing",
+            { planKey: selectedPlanKey, from: fromStreakSaver ? "streak_saver" : "billing" }
+          );
+        }, 2000);
         window.location.href = payload.url as string;
+        window.setTimeout(() => window.clearTimeout(timer), 2500);
         return;
       }
       setError("We couldn’t start checkout. Please try again.");
@@ -306,7 +318,91 @@ export default function SubscriptionPlansSection({
         </button>
         {renderManageActions()}
       </div>
-      {error ? <p className="text-xs text-amber-700">{error}</p> : null}
+      {error ? (
+        <div className="text-xs text-amber-700">
+          <p>{error}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full bg-amber-700 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-800"
+              onClick={() => {
+                logMonetisationClientEvent(
+                  "checkout_try_again",
+                  applicationId ?? null,
+                  "billing",
+                  { planKey: selectedPlanKey }
+                );
+                handleCheckout();
+              }}
+              disabled={loading}
+            >
+              Retry checkout
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              onClick={() => setError(null)}
+            >
+              Dismiss
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              onClick={() => {
+                logMonetisationClientEvent(
+                  "checkout_open_new_tab",
+                  applicationId ?? null,
+                  "billing",
+                  { planKey: selectedPlanKey }
+                );
+                window.open("/app/billing", "_blank");
+              }}
+            >
+              Open billing
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {redirectIssue ? (
+        <div className="mt-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <p className="font-semibold">
+            If nothing opened, your browser may be blocking redirects.
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full bg-amber-700 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-800"
+              onClick={() => {
+                logMonetisationClientEvent(
+                  "checkout_try_again",
+                  applicationId ?? null,
+                  "billing",
+                  { planKey: selectedPlanKey }
+                );
+                handleCheckout();
+              }}
+              disabled={loading}
+            >
+              Try again
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              onClick={() => {
+                logMonetisationClientEvent(
+                  "checkout_open_new_tab",
+                  applicationId ?? null,
+                  "billing",
+                  { planKey: selectedPlanKey }
+                );
+                window.open("/app/billing", "_blank");
+              }}
+            >
+              Open billing
+            </button>
+          </div>
+        </div>
+      ) : null}
       <CompareCard
         comparison={comparison}
         applicationId={applicationId}

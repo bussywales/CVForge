@@ -134,6 +134,9 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Billing availability is server-derived: packs/subscriptions are enabled when env vars are present; no “pack unavailable” due to client env gaps.
 - Billing shows Monthly 30 and Monthly 80 with one marked Recommended; switching plans updates the subscription CTA/compare, and unavailable plans disable with inline copy.
 - With an active subscription, Billing shows the current plan plus Upgrade/Downgrade buttons that open the Stripe portal; portal failures show retry/dismiss and returning with `?portal=1` shows a neutral banner.
+- After checkout success/cancel/failure, return banner shows premium copy (Payment confirmed / Checkout cancelled / Checkout didn’t complete) with Resume/Try again/Retry + Dismiss/Help and a countdown when resume=1.
+- If a checkout redirect is blocked, a helper appears with “Try again” and “Open billing” buttons that restart checkout.
+- Returning with resume shows a completion nudge at the target anchor; if unfinished for ~90s, recovery ping appears with Continue/Dismiss/Mark done and auto-hides after completion.
 - Visit /app/billing and confirm balance plus pack selector (Starter/Pro/Power) render.
 - Start checkout for any pack; on return with `?purchased=1`, a success banner shows.
 - If checkout URL fails to open, inline banner appears with retry/help/dismiss and retry works.

@@ -102,7 +102,6 @@ export default function PackSelector({
 }: Props) {
   const [state, setState] = useState<CheckoutState>({ status: "idle", packKey: null });
   const [redirectIssue, setRedirectIssue] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
 
   const startCheckout = async (packKey: CreditPack["key"]) => {
     const available = packAvailability?.[packKey] ?? true;
@@ -118,7 +117,6 @@ export default function PackSelector({
       return;
     }
     setRedirectIssue(false);
-    setHelpOpen(false);
     setState({ status: "loading", packKey });
     if (applicationId) {
       logMonetisationClientEvent("checkout_started", applicationId, surface, {
@@ -147,13 +145,8 @@ export default function PackSelector({
       }
       const timer = window.setTimeout(() => {
         setRedirectIssue(true);
-        setState({
-          status: "error",
-          packKey,
-          message: "Checkout didn’t open.",
-        });
         logMonetisationClientEvent(
-          "checkout_redirect_failed",
+          "checkout_redirect_blocked",
           applicationId,
           surface,
           { packKey }
@@ -223,7 +216,7 @@ export default function PackSelector({
               onClick={() => {
                 if (state.packKey) {
                   logMonetisationClientEvent(
-                    "checkout_retry_click",
+                    "checkout_try_again",
                     applicationId,
                     surface,
                     { packKey: state.packKey }
@@ -242,7 +235,6 @@ export default function PackSelector({
               onClick={() => {
                 setState({ status: "idle", packKey: null });
                 setRedirectIssue(false);
-                setHelpOpen(false);
               }}
             >
               Dismiss
@@ -251,32 +243,66 @@ export default function PackSelector({
               type="button"
               className="rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
               onClick={() => {
-                setHelpOpen((prev) => {
-                  if (!prev && state.packKey) {
-                    logMonetisationClientEvent(
-                      "checkout_help_open",
-                      applicationId,
-                      surface,
-                      { packKey: state.packKey }
-                    );
-                  }
-                  return !prev;
-                });
+                logMonetisationClientEvent(
+                  "checkout_open_new_tab",
+                  applicationId,
+                  surface,
+                  { packKey: state.packKey }
+                );
+                window.open("/app/billing", "_blank");
               }}
             >
-              Help
+              Open billing
             </button>
           </div>
           {redirectIssue ? (
             <p className="mt-2 text-xs text-amber-700">
-              Checkout didn’t open. Try disabling pop-up blocking or use another tab.
+              If nothing opened, your browser may be blocking redirects.
             </p>
           ) : null}
-          {helpOpen ? (
-            <p className="mt-2 text-xs text-[rgb(var(--muted))]">
-              If nothing opens, copy the billing link into a new tab or ensure your browser allows redirects for this site.
-            </p>
-          ) : null}
+        </div>
+      ) : null}
+      {redirectIssue ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+          <p className="font-semibold">
+            If nothing opened, your browser may be blocking redirects.
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full bg-amber-700 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-800"
+              onClick={() => {
+                if (state.packKey) {
+                  logMonetisationClientEvent(
+                    "checkout_try_again",
+                    applicationId,
+                    surface,
+                    { packKey: state.packKey }
+                  );
+                  startCheckout(state.packKey);
+                } else {
+                  setRedirectIssue(false);
+                }
+              }}
+            >
+              Try again
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
+              onClick={() => {
+                logMonetisationClientEvent(
+                  "checkout_open_new_tab",
+                  applicationId,
+                  surface,
+                  { packKey: state.packKey }
+                );
+                window.open("/app/billing", "_blank");
+              }}
+            >
+              Open billing
+            </button>
+          </div>
         </div>
       ) : null}
     </div>

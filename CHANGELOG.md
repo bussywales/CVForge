@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.62
+- Unified checkout return handling with a shared parser and premium banner states (success, cancel, failed) plus resume countdown copy.
+- Added redirect-blocked helpers on checkout CTAs with retry/open-billing buttons and new monetisation events, plus a compact completion nudge on return.
+- Completion watchdog/nudge copy refreshed; return events are now allowlisted alongside new checkout return/retry/help events.
+
 ## v0.7.61a
 - Added streak saver subscription funnel instrumentation end-to-end (view/dismiss/CTA, billing banner, plan select, checkout start/failed, return, active detected).
 - Billing now respects `from=streak_saver&plan=` params, preselects plan, shows a streak banner with logging, and threads plan through checkout.

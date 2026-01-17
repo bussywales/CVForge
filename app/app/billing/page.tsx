@@ -196,6 +196,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     <div className="space-y-6">
       <PostPurchaseSuccessBanner
         show={Boolean(searchParams?.success)}
+        applicationId={latestApplicationId ?? undefined}
         subscriptionStatus={settings?.subscription_status ?? null}
       />
       {fromStreakSaver ? (
@@ -203,11 +204,6 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       ) : null}
       {showPortalReturn ? (
         <PortalReturnBanner applicationId={latestApplicationId} />
-      ) : null}
-      {searchParams?.canceled ? (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
-          Checkout was canceled. You can try again anytime.
-        </div>
       ) : null}
 
       <BillingEventLogger
