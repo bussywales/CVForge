@@ -60,6 +60,7 @@ Non-technical summary at /app/insights showing today’s top actions, a simple f
 
 ## Coach Mode (Insights)
 Weekly targets (follow-ups, submissions, STAR drafts, practice), weakest-step detection, and one-click coach actions (schedule follow-up, create STAR draft, run Apply Kit Wizard) with friendly banners driven by query params.
+Weekly Coach Plan (This Week) on Insights shows a deterministic 3–5 action plan with deep links, simple weekly targets, and logging to drive weekly retention for subscribed users.
 
 ## Pipeline and tracking
 A pipeline board shows status lanes, next actions, and activity history. The Action Centre provides follow-up templates, activity logging, and calendar invite downloads.
