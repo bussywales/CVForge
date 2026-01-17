@@ -8,18 +8,16 @@ import type { WeeklyCoachAction, WeeklyCoachPlan } from "@/lib/weekly-coach";
 
 type Props = {
   plan: WeeklyCoachPlan;
+  weekKey: string;
 };
 
-export default function WeeklyCoachCard({ plan }: Props) {
+export default function WeeklyCoachCard({ plan, weekKey }: Props) {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [showList, setShowList] = useState(true);
   const [savedFlash, setSavedFlash] = useState<string | null>(null);
 
-  const storageKey = useMemo(
-    () => `weekly-coach-done:${plan.weekLabel}`,
-    [plan.weekLabel]
-  );
+  const storageKey = useMemo(() => `weekly-coach-done:${plan.weekLabel}:${weekKey}`, [plan.weekLabel, weekKey]);
   useEffect(() => {
     const actionWithApp = plan.actions.find((action) => action.appId);
     if (actionWithApp?.appId) {

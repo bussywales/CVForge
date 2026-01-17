@@ -16,6 +16,8 @@ export type InsightTopAction = {
 
 export type InsightSummary = {
   topActions: InsightTopAction[];
+  activities?: { application_id: string; type: string | null; occurred_at: string | null }[];
+  outcomes?: { application_id: string; outcome_status: string | null; happened_at: string | null }[];
   funnel: {
     drafted: number;
     submitted: number;
@@ -89,9 +91,9 @@ export async function getInsightsSummary(
           .eq("user_id", userId),
       ]);
 
-    const applications = (applicationsRes.data ?? []) as ApplicationRecord[];
-    const outcomes = outcomesRes.data ?? [];
-    const activities = activitiesRes.data ?? [];
+  const applications = (applicationsRes.data ?? []) as ApplicationRecord[];
+  const outcomes = outcomesRes.data ?? [];
+  const activities = activitiesRes.data ?? [];
     const practiceApps = new Set(
       (practiceRes.data ?? []).map((row: any) => row.application_id)
     );
@@ -253,9 +255,11 @@ export async function getInsightsSummary(
     ? "Interviews correlate with timely follow-ups, evidence selection, and STAR drafts in the last 90 days."
     : "Not enough data yet — keep logging outcomes and actions.";
 
-    return {
-      topActions: Array.from(unique.values()),
-      funnel: {
+  return {
+    topActions: Array.from(unique.values()),
+    activities,
+    outcomes,
+    funnel: {
         drafted,
         submitted,
         interview,

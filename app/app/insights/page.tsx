@@ -23,6 +23,8 @@ import ReferralCta from "./referral-cta";
 import { getMonetisationSummary } from "@/lib/monetisation-funnel";
 import { getPackAvailability } from "@/lib/billing/availability";
 import WeeklyCoachCard from "./weekly-coach-card";
+import WeeklyReviewCard from "./weekly-review-card";
+import { buildWeeklyReviewSummary, getIsoWeekKey } from "@/lib/weekly-review";
 
 export const dynamic = "force-dynamic";
 
@@ -238,6 +240,15 @@ export default async function InsightsPage({
     starDrafts: starThisWeek,
     practice: practiceThisWeek ?? null,
   });
+  const weeklyReviewSummary = buildWeeklyReviewSummary(
+    {
+      activities: summary.activities ?? [],
+      outcomes: summary.outcomes ?? [],
+      apps: applicationsForInsights,
+    },
+    { start, end }
+  );
+  const weekKey = getIsoWeekKey(new Date());
 
   const weakest = detectWeakestStep({
     overdueFollowups: overdueAppId ? 1 : 0,
@@ -383,8 +394,12 @@ export default async function InsightsPage({
       {referral?.code ? <ReferralCta code={referral.code} /> : null}
 
       <Section title="This Week" description={weeklyCoachPlan.weekLabel}>
-        <WeeklyCoachCard plan={weeklyCoachPlan} />
+        <WeeklyCoachCard plan={weeklyCoachPlan} weekKey={weekKey} />
       </Section>
+      <WeeklyReviewCard
+        weekKey={weekKey}
+        summary={weeklyReviewSummary}
+      />
 
       <Section
         title="Today"
