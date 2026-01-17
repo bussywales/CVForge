@@ -13,6 +13,7 @@ type PlanKey = "monthly_30" | "monthly_80";
 type Props = {
   applicationId: string | null;
   recommendedPlanKey: PlanKey;
+  initialPlanKey?: PlanKey | null;
   reasonChips: string[];
   planAvailability: { monthly_30?: boolean; monthly_80?: boolean };
   hasSubscription: boolean;
@@ -22,11 +23,13 @@ type Props = {
   comparison: CompareResult;
   recommendedPack: { key: string; name: string; priceGbp: number };
   packAvailable: boolean;
+  fromStreakSaver?: boolean;
 };
 
 export default function SubscriptionPlansSection({
   applicationId,
   recommendedPlanKey,
+  initialPlanKey,
   reasonChips,
   planAvailability,
   hasSubscription,
@@ -36,8 +39,9 @@ export default function SubscriptionPlansSection({
   comparison,
   recommendedPack,
   packAvailable,
+  fromStreakSaver = false,
 }: Props) {
-  const [selectedPlanKey, setSelectedPlanKey] = useState<PlanKey>(recommendedPlanKey);
+  const [selectedPlanKey, setSelectedPlanKey] = useState<PlanKey>(initialPlanKey ?? recommendedPlanKey);
   const [loading, setLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +75,15 @@ export default function SubscriptionPlansSection({
   const selectedPlanAvailable = planAvailability[selectedPlanKey] ?? true;
   const isCurrent = currentPlanKey === selectedPlanKey;
 
+  const handlePlanChange = (planKey: PlanKey) => {
+    setSelectedPlanKey(planKey);
+    if (fromStreakSaver) {
+      logMonetisationClientEvent("streak_saver_plan_selected", applicationId ?? null, "billing", {
+        planKey,
+      });
+    }
+  };
+
   const handleCheckout = async () => {
     if (!selectedPlanAvailable) {
       logMonetisationClientEvent("sub_selector_plan_unavailable", applicationId ?? null, "billing", {
@@ -84,7 +97,16 @@ export default function SubscriptionPlansSection({
     logMonetisationClientEvent("sub_selector_start_checkout", applicationId ?? null, "billing", {
       planKey: selectedPlanKey,
     });
+    if (fromStreakSaver) {
+      logMonetisationClientEvent("streak_saver_checkout_start", applicationId ?? null, "billing", {
+        planKey: selectedPlanKey,
+      });
+    }
     try {
+      const returnToUrl =
+        fromStreakSaver && returnTo.startsWith("/app/billing")
+          ? `/app/billing?from=streak_saver&plan=${selectedPlanKey}`
+          : returnTo;
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -92,7 +114,7 @@ export default function SubscriptionPlansSection({
         body: JSON.stringify({
           mode: "subscription",
           planKey: selectedPlanKey,
-          returnTo,
+          returnTo: returnToUrl,
           applicationId: applicationId ?? undefined,
         }),
       });
@@ -102,8 +124,36 @@ export default function SubscriptionPlansSection({
         return;
       }
       setError("We couldn’t start checkout. Please try again.");
+      if (fromStreakSaver) {
+        const reason =
+          payload?.error === "MISSING_SUBSCRIPTION_PRICE_ID"
+            ? "missing_price_id"
+            : response.ok
+              ? "unknown"
+              : `http_${response.status}`;
+        logMonetisationClientEvent(
+          "streak_saver_checkout_start_failed",
+          applicationId ?? null,
+          "billing",
+          {
+            planKey: selectedPlanKey,
+            reason,
+          }
+        );
+      }
     } catch {
       setError("We couldn’t start checkout. Please try again.");
+      if (fromStreakSaver) {
+        logMonetisationClientEvent(
+          "streak_saver_checkout_start_failed",
+          applicationId ?? null,
+          "billing",
+          {
+            planKey: selectedPlanKey,
+            reason: "network_error",
+          }
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -218,7 +268,7 @@ export default function SubscriptionPlansSection({
       <SubscriptionPlanSelector
         selectedPlanKey={selectedPlanKey}
         recommendedPlanKey={recommendedPlanKey}
-        onChange={setSelectedPlanKey}
+        onChange={handlePlanChange}
         planAvailability={planAvailability}
         applicationId={applicationId ?? undefined}
         surface="billing"

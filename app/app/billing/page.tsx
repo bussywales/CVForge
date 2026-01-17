@@ -23,11 +23,23 @@ import { getPackAvailability, getPlanAvailability } from "@/lib/billing/availabi
 import SubscriptionPlansSection from "./subscription-plans-section";
 import { getSubscriptionStatus } from "@/lib/billing/subscription-status";
 import PortalReturnBanner from "./portal-return-banner";
+import StreakSaverBanner from "./streak-saver-banner";
 
 export const dynamic = "force-dynamic";
 
 type BillingPageProps = {
-  searchParams?: { success?: string; canceled?: string; diag?: string; portal?: string };
+  searchParams?: {
+    success?: string;
+    canceled?: string;
+    diag?: string;
+    portal?: string;
+    from?: string;
+    plan?: string;
+    status?: string;
+    purchased?: string;
+    sub?: string;
+    mode?: string;
+  };
 };
 
 export default async function BillingPage({ searchParams }: BillingPageProps) {
@@ -125,6 +137,17 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const isProd = process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
   const showDiagnostics = (anyPackMissing || anySubMissing) && (diagParam || !isProd);
   const showPortalReturn = searchParams?.portal === "1";
+  const fromStreakSaver = searchParams?.from === "streak_saver";
+  const streakPlanParam =
+    searchParams?.plan === "monthly_80" || searchParams?.plan === "monthly_30"
+      ? (searchParams.plan as "monthly_30" | "monthly_80")
+      : null;
+  const streakStatus =
+    (searchParams?.status === "success" || searchParams?.status === "cancel"
+      ? (searchParams.status as "success" | "cancel")
+      : null) ??
+    (searchParams?.purchased ? "success" : null) ??
+    (searchParams?.canceled ? "cancel" : null);
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -175,6 +198,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         show={Boolean(searchParams?.success)}
         subscriptionStatus={settings?.subscription_status ?? null}
       />
+      {fromStreakSaver ? (
+        <StreakSaverBanner planKey={streakPlanParam} status={streakStatus} isActive={hasSubscription} />
+      ) : null}
       {showPortalReturn ? (
         <PortalReturnBanner applicationId={latestApplicationId} />
       ) : null}
@@ -258,6 +284,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       <SubscriptionPlansSection
         applicationId={latestApplicationId}
         recommendedPlanKey={subscriptionPlanReco.recommendedPlanKey}
+        initialPlanKey={streakPlanParam ?? subscriptionPlanReco.recommendedPlanKey}
         reasonChips={subscriptionPlanReco.reasonChips}
         planAvailability={planAvailability}
         hasSubscription={hasSubscription}
@@ -267,6 +294,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         comparison={comparison}
         recommendedPack={recommendedPack}
         packAvailable={packAvailability[recommendedPack.key]}
+        fromStreakSaver={fromStreakSaver}
       />
 
       {showDiagnostics ? <BillingDiagnostics show={true} /> : null}

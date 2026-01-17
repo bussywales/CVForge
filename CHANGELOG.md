@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.61a
+- Added streak saver subscription funnel instrumentation end-to-end (view/dismiss/CTA, billing banner, plan select, checkout start/failed, return, active detected).
+- Billing now respects `from=streak_saver&plan=` params, preselects plan, shows a streak banner with logging, and threads plan through checkout.
+- Monetisation allowlists and API validation updated for new streak saver events.
+
 ## v0.7.59
 - Weekly Review “Applications moved forward” now uses deterministic reasons with examples dropdown plus inline outcome capture to close the loop.
 - Added moved-forward helper with explainable links, streak-safe storage key, and outcome inline save logging.
