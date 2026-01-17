@@ -97,14 +97,18 @@ export async function POST(request: Request) {
   const cancelUrl = new URL(buildUrl(returnTo, "canceled"));
   cancelUrl.searchParams.set("mode", mode);
 
+  const customerArgs =
+    mode === "subscription" && customerId
+      ? { customer: customerId }
+      : { customer_email: user.email ?? undefined };
+
   const session = await stripe.checkout.sessions.create({
     mode,
     line_items: [{ price: priceId, quantity: 1 }],
     success_url: successUrl.toString(),
     cancel_url: cancelUrl.toString(),
-    customer_email: user.email ?? undefined,
     client_reference_id: user.id,
-    customer: customerId ?? undefined,
+    ...customerArgs,
     metadata: {
       user_id: user.id,
       pack_key: pack.key,
