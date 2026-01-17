@@ -25,7 +25,8 @@ import {
 } from "@/lib/billing/subscription-reco";
 import { recommendPack } from "@/lib/billing/recommendation";
 import { CREDIT_PACKS } from "@/lib/billing/packs-data";
-import { getPackAvailability, getPlanAvailability } from "@/lib/billing/availability";
+import { getPackAvailability } from "@/lib/billing/availability";
+import { getSubscriptionStatus } from "@/lib/billing/subscription-status";
 import DrillClient from "./drill-client";
 import AutopackResumeBanner from "../../../autopack-resume-banner";
 import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
@@ -215,12 +216,13 @@ export default async function PracticeDrillPage({
     topups30: ledgerSignals.topups30,
   });
   const recommendedSubscriptionPlan = subscriptionReco.recommendedPlanKey;
-  const billingSettings = await fetchBillingSettings(supabase, user.id);
-  const hasSubscription =
-    Boolean(billingSettings?.subscription_status) &&
-    billingSettings?.subscription_status !== "canceled";
+  const subscriptionStatus = await getSubscriptionStatus(supabase, user.id);
+  const hasSubscription = subscriptionStatus.hasActiveSubscription;
+  const currentPlanKey = subscriptionStatus.currentPlanKey;
   const packAvailability = getPackAvailability();
-  const planAvailability = getPlanAvailability();
+  const planAvailability = subscriptionStatus.availablePlans;
+  const upgradeSuggested =
+    hasSubscription && currentPlanKey === "monthly_30" && recommendedSubscriptionPlan === "monthly_80";
   const packRecommendation = recommendPack({
     credits,
     activeApplications,
@@ -326,6 +328,8 @@ export default async function PracticeDrillPage({
         recommendedPackKey={recommendedPack.key}
         packAvailability={packAvailability}
         planAvailability={planAvailability}
+        currentPlanKey={currentPlanKey}
+        upgradeSuggested={upgradeSuggested}
       />
     </div>
   );

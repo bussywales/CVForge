@@ -16,6 +16,8 @@ type Props = {
   onSubscribedStart?: () => void;
   hasSubscription?: boolean;
   planAvailability?: { monthly_30?: boolean; monthly_80?: boolean };
+  currentPlanKey?: PlanKey | null;
+  upgradeSuggested?: boolean;
 };
 
 export default function SubscriptionGateNudge({
@@ -26,6 +28,8 @@ export default function SubscriptionGateNudge({
   onSubscribedStart,
   hasSubscription,
   planAvailability,
+  currentPlanKey,
+  upgradeSuggested,
 }: Props) {
   const recommendedPlan = useMemo(
     () => SUBSCRIPTION_PLANS.find((item) => item.key === recommendedPlanKey) ?? SUBSCRIPTION_PLANS[0],
@@ -44,6 +48,7 @@ export default function SubscriptionGateNudge({
   const [dismissed, setDismissed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [portalError, setPortalError] = useState<string | null>(null);
   const viewLogged = useRef(false);
   const unavailableLogged = useRef<Record<PlanKey, boolean>>({} as Record<PlanKey, boolean>);
 
@@ -156,10 +161,35 @@ export default function SubscriptionGateNudge({
           window.location.href = payload.url as string;
           return;
         }
-        setError("We couldn’t open the subscription portal. Please try again.");
+        setPortalError("We couldn’t open the subscription portal. Please try again.");
       })
       .catch(() => {
-        setError("We couldn’t open the subscription portal. Please try again.");
+        setPortalError("We couldn’t open the subscription portal. Please try again.");
+      })
+      .finally(() => setPortalLoading(false));
+  };
+
+  const handleUpgrade = () => {
+    setPortalLoading(true);
+    setPortalError(null);
+    logMonetisationClientEvent("sub_upgrade_click", applicationId, "gate", {
+      context,
+      planKey: "monthly_80",
+    });
+    fetch(`/api/stripe/portal?flow=upgrade_80&returnTo=${encodeURIComponent(returnTo)}`, {
+      method: "GET",
+      credentials: "include",
+    })
+      .then((res) => res.json().catch(() => ({})).then((payload) => ({ ok: res.ok, payload })))
+      .then(({ ok, payload }) => {
+        if (ok && payload?.url) {
+          window.location.href = payload.url as string;
+          return;
+        }
+        setPortalError("We couldn’t open the subscription portal. Please try again.");
+      })
+      .catch(() => {
+        setPortalError("We couldn’t open the subscription portal. Please try again.");
       })
       .finally(() => setPortalLoading(false));
   };
@@ -188,6 +218,43 @@ export default function SubscriptionGateNudge({
           >
             Need more credits? Switch to Monthly 80.
           </button>
+        ) : null}
+        {currentPlanKey === "monthly_30" && upgradeSuggested ? (
+          <div className="mt-2 rounded-xl border border-indigo-100 bg-indigo-50/60 p-2 text-xs text-[rgb(var(--ink))]">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>Applying heavily this week? Upgrade to Monthly 80 for fewer interruptions.</span>
+              <button
+                type="button"
+                onClick={handleUpgrade}
+                disabled={portalLoading}
+                className="rounded-full bg-[rgb(var(--ink))] px-3 py-1 text-[11px] font-semibold text-white hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {portalLoading ? "Opening…" : "Upgrade to Monthly 80"}
+              </button>
+            </div>
+            {portalError ? (
+              <div className="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-2 py-1 text-[11px] text-amber-800">
+                <span>We couldn’t open the subscription portal. Please try again.</span>
+                <div className="mt-1 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleUpgrade}
+                    className="rounded-full bg-amber-700 px-2 py-0.5 text-[10px] font-semibold text-white hover:bg-amber-800"
+                    disabled={portalLoading}
+                  >
+                    Retry
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPortalError(null)}
+                    className="rounded-full border border-amber-200 px-2 py-0.5 text-[10px] font-semibold text-amber-800 hover:bg-amber-100"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
         ) : null}
       </div>
       <div className="mt-2 flex flex-wrap items-center gap-2">

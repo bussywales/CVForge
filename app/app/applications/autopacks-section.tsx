@@ -13,6 +13,8 @@ type AutopacksSectionProps = {
   recommendedPackKey?: string | null;
   packAvailability?: Partial<Record<"starter" | "pro" | "power", boolean>>;
   planAvailability?: { monthly_30?: boolean; monthly_80?: boolean };
+  currentPlanKey?: "monthly_30" | "monthly_80" | null;
+  upgradeSuggested?: boolean;
 };
 
 export default function AutopacksSection({
@@ -25,6 +27,8 @@ export default function AutopacksSection({
   recommendedPackKey,
   packAvailability,
   planAvailability,
+  currentPlanKey,
+  upgradeSuggested,
 }: AutopacksSectionProps) {
   return (
     <Section
@@ -41,6 +45,8 @@ export default function AutopacksSection({
           recommendedPackKey={recommendedPackKey}
           packAvailability={packAvailability}
           planAvailability={planAvailability}
+          currentPlanKey={currentPlanKey}
+          upgradeSuggested={upgradeSuggested}
         />
       }
     >

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { getStripeClient } from "@/lib/stripe/stripe";
 import { fetchBillingSettings } from "@/lib/data/billing";
+import { logMonetisationEvent } from "@/lib/monetisation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -22,15 +23,26 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "No Stripe customer" }, { status: 400 });
   }
 
+  const url = new URL(request.url);
+  const flow = url.searchParams.get("flow") ?? null;
+  const returnToParam = url.searchParams.get("returnTo");
   const body = await request.json().catch(() => ({} as any));
-  const returnTo = typeof body?.returnTo === "string" ? body.returnTo : null;
+  const returnTo =
+    typeof body?.returnTo === "string"
+      ? body.returnTo
+      : typeof returnToParam === "string"
+        ? returnToParam
+        : null;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
   const baseUrl = siteUrl.replace(/\/$/, "");
-  const returnUrl = returnTo
+  const resolvedReturn = returnTo
     ? returnTo.startsWith("http")
       ? returnTo
       : `${baseUrl}${returnTo}`
     : `${baseUrl}/app/billing`;
+  const returnUrl = resolvedReturn.includes("portal=")
+    ? resolvedReturn
+    : `${resolvedReturn}${resolvedReturn.includes("?") ? "&" : "?"}portal=1`;
 
   const stripe = getStripeClient();
   const session = await stripe.billingPortal.sessions.create({
@@ -39,7 +51,26 @@ export async function POST(request: Request) {
   });
 
   if (!session.url) {
+    try {
+      await logMonetisationEvent(supabase, user.id, "sub_portal_open_failed", {
+        meta: { flow },
+        surface: "billing_portal",
+        applicationId: null,
+      });
+    } catch (error) {
+      console.error("[portal.log_failed]", error);
+    }
     return NextResponse.json({ error: "Unable to start portal" }, { status: 500 });
+  }
+
+  try {
+    await logMonetisationEvent(supabase, user.id, "sub_portal_opened", {
+      meta: { flow },
+      surface: "billing_portal",
+      applicationId: null,
+    });
+  } catch (error) {
+    console.error("[portal.log]", error);
   }
 
   return NextResponse.json({ url: session.url });

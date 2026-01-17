@@ -21,11 +21,13 @@ import { getBillingOfferComparison } from "@/lib/billing/compare";
 import BillingDiagnostics from "./billing-diagnostics";
 import { getPackAvailability, getPlanAvailability } from "@/lib/billing/availability";
 import SubscriptionPlansSection from "./subscription-plans-section";
+import { getSubscriptionStatus } from "@/lib/billing/subscription-status";
+import PortalReturnBanner from "./portal-return-banner";
 
 export const dynamic = "force-dynamic";
 
 type BillingPageProps = {
-  searchParams?: { success?: string; canceled?: string; diag?: string };
+  searchParams?: { success?: string; canceled?: string; diag?: string; portal?: string };
 };
 
 export default async function BillingPage({ searchParams }: BillingPageProps) {
@@ -105,10 +107,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     creditsSpent30: signals.creditsSpent30,
     topups30: signals.topups30,
   });
-  const hasSubscription =
-    Boolean(settings?.subscription_status) && settings?.subscription_status !== "canceled";
+  const subscriptionStatus = await getSubscriptionStatus(supabase, user.id);
+  const hasSubscription = subscriptionStatus.hasActiveSubscription;
   const packAvailability = getPackAvailability();
-  const planAvailability = getPlanAvailability();
+  const planAvailability = subscriptionStatus.availablePlans;
   const comparison = getBillingOfferComparison({
     credits,
     activeApplications: appCount,
@@ -122,6 +124,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const diagParam = searchParams?.diag === "1";
   const isProd = process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
   const showDiagnostics = (anyPackMissing || anySubMissing) && (diagParam || !isProd);
+  const showPortalReturn = searchParams?.portal === "1";
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -172,6 +175,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         show={Boolean(searchParams?.success)}
         subscriptionStatus={settings?.subscription_status ?? null}
       />
+      {showPortalReturn ? (
+        <PortalReturnBanner applicationId={latestApplicationId} />
+      ) : null}
       {searchParams?.canceled ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
           Checkout was canceled. You can try again anytime.
@@ -254,7 +260,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         recommendedPlanKey={subscriptionPlanReco.recommendedPlanKey}
         reasonChips={subscriptionPlanReco.reasonChips}
         planAvailability={planAvailability}
-        hasSubscription={Boolean(settings?.stripe_customer_id)}
+        hasSubscription={hasSubscription}
+        currentPlanKey={subscriptionStatus.currentPlanKey}
+        canManageInPortal={subscriptionStatus.canManageInPortal}
         returnTo="/app/billing"
         comparison={comparison}
         recommendedPack={recommendedPack}

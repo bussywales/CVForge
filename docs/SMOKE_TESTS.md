@@ -121,6 +121,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 ## Billing and credits
 - Billing availability is server-derived: packs/subscriptions are enabled when env vars are present; no “pack unavailable” due to client env gaps.
 - Billing shows Monthly 30 and Monthly 80 with one marked Recommended; switching plans updates the subscription CTA/compare, and unavailable plans disable with inline copy.
+- With an active subscription, Billing shows the current plan plus Upgrade/Downgrade buttons that open the Stripe portal; portal failures show retry/dismiss and returning with `?portal=1` shows a neutral banner.
 - Visit /app/billing and confirm balance plus pack selector (Starter/Pro/Power) render.
 - Start checkout for any pack; on return with `?purchased=1`, a success banner shows.
 - If checkout URL fails to open, inline banner appears with retry/help/dismiss and retry works.

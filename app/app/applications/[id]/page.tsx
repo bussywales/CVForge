@@ -33,6 +33,7 @@ import {
   deriveSubscriptionSignalsFromLedger,
   recommendSubscriptionPlanV2,
 } from "@/lib/billing/subscription-reco";
+import { getSubscriptionStatus } from "@/lib/billing/subscription-status";
 import { getPackAvailability, getPlanAvailability } from "@/lib/billing/availability";
 import {
   createActivityAction,
@@ -213,6 +214,7 @@ export default async function ApplicationPage({
   const credits = await getUserCredits(supabase, user.id);
   const ledgerEntries = await listCreditActivity(supabase, user.id, 120);
   const billingSettings = await fetchBillingSettings(supabase, user.id);
+  const subscriptionStatus = await getSubscriptionStatus(supabase, user.id);
   const activeApplications =
     (
       await supabase
@@ -438,11 +440,12 @@ export default async function ApplicationPage({
     topups30: ledgerSignals.topups30,
   });
   const recommendedSubscriptionPlan = subscriptionPlanReco.recommendedPlanKey;
-  const hasSubscription =
-    Boolean(billingSettings?.subscription_status) &&
-    billingSettings?.subscription_status !== "canceled";
+  const hasSubscription = subscriptionStatus.hasActiveSubscription;
+  const currentPlanKey = subscriptionStatus.currentPlanKey;
   const packAvailability = getPackAvailability();
-  const planAvailability = getPlanAvailability();
+  const planAvailability = subscriptionStatus.availablePlans;
+  const upgradeSuggested =
+    hasSubscription && currentPlanKey === "monthly_30" && recommendedSubscriptionPlan === "monthly_80";
   const recommendedGatePackKey = credits >= 20 ? "pro" : "starter";
 
   const checklistFields = [
@@ -781,6 +784,8 @@ export default async function ApplicationPage({
                 returnTo={`/app/applications/${application.id}?tab=apply#application-kit`}
                 recommendedPlanKey={recommendedSubscriptionPlan}
                 hasSubscription={hasSubscription}
+                currentPlanKey={currentPlanKey}
+                upgradeSuggested={upgradeSuggested}
                 recommendedPackKey={recommendedGatePackKey}
                 packAvailability={packAvailability}
                 planAvailability={planAvailability}
@@ -798,6 +803,8 @@ export default async function ApplicationPage({
               returnTo={`/app/applications/${application.id}?tab=apply#apply-autopacks`}
               recommendedPlanKey={recommendedSubscriptionPlan}
               hasSubscription={hasSubscription}
+              currentPlanKey={currentPlanKey}
+              upgradeSuggested={upgradeSuggested}
               recommendedPackKey={recommendedGatePackKey}
               packAvailability={packAvailability}
               planAvailability={planAvailability}

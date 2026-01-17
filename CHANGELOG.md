@@ -7,6 +7,13 @@
 
 # Changelog
 
+# Changelog
+
+## v0.7.54
+- Added Stripe portal-based upgrade/downgrade for Monthly 30/80 with current-plan badge on Billing and contextual upgrade/downgrade buttons plus return banner when coming back from portal.
+- Subscription gate nudge now surfaces an upgrade hook for heavy usage on Monthly 30 and opens the portal with retry messaging on failure.
+- Expanded subscription status helper (active/current plan/portal availability) and monetisation logging for portal flows; added mapping test.
+
 ## v0.7.53
 - Billing now shows both Monthly 30 and Monthly 80 with a plan selector, recommended badge, and price-aware CTA/compare; unavailable plans disable with clear copy.
 - Subscription gate nudges use the same selector with quick switch to Monthly 80 and log selector events; manage subscription now redirects via portal fetch.

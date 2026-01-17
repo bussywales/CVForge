@@ -80,6 +80,8 @@ type DrillClientProps = {
   recommendedPackKey?: string | null;
   packAvailability?: Partial<Record<"starter" | "pro" | "power", boolean>>;
   planAvailability?: { monthly_30?: boolean; monthly_80?: boolean };
+  currentPlanKey?: "monthly_30" | "monthly_80" | null;
+  upgradeSuggested?: boolean;
 };
 
 type AnswerPackPanelProps = {
@@ -268,6 +270,8 @@ export default function DrillClient({
   recommendedPackKey,
   packAvailability,
   planAvailability,
+  currentPlanKey,
+  upgradeSuggested,
 }: DrillClientProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -1164,6 +1168,8 @@ export default function DrillClient({
                       hasSubscription={hasSubscription}
                       onSubscribedStart={() => setShowGate(false)}
                       planAvailability={planAvailability}
+                      currentPlanKey={currentPlanKey}
+                      upgradeSuggested={upgradeSuggested}
                     />
                   ) : null
                 }

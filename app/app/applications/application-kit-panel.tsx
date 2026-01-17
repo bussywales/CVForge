@@ -50,6 +50,8 @@ type SmartApplyPanelProps = {
   recommendedPackKey?: string | null;
   packAvailability?: Partial<Record<"starter" | "pro" | "power", boolean>>;
   planAvailability?: { monthly_30?: boolean; monthly_80?: boolean };
+  currentPlanKey?: "monthly_30" | "monthly_80" | null;
+  upgradeSuggested?: boolean;
   updateClosingDateAction: (formData: FormData) => Promise<ActionState>;
   updateSourcePlatformAction: (formData: FormData) => Promise<ActionState>;
   setSubmittedAction: (formData: FormData) => Promise<ActionState>;
@@ -92,6 +94,8 @@ export default function ApplicationKitPanel({
   recommendedPackKey,
   packAvailability,
   planAvailability,
+  currentPlanKey,
+  upgradeSuggested,
   updateClosingDateAction,
   updateSourcePlatformAction,
   setSubmittedAction,
@@ -666,6 +670,8 @@ export default function ApplicationKitPanel({
               hasSubscription={hasSubscription}
               onSubscribedStart={() => setShowGate(false)}
               planAvailability={planAvailability}
+              currentPlanKey={currentPlanKey}
+              upgradeSuggested={upgradeSuggested}
             />
           ) : null
         }
