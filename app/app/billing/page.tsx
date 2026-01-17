@@ -29,6 +29,8 @@ import PortalReturnBanner from "./portal-return-banner";
 import StreakSaverBanner from "./streak-saver-banner";
 import SubscriptionHome from "./subscription-home";
 import { parsePortalReturn } from "@/lib/billing/portal-return";
+import SubSaveOfferCard from "./sub-save-offer-card";
+import { recommendSaveOffer } from "@/lib/billing/sub-save-offer";
 
 export const dynamic = "force-dynamic";
 
@@ -265,6 +267,22 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           isActive={hasSubscription}
         />
       ) : null}
+      {showPortalReturn && portalState.flow === "cancel" && (hasSubscription || subscriptionStatus.currentPlanKey) && retentionSummary ? (
+        <SubSaveOfferCard
+          weekKey={weekKey}
+          reco={recommendSaveOffer({
+            planKey: (subscriptionStatus.currentPlanKey ?? "monthly_30") as "monthly_30" | "monthly_80",
+            creditsUsed: retentionSummary.creditsUsed,
+            completions: retentionSummary.completions,
+            movedForward: retentionSummary.movedForward,
+            risk: retentionSummary.risk,
+          })}
+          planKey={(subscriptionStatus.currentPlanKey ?? "monthly_30") as "monthly_30" | "monthly_80"}
+          applicationId={latestApplicationId}
+          returnTo="/app/billing"
+          show
+        />
+      ) : null}
 
       <BillingEventLogger
         applicationId={latestApplicationId}
@@ -272,6 +290,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       />
 
       <Section
+        id="packs"
         title="Top up to finish your next applications"
         description={`Based on your current workload: ${appCount} active application${appCount === 1 ? "" : "s"}.`}
       >

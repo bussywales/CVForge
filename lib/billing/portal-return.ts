@@ -38,3 +38,7 @@ export function parsePortalReturn(params?: InputParams): PortalReturnState {
 export function portalDismissKey(weekKey: string) {
   return `portal_return_${weekKey}`;
 }
+
+export function portalSaveOfferDismissKey(weekKey: string) {
+  return `portal_save_offer_${weekKey}`;
+}

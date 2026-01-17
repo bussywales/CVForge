@@ -15,6 +15,7 @@ type Props = {
 export default function PortalReturnBanner({ applicationId, state, isActive }: Props) {
   const [visible, setVisible] = useState(false);
   const weekKey = getIsoWeekKey(new Date());
+  const [outcomeLogged, setOutcomeLogged] = useState(false);
 
   useEffect(() => {
     const dismissed = typeof window !== "undefined"
@@ -30,6 +31,32 @@ export default function PortalReturnBanner({ applicationId, state, isActive }: P
       });
     }
   }, [applicationId, isActive, state.flow, state.plan, state.portal, weekKey]);
+
+  useEffect(() => {
+    if (!state.portal || outcomeLogged === true) return;
+    const key = `portal_return_outcome_${weekKey}`;
+    const seen = typeof window !== "undefined" ? window.localStorage.getItem(key) : null;
+    if (seen) {
+      setOutcomeLogged(true);
+      return;
+    }
+    logMonetisationClientEvent(
+      "sub_save_offer_return",
+      applicationId,
+      "billing",
+      { flow: state.flow, plan: state.plan, active: isActive }
+    );
+    logMonetisationClientEvent(
+      isActive ? "sub_save_offer_outcome_active" : "sub_save_offer_outcome_inactive",
+      applicationId,
+      "billing",
+      { flow: state.flow, plan: state.plan, active: isActive }
+    );
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(key, "1");
+    }
+    setOutcomeLogged(true);
+  }, [applicationId, isActive, outcomeLogged, state.flow, state.plan, state.portal, weekKey]);
 
   if (!visible || !state.portal) return null;
 

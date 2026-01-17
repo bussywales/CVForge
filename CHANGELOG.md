@@ -15,6 +15,11 @@
 - Added churn-intent events to monetisation allowlists plus portal-return parser/test; banner persistence keyed per week.
 - Billing portal API now appends portal=1 + flow/plan to return URLs for reliable detection.
 
+## v0.7.65
+- Added cancel-flow Save Offer card on Billing after portal cancel returns, with downgrade/keep/top-up recommendations and portal flows.
+- Save-offer events allowlisted; portal API accepts flow/plan from body and appends to return URLs; outcome lines log active/inactive once.
+- New save-offer helper and test guide deterministic variant/portal flow selection; docs updated for cancel-flow smoke.
+
 ## v0.7.61a
 - Added streak saver subscription funnel instrumentation end-to-end (view/dismiss/CTA, billing banner, plan select, checkout start/failed, return, active detected).
 - Billing now respects `from=streak_saver&plan=` params, preselects plan, shows a streak banner with logging, and threads plan through checkout.

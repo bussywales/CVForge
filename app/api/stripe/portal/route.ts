@@ -24,9 +24,10 @@ export async function POST(request: Request) {
   }
 
   const url = new URL(request.url);
-  const flow = url.searchParams.get("flow") ?? null;
-  const returnToParam = url.searchParams.get("returnTo");
+  const flowParam = url.searchParams.get("flow") ?? null;
   const body = await request.json().catch(() => ({} as any));
+  const flow = flowParam ?? (typeof body?.flow === "string" ? body.flow : null);
+  const returnToParam = url.searchParams.get("returnTo") ?? (typeof body?.returnTo === "string" ? body.returnTo : null);
   const planParam =
     url.searchParams.get("plan") ??
     (typeof body?.plan === "string" ? body.plan : null) ??
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
     : `${baseUrl}/app/billing`;
   const parsedReturn = new URL(resolvedReturn);
   parsedReturn.searchParams.set("portal", "1");
-  if (flow) parsedReturn.searchParams.set("flow", flow);
+  if (flowParam) parsedReturn.searchParams.set("flow", flowParam);
   if (planParam) parsedReturn.searchParams.set("plan", planParam);
   const returnUrl = parsedReturn.toString();
 
