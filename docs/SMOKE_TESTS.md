@@ -109,6 +109,8 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - No duplicate action types appear unless expanded; “Also needed for N other application(s)” toggles the extra items with working deep links.
 - Buttons use action-specific labels (Select evidence / Draft STAR / Generate Autopack / Schedule follow-up / Start practice).
 - Goal badge shows the total action count for the week.
+- Mark done/Undo on each row dims the row without removing the CTA; completion state persists after reload.
+- Completing all visible actions shows the “Week complete” state with Add one more step / Leave it there options.
 - “This Week” card shows the current week range with 3–5 actions and “Do it” links.
 - Clicking a “Do it” CTA deep-links to the expected tab/anchor for that application.
 - Weekly targets on the card show follow-ups, practice, and applications without errors.

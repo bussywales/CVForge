@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.57
+- Weekly Coach card now supports per-row completion (Mark done/Undo), week-complete summary with “Add one more step”/“Leave it there”, and action-specific microcopy constants.
+- Dedupe/sections retained; completion persists per week in local storage with new monetisation events for done/undo/complete.
+- Updated smoke tests for completion interactions.
+
 ## v0.7.56
 - Weekly Coach card now groups actions into Do next/Up next/If you have time with per-type dedupe and inline “also needed” expansion.
 - Action buttons use type-specific labels and the header shows a single goal badge with a refreshed title.
