@@ -28,6 +28,7 @@ import { buildWeeklyReviewSummary, getIsoWeekKey } from "@/lib/weekly-review";
 import PortalReturnBanner from "./portal-return-banner";
 import StreakSaverBanner from "./streak-saver-banner";
 import SubscriptionHome from "./subscription-home";
+import { parsePortalReturn } from "@/lib/billing/portal-return";
 
 export const dynamic = "force-dynamic";
 
@@ -127,6 +128,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const subscriptionStatus = await getSubscriptionStatus(supabase, user.id);
   const hasSubscription = subscriptionStatus.hasActiveSubscription;
   const packAvailability = getPackAvailability();
+  const portalState = parsePortalReturn(searchParams ?? undefined);
   const planAvailability = subscriptionStatus.availablePlans;
   const comparison = getBillingOfferComparison({
     credits,
@@ -141,7 +143,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const diagParam = searchParams?.diag === "1";
   const isProd = process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
   const showDiagnostics = (anyPackMissing || anySubMissing) && (diagParam || !isProd);
-  const showPortalReturn = searchParams?.portal === "1";
+  const showPortalReturn = portalState.portal;
   const fromStreakSaver = searchParams?.from === "streak_saver";
   const streakPlanParam =
     searchParams?.plan === "monthly_80" || searchParams?.plan === "monthly_30"
@@ -257,7 +259,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         />
       ) : null}
       {showPortalReturn ? (
-        <PortalReturnBanner applicationId={latestApplicationId} />
+        <PortalReturnBanner
+          applicationId={latestApplicationId}
+          state={portalState}
+          isActive={hasSubscription}
+        />
       ) : null}
 
       <BillingEventLogger
@@ -331,21 +337,23 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         </div>
       </Section>
 
-      <SubscriptionPlansSection
-        applicationId={latestApplicationId}
-        recommendedPlanKey={subscriptionPlanReco.recommendedPlanKey}
-        initialPlanKey={streakPlanParam ?? subscriptionPlanReco.recommendedPlanKey}
-        reasonChips={subscriptionPlanReco.reasonChips}
-        planAvailability={planAvailability}
-        hasSubscription={hasSubscription}
-        currentPlanKey={subscriptionStatus.currentPlanKey}
-        canManageInPortal={subscriptionStatus.canManageInPortal}
-        returnTo="/app/billing"
-        comparison={comparison}
-        recommendedPack={recommendedPack}
-        packAvailable={packAvailability[recommendedPack.key]}
-        fromStreakSaver={fromStreakSaver}
-      />
+      <div id="subscription-plans">
+        <SubscriptionPlansSection
+          applicationId={latestApplicationId}
+          recommendedPlanKey={subscriptionPlanReco.recommendedPlanKey}
+          initialPlanKey={streakPlanParam ?? subscriptionPlanReco.recommendedPlanKey}
+          reasonChips={subscriptionPlanReco.reasonChips}
+          planAvailability={planAvailability}
+          hasSubscription={hasSubscription}
+          currentPlanKey={subscriptionStatus.currentPlanKey}
+          canManageInPortal={subscriptionStatus.canManageInPortal}
+          returnTo="/app/billing"
+          comparison={comparison}
+          recommendedPack={recommendedPack}
+          packAvailable={packAvailability[recommendedPack.key]}
+          fromStreakSaver={fromStreakSaver}
+        />
+      </div>
 
       {showDiagnostics ? <BillingDiagnostics show={true} /> : null}
 

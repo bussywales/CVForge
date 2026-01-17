@@ -27,6 +27,10 @@ export async function POST(request: Request) {
   const flow = url.searchParams.get("flow") ?? null;
   const returnToParam = url.searchParams.get("returnTo");
   const body = await request.json().catch(() => ({} as any));
+  const planParam =
+    url.searchParams.get("plan") ??
+    (typeof body?.plan === "string" ? body.plan : null) ??
+    (typeof body?.planKey === "string" ? body.planKey : null);
   const returnTo =
     typeof body?.returnTo === "string"
       ? body.returnTo
@@ -40,9 +44,11 @@ export async function POST(request: Request) {
       ? returnTo
       : `${baseUrl}${returnTo}`
     : `${baseUrl}/app/billing`;
-  const returnUrl = resolvedReturn.includes("portal=")
-    ? resolvedReturn
-    : `${resolvedReturn}${resolvedReturn.includes("?") ? "&" : "?"}portal=1`;
+  const parsedReturn = new URL(resolvedReturn);
+  parsedReturn.searchParams.set("portal", "1");
+  if (flow) parsedReturn.searchParams.set("flow", flow);
+  if (planParam) parsedReturn.searchParams.set("plan", planParam);
+  const returnUrl = parsedReturn.toString();
 
   const stripe = getStripeClient();
   const session = await stripe.billingPortal.sessions.create({

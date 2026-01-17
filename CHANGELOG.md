@@ -10,6 +10,11 @@
 - Low-activity “Save your streak” nudge on Insights for subscribers with no movement; deterministic retention scoring helper added.
 - Monetisation allowlist updated for subscription home/save-offer events; added retention helper test and checkout-return parser test.
 
+## v0.7.64
+- Portal sessions now return with flow/plan context; Billing shows a “Welcome back” banner with keep/cancel intent logging and portal reopen.
+- Added churn-intent events to monetisation allowlists plus portal-return parser/test; banner persistence keyed per week.
+- Billing portal API now appends portal=1 + flow/plan to return URLs for reliable detection.
+
 ## v0.7.61a
 - Added streak saver subscription funnel instrumentation end-to-end (view/dismiss/CTA, billing banner, plan select, checkout start/failed, return, active detected).
 - Billing now respects `from=streak_saver&plan=` params, preselects plan, shows a streak banner with logging, and threads plan through checkout.

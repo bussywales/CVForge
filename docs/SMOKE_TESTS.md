@@ -116,6 +116,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Subscription Intent tile shows when eligible; clicking a plan opens Billing with `from=intent_tile&plan=` preselected; dismiss hides it for the week.
 - Subscription Home (active subs): shows “Your subscription this week” with credits used, moved-forward count, streak badge, and next best actions; save-offer card opens with switch/keep/continue options and portal links.
 - Low activity nudge (active subs): when no completions/movement this week, Insights shows “Save your streak” with Do a quick step/Not today; dismissal sticks for the week.
+- Portal return: returning from Stripe portal with `portal=1` shows “Welcome back” banner; Continue hides it, “I still want to cancel” reopens portal; inactive subs see a resubscribe prompt.
 - “This Week” card shows the current week range with 3–5 actions and “Do it” links.
 - Clicking a “Do it” CTA deep-links to the expected tab/anchor for that application.
 - Weekly targets on the card show follow-ups, practice, and applications without errors.
