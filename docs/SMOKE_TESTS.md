@@ -105,6 +105,10 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Mark submitted and schedule follow-up from Step 5; verify status updates and next follow-up date is set.
 
 ## Insights Dashboard
+- “This Week” card shows “Your next best actions to move applications forward” with sections: Do next (1), Up next (≤2), If you have time (≤2).
+- No duplicate action types appear unless expanded; “Also needed for N other application(s)” toggles the extra items with working deep links.
+- Buttons use action-specific labels (Select evidence / Draft STAR / Generate Autopack / Schedule follow-up / Start practice).
+- Goal badge shows the total action count for the week.
 - “This Week” card shows the current week range with 3–5 actions and “Do it” links.
 - Clicking a “Do it” CTA deep-links to the expected tab/anchor for that application.
 - Weekly targets on the card show follow-ups, practice, and applications without errors.

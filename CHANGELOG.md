@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.56
+- Weekly Coach card now groups actions into Do next/Up next/If you have time with per-type dedupe and inline “also needed” expansion.
+- Action buttons use type-specific labels and the header shows a single goal badge with a refreshed title.
+- Added UI polish for the “This Week” hierarchy without changing underlying deep links or logging.
+
 ## v0.7.55
 - Added Weekly Coach Loop v1 on /app/insights with a “This Week” card, deterministic deep links, and simple weekly targets.
 - New weekly plan helper (server-deterministic) plus a lightweight client card with monetisation logging on view/click.
