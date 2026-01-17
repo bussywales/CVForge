@@ -5,6 +5,11 @@
 - Added redirect-blocked helpers on checkout CTAs with retry/open-billing buttons and new monetisation events, plus a compact completion nudge on return.
 - Completion watchdog/nudge copy refreshed; return events are now allowlisted alongside new checkout return/retry/help events.
 
+## v0.7.63
+- Subscription Home on Billing for active subs: weekly stats, next actions, risk badge, next-week preview, and gentle save/cancel offer with portal links.
+- Low-activity “Save your streak” nudge on Insights for subscribers with no movement; deterministic retention scoring helper added.
+- Monetisation allowlist updated for subscription home/save-offer events; added retention helper test and checkout-return parser test.
+
 ## v0.7.61a
 - Added streak saver subscription funnel instrumentation end-to-end (view/dismiss/CTA, billing banner, plan select, checkout start/failed, return, active detected).
 - Billing now respects `from=streak_saver&plan=` params, preselects plan, shows a streak banner with logging, and threads plan through checkout.

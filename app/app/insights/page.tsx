@@ -27,6 +27,8 @@ import WeeklyReviewCard from "./weekly-review-card";
 import { buildWeeklyReviewSummary, getIsoWeekKey } from "@/lib/weekly-review";
 import SubscriptionIntentCard from "./subscription-intent-card";
 import { recommendSubscriptionIntent } from "@/lib/billing/subscription-intent";
+import SubLowActivityBanner from "./sub-low-activity-banner";
+import { getSubscriptionStatus } from "@/lib/billing/subscription-status";
 
 export const dynamic = "force-dynamic";
 
@@ -97,6 +99,7 @@ export default async function InsightsPage({
     applicationsCount: counts.applications,
     latestApplicationId,
   });
+  const subscriptionStatus = await getSubscriptionStatus(supabase, user.id);
   const credits = await getUserCredits(supabase, user.id);
   const billingSettings = await fetchBillingSettings(supabase, user.id);
   const referral = await ensureReferralCode(supabase, user.id);
@@ -268,6 +271,15 @@ export default async function InsightsPage({
     streakSaverEligible: false,
     streakSaverDismissed: false,
   });
+  const completionsThisWeek =
+    (weeklyTargets.followups?.current ?? 0) +
+    (weeklyTargets.submissions?.current ?? 0) +
+    (weeklyTargets.practice?.current ?? 0) +
+    (weeklyTargets.starDrafts?.current ?? 0);
+  const lowActivity =
+    subscriptionStatus.hasActiveSubscription &&
+    weeklyReviewSummary.applicationsMoved === 0 &&
+    completionsThisWeek === 0;
 
   const weakest = detectWeakestStep({
     overdueFollowups: overdueAppId ? 1 : 0,
@@ -413,6 +425,22 @@ export default async function InsightsPage({
       {referral?.code ? <ReferralCta code={referral.code} /> : null}
 
       <Section title="This Week" description={weeklyCoachPlan.weekLabel}>
+        {lowActivity ? (
+          <div className="mb-3">
+            <SubLowActivityBanner
+              weekKey={weekKey}
+              action={
+                summary.topActions[0]
+                  ? {
+                      href: summary.topActions[0].href,
+                      label: summary.topActions[0].label,
+                      applicationId: summary.topActions[0].applicationId,
+                    }
+                  : undefined
+              }
+            />
+          </div>
+        ) : null}
         <WeeklyCoachCard plan={weeklyCoachPlan} weekKey={weekKey} />
       </Section>
       <WeeklyReviewCard

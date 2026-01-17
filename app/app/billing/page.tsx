@@ -10,6 +10,7 @@ import {
   deriveSubscriptionSignalsFromLedger,
   recommendSubscriptionPlanV2,
 } from "@/lib/billing/subscription-reco";
+import { buildSubscriptionRetention } from "@/lib/subscription-retention";
 import { createServerClient } from "@/lib/supabase/server";
 import { ensureReferralCode } from "@/lib/referrals";
 import CopyIconButton from "@/components/CopyIconButton";
@@ -22,8 +23,11 @@ import BillingDiagnostics from "./billing-diagnostics";
 import { getPackAvailability, getPlanAvailability } from "@/lib/billing/availability";
 import SubscriptionPlansSection from "./subscription-plans-section";
 import { getSubscriptionStatus } from "@/lib/billing/subscription-status";
+import { getInsightsSummary } from "@/lib/insights";
+import { buildWeeklyReviewSummary, getIsoWeekKey } from "@/lib/weekly-review";
 import PortalReturnBanner from "./portal-return-banner";
 import StreakSaverBanner from "./streak-saver-banner";
+import SubscriptionHome from "./subscription-home";
 
 export const dynamic = "force-dynamic";
 
@@ -56,6 +60,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const credits = await getUserCredits(supabase, user.id);
   const activity = await listCreditActivity(supabase, user.id, 20);
   const activitySignals = await listCreditActivity(supabase, user.id, 200);
+  const insightsSummary = await getInsightsSummary(supabase, user.id);
   const settings = await fetchBillingSettings(supabase, user.id);
   const referral = await ensureReferralCode(supabase, user.id);
   const appCount =
@@ -148,6 +153,46 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       : null) ??
     (searchParams?.purchased ? "success" : null) ??
     (searchParams?.canceled ? "cancel" : null);
+  const weekKey = getIsoWeekKey(new Date());
+  const weekRange = (() => {
+    const now = new Date();
+    const start = new Date(now);
+    const day = start.getDay();
+    const diff = (day === 0 ? -6 : 1) - day;
+    start.setDate(start.getDate() + diff);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 7);
+    return { start, end };
+  })();
+  const appsRes = await supabase
+    .from("applications")
+    .select("*")
+    .eq("user_id", user.id)
+    .order("created_at", { ascending: false });
+  const weeklyReviewSummary = buildWeeklyReviewSummary(
+    {
+      activities: insightsSummary.activities ?? [],
+      outcomes: insightsSummary.outcomes ?? [],
+      apps: appsRes.data ?? [],
+    },
+    weekRange
+  );
+  const topActions = insightsSummary.topActions.slice(0, 3).map((action) => ({
+    label: action.label,
+    href: action.href,
+    why: action.why,
+    applicationId: action.applicationId,
+  }));
+  const retentionSummary = hasSubscription
+    ? buildSubscriptionRetention({
+        planKey: subscriptionStatus.currentPlanKey ?? "monthly_30",
+        ledger: activitySignals,
+        weeklyReview: weeklyReviewSummary,
+        topActions: insightsSummary.topActions.slice(0, 3),
+        weekKey,
+      })
+    : null;
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -201,6 +246,15 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       />
       {fromStreakSaver ? (
         <StreakSaverBanner planKey={streakPlanParam} status={streakStatus} isActive={hasSubscription} />
+      ) : null}
+      {hasSubscription && retentionSummary ? (
+        <SubscriptionHome
+          planKey={(subscriptionStatus.currentPlanKey ?? "monthly_30") as "monthly_30" | "monthly_80"}
+          summary={retentionSummary}
+          actions={topActions}
+          latestApplicationId={latestApplicationId}
+          returnTo="/app/billing"
+        />
       ) : null}
       {showPortalReturn ? (
         <PortalReturnBanner applicationId={latestApplicationId} />
