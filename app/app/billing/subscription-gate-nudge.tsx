@@ -31,6 +31,7 @@ export default function SubscriptionGateNudge({
   const [error, setError] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
   const viewLogged = useRef(false);
   const unavailableLogged = useRef(false);
 
@@ -116,6 +117,26 @@ export default function SubscriptionGateNudge({
       planKey: plan.key,
       action: "manage",
     });
+    setPortalLoading(true);
+    setError(null);
+    fetch("/api/stripe/portal", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ returnTo }),
+    })
+      .then((res) => res.json().catch(() => ({})).then((payload) => ({ ok: res.ok, payload })))
+      .then(({ ok, payload }) => {
+        if (ok && payload?.url) {
+          window.location.href = payload.url as string;
+          return;
+        }
+        setError("We couldn’t open the subscription portal. Please try again.");
+      })
+      .catch(() => {
+        setError("We couldn’t open the subscription portal. Please try again.");
+      })
+      .finally(() => setPortalLoading(false));
   };
 
   return (
@@ -126,15 +147,14 @@ export default function SubscriptionGateNudge({
       </p>
       <div className="mt-2 flex flex-wrap items-center gap-2">
         {hasSubscription ? (
-          <form action="/api/stripe/portal" method="POST" onSubmit={handleManage}>
-            <input type="hidden" name="returnTo" value={returnTo} />
-            <button
-              type="submit"
-              className="rounded-full bg-[rgb(var(--ink))] px-4 py-2 text-xs font-semibold text-white hover:bg-black"
-            >
-              Manage subscription
-            </button>
-          </form>
+          <button
+            type="button"
+            onClick={handleManage}
+            disabled={portalLoading}
+            className="rounded-full bg-[rgb(var(--ink))] px-4 py-2 text-xs font-semibold text-white hover:bg-black disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {portalLoading ? "Opening…" : "Manage subscription"}
+          </button>
         ) : (
           <button
             type="button"

@@ -23,6 +23,7 @@ export default function BillingSubscriptionRecoCard({
 }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
   const viewLogged = useRef(false);
   const unavailableLogged = useRef(false);
 
@@ -108,6 +109,29 @@ export default function BillingSubscriptionRecoCard({
     }
   };
 
+  const handlePortal = async () => {
+    setPortalLoading(true);
+    setError(null);
+    try {
+      const response = await fetch("/api/stripe/portal", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ returnTo }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (response.ok && payload?.url) {
+        window.location.href = payload.url as string;
+        return;
+      }
+      setError("We couldn’t open the subscription portal. Please try again.");
+    } catch {
+      setError("We couldn’t open the subscription portal. Please try again.");
+    } finally {
+      setPortalLoading(false);
+    }
+  };
+
   return (
     <div className="rounded-2xl border border-indigo-100 bg-indigo-50/80 p-5 shadow-sm">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -140,15 +164,14 @@ export default function BillingSubscriptionRecoCard({
                 : `Start subscription — ${formatGbp(plan.priceGbp)}/mo`}
           </button>
           {hasSubscription ? (
-            <form action="/api/stripe/portal" method="POST">
-              <input type="hidden" name="returnTo" value={returnTo} />
-              <button
-                type="submit"
-                className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
-              >
-                Manage subscription
-              </button>
-            </form>
+            <button
+              type="button"
+              onClick={handlePortal}
+              disabled={portalLoading}
+              className="inline-flex items-center justify-center rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {portalLoading ? "Opening…" : "Manage subscription"}
+            </button>
           ) : null}
           {unavailable ? (
             <p className="text-xs text-amber-700">This plan isn’t available right now.</p>
