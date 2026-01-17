@@ -25,6 +25,8 @@ import { getPackAvailability } from "@/lib/billing/availability";
 import WeeklyCoachCard from "./weekly-coach-card";
 import WeeklyReviewCard from "./weekly-review-card";
 import { buildWeeklyReviewSummary, getIsoWeekKey } from "@/lib/weekly-review";
+import SubscriptionIntentCard from "./subscription-intent-card";
+import { recommendSubscriptionIntent } from "@/lib/billing/subscription-intent";
 
 export const dynamic = "force-dynamic";
 
@@ -249,6 +251,23 @@ export default async function InsightsPage({
     { start, end }
   );
   const weekKey = getIsoWeekKey(new Date());
+  const intentReco = recommendSubscriptionIntent({
+    credits,
+    paidActionReady: summary.topActions.some((action) =>
+      /apply-autopacks|interview-pack|application-kit|answer-pack/.test(action.href)
+    ),
+    checkoutStartedRecently: monetisation.last7.checkout_started > 0,
+    checkoutReturnedRecently: monetisation.last7.checkout_success > 0,
+    checkoutCompletedRecently: monetisation.last7.checkout_success > 0,
+    lowCreditImpressions7d: monetisation.last7.gate_shown,
+    completionsThisWeek:
+      (weeklyTargets.followups?.current ?? 0) +
+      (weeklyTargets.submissions?.current ?? 0) +
+      (weeklyTargets.practice?.current ?? 0),
+    activeApps: applicationsForInsights.length,
+    streakSaverEligible: false,
+    streakSaverDismissed: false,
+  });
 
   const weakest = detectWeakestStep({
     overdueFollowups: overdueAppId ? 1 : 0,
@@ -400,6 +419,7 @@ export default async function InsightsPage({
         weekKey={weekKey}
         summary={weeklyReviewSummary}
       />
+      <SubscriptionIntentCard weekKey={weekKey} recommendation={intentReco} />
 
       <Section
         title="Today"

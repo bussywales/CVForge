@@ -113,6 +113,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Completing all visible actions shows the “Week complete” state with Add one more step / Leave it there options.
 - Weekly Review shows applications moved forward with an Examples dropdown linking into applications; logging outcomes inline updates the counts.
 - Streak Saver: when eligible, clicking the CTA opens billing with `from=streak_saver&plan=...`; banner shows with logging, plan preselects, and checkout start/return logs fire.
+- Subscription Intent tile shows when eligible; clicking a plan opens Billing with `from=intent_tile&plan=` preselected; dismiss hides it for the week.
 - “This Week” card shows the current week range with 3–5 actions and “Do it” links.
 - Clicking a “Do it” CTA deep-links to the expected tab/anchor for that application.
 - Weekly targets on the card show follow-ups, practice, and applications without errors.
