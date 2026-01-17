@@ -5,7 +5,7 @@ import CreditActivityTable from "./credit-activity-table";
 import PackSelector from "./pack-selector";
 import { fetchBillingSettings, upsertBillingSettings } from "@/lib/data/billing";
 import { recommendPack } from "@/lib/billing/recommendation";
-import { CREDIT_PACKS, formatGbp } from "@/lib/billing/packs";
+import { CREDIT_PACKS, formatGbp } from "@/lib/billing/packs-data";
 import { recommendSubscription } from "@/lib/billing/subscription-reco";
 import { createServerClient } from "@/lib/supabase/server";
 import { ensureReferralCode } from "@/lib/referrals";
@@ -18,8 +18,7 @@ import BillingSubscriptionRecoCard from "./subscription-reco-card";
 import CompareCard from "./compare-card";
 import { getBillingOfferComparison } from "@/lib/billing/compare";
 import BillingDiagnostics from "./billing-diagnostics";
-import { resolvePriceIdForPack } from "@/lib/billing/packs";
-import { resolvePriceIdForPlan } from "@/lib/billing/plans";
+import { getPackAvailability, getPlanAvailability } from "@/lib/billing/availability";
 
 export const dynamic = "force-dynamic";
 
@@ -117,15 +116,18 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     subscriptionReco.recommendedPlanKey !== null || Boolean(settings?.stripe_customer_id);
   const hasSubscription =
     Boolean(settings?.subscription_status) && settings?.subscription_status !== "canceled";
+  const packAvailability = getPackAvailability();
+  const planAvailability = getPlanAvailability();
   const comparison = getBillingOfferComparison({
     credits,
     activeApplications: appCount,
     hasSubscription,
     recommendedPlanKey: subscriptionReco.recommendedPlanKey ?? undefined,
     recommendedPackKey: recommendedPack.key,
+    subscriptionAvailable: Boolean(planAvailability.monthly_30 || planAvailability.monthly_80),
   });
-  const anyPackMissing = CREDIT_PACKS.some((pack) => !resolvePriceIdForPack(pack.key));
-  const anySubMissing = !resolvePriceIdForPlan("monthly_30") || !resolvePriceIdForPlan("monthly_80");
+  const anyPackMissing = CREDIT_PACKS.some((pack) => !packAvailability[pack.key]);
+  const anySubMissing = !planAvailability.monthly_30 || !planAvailability.monthly_80;
   const diagParam = searchParams?.diag === "1";
   const isProd = process.env.NEXT_PUBLIC_VERCEL_ENV === "production";
   const showDiagnostics = (anyPackMissing || anySubMissing) && (diagParam || !isProd);
@@ -223,6 +225,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
               packName={recommendedPack.name}
               applicationId={latestApplicationId}
               returnTo="/app/billing"
+              packAvailable={packAvailability[recommendedPack.key]}
             />
             <p className="text-xs text-[rgb(var(--muted))]">
               You’ll return and resume where you left off.
@@ -260,6 +263,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         applicationId={latestApplicationId}
         recommendedPack={recommendedPack}
         returnTo="/app/billing"
+        packAvailable={packAvailability[recommendedPack.key]}
+        subscriptionAvailable={planAvailability[comparison.suggestedPlanKey]}
       />
 
       {showDiagnostics ? <BillingDiagnostics show={true} /> : null}
@@ -270,6 +275,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           applicationId={latestApplicationId}
           hasSubscription={Boolean(settings?.stripe_customer_id)}
           returnTo="/app/billing"
+          planAvailable={
+            subscriptionReco.recommendedPlanKey
+              ? planAvailability[subscriptionReco.recommendedPlanKey]
+              : false
+          }
         />
       ) : null}
 
@@ -281,6 +291,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           applicationId={latestApplicationId ?? undefined}
           packs={CREDIT_PACKS.filter((pack) => pack.key !== recommendation.recommendedPack)}
           compactCards
+          packAvailability={packAvailability}
         />
         <div className="mt-3 grid gap-2 text-xs text-[rgb(var(--muted))] md:grid-cols-3">
           <p>Starter: Best for 1–2 applications this week.</p>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { SUBSCRIPTION_PLANS, resolvePriceIdForPlan } from "@/lib/billing/plans";
+import { SUBSCRIPTION_PLANS } from "@/lib/billing/plans-data";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type Props = {
@@ -11,6 +11,7 @@ type Props = {
   applicationId: string;
   onSubscribedStart?: () => void;
   hasSubscription?: boolean;
+  planAvailable?: boolean;
 };
 
 export default function SubscriptionGateNudge({
@@ -20,13 +21,13 @@ export default function SubscriptionGateNudge({
   applicationId,
   onSubscribedStart,
   hasSubscription,
+  planAvailable = true,
 }: Props) {
   const plan = useMemo(
     () => SUBSCRIPTION_PLANS.find((item) => item.key === recommendedPlanKey) ?? null,
     [recommendedPlanKey]
   );
-  const priceId = plan ? resolvePriceIdForPlan(plan.key) : null;
-  const unavailable = !priceId;
+  const unavailable = !plan || !planAvailable;
   const [error, setError] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [loading, setLoading] = useState(false);

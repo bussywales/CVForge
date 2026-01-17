@@ -30,6 +30,7 @@ import {
 } from "@/lib/application-kit";
 import type { PracticeAnswerSnapshot } from "@/lib/practice-dashboard";
 import { recommendSubscription } from "@/lib/billing/subscription-reco";
+import { getPackAvailability, getPlanAvailability } from "@/lib/billing/availability";
 import {
   createActivityAction,
   createFollowupFromTemplateAction,
@@ -436,6 +437,8 @@ export default async function ApplicationPage({
   const hasSubscription =
     Boolean(billingSettings?.subscription_status) &&
     billingSettings?.subscription_status !== "canceled";
+  const packAvailability = getPackAvailability();
+  const planAvailability = getPlanAvailability();
   const recommendedGatePackKey = credits >= 20 ? "pro" : "starter";
 
   const checklistFields = [
@@ -688,6 +691,7 @@ export default async function ApplicationPage({
                     compact
                     applicationId={application.id}
                     surface="apply"
+                    packAvailability={packAvailability}
                   />
                 </div>
               </div>
@@ -707,6 +711,7 @@ export default async function ApplicationPage({
                     onPurchasedHint="You’ll return here after checkout."
                     applicationId={application.id}
                     surface="apply"
+                    packAvailability={packAvailability}
                   />
                 </div>
               </div>
@@ -773,6 +778,8 @@ export default async function ApplicationPage({
                 recommendedPlanKey={recommendedSubscriptionPlan}
                 hasSubscription={hasSubscription}
                 recommendedPackKey={recommendedGatePackKey}
+                packAvailability={packAvailability}
+                planAvailability={planAvailability}
               />
               </Section>
             </div>
@@ -788,6 +795,8 @@ export default async function ApplicationPage({
               recommendedPlanKey={recommendedSubscriptionPlan}
               hasSubscription={hasSubscription}
               recommendedPackKey={recommendedGatePackKey}
+              packAvailability={packAvailability}
+              planAvailability={planAvailability}
             />
             </div>
           </div>
@@ -846,6 +855,7 @@ export default async function ApplicationPage({
                   compact
                   applicationId={application.id}
                   surface="interview"
+                  packAvailability={packAvailability}
                 />
               </div>
             </div>
@@ -894,6 +904,8 @@ export default async function ApplicationPage({
                 recommendedPlanKey={recommendedSubscriptionPlan}
                 hasSubscription={hasSubscription}
                 recommendedPackKey={recommendedGatePackKey}
+                packAvailability={packAvailability}
+                planAvailability={planAvailability}
               />
               <div id="answer-pack" />
             </Section>

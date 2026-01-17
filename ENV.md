@@ -13,6 +13,7 @@
 - `STRIPE_PACK_POWER_PRICE_ID`: Stripe Price ID for the power pack (£39 → 80 credits).
 - `STRIPE_SUB_MONTHLY_30_PRICE_ID`: Stripe Price ID for the Monthly 30 subscription (30 credits/month).
 - `STRIPE_SUB_MONTHLY_80_PRICE_ID`: Stripe Price ID for the Monthly 80 subscription (80 credits/month).
+- Stripe price IDs are server-only; the UI receives availability booleans from the server rather than reading env vars directly.
 - `OPENAI_API_KEY`: OpenAI API key for autopack generation.
 - `CVFORGE_ALLOW_NO_CREDITS`: Set to `true` to bypass credit checks in development.
 - `CVFORGE_ADMIN_EMAILS`: Comma-separated list of admin emails allowed to access `/app/admin/learning`.

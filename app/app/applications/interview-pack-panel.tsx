@@ -23,7 +23,7 @@ import { getActionRoiLine } from "@/lib/billing/action-roi";
 import SubscriptionGateNudge from "@/app/app/billing/subscription-gate-nudge";
 import { getBillingOfferComparison } from "@/lib/billing/compare";
 import CompareMini from "@/app/app/billing/compare-mini";
-import { CREDIT_PACKS } from "@/lib/billing/packs";
+import { CREDIT_PACKS } from "@/lib/billing/packs-data";
 
 type InterviewPackPanelProps = {
   applicationId: string;
@@ -34,6 +34,8 @@ type InterviewPackPanelProps = {
   recommendedPlanKey?: "monthly_30" | "monthly_80" | null;
   hasSubscription?: boolean;
   recommendedPackKey?: string | null;
+  packAvailability?: Partial<Record<"starter" | "pro" | "power", boolean>>;
+  planAvailability?: { monthly_30?: boolean; monthly_80?: boolean };
 };
 
 type ToastState = { message: string; variant?: "success" | "error" };
@@ -104,6 +106,8 @@ export default function InterviewPackPanel({
   recommendedPlanKey,
   hasSubscription,
   recommendedPackKey,
+  packAvailability,
+  planAvailability,
 }: InterviewPackPanelProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -136,6 +140,13 @@ export default function InterviewPackPanel({
       searchParams?.toString() ? `?${searchParams.toString()}` : ""
     }`;
   const resumeReturnTo = addResumeParam(currentReturn);
+  const fallbackPack =
+    CREDIT_PACKS.find((p) => p.key === (recommendedPackKey ?? CREDIT_PACKS[0].key)) ??
+    CREDIT_PACKS[0];
+  const packAvailable = packAvailability?.[fallbackPack.key] ?? true;
+  const planAvailable = planAvailability
+    ? Boolean(planAvailability.monthly_30 || planAvailability.monthly_80)
+    : true;
 
   const questionsWithKeys = useMemo(
     () =>
@@ -755,6 +766,7 @@ export default function InterviewPackPanel({
               applicationId={applicationId}
               hasSubscription={hasSubscription}
               onSubscribedStart={() => setShowGate(false)}
+              planAvailable={planAvailable}
             />
           ) : null
         }
@@ -766,15 +778,15 @@ export default function InterviewPackPanel({
               pendingAction: true,
               hasSubscription,
               recommendedPlanKey: recommendedPlanKey ?? undefined,
-              recommendedPackKey: recommendedPackKey ?? CREDIT_PACKS[0].key,
+              recommendedPackKey: fallbackPack.key,
+              subscriptionAvailable: planAvailable,
             })}
             applicationId={applicationId}
-            pack={
-              CREDIT_PACKS.find((p) => p.key === (recommendedPackKey ?? CREDIT_PACKS[0].key)) ??
-              CREDIT_PACKS[0]
-            }
+            pack={fallbackPack}
             returnTo={resumeReturnTo}
             surface="gate"
+            packAvailable={packAvailable}
+            subscriptionAvailable={planAvailable}
           />
         }
       />

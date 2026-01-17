@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { resolvePriceIdForPack } from "@/lib/billing/packs";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type Props = {
@@ -10,6 +9,7 @@ type Props = {
   packName: string;
   applicationId: string | null;
   returnTo: string;
+  packAvailable?: boolean;
 };
 
 export default function RecommendedCta({
@@ -18,12 +18,12 @@ export default function RecommendedCta({
   packName,
   applicationId,
   returnTo,
+  packAvailable = true,
 }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [helpOpen, setHelpOpen] = useState(false);
-  const priceId = resolvePriceIdForPack(packKey);
-  const unavailable = !priceId;
+  const unavailable = !packAvailable;
 
   useEffect(() => {
     if (!unavailable) return;

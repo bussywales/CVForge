@@ -1,4 +1,4 @@
-import type { CreditPack } from "@/lib/billing/packs";
+import type { CreditPack } from "@/lib/billing/packs-data";
 
 type RecommendationInput = {
   credits: number;
@@ -52,4 +52,3 @@ export function recommendPack(input: RecommendationInput): RecommendationResult 
 
   return { recommendedPack: recommended, reasons: reasons.slice(0, 3), confidence };
 }
-

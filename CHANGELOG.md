@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.51
+- Billing availability now comes from server-side price ID checks; client components receive booleans so packs/subscriptions stay enabled when env vars exist.
+- Added a client env guard wired into lint to block Stripe env usage or server-only billing imports in client components.
+- Removed Stripe env exposure from next.config.js; checkout guardrails remain the source of truth.
+
 ## v0.7.50
 - Added deterministic Top-up vs Subscription compare blocks on Billing and gate modals with recommended styling, availability guards, and monetisation logging.
 - New comparison helper chooses subscription vs top-up based on cadence/availability, driving consistent CTAs across billing and soft gates.

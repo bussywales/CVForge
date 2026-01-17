@@ -2,8 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { SubscriptionReco } from "@/lib/billing/subscription-reco";
-import { SUBSCRIPTION_PLANS, resolvePriceIdForPlan } from "@/lib/billing/plans";
-import { formatGbp } from "@/lib/billing/packs";
+import { SUBSCRIPTION_PLANS } from "@/lib/billing/plans-data";
+import { formatGbp } from "@/lib/billing/packs-data";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type Props = {
@@ -11,6 +11,7 @@ type Props = {
   applicationId: string | null;
   hasSubscription?: boolean;
   returnTo?: string;
+  planAvailable?: boolean;
 };
 
 export default function BillingSubscriptionRecoCard({
@@ -18,6 +19,7 @@ export default function BillingSubscriptionRecoCard({
   applicationId,
   hasSubscription,
   returnTo = "/app/billing",
+  planAvailable = true,
 }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -28,8 +30,7 @@ export default function BillingSubscriptionRecoCard({
     () => SUBSCRIPTION_PLANS.find((p) => p.key === reco.recommendedPlanKey) ?? null,
     [reco.recommendedPlanKey]
   );
-  const priceId = plan ? resolvePriceIdForPlan(plan.key) : null;
-  const unavailable = !plan || !priceId;
+  const unavailable = !plan || !planAvailable;
 
   useEffect(() => {
     if (!plan || viewLogged.current) return;

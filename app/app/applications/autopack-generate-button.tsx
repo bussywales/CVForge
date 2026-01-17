@@ -16,7 +16,7 @@ import {
 import { logCompletion, logMonetisationClientEvent } from "@/lib/monetisation-client";
 import CompareMini from "@/app/app/billing/compare-mini";
 import { getBillingOfferComparison } from "@/lib/billing/compare";
-import { CREDIT_PACKS } from "@/lib/billing/packs";
+import { CREDIT_PACKS } from "@/lib/billing/packs-data";
 import SubscriptionGateNudge from "@/app/app/billing/subscription-gate-nudge";
 
 type AutopackGenerateButtonProps = {
@@ -26,6 +26,8 @@ type AutopackGenerateButtonProps = {
   recommendedPlanKey?: "monthly_30" | "monthly_80" | null;
   hasSubscription?: boolean;
   recommendedPackKey?: string | null;
+  packAvailability?: Partial<Record<"starter" | "pro" | "power", boolean>>;
+  planAvailability?: { monthly_30?: boolean; monthly_80?: boolean };
 };
 
 type GenerateState = {
@@ -41,6 +43,8 @@ export default function AutopackGenerateButton({
   recommendedPlanKey,
   hasSubscription,
   recommendedPackKey,
+  packAvailability,
+  planAvailability,
 }: AutopackGenerateButtonProps) {
   const router = useRouter();
   const pathname = usePathname();
@@ -54,6 +58,13 @@ export default function AutopackGenerateButton({
       searchParams?.toString() ? `?${searchParams.toString()}` : ""
     }`;
   const resumeReturnTo = addResumeParam(currentReturn);
+  const fallbackPack =
+    CREDIT_PACKS.find((p) => p.key === (recommendedPackKey ?? CREDIT_PACKS[0].key)) ??
+    CREDIT_PACKS[0];
+  const packAvailable = packAvailability?.[fallbackPack.key] ?? true;
+  const planAvailable = planAvailability
+    ? Boolean(planAvailability.monthly_30 || planAvailability.monthly_80)
+    : true;
 
   const handleGenerate = useCallback(async () => {
     setState({ status: "loading" });
@@ -241,6 +252,7 @@ export default function AutopackGenerateButton({
               applicationId={applicationId}
               hasSubscription={hasSubscription}
               onSubscribedStart={() => setShowGate(false)}
+              planAvailable={planAvailable}
             />
           ) : null
         }
@@ -252,15 +264,15 @@ export default function AutopackGenerateButton({
               pendingAction: true,
               hasSubscription,
               recommendedPlanKey: recommendedPlanKey ?? undefined,
-              recommendedPackKey: recommendedPackKey ?? CREDIT_PACKS[0].key,
+              recommendedPackKey: fallbackPack.key,
+              subscriptionAvailable: planAvailable,
             })}
             applicationId={applicationId}
-            pack={
-              CREDIT_PACKS.find((p) => p.key === (recommendedPackKey ?? CREDIT_PACKS[0].key)) ??
-              CREDIT_PACKS[0]
-            }
+            pack={fallbackPack}
             returnTo={resumeReturnTo}
             surface="gate"
+            packAvailable={packAvailable}
+            subscriptionAvailable={planAvailable}
           />
         }
       />

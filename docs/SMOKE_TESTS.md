@@ -119,6 +119,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Weekly targets reset each week; counts update after logging activities.
 
 ## Billing and credits
+- Billing availability is server-derived: packs/subscriptions are enabled when env vars are present; no “pack unavailable” due to client env gaps.
 - Visit /app/billing and confirm balance plus pack selector (Starter/Pro/Power) render.
 - Start checkout for any pack; on return with `?purchased=1`, a success banner shows.
 - If checkout URL fails to open, inline banner appears with retry/help/dismiss and retry works.

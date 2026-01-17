@@ -1,5 +1,5 @@
-import { CREDIT_PACKS } from "@/lib/billing/packs";
-import { SUBSCRIPTION_PLANS, resolvePriceIdForPlan } from "@/lib/billing/plans";
+import { CREDIT_PACKS } from "@/lib/billing/packs-data";
+import { SUBSCRIPTION_PLANS } from "@/lib/billing/plans-data";
 
 export type BillingChoice = "subscription" | "topup";
 
@@ -47,9 +47,7 @@ function pickPlan(expectedActions: number, requested?: "monthly_30" | "monthly_8
 }
 
 export function getBillingOfferComparison(ctx: CompareContext): CompareResult {
-  const subscriptionAvailable =
-    ctx.subscriptionAvailable ??
-    Boolean(resolvePriceIdForPlan("monthly_30") || resolvePriceIdForPlan("monthly_80"));
+  const subscriptionAvailable = ctx.subscriptionAvailable ?? true;
 
   if (ctx.hasSubscription) {
     const planKey = ctx.recommendedPlanKey ?? "monthly_30";

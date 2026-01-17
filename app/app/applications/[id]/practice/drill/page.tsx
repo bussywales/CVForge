@@ -21,7 +21,8 @@ import type { RoleFitPack } from "@/lib/role-fit";
 import { orderPracticeQuestions } from "@/lib/practice-dashboard";
 import { recommendSubscription } from "@/lib/billing/subscription-reco";
 import { recommendPack } from "@/lib/billing/recommendation";
-import { CREDIT_PACKS } from "@/lib/billing/packs";
+import { CREDIT_PACKS } from "@/lib/billing/packs-data";
+import { getPackAvailability, getPlanAvailability } from "@/lib/billing/availability";
 import DrillClient from "./drill-client";
 import AutopackResumeBanner from "../../../autopack-resume-banner";
 import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
@@ -214,6 +215,8 @@ export default async function PracticeDrillPage({
   const hasSubscription =
     Boolean(billingSettings?.subscription_status) &&
     billingSettings?.subscription_status !== "canceled";
+  const packAvailability = getPackAvailability();
+  const planAvailability = getPlanAvailability();
   const packRecommendation = recommendPack({
     credits,
     activeApplications,
@@ -317,6 +320,8 @@ export default async function PracticeDrillPage({
         recommendedPlanKey={recommendedSubscriptionPlan}
         hasSubscription={hasSubscription}
         recommendedPackKey={recommendedPack.key}
+        packAvailability={packAvailability}
+        planAvailability={planAvailability}
       />
     </div>
   );

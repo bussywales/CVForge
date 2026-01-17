@@ -20,6 +20,7 @@ import { fetchBillingSettings } from "@/lib/data/billing";
 import { ensureReferralCode } from "@/lib/referrals";
 import ReferralCta from "./referral-cta";
 import { getMonetisationSummary } from "@/lib/monetisation-funnel";
+import { getPackAvailability } from "@/lib/billing/availability";
 
 export const dynamic = "force-dynamic";
 
@@ -92,6 +93,7 @@ export default async function InsightsPage({
   const credits = await getUserCredits(supabase, user.id);
   const billingSettings = await fetchBillingSettings(supabase, user.id);
   const referral = await ensureReferralCode(supabase, user.id);
+  const packAvailability = getPackAvailability();
   const monetisation = await getMonetisationSummary(supabase, user.id);
 
   const handleCreateSample = async () => {
@@ -283,6 +285,7 @@ export default async function InsightsPage({
               returnTo="/app/insights"
               compact
               surface="insights"
+              packAvailability={packAvailability}
             />
           </div>
         </div>
@@ -297,6 +300,7 @@ export default async function InsightsPage({
               returnTo="/app/insights"
               compact
               surface="insights"
+              packAvailability={packAvailability}
             />
           </div>
         </div>

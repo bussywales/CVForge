@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { formatGbp, resolvePriceIdForPack } from "@/lib/billing/packs";
-import { resolvePriceIdForPlan } from "@/lib/billing/plans";
+import { useEffect, useState } from "react";
+import { formatGbp } from "@/lib/billing/packs-data";
 import { CompareResult } from "@/lib/billing/compare";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
@@ -12,6 +11,8 @@ type Props = {
   pack: { key: string; name: string; priceGbp: number };
   returnTo: string;
   surface?: string;
+  packAvailable: boolean;
+  subscriptionAvailable: boolean;
 };
 
 export default function CompareMini({
@@ -20,15 +21,12 @@ export default function CompareMini({
   pack,
   returnTo,
   surface = "gate",
+  packAvailable,
+  subscriptionAvailable,
 }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<"topup" | "subscribe" | null>(null);
-  const packPriceId = useMemo(() => resolvePriceIdForPack(pack.key), [pack.key]);
-  const planPriceId = useMemo(
-    () => resolvePriceIdForPlan(comparison.suggestedPlanKey),
-    [comparison.suggestedPlanKey]
-  );
-  const subscriptionUnavailable = !planPriceId;
+  const subscriptionUnavailable = !subscriptionAvailable;
 
   useEffect(() => {
     logMonetisationClientEvent("gate_compare_view", applicationId, surface, {
@@ -141,7 +139,7 @@ export default function CompareMini({
           <button
             type="button"
             onClick={startTopup}
-            disabled={!packPriceId || loading === "topup"}
+            disabled={!packAvailable || loading === "topup"}
             className="mt-2 w-full rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading === "topup" ? "Starting..." : "Top up"}

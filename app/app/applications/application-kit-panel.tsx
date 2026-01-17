@@ -14,7 +14,7 @@ import { getActionRoiLine } from "@/lib/billing/action-roi";
 import SubscriptionGateNudge from "@/app/app/billing/subscription-gate-nudge";
 import CompareMini from "@/app/app/billing/compare-mini";
 import { getBillingOfferComparison } from "@/lib/billing/compare";
-import { CREDIT_PACKS } from "@/lib/billing/packs";
+import { CREDIT_PACKS } from "@/lib/billing/packs-data";
 
 type ExportState = {
   status: "idle" | "loading" | "error";
@@ -48,6 +48,8 @@ type SmartApplyPanelProps = {
   recommendedPlanKey?: "monthly_30" | "monthly_80" | null;
   hasSubscription?: boolean;
   recommendedPackKey?: string | null;
+  packAvailability?: Partial<Record<"starter" | "pro" | "power", boolean>>;
+  planAvailability?: { monthly_30?: boolean; monthly_80?: boolean };
   updateClosingDateAction: (formData: FormData) => Promise<ActionState>;
   updateSourcePlatformAction: (formData: FormData) => Promise<ActionState>;
   setSubmittedAction: (formData: FormData) => Promise<ActionState>;
@@ -88,6 +90,8 @@ export default function ApplicationKitPanel({
   recommendedPlanKey,
   hasSubscription,
   recommendedPackKey,
+  packAvailability,
+  planAvailability,
   updateClosingDateAction,
   updateSourcePlatformAction,
   setSubmittedAction,
@@ -102,6 +106,13 @@ export default function ApplicationKitPanel({
     returnTo ??
     `/app/applications/${applicationId}?tab=apply#application-kit`;
   const resumeReturnTo = addResumeParam(currentReturn);
+  const fallbackPack =
+    CREDIT_PACKS.find((p) => p.key === (recommendedPackKey ?? CREDIT_PACKS[0].key)) ??
+    CREDIT_PACKS[0];
+  const packAvailable = packAvailability?.[fallbackPack.key] ?? true;
+  const planAvailable = planAvailability
+    ? Boolean(planAvailability.monthly_30 || planAvailability.monthly_80)
+    : true;
   const [showGate, setShowGate] = useState(false);
 
   const scoreTone = useMemo(() => {
@@ -654,6 +665,7 @@ export default function ApplicationKitPanel({
               applicationId={applicationId}
               hasSubscription={hasSubscription}
               onSubscribedStart={() => setShowGate(false)}
+              planAvailable={planAvailable}
             />
           ) : null
         }
@@ -665,15 +677,15 @@ export default function ApplicationKitPanel({
               pendingAction: true,
               hasSubscription,
               recommendedPlanKey: recommendedPlanKey ?? undefined,
-              recommendedPackKey: recommendedPackKey ?? CREDIT_PACKS[0].key,
+              recommendedPackKey: fallbackPack.key,
+              subscriptionAvailable: planAvailable,
             })}
             applicationId={applicationId}
-            pack={
-              CREDIT_PACKS.find((p) => p.key === (recommendedPackKey ?? CREDIT_PACKS[0].key)) ??
-              CREDIT_PACKS[0]
-            }
+            pack={fallbackPack}
             returnTo={resumeReturnTo}
             surface="gate"
+            packAvailable={packAvailable}
+            subscriptionAvailable={planAvailable}
           />
         }
       />

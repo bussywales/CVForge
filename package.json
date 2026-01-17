@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "npm run lint:guards && next lint",
+    "lint:guards": "bash scripts/guard-client-env.sh",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --threads=false",
     "test:ci": "vitest run --threads=false",
@@ -23,6 +24,7 @@
     "next": "13.4.19",
     "react": "18.2.0",
     "react-dom": "18.2.0",
+    "server-only": "^0.0.1",
     "stripe": "^20.1.2",
     "zod": "^4.3.5"
   },

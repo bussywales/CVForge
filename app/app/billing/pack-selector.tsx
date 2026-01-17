@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  CREDIT_PACKS,
-  formatGbp,
-  resolvePriceIdForPack,
-  type CreditPack,
-} from "@/lib/billing/packs";
+import { CREDIT_PACKS, formatGbp, type CreditPack } from "@/lib/billing/packs-data";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type Props = {
@@ -19,6 +14,7 @@ type Props = {
   packs?: CreditPack[];
   compactCards?: boolean;
   surface?: "billing" | "insights" | "apply" | "interview" | "gate";
+  packAvailability?: Partial<Record<CreditPack["key"], boolean>>;
 };
 
 type CheckoutState = {
@@ -31,7 +27,7 @@ function PackCard({
   pack,
   onSelect,
   compact,
-  priceId,
+  available,
   surface,
   applicationId,
   isLoading,
@@ -39,12 +35,12 @@ function PackCard({
   pack: CreditPack;
   onSelect: (key: CreditPack["key"]) => void;
   compact?: boolean;
-  priceId?: string | null;
+  available?: boolean;
   surface: Props["surface"];
   applicationId?: string;
   isLoading?: boolean;
 }) {
-  const unavailable = !priceId;
+  const unavailable = available === false;
 
   useEffect(() => {
     if (!unavailable) return;
@@ -81,7 +77,7 @@ function PackCard({
         className={`inline-flex items-center justify-center rounded-full border border-black/10 bg-[rgb(var(--ink))] text-sm font-semibold text-white hover:bg-black ${
           compact ? "px-3 py-2" : "px-4 py-2"
         }`}
-        disabled={unavailable || isLoading}
+            disabled={unavailable || isLoading}
       >
         {isLoading ? "Starting checkout..." : `Buy ${pack.credits} credits`}
       </button>
@@ -102,14 +98,15 @@ export default function PackSelector({
   packs,
   compactCards,
   surface = "billing",
+  packAvailability,
 }: Props) {
   const [state, setState] = useState<CheckoutState>({ status: "idle", packKey: null });
   const [redirectIssue, setRedirectIssue] = useState(false);
   const [helpOpen, setHelpOpen] = useState(false);
 
   const startCheckout = async (packKey: CreditPack["key"]) => {
-    const priceId = resolvePriceIdForPack(packKey);
-    if (!priceId) {
+    const available = packAvailability?.[packKey] ?? true;
+    if (!available) {
       logMonetisationClientEvent("billing_pack_unavailable", applicationId, surface, {
         packKey,
       });
@@ -202,7 +199,7 @@ export default function PackSelector({
             pack={pack}
             onSelect={startCheckout}
             compact={compactCards}
-            priceId={resolvePriceIdForPack(pack.key)}
+            available={packAvailability?.[pack.key] ?? true}
             surface={surface}
             applicationId={applicationId}
             isLoading={state.status === "loading" && state.packKey === pack.key}

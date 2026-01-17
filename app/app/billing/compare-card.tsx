@@ -1,8 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { formatGbp, resolvePriceIdForPack } from "@/lib/billing/packs";
-import { resolvePriceIdForPlan } from "@/lib/billing/plans";
+import { useEffect, useState } from "react";
+import { formatGbp } from "@/lib/billing/packs-data";
 import { CompareResult } from "@/lib/billing/compare";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
@@ -11,6 +10,8 @@ type Props = {
   applicationId: string | null;
   recommendedPack: { key: string; name: string; priceGbp: number };
   returnTo: string;
+  packAvailable: boolean;
+  subscriptionAvailable: boolean;
 };
 
 export default function CompareCard({
@@ -18,18 +19,12 @@ export default function CompareCard({
   applicationId,
   recommendedPack,
   returnTo,
+  packAvailable,
+  subscriptionAvailable,
 }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<"topup" | "subscribe" | null>(null);
-  const packPriceId = useMemo(
-    () => resolvePriceIdForPack(recommendedPack.key),
-    [recommendedPack.key]
-  );
-  const planPriceId = useMemo(
-    () => resolvePriceIdForPlan(comparison.suggestedPlanKey),
-    [comparison.suggestedPlanKey]
-  );
-  const subscriptionUnavailable = !planPriceId;
+  const subscriptionUnavailable = !subscriptionAvailable;
 
   useEffect(() => {
     logMonetisationClientEvent("billing_compare_view", applicationId ?? null, "billing", {
@@ -159,7 +154,13 @@ export default function CompareCard({
               : "bg-white text-[rgb(var(--ink))] border border-black/10 hover:bg-slate-50"
           } disabled:cursor-not-allowed disabled:opacity-60`}
         >
-          {disabled ? "Subscription unavailable" : loading === type ? "Starting..." : cta}
+          {disabled
+            ? type === "subscription"
+              ? "Subscription unavailable"
+              : "Pack unavailable"
+            : loading === type
+              ? "Starting..."
+              : cta}
         </button>
         {type === "topup" ? (
           <p className="mt-1 text-[11px] text-[rgb(var(--muted))]">
@@ -199,7 +200,7 @@ export default function CompareCard({
           cta: `Top up`,
           onClick: startTopup,
           recommended: topupRecommended,
-          disabled: !packPriceId,
+          disabled: !packAvailable,
         })}
         {renderColumn("subscription", {
           title: "Subscribe monthly",
