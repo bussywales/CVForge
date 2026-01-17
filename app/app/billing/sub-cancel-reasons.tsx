@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { portalReturnKey } from "@/lib/billing/portal-return";
+import CancelDeflection from "./cancel-deflection";
 
 type ReasonKey = "expensive" | "low_usage" | "alternative" | "unsure" | "technical";
 
@@ -20,6 +21,7 @@ type Props = {
   state: { flow: string | null; plan: string | null };
   applicationId?: string | null;
   returnTo?: string;
+  onContinue?: (reason: ReasonKey) => void;
 };
 
 export default function SubCancelReasons({
@@ -32,6 +34,7 @@ export default function SubCancelReasons({
   const storageKey = `sub_cancel_reason_${weekKey}`;
   const [selected, setSelected] = useState<ReasonKey | null>(null);
   const [viewLogged, setViewLogged] = useState(false);
+  const [showDeflect, setShowDeflect] = useState(false);
 
   useEffect(() => {
     const guardKey = `cvf:portalReturnLogged:${portalKey || weekKey}:cancel_reason`;
@@ -68,6 +71,7 @@ export default function SubCancelReasons({
 
   const openPortal = async () => {
     if (!selected) return;
+    setShowDeflect(true);
     logMonetisationClientEvent("sub_cancel_reason_continue_portal", applicationId ?? null, "billing", {
       flow: state.flow,
       plan: state.plan,
@@ -165,6 +169,18 @@ export default function SubCancelReasons({
           See options in portal
         </button>
       </div>
+      {showDeflect && selected ? (
+        <div className="mt-3">
+          <CancelDeflection
+            planKey={(state.plan as "monthly_30" | "monthly_80") ?? "monthly_30"}
+            weekKey={weekKey}
+            flow={state.flow}
+            planParam={state.plan}
+            applicationId={applicationId}
+            onOpenChange={(open) => setShowDeflect(open)}
+          />
+        </div>
+      ) : null}
     </div>
   );
 }

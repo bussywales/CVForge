@@ -119,6 +119,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Portal return: returning from Stripe portal with `portal=1` shows “Welcome back” banner; Continue hides it, “I still want to cancel” reopens portal; inactive subs see a resubscribe prompt.
 - Cancel save offer: returning with `portal=1&flow=cancel` shows “Before you go — keep your momentum” card; Keep going/Downgrade open portal; “Use top-ups instead” jumps to packs; dismiss hides for the week.
 - Cancel reasons: after portal cancel return, reason picker appears; selecting a bucket logs once; Continue opens portal; refresh does not duplicate view log; pause hint link opens portal.
+- Cancel deflection: clicking Continue to Stripe on cancel flow shows deflection modal with reason + recommended action; recommended CTA opens portal with flow=cancel_deflect; Continue bypasses; dismissal persists for the week.
 - “This Week” card shows the current week range with 3–5 actions and “Do it” links.
 - Clicking a “Do it” CTA deep-links to the expected tab/anchor for that application.
 - Weekly targets on the card show follow-ups, practice, and applications without errors.

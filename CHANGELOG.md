@@ -25,6 +25,11 @@
 - Portal return logging hardened with a stable return key to dedupe view/save-offer logs; new return-key test added.
 - Allowlist extended for cancel-reason/pause hint events; docs updated for cancel-return smoke.
 
+## v0.7.67
+- Added cancel deflection step before portal: reason picker + recommended save action (downgrade/pause/finish week) with one-click portal threading (flow=cancel_deflect).
+- Deflection logs (view/select/offer/save/continue/dismiss) and respects weekly dismissal; cancel deflect offer helper + test added.
+- Allowlist updated for deflection events; docs/changelog refreshed.
+
 ## v0.7.61a
 - Added streak saver subscription funnel instrumentation end-to-end (view/dismiss/CTA, billing banner, plan select, checkout start/failed, return, active detected).
 - Billing now respects `from=streak_saver&plan=` params, preselects plan, shows a streak banner with logging, and threads plan through checkout.
