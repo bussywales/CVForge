@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { WEEKLY_COACH_COPY, formatCompleted } from "@/lib/copy/weekly-coach";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { getIsoWeekKey } from "@/lib/weekly-review";
+import { OUTCOME_STATUSES } from "@/lib/outcome-loop";
 
 type Props = {
   weekKey: string;
@@ -12,6 +13,12 @@ type Props = {
     applicationsMoved: number;
     followupsSent: number;
     outcomesLogged: number;
+    examples: {
+      applicationId: string;
+      label: string;
+      reason: string;
+      href: string;
+    }[];
   };
 };
 
@@ -34,6 +41,43 @@ export default function WeeklyReviewCard({ weekKey, summary }: Props) {
   }, [weekKey]);
 
   const showOutcomePrompt = summary.outcomesLogged === 0 && (summary.followupsSent > 0 || summary.applicationsMoved > 0);
+  const [inlineOpen, setInlineOpen] = useState(false);
+  const [inlineStatus, setInlineStatus] = useState<typeof OUTCOME_STATUSES[number] | "">("");
+  const [inlineNotes, setInlineNotes] = useState("");
+  const [inlineSaving, setInlineSaving] = useState(false);
+  const [inlineSaved, setInlineSaved] = useState(false);
+  const [inlineError, setInlineError] = useState<string | null>(null);
+
+  const handleInlineSave = async () => {
+    if (!inlineStatus) return;
+    setInlineSaving(true);
+    setInlineError(null);
+    try {
+      const res = await fetch("/api/outcomes/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          status: inlineStatus,
+          notes: inlineNotes || undefined,
+          applicationId: summary.examples[0]?.applicationId,
+        }),
+      });
+      if (!res.ok) {
+        throw new Error("save_failed");
+      }
+      setInlineSaved(true);
+      setInlineSaving(false);
+      logMonetisationClientEvent("weekly_review_outcome_inline_save_success", summary.examples[0]?.applicationId ?? null, "insights", {
+        week: weekKey,
+      });
+    } catch (error) {
+      setInlineSaving(false);
+      setInlineError(WEEKLY_COACH_COPY.ERRORS.SAVE_FAILED);
+      logMonetisationClientEvent("weekly_review_outcome_inline_save_fail", summary.examples[0]?.applicationId ?? null, "insights", {
+        week: weekKey,
+      });
+    }
+  };
 
   return (
     <SectionShell>
@@ -60,26 +104,78 @@ export default function WeeklyReviewCard({ weekKey, summary }: Props) {
           </div>
         ))}
       </div>
+      {summary.applicationsMoved === 0 ? (
+        <p className="mt-2 text-sm text-[rgb(var(--muted))]">
+          No movement logged yet — log a follow-up or outcome to keep momentum.
+        </p>
+      ) : (
+        <Examples examples={summary.examples} weekKey={weekKey} />
+      )}
       <div className="mt-3 rounded-2xl border border-black/10 bg-white/80 p-4">
         <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--muted))]">Outcomes logged</p>
         <p className="mt-1 text-2xl font-semibold text-[rgb(var(--ink))]">{summary.outcomesLogged}</p>
         {showOutcomePrompt ? (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-            <span className="text-[rgb(var(--muted))]">Close the loop by logging outcomes.</span>
-            <Link
-              href="/app/pipeline"
-              className="rounded-full bg-[rgb(var(--accent))] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[rgb(var(--accent-strong))]"
-              onClick={() => logMonetisationClientEvent("weekly_review_log_outcomes_click", null, "insights", { week: weekKey })}
-            >
-              Log outcomes
-            </Link>
-            <button
-              type="button"
-              className="text-xs font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
-              onClick={() => logMonetisationClientEvent("weekly_review_not_now", null, "insights", { week: weekKey })}
-            >
-              Not now
-            </button>
+          <div className="mt-3 space-y-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-[rgb(var(--muted))]">Close the loop by logging outcomes.</span>
+              <button
+                type="button"
+                className="rounded-full bg-[rgb(var(--accent))] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[rgb(var(--accent-strong))]"
+                onClick={() => {
+                  setInlineOpen(true);
+                  logMonetisationClientEvent("weekly_review_outcome_inline_open", null, "insights", { week: weekKey });
+                }}
+              >
+                Log outcomes
+              </button>
+              <button
+                type="button"
+                className="text-xs font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                onClick={() => logMonetisationClientEvent("weekly_review_not_now", null, "insights", { week: weekKey })}
+              >
+                Not now
+              </button>
+            </div>
+            {inlineOpen ? (
+              <div className="rounded-2xl border border-black/10 bg-white px-3 py-3 text-sm shadow-sm">
+                <div className="flex flex-wrap gap-2">
+                  <select
+                    value={inlineStatus}
+                    onChange={(e) => setInlineStatus(e.target.value as typeof OUTCOME_STATUSES[number])}
+                    className="rounded-xl border border-black/10 bg-white px-3 py-2 text-xs"
+                  >
+                    <option value="">Select status</option>
+                    {OUTCOME_STATUSES.filter((s) =>
+                      ["rejected", "no_response", "interview_scheduled", "offer", "accepted"].includes(s)
+                    ).map((status) => (
+                      <option key={status} value={status}>
+                        {status.replace("_", " ")}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={inlineNotes}
+                    onChange={(e) => setInlineNotes(e.target.value)}
+                    placeholder="Notes (optional)"
+                    className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-xs"
+                  />
+                  <button
+                    type="button"
+                    className="rounded-full bg-[rgb(var(--accent))] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[rgb(var(--accent-strong))] disabled:opacity-50"
+                    onClick={handleInlineSave}
+                    disabled={!inlineStatus || inlineSaving}
+                  >
+                    {inlineSaving ? "Saving..." : "Save outcome"}
+                  </button>
+                </div>
+                {inlineSaved ? (
+                  <p className="mt-2 text-xs text-emerald-700">Saved — nice. Your funnel just got smarter.</p>
+                ) : null}
+                {inlineError ? (
+                  <p className="mt-2 text-xs text-red-600">{inlineError}</p>
+                ) : null}
+              </div>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -89,6 +185,53 @@ export default function WeeklyReviewCard({ weekKey, summary }: Props) {
 
 function SectionShell({ children }: { children: React.ReactNode }) {
   return <div className="rounded-3xl border border-black/10 bg-gradient-to-br from-white via-white to-slate-50 p-5 shadow-sm">{children}</div>;
+}
+
+function Examples({ examples, weekKey }: { examples: Props["summary"]["examples"]; weekKey: string }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="mt-3 rounded-2xl border border-black/10 bg-white/80 p-4">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--muted))]">Examples</p>
+          <p className="text-sm text-[rgb(var(--ink))]">A few roles that moved this week.</p>
+        </div>
+        <button
+          type="button"
+          className="text-xs font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+          onClick={() => {
+            const next = !open;
+            setOpen(next);
+            if (next) {
+              logMonetisationClientEvent("weekly_review_examples_open", null, "insights", { week: weekKey });
+            }
+          }}
+        >
+          {open ? "Hide" : "Show"}
+        </button>
+      </div>
+      {open ? (
+        <div className="mt-3 space-y-2">
+          {examples.map((ex) => (
+            <div key={ex.applicationId} className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-black/10 bg-white px-3 py-2 text-sm">
+              <div>
+                <p className="font-semibold text-[rgb(var(--ink))]">{ex.label}</p>
+                <p className="text-[11px] uppercase tracking-[0.16em] text-[rgb(var(--muted))]">{ex.reason.replace("_", " ")}</p>
+              </div>
+              <Link
+                href={ex.href}
+                className="rounded-full bg-[rgb(var(--accent))] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[rgb(var(--accent-strong))]"
+                onClick={() => logMonetisationClientEvent("weekly_review_example_click", ex.applicationId, "insights", { week: weekKey })}
+              >
+                View
+              </Link>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
 }
 
 function StreakBadge() {

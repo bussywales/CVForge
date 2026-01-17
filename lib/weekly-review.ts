@@ -43,50 +43,126 @@ function isoWeekKeyToDate(year: number, week: number) {
   return ISOweekStart;
 }
 
+export type WeeklyReviewExampleReason =
+  | "status_change"
+  | "outcome"
+  | "followup"
+  | "checklist"
+  | "other_activity";
+
+export type WeeklyReviewExample = {
+  applicationId: string;
+  label: string;
+  reason: WeeklyReviewExampleReason;
+  href: string;
+};
+
 export type WeeklyReviewSummary = {
   applicationsMoved: number;
   followupsSent: number;
   outcomesLogged: number;
+  examples: WeeklyReviewExample[];
 };
 
-export function buildWeeklyReviewSummary(input: {
-  activities: Array<{ application_id?: string | null; type?: string | null; occurred_at?: string | null }>;
-  outcomes: Array<{ application_id?: string | null; happened_at?: string | null }>;
-  apps: Array<{ id: string }>;
-}, weekRange: { start: Date; end: Date }): WeeklyReviewSummary {
+export function buildWeeklyReviewSummary(
+  input: {
+    activities: Array<{ application_id?: string | null; type?: string | null; occurred_at?: string | null }>;
+    outcomes: Array<{ application_id?: string | null; happened_at?: string | null }>;
+    apps: Array<{ id: string; job_title?: string | null; company?: string | null; company_name?: string | null; updated_at?: string | null }>;
+  },
+  weekRange: { start: Date; end: Date }
+): WeeklyReviewSummary {
   const activities = input.activities ?? [];
   const outcomes = input.outcomes ?? [];
+  const apps = input.apps ?? [];
 
   const rangeStart = weekRange.start.getTime();
   const rangeEnd = weekRange.end.getTime();
 
-  const movedApps = new Set<string>();
+  const reasons: Record<string, WeeklyReviewExampleReason> = {};
   let followupsSent = 0;
-  activities.forEach((activity) => {
-    const ts = activity.occurred_at ? new Date(activity.occurred_at).getTime() : NaN;
-    if (Number.isNaN(ts) || ts < rangeStart || ts >= rangeEnd) return;
-    if (activity.application_id) {
-      movedApps.add(activity.application_id);
-    }
-    const type = activity.type ?? "";
-    if (type.includes("followup") || type.includes("outreach")) {
-      followupsSent += 1;
-    }
-  });
 
-  let outcomesLogged = 0;
   outcomes.forEach((outcome) => {
     const ts = outcome.happened_at ? new Date(outcome.happened_at).getTime() : NaN;
     if (Number.isNaN(ts) || ts < rangeStart || ts >= rangeEnd) return;
-    outcomesLogged += 1;
     if (outcome.application_id) {
-      movedApps.add(outcome.application_id);
+      reasons[outcome.application_id] = "outcome";
     }
   });
 
+  activities.forEach((activity) => {
+    const ts = activity.occurred_at ? new Date(activity.occurred_at).getTime() : NaN;
+    if (Number.isNaN(ts) || ts < rangeStart || ts >= rangeEnd) return;
+    const appId = activity.application_id ?? undefined;
+    const type = (activity.type ?? "").toLowerCase();
+    const reason = reasonFromActivity(type);
+    if (reason === "followup") {
+      followupsSent += 1;
+    }
+    if (!appId) return;
+    const current = reasons[appId];
+    if (!current || priority(reason) < priority(current)) {
+      reasons[appId] = reason;
+    }
+  });
+
+  apps.forEach((app) => {
+    const updatedTs = app.updated_at ? new Date(app.updated_at).getTime() : NaN;
+    if (!Number.isNaN(updatedTs) && updatedTs >= rangeStart && updatedTs < rangeEnd) {
+      if (!reasons[app.id]) {
+        reasons[app.id] = "status_change";
+      }
+    }
+  });
+
+  const examples: WeeklyReviewExample[] = Object.entries(reasons)
+    .slice(0, 5)
+    .map(([applicationId, reason]) => {
+      const app = apps.find((a) => a.id === applicationId);
+      const role = app?.job_title ?? "Application";
+      const company = app?.company_name ?? app?.company ?? "";
+      const label = company ? `${role} · ${company}` : role;
+      return {
+        applicationId,
+        label,
+        reason,
+        href: buildReasonHref(applicationId, reason),
+      };
+    });
+
   return {
-    applicationsMoved: movedApps.size,
+    applicationsMoved: Object.keys(reasons).length,
     followupsSent,
-    outcomesLogged,
+    outcomesLogged: countInRange(outcomes.map((o) => o.happened_at), rangeStart, rangeEnd),
+    examples,
   };
+}
+
+function reasonFromActivity(type: string): WeeklyReviewExampleReason {
+  if (type.includes("outcome")) return "outcome";
+  if (type.includes("followup") || type.includes("outreach")) return "followup";
+  if (type.includes("status") || type.includes("submitted")) return "status_change";
+  if (type.includes("checklist") || type.includes("apply") || type.includes("kit")) return "checklist";
+  return "other_activity";
+}
+
+function priority(reason: WeeklyReviewExampleReason) {
+  return ["outcome", "status_change", "followup", "checklist", "other_activity"].indexOf(reason);
+}
+
+function buildReasonHref(appId: string, reason: WeeklyReviewExampleReason) {
+  if (reason === "followup") return `/app/applications/${appId}?tab=activity#followup`;
+  if (reason === "checklist") return `/app/applications/${appId}?tab=apply#smart-apply`;
+  if (reason === "status_change") return `/app/applications/${appId}?tab=apply#smart-apply`;
+  if (reason === "outcome") return `/app/applications/${appId}?tab=apply#outcomes`;
+  return `/app/applications/${appId}?tab=overview`;
+}
+
+function countInRange(list: Array<string | null | undefined>, start: number, end: number) {
+  return list.reduce((acc, value) => {
+    const ts = value ? new Date(value).getTime() : NaN;
+    if (Number.isNaN(ts)) return acc;
+    if (ts >= start && ts < end) return acc + 1;
+    return acc;
+  }, 0);
 }

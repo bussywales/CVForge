@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.59
+- Weekly Review “Applications moved forward” now uses deterministic reasons with examples dropdown plus inline outcome capture to close the loop.
+- Added moved-forward helper with explainable links, streak-safe storage key, and outcome inline save logging.
+- Updated smoke tests for the new review UX.
+
 ## v0.7.57
 - Weekly Coach card now supports per-row completion (Mark done/Undo), week-complete summary with “Add one more step”/“Leave it there”, and action-specific microcopy constants.
 - Dedupe/sections retained; completion persists per week in local storage with new monetisation events for done/undo/complete.

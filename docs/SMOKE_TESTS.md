@@ -111,6 +111,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Goal badge shows the total action count for the week.
 - Mark done/Undo on each row dims the row without removing the CTA; completion state persists after reload.
 - Completing all visible actions shows the “Week complete” state with Add one more step / Leave it there options.
+- Weekly Review shows applications moved forward with an Examples dropdown linking into applications; logging outcomes inline updates the counts.
 - “This Week” card shows the current week range with 3–5 actions and “Do it” links.
 - Clicking a “Do it” CTA deep-links to the expected tab/anchor for that application.
 - Weekly targets on the card show follow-ups, practice, and applications without errors.
