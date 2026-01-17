@@ -1163,7 +1163,7 @@ export default function DrillClient({
                       applicationId={applicationId}
                       hasSubscription={hasSubscription}
                       onSubscribedStart={() => setShowGate(false)}
-                      planAvailable={planAvailable}
+                      planAvailability={planAvailability}
                     />
                   ) : null
                 }

@@ -5,6 +5,13 @@
 - Added a client env guard wired into lint to block Stripe env usage or server-only billing imports in client components.
 - Removed Stripe env exposure from next.config.js; checkout guardrails remain the source of truth.
 
+# Changelog
+
+## v0.7.53
+- Billing now shows both Monthly 30 and Monthly 80 with a plan selector, recommended badge, and price-aware CTA/compare; unavailable plans disable with clear copy.
+- Subscription gate nudges use the same selector with quick switch to Monthly 80 and log selector events; manage subscription now redirects via portal fetch.
+- Added deterministic subscription recommendation v2 (usage-based signals) and plan selector logging events plus a helper test.
+
 ## v0.7.50
 - Added deterministic Top-up vs Subscription compare blocks on Billing and gate modals with recommended styling, availability guards, and monetisation logging.
 - New comparison helper chooses subscription vs top-up based on cadence/availability, driving consistent CTAs across billing and soft gates.

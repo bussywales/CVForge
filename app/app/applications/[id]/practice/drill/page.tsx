@@ -7,7 +7,7 @@ import { fetchProfile } from "@/lib/data/profile";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { listStarLibrary } from "@/lib/data/star-library";
 import { fetchBillingSettings } from "@/lib/data/billing";
-import { getUserCredits } from "@/lib/data/credits";
+import { getUserCredits, listCreditActivity } from "@/lib/data/credits";
 import { buildInterviewLift } from "@/lib/interview-lift";
 import { buildInterviewPack } from "@/lib/interview-pack";
 import { inferDomainGuess } from "@/lib/jd-learning";
@@ -19,7 +19,10 @@ import type { InterviewRewriteNotes } from "@/lib/interview-rewrite";
 import { calculateRoleFit } from "@/lib/role-fit";
 import type { RoleFitPack } from "@/lib/role-fit";
 import { orderPracticeQuestions } from "@/lib/practice-dashboard";
-import { recommendSubscription } from "@/lib/billing/subscription-reco";
+import {
+  deriveSubscriptionSignalsFromLedger,
+  recommendSubscriptionPlanV2,
+} from "@/lib/billing/subscription-reco";
 import { recommendPack } from "@/lib/billing/recommendation";
 import { CREDIT_PACKS } from "@/lib/billing/packs-data";
 import { getPackAvailability, getPlanAvailability } from "@/lib/billing/availability";
@@ -203,12 +206,13 @@ export default async function PracticeDrillPage({
       ? 1
       : 0;
   const practiceBacklog = Object.keys(answersMap).length;
-  const subscriptionReco = recommendSubscription({
-    credits,
+  const ledgerEntries = await listCreditActivity(supabase, user.id, 120);
+  const ledgerSignals = deriveSubscriptionSignalsFromLedger(ledgerEntries);
+  const subscriptionReco = recommendSubscriptionPlanV2({
     activeApplications,
-    dueFollowups,
-    practiceBacklog,
-    autopackCount: autopacks.length,
+    completions7: ledgerSignals.completions7,
+    creditsSpent30: ledgerSignals.creditsSpent30,
+    topups30: ledgerSignals.topups30,
   });
   const recommendedSubscriptionPlan = subscriptionReco.recommendedPlanKey;
   const billingSettings = await fetchBillingSettings(supabase, user.id);

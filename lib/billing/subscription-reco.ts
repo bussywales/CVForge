@@ -74,3 +74,98 @@ export function recommendSubscription(input: Input): SubscriptionReco {
     },
   };
 }
+
+export type SubscriptionPlanRecommendation = {
+  recommendedPlanKey: "monthly_30" | "monthly_80";
+  reasonChips: string[];
+  confidence: "low" | "medium" | "high";
+};
+
+export type SubscriptionSignals = {
+  activeApplications?: number;
+  completions7?: number;
+  creditsSpent30?: number;
+  topups30?: number;
+};
+
+export function recommendSubscriptionPlanV2(signals: SubscriptionSignals): SubscriptionPlanRecommendation {
+  const reasons: string[] = [];
+  const activeApplications = signals.activeApplications ?? 0;
+  const completions7 = signals.completions7 ?? 0;
+  const creditsSpent30 = signals.creditsSpent30 ?? 0;
+  const topups30 = signals.topups30 ?? 0;
+
+  if (activeApplications >= 8) {
+    reasons.push("High application volume");
+  }
+  if (completions7 >= 8) {
+    reasons.push("Frequent completions");
+  }
+  if (creditsSpent30 >= 50) {
+    reasons.push("Heavy credit usage");
+  }
+  if (topups30 > 1) {
+    reasons.push("Multiple top-ups recently");
+  }
+
+  const recommendedPlanKey: "monthly_30" | "monthly_80" =
+    reasons.length > 0 ? "monthly_80" : "monthly_30";
+  const confidence: SubscriptionPlanRecommendation["confidence"] =
+    recommendedPlanKey === "monthly_80"
+      ? reasons.length >= 2
+        ? "high"
+        : "medium"
+      : "medium";
+
+  const reasonChips =
+    recommendedPlanKey === "monthly_80" && reasons.length > 0
+      ? reasons.slice(0, 3)
+      : ["Steady weekly applications", "Auto-resume + coach nudges"];
+
+  return { recommendedPlanKey, reasonChips, confidence };
+}
+export type SubscriptionLedgerSignals = {
+  completions7: number;
+  creditsSpent30: number;
+  topups30: number;
+};
+
+type CreditLedgerEntry = {
+  delta: number | null;
+  reason: string | null;
+  created_at: string;
+};
+
+export function deriveSubscriptionSignalsFromLedger(
+  entries: CreditLedgerEntry[]
+): SubscriptionLedgerSignals {
+  const now = Date.now();
+  const sevenDays = 7 * 24 * 60 * 60 * 1000;
+  const thirtyDays = 30 * 24 * 60 * 60 * 1000;
+
+  let completions7 = 0;
+  let creditsSpent30 = 0;
+  let topups30 = 0;
+
+  entries.forEach((entry) => {
+    const created = new Date(entry.created_at).getTime();
+    const delta = entry.delta ?? 0;
+    const within7 = now - created <= sevenDays;
+    const within30 = now - created <= thirtyDays;
+
+    if (within7 && delta < 0) {
+      completions7 += 1;
+    }
+
+    if (within30) {
+      if (delta < 0) {
+        creditsSpent30 += Math.abs(delta);
+      }
+      if (delta > 0 && (entry.reason?.includes("stripe.checkout") || entry.reason?.includes("stripe"))) {
+        topups30 += 1;
+      }
+    }
+  });
+
+  return { completions7, creditsSpent30, topups30 };
+}

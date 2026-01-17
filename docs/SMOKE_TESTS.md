@@ -120,17 +120,16 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 
 ## Billing and credits
 - Billing availability is server-derived: packs/subscriptions are enabled when env vars are present; no “pack unavailable” due to client env gaps.
+- Billing shows Monthly 30 and Monthly 80 with one marked Recommended; switching plans updates the subscription CTA/compare, and unavailable plans disable with inline copy.
 - Visit /app/billing and confirm balance plus pack selector (Starter/Pro/Power) render.
 - Start checkout for any pack; on return with `?purchased=1`, a success banner shows.
 - If checkout URL fails to open, inline banner appears with retry/help/dismiss and retry works.
 - Recent credit activity renders without errors.
 - Start a subscription from /app/billing and ensure you are redirected to Stripe; manage portal link works when a customer exists.
-- Recommended pack shows with reasons; pack selector defaults to the recommended pack.
-- Subscription recommendation card appears for eligible users under the billing hero.
 - Subscription CTA disables with helper text if the plan env var is missing and logs `billing_plan_unavailable`.
 - Subscription checkout opens Stripe; return still lands on /app/billing.
 - Forcing a failed subscription checkout shows an inline banner with retry/dismiss.
-- In credit gates (Autopack/Interview Pack/Application Kit/Answer Pack), the subscription nudge appears when recommended and starts subscription checkout with the same return link.
+- In credit gates (Autopack/Interview Pack/Application Kit/Answer Pack), the subscription nudge appears when recommended, includes plan selection, and starts subscription checkout with the same return link.
 - Billing and gate modals show the Top up vs Subscribe comparison card; recommended column is highlighted and CTAs start the correct checkout flows.
 - Credit gate modal shows action name + ROI line; referral hint links to the billing referral anchor.
 - Returning with a pending action and `resume=1` shows the Resume Accelerator banner with a 3s countdown and auto-jump to the saved tab/anchor; manual Resume still works and logging stays clean.

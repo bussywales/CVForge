@@ -29,7 +29,10 @@ import {
   getKitContentsList,
 } from "@/lib/application-kit";
 import type { PracticeAnswerSnapshot } from "@/lib/practice-dashboard";
-import { recommendSubscription } from "@/lib/billing/subscription-reco";
+import {
+  deriveSubscriptionSignalsFromLedger,
+  recommendSubscriptionPlanV2,
+} from "@/lib/billing/subscription-reco";
 import { getPackAvailability, getPlanAvailability } from "@/lib/billing/availability";
 import {
   createActivityAction,
@@ -63,7 +66,7 @@ import {
   type ActionSummary,
 } from "@/lib/outcome-loop";
 import { normalizeSelectedEvidence } from "@/lib/evidence";
-import { getUserCredits } from "@/lib/data/credits";
+import { getUserCredits, listCreditActivity } from "@/lib/data/credits";
 import PackSelector from "@/app/app/billing/pack-selector";
 import { fetchBillingSettings } from "@/lib/data/billing";
 import AutopackResumeBanner from "../autopack-resume-banner";
@@ -208,6 +211,7 @@ export default async function ApplicationPage({
     application.id
   );
   const credits = await getUserCredits(supabase, user.id);
+  const ledgerEntries = await listCreditActivity(supabase, user.id, 120);
   const billingSettings = await fetchBillingSettings(supabase, user.id);
   const activeApplications =
     (
@@ -426,14 +430,14 @@ export default async function ApplicationPage({
   const activeTab = parseTab(searchParams?.tab);
   const hasTabParam = Boolean(searchParams?.tab);
   const createdParam = searchParams?.created ?? null;
-  const subscriptionReco = recommendSubscription({
-    credits,
+  const ledgerSignals = deriveSubscriptionSignalsFromLedger(ledgerEntries);
+  const subscriptionPlanReco = recommendSubscriptionPlanV2({
     activeApplications,
-    dueFollowups,
-    practiceBacklog,
-    autopackCount: autopacks.length,
+    completions7: ledgerSignals.completions7,
+    creditsSpent30: ledgerSignals.creditsSpent30,
+    topups30: ledgerSignals.topups30,
   });
-  const recommendedSubscriptionPlan = subscriptionReco.recommendedPlanKey;
+  const recommendedSubscriptionPlan = subscriptionPlanReco.recommendedPlanKey;
   const hasSubscription =
     Boolean(billingSettings?.subscription_status) &&
     billingSettings?.subscription_status !== "canceled";

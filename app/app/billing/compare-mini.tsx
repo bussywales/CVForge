@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatGbp } from "@/lib/billing/packs-data";
+import { SUBSCRIPTION_PLANS } from "@/lib/billing/plans-data";
 import { CompareResult } from "@/lib/billing/compare";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
@@ -13,6 +14,7 @@ type Props = {
   surface?: string;
   packAvailable: boolean;
   subscriptionAvailable: boolean;
+  selectedPlanKey?: "monthly_30" | "monthly_80";
 };
 
 export default function CompareMini({
@@ -23,10 +25,14 @@ export default function CompareMini({
   surface = "gate",
   packAvailable,
   subscriptionAvailable,
+  selectedPlanKey,
 }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<"topup" | "subscribe" | null>(null);
   const subscriptionUnavailable = !subscriptionAvailable;
+  const selectedPlan =
+    SUBSCRIPTION_PLANS.find((plan) => plan.key === selectedPlanKey) ??
+    SUBSCRIPTION_PLANS.find((plan) => plan.key === comparison.suggestedPlanKey);
 
   useEffect(() => {
     logMonetisationClientEvent("gate_compare_view", applicationId, surface, {
@@ -74,7 +80,7 @@ export default function CompareMini({
     setError(null);
     setLoading("subscribe");
     logMonetisationClientEvent("gate_compare_choice_subscribe", applicationId, surface, {
-      planKey: comparison.suggestedPlanKey,
+      planKey: selectedPlanKey ?? comparison.suggestedPlanKey,
     });
     try {
       const response = await fetch("/api/stripe/checkout", {
@@ -83,7 +89,7 @@ export default function CompareMini({
         credentials: "include",
         body: JSON.stringify({
           mode: "subscription",
-          planKey: comparison.suggestedPlanKey,
+          planKey: selectedPlanKey ?? comparison.suggestedPlanKey,
           returnTo,
           applicationId,
         }),
@@ -157,7 +163,11 @@ export default function CompareMini({
               </span>
             ) : null}
           </div>
-          <p className="text-[11px] text-[rgb(var(--muted))]">Best for steady applications each week.</p>
+          <p className="text-[11px] text-[rgb(var(--muted))]">
+            {selectedPlan?.key === "monthly_80"
+              ? "Best for fast, high-volume applying."
+              : "Best for steady applications each week."}
+          </p>
           <button
             type="button"
             onClick={startSubscription}
@@ -168,7 +178,7 @@ export default function CompareMini({
               ? "Subscription unavailable"
               : loading === "subscribe"
                 ? "Starting..."
-                : "Subscribe"}
+                : `Subscribe${selectedPlan ? ` — ${formatGbp(selectedPlan.priceGbp)}/mo` : ""}`}
           </button>
         </div>
       </div>

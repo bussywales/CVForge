@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { formatGbp } from "@/lib/billing/packs-data";
+import { SUBSCRIPTION_PLANS } from "@/lib/billing/plans-data";
 import { CompareResult } from "@/lib/billing/compare";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
@@ -12,6 +13,7 @@ type Props = {
   returnTo: string;
   packAvailable: boolean;
   subscriptionAvailable: boolean;
+  selectedPlanKey?: "monthly_30" | "monthly_80";
 };
 
 export default function CompareCard({
@@ -21,10 +23,19 @@ export default function CompareCard({
   returnTo,
   packAvailable,
   subscriptionAvailable,
+  selectedPlanKey,
 }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState<"topup" | "subscribe" | null>(null);
   const subscriptionUnavailable = !subscriptionAvailable;
+  const selectedPlan =
+    SUBSCRIPTION_PLANS.find((plan) => plan.key === selectedPlanKey) ??
+    SUBSCRIPTION_PLANS.find((plan) => plan.key === comparison.suggestedPlanKey);
+  const rows = comparison.rows.map((row) =>
+    row.label === "Covers this month" && selectedPlan
+      ? { ...row, subscription: `Up to ${selectedPlan.creditsPerMonth} credits` }
+      : row
+  );
 
   useEffect(() => {
     logMonetisationClientEvent("billing_compare_view", applicationId ?? null, "billing", {
@@ -136,7 +147,7 @@ export default function CompareCard({
         ) : null}
       </div>
       <div className="mt-3 space-y-1 text-xs text-[rgb(var(--muted))]">
-        {comparison.rows.map((row) => (
+        {rows.map((row) => (
           <div key={`${row.label}-${type}`} className="flex items-center justify-between gap-2">
             <span className="font-semibold text-[rgb(var(--ink))]">{row.label}</span>
             <span>{type === "topup" ? row.topup : row.subscription}</span>

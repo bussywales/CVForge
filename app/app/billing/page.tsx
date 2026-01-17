@@ -6,7 +6,10 @@ import PackSelector from "./pack-selector";
 import { fetchBillingSettings, upsertBillingSettings } from "@/lib/data/billing";
 import { recommendPack } from "@/lib/billing/recommendation";
 import { CREDIT_PACKS, formatGbp } from "@/lib/billing/packs-data";
-import { recommendSubscription } from "@/lib/billing/subscription-reco";
+import {
+  deriveSubscriptionSignalsFromLedger,
+  recommendSubscriptionPlanV2,
+} from "@/lib/billing/subscription-reco";
 import { createServerClient } from "@/lib/supabase/server";
 import { ensureReferralCode } from "@/lib/referrals";
 import CopyIconButton from "@/components/CopyIconButton";
@@ -14,11 +17,10 @@ import BillingEventLogger from "./billing-event-logger";
 import ProofChips from "./proof-chips";
 import RecommendedCta from "./recommended-cta";
 import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
-import BillingSubscriptionRecoCard from "./subscription-reco-card";
-import CompareCard from "./compare-card";
 import { getBillingOfferComparison } from "@/lib/billing/compare";
 import BillingDiagnostics from "./billing-diagnostics";
 import { getPackAvailability, getPlanAvailability } from "@/lib/billing/availability";
+import SubscriptionPlansSection from "./subscription-plans-section";
 
 export const dynamic = "force-dynamic";
 
@@ -39,6 +41,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
   const credits = await getUserCredits(supabase, user.id);
   const activity = await listCreditActivity(supabase, user.id, 20);
+  const activitySignals = await listCreditActivity(supabase, user.id, 200);
   const settings = await fetchBillingSettings(supabase, user.id);
   const referral = await ensureReferralCode(supabase, user.id);
   const appCount =
@@ -95,25 +98,13 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const recommendedPack =
     CREDIT_PACKS.find((pack) => pack.key === recommendation.recommendedPack) ??
     CREDIT_PACKS[0];
-  const subscriptionRecoRaw = recommendSubscription({
-    credits,
+  const signals = deriveSubscriptionSignalsFromLedger(activitySignals);
+  const subscriptionPlanReco = recommendSubscriptionPlanV2({
     activeApplications: appCount,
-    dueFollowups,
-    practiceBacklog,
-    autopackCount,
+    completions7: signals.completions7,
+    creditsSpent30: signals.creditsSpent30,
+    topups30: signals.topups30,
   });
-  const subscriptionReco =
-    subscriptionRecoRaw.recommendedPlanKey || settings?.stripe_customer_id
-      ? {
-          ...subscriptionRecoRaw,
-          recommendedPlanKey: subscriptionRecoRaw.recommendedPlanKey ?? "monthly_30",
-          reasonKey: subscriptionRecoRaw.recommendedPlanKey
-            ? subscriptionRecoRaw.reasonKey
-            : "unknown",
-        }
-      : subscriptionRecoRaw;
-  const showSubscriptionRecoCard =
-    subscriptionReco.recommendedPlanKey !== null || Boolean(settings?.stripe_customer_id);
   const hasSubscription =
     Boolean(settings?.subscription_status) && settings?.subscription_status !== "canceled";
   const packAvailability = getPackAvailability();
@@ -122,7 +113,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     credits,
     activeApplications: appCount,
     hasSubscription,
-    recommendedPlanKey: subscriptionReco.recommendedPlanKey ?? undefined,
+    recommendedPlanKey: subscriptionPlanReco.recommendedPlanKey,
     recommendedPackKey: recommendedPack.key,
     subscriptionAvailable: Boolean(planAvailability.monthly_30 || planAvailability.monthly_80),
   });
@@ -258,30 +249,19 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         </div>
       </Section>
 
-      <CompareCard
-        comparison={comparison}
+      <SubscriptionPlansSection
         applicationId={latestApplicationId}
-        recommendedPack={recommendedPack}
+        recommendedPlanKey={subscriptionPlanReco.recommendedPlanKey}
+        reasonChips={subscriptionPlanReco.reasonChips}
+        planAvailability={planAvailability}
+        hasSubscription={Boolean(settings?.stripe_customer_id)}
         returnTo="/app/billing"
+        comparison={comparison}
+        recommendedPack={recommendedPack}
         packAvailable={packAvailability[recommendedPack.key]}
-        subscriptionAvailable={planAvailability[comparison.suggestedPlanKey]}
       />
 
       {showDiagnostics ? <BillingDiagnostics show={true} /> : null}
-
-      {showSubscriptionRecoCard ? (
-        <BillingSubscriptionRecoCard
-          reco={subscriptionReco}
-          applicationId={latestApplicationId}
-          hasSubscription={Boolean(settings?.stripe_customer_id)}
-          returnTo="/app/billing"
-          planAvailable={
-            subscriptionReco.recommendedPlanKey
-              ? planAvailability[subscriptionReco.recommendedPlanKey]
-              : false
-          }
-        />
-      ) : null}
 
       <Section title="Need more or less?" description="Secondary options if you prefer another size.">
         <PackSelector
