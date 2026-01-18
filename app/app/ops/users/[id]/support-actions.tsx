@@ -9,6 +9,7 @@ import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { safeReadJson } from "@/lib/http/safe-json";
 import { type SupportLinkKind } from "@/lib/ops/support-links";
 import { type UserRole } from "@/lib/rbac";
+import { useRef } from "react";
 
 type ApplicationOption = { id: string; title: string; company?: string | null };
 type AuditEntry = { id: string; action: string; actor: string | null; createdAt: string; meta: Record<string, any> };
@@ -31,8 +32,11 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
   const [linkKind, setLinkKind] = useState<SupportLinkKind>("billing_compare");
   const [linkApplicationId, setLinkApplicationId] = useState<string>("");
   const [linkUrl, setLinkUrl] = useState<string | null>(null);
+  const [lastGeneratedAt, setLastGeneratedAt] = useState<Date | null>(null);
+  const [copyBlocked, setCopyBlocked] = useState(false);
   const [linkError, setLinkError] = useState<{ requestId?: string | null; message?: string | null; code?: string | null } | null>(null);
   const [linkLoading, setLinkLoading] = useState(false);
+  const linkRef = useRef<HTMLInputElement | null>(null);
 
   const canAdjust = viewerRole === "admin" || viewerRole === "super_admin";
 
@@ -95,27 +99,52 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
   const handleGenerateLink = async () => {
     setLinkLoading(true);
     setLinkError(null);
-    setLinkUrl(null);
-    logMonetisationClientEvent("ops_support_link_generate", targetUserId, "ops", { kind: linkKind });
-    const res = await fetch("/api/ops/support-link", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: targetUserId,
-        kind: linkKind,
-        applicationId: linkKind === "application" ? linkApplicationId || null : undefined,
-      }),
-    });
-    const { data } = await safeReadJson(res);
-    const reqId = res.headers.get("x-request-id") ?? data?.error?.requestId;
-    if (!res.ok) {
-      setLinkError({ requestId: reqId, message: data?.error?.message ?? OPS_COPY.linkError, code: data?.error?.code });
-      logMonetisationClientEvent("ops_support_link_copy", targetUserId, "ops", { error: true, kind: linkKind });
+    setCopyBlocked(false);
+    let generatedUrl: string | null = null;
+    try {
+      const res = await fetch("/api/ops/support-link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: targetUserId,
+          kind: linkKind,
+          applicationId: linkKind === "application" ? linkApplicationId || null : undefined,
+        }),
+      });
+      const { data } = await safeReadJson(res);
+      const reqId = res.headers.get("x-request-id") ?? data?.error?.requestId;
+      if (!res.ok) {
+        setLinkError({ requestId: reqId, message: data?.error?.message ?? OPS_COPY.linkError, code: data?.error?.code });
+        return;
+      }
+      generatedUrl = data?.url ?? null;
+      setLinkUrl(generatedUrl);
+      setLastGeneratedAt(new Date());
+    } finally {
       setLinkLoading(false);
-      return;
     }
-    setLinkUrl(data?.url ?? null);
-    setLinkLoading(false);
+    // Fire-and-forget logging; never block the UI
+    try {
+      logMonetisationClientEvent("ops_support_link_generate", targetUserId, "ops", { kind: linkKind });
+    } catch {
+      // ignore
+    }
+    return generatedUrl;
+  };
+
+  const handleCopy = async () => {
+    if (!linkUrl) return;
+    try {
+      await navigator.clipboard.writeText(linkUrl);
+      setCopyBlocked(false);
+      logMonetisationClientEvent("ops_support_link_copy", targetUserId, "ops", { kind: linkKind });
+    } catch {
+      setCopyBlocked(true);
+      if (linkRef.current) {
+        linkRef.current.focus();
+        linkRef.current.select();
+      }
+    }
   };
 
   return (
@@ -229,24 +258,58 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
               <p className="text-[10px] text-[rgb(var(--muted))]">Links include from=ops_support&support=1</p>
             </div>
           ) : null}
-          <button
-            type="button"
-            onClick={handleGenerateLink}
-            disabled={linkLoading || (linkKind === "application" && !linkApplicationId)}
-            className="rounded-full bg-[rgb(var(--ink))] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/30"
-          >
-            {linkLoading ? "Generating..." : "Generate link"}
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleGenerateLink}
+              disabled={linkLoading || (linkKind === "application" && !linkApplicationId)}
+              className="rounded-full bg-[rgb(var(--ink))] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/30"
+            >
+              {linkLoading ? "Generating..." : "Generate link"}
+            </button>
+            {lastGeneratedAt ? (
+              <span className="text-[11px] text-[rgb(var(--muted))]">
+                {OPS_COPY.supportLinkReady} · {lastGeneratedAt.toLocaleTimeString()}
+              </span>
+            ) : null}
+          </div>
           {linkUrl ? (
-            <div className="flex items-center justify-between gap-2 rounded-lg border border-black/10 bg-white px-3 py-2 text-xs text-[rgb(var(--ink))]">
-              <span className="line-clamp-2 break-all">{linkUrl}</span>
-              <CopyIconButton
-                text={linkUrl}
-                label={OPS_COPY.copyLink}
-                onCopy={() => logMonetisationClientEvent("ops_support_link_copy", targetUserId, "ops", { kind: linkKind })}
-              />
+            <div className="space-y-2">
+              <div className="rounded-lg border border-black/10 bg-white px-3 py-2 text-xs text-[rgb(var(--ink))]">
+                <input
+                  ref={linkRef}
+                  value={linkUrl}
+                  readOnly
+                  className="w-full bg-transparent text-xs font-mono"
+                  onFocus={(e) => e.currentTarget.select()}
+                />
+              </div>
+              {copyBlocked ? <ErrorBanner title={OPS_COPY.copyBlocked} message={OPS_COPY.copyBlocked} /> : null}
+              <div className="flex flex-wrap items-center gap-2">
+                <CopyIconButton
+                  text={linkUrl}
+                  label={OPS_COPY.copyLink}
+                  onCopy={handleCopy}
+                />
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
+                  onClick={() => window.open(linkUrl, "_blank", "noopener,noreferrer")}
+                >
+                  Open link
+                </button>
+                <button
+                  type="button"
+                  className="text-xs font-semibold text-[rgb(var(--ink))] underline-offset-2 hover:underline"
+                  onClick={handleGenerateLink}
+                >
+                  Regenerate
+                </button>
+              </div>
             </div>
-          ) : null}
+          ) : (
+            <p className="text-[11px] text-[rgb(var(--muted))]">No support link yet.</p>
+          )}
         </div>
       </div>
 

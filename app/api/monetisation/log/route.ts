@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
-import { logMonetisationEvent } from "@/lib/monetisation";
-import { withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
-import { captureServerError } from "@/lib/observability/sentry";
+import { withRequestIdHeaders } from "@/lib/observability/request-id";
+import { processMonetisationLog } from "@/lib/monetisation-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -284,25 +283,14 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
+    return NextResponse.json({ ok: false, error: { code: "UNAUTHORIZED", message: "Unauthorized", requestId } }, { headers, status: 401 });
   }
 
   const body = (await request.json().catch(() => ({}))) as unknown;
   const parsed = bodySchema.safeParse(body as Record<string, unknown>);
   if (!parsed.success) {
-    return jsonError({ code: "INVALID_PAYLOAD", message: "Invalid payload", requestId, status: 400 });
+    return NextResponse.json({ ok: false, error: { code: "VALIDATION_FAIL", message: "Invalid payload", requestId } }, { headers, status: 200 });
   }
 
-  try {
-    await logMonetisationEvent(supabase, user.id, parsed.data.event, {
-      surface: parsed.data.surface ?? null,
-      applicationId: parsed.data.applicationId ?? null,
-      meta: parsed.data.meta ?? {},
-    });
-  } catch (error) {
-    captureServerError(error, { requestId, route: "/api/monetisation/log", userId: user.id, code: "LOG_FAIL" });
-    return jsonError({ code: "LOG_FAIL", message: "Unable to log event", requestId });
-  }
-
-  return NextResponse.json({ ok: true }, { headers });
+  return processMonetisationLog({ supabase, userId: user.id, parsed: parsed.data, requestId, headers });
 }

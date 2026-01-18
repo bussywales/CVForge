@@ -9,7 +9,8 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 ## Ops support toolkit (ops/admin only)
 - Open /app/ops/users/<id> as an ops user; Support actions card renders.
 - Apply a small credit adjustment (e.g., +5 goodwill) and see the new balance + audit entry.
-- Generate a support link (billing compare or app tab) and copy it (includes from=ops_support).
+- Generate a support link (billing compare or app tab) and copy it (includes from=ops_support); URL must appear even if logging fails.
+- If clipboard is blocked, manual copy hint appears but link stays visible.
 - Errors show ErrorBanner with request reference.
 
 ## Applications

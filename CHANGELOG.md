@@ -5,6 +5,11 @@
 - New ops APIs for credits adjust and support links are audited into ops_audit_log; audit trail now visible on the dossier.
 - Added ops guard script, ops microcopy, and tests for credit validation and support-link builder; docs/smoke updated.
 
+## v0.7.88
+- Hardened ops Support Link generator: URL always shows/copies even if logging fails; copy failure now shows manual copy hint and keeps the link visible with last-generated timestamp.
+- /api/ops/support-link logging is best-effort; monetisation log API now returns ok:false instead of 500s on failures, with a safety test.
+- Ops microcopy expanded for support link success/copy blocked; docs updated with new smoke steps.
+
 ## v0.7.84
 - Completed observability coverage: remaining API routes now return structured errors with requestId headers and safe capture (outcomes summary/insights/link, referrals, diagnostics, etc.).
 - Premium ErrorBanner and support snippet wiring kept across billing/outreach/outcome flows; added error-shape test for requestId/code.
