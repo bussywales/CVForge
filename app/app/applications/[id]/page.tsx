@@ -78,6 +78,7 @@ import CompletionWatchdogNudge from "@/components/CompletionWatchdogNudge";
 import { getIsoWeekKey } from "@/lib/weekly-review";
 import InterviewFocusSessionCard from "../interview-focus-session-card";
 import OfferPackPanel from "../offer-pack-panel";
+import OfferCloseoutPanel from "../offer-closeout-panel";
 import { buildOutreachRecommendation } from "@/lib/outreach-engine";
 import OutreachPanel from "../outreach-panel";
 import { buildNextMove } from "@/lib/outreach-next-move";
@@ -364,6 +365,24 @@ export default async function ApplicationPage({
     );
   } catch (error) {
     console.error("[application.outcomes]", error);
+  }
+
+  let otherApplications: any[] = [];
+  try {
+    const { data, error } = await supabase
+      .from("applications")
+      .select(
+        "id, job_title, company, company_name, status, contact_email, contact_linkedin, outreach_stage, next_action_due, outreach_next_due_at"
+      )
+      .eq("user_id", user.id)
+      .neq("id", application.id)
+      .order("updated_at", { ascending: false })
+      .limit(10);
+    if (!error && data) {
+      otherApplications = data;
+    }
+  } catch (error) {
+    console.error("[application.closeout.list]", error);
   }
 
   let applyChecklist: ApplyChecklistRecord | null = null;
@@ -733,6 +752,28 @@ export default async function ApplicationPage({
                 roleTitle={application.job_title}
                 company={application.company_name ?? application.company}
                 hasOfferOutcome={(application.last_outcome_status ?? application.outcome_status) === "offer"}
+              />
+            </Section>
+          </div>
+
+          <div id="offer-closeout">
+            <Section
+              title="Close-out loop"
+              description="Clean up parallel applications after you accept."
+            >
+              <OfferCloseoutPanel
+                applicationId={application.id}
+                weekKey={weekKey}
+                apps={otherApplications.map((app: any) => ({
+                  id: app.id,
+                  role: app.job_title,
+                  company: app.company_name ?? app.company ?? "—",
+                  status: app.status,
+                  contactEmail: app.contact_email,
+                  contactLinkedin: app.contact_linkedin,
+                  outreachStage: app.outreach_stage,
+                  nextActionDue: app.next_action_due ?? app.outreach_next_due_at,
+                }))}
               />
             </Section>
           </div>

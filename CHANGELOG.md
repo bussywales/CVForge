@@ -1,5 +1,14 @@
 # Changelog
 
+## v0.7.79
+- Offer close-out loop after acceptance: panel under Offer Pack lists other apps, lets you select/bulk mark closed with outcome logging, and send warm/direct/short withdrawal templates via Gmail/LinkedIn/Copy.
+- Contact-missing path links to outreach; retries on failed outcome logging; dismiss/persist per week.
+- Monetisation events updated; deterministic helper/tests keep templates and grouping stable.
+
+## v0.7.78
+- Offer Win Loop tile on Insights highlights the most recent offer/negotiation with deep links into Offer Pack, outcome logging, and a guided checklist.
+- Monetisation events allowlisted for offer win interactions; deterministic helper/test for candidate selection and step hrefs.
+
 ## v0.7.76
 - Offer & Negotiation Pack v1 on application overview: offer summary, counter builder, negotiation scripts (polite/direct/warm), and decision templates with copy buttons.
 - Panel unlocks on offer outcome or manual toggle; local persistence, completeness indicator, and new logging events.

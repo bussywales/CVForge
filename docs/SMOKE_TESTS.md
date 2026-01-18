@@ -227,6 +227,12 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Refresh retains decision; next-best actions reflect decision (counter/follow-up/close others).
 - Accepted decision shows “Close other applications” templates; copy email/LinkedIn buttons work and log.
 
+## Offer Close-Out Loop (v0.7.79)
+- Accept an offer → close-out panel appears under Offer Pack (not for the accepted app itself).
+- Select other apps → Mark closed logs outcomes; retry shows on failure and logged state persists.
+- Withdrawal templates (warm/direct/short) send via Gmail/LinkedIn/Copy; Add contact path works.
+- Refresh keeps dismissal/completion via local storage (week/app scoped).
+
 ## Applications Command Centre (v0.7.43)
 - /app/applications shows Queue with next-action CTA and readiness 0–5.
 - Tabs filter between Queue/Drafts/Submitted/Interview/Closed.
