@@ -50,6 +50,27 @@ export function buildNextBestActions(input: NextBestInput): NextBestAction[] {
     });
   }
 
+  if (outcome === "offer") {
+    add({
+      id: "offer-complete",
+      label: "Complete offer details",
+      why: "Capture numbers to generate negotiation scripts.",
+      href: `/app/applications/${applicationId}?tab=overview#offer-pack`,
+    });
+    add({
+      id: "offer-negotiate",
+      label: "Send negotiation message",
+      why: "Use the offer pack variants to respond confidently.",
+      href: `/app/applications/${applicationId}?tab=overview#offer-pack`,
+    });
+    add({
+      id: "offer-decision",
+      label: "Log decision",
+      why: "Record accept/decline/ask for time to keep the pipeline tidy.",
+      href: `/app/applications/${applicationId}?tab=overview#offer-pack`,
+    });
+  }
+
   if (outcome === "no_response") {
     add({
       id: "send-followup",

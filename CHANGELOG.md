@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.76
+- Offer & Negotiation Pack v1 on application overview: offer summary, counter builder, negotiation scripts (polite/direct/warm), and decision templates with copy buttons.
+- Panel unlocks on offer outcome or manual toggle; local persistence, completeness indicator, and new logging events.
+- Next-best actions include offer follow-ups; outreach insights and variants remain intact.
+
 ## v0.7.75
 - Outreach Engine v4: added Polite/Direct/Warm variants with quality cues, persistence, and Gmail/LinkedIn/send/copy logging.
 - Outreach performance insights (14d reply rate, sent/replies/follow-ups + tip) on Insights and Command Centre Outreach tab.

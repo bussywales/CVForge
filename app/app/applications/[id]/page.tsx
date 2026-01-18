@@ -77,6 +77,7 @@ import ResumeCompletionNudge from "@/components/ResumeCompletionNudge";
 import CompletionWatchdogNudge from "@/components/CompletionWatchdogNudge";
 import { getIsoWeekKey } from "@/lib/weekly-review";
 import InterviewFocusSessionCard from "../interview-focus-session-card";
+import OfferPackPanel from "../offer-pack-panel";
 import { buildOutreachRecommendation } from "@/lib/outreach-engine";
 import OutreachPanel from "../outreach-panel";
 import { buildNextMove } from "@/lib/outreach-next-move";
@@ -718,6 +719,20 @@ export default async function ApplicationPage({
                 }
                 lastOutcomeStatus={application.last_outcome_status}
                 lastOutcomeAt={application.last_outcome_at}
+              />
+            </Section>
+          </div>
+
+          <div id="offer-pack">
+            <Section
+              title="Offer & Negotiation Pack"
+              description="Structured summary, counter, and scripts once an offer arrives."
+            >
+              <OfferPackPanel
+                applicationId={application.id}
+                roleTitle={application.job_title}
+                company={application.company_name ?? application.company}
+                hasOfferOutcome={(application.last_outcome_status ?? application.outcome_status) === "offer"}
               />
             </Section>
           </div>

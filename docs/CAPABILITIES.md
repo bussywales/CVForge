@@ -74,6 +74,9 @@ Deterministic outreach templates for email and LinkedIn, one-click logging, and 
 ## Interview Focus Session
 Interview tab includes a guided Focus Session (15–25 mins) with prioritised questions, quality cues, Ready/Undo persistence per week, copy-all answers, and deep links into Answer Pack items.
 
+## Offer & Negotiation Pack
+When an offer is logged, the Offer Pack on Overview provides offer summary capture, counter builder, negotiation scripts (polite/direct/warm), and decision templates with copy buttons.
+
 ## Imports and exports
 DOCX import previews and applies profile fields, achievements, and work history. DOCX export supports Standard and ATS-Minimal variants plus a submission-pack ZIP.
 

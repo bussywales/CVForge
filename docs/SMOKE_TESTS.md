@@ -217,6 +217,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Copy/Open Gmail/LinkedIn use the selected variant; send works when contact present and logs events.
 - Insights “Outreach performance” tile shows 14d reply rate and tip; Command Centre Outreach tab shows same summary.
 
+## Offer & Negotiation Pack (v0.7.76)
+- Log an offer outcome or click “I’ve received an offer” → Offer Pack appears on Overview (#offer-pack).
+- Fill offer fields, Save, reload → details persist locally; completeness updates.
+- Set counter, copy negotiation scripts (email/LinkedIn/phone) and decision templates; next-best actions include offer tasks.
+
 ## Applications Command Centre (v0.7.43)
 - /app/applications shows Queue with next-action CTA and readiness 0–5.
 - Tabs filter between Queue/Drafts/Submitted/Interview/Closed.
