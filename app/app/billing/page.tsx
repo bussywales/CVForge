@@ -554,13 +554,13 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
                   {`${(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(
                     /\/$/,
                     ""
-                  )}/auth/signup?ref=${referral.code}`}
+                    )}/login?ref=${referral.code}`}
                 </p>
                 <CopyIconButton
                   text={`${(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").replace(
                     /\/$/,
                     ""
-                  )}/auth/signup?ref=${referral.code}`}
+                    )}/login?ref=${referral.code}`}
                   className="shrink-0"
                   iconOnly
                 />

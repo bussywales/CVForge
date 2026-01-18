@@ -25,7 +25,7 @@ export async function GET() {
     }
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-    const inviteUrl = `${siteUrl.replace(/\/$/, "")}/auth/signup?ref=${codeRow.code}`;
+    const inviteUrl = `${siteUrl.replace(/\/$/, "")}/login?ref=${codeRow.code}`;
 
     return NextResponse.json({ code: codeRow.code, inviteUrl }, { headers });
   } catch (error) {

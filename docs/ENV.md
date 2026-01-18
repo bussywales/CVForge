@@ -1,7 +1,10 @@
 # Environment notes (RBAC + Ops)
 
 - Ops access now uses database roles; env overrides (`OPS_ADMIN_EMAILS`, `OPS_ADMIN_DOMAIN`) are break-glass only when no explicit role row exists.
-- To promote founder to super_admin, run:
+
+## RBAC bootstrap
+
+Run this after the RBAC migration to promote your account to super_admin:
 
 ```sql
 insert into public.user_roles (user_id, role)

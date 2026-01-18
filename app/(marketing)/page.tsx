@@ -70,9 +70,9 @@ export default async function MarketingPage() {
         pricing: "/app/billing",
       }
     : {
-        primary: "/auth/signup",
-        secondary: "/auth/login",
-        pricing: "/auth/signup?next=/app/billing",
+        primary: "/login?next=/app/applications/new",
+        secondary: "/login",
+        pricing: "/login?next=/app/billing",
       };
 
   return (

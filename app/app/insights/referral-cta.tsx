@@ -5,7 +5,7 @@ import CopyIconButton from "@/components/CopyIconButton";
 export default function ReferralCta({ code }: { code?: string | null }) {
   if (!code) return null;
   const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-  const inviteUrl = `${siteUrl.replace(/\/$/, "")}/auth/signup?ref=${code}`;
+  const inviteUrl = `${siteUrl.replace(/\/$/, "")}/login?ref=${code}`;
   return (
     <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
       <p className="font-semibold">Invite a friend, earn +3 credits</p>
