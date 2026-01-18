@@ -966,6 +966,69 @@ export async function closeOutreachAction(
   }
 }
 
+export async function logOutreachTriageAction(
+  formData: FormData
+): Promise<ActionState> {
+  const { supabase, user } = await getSupabaseUser();
+
+  if (!user) {
+    return {
+      status: "error",
+      message: "Please sign in again to update outreach.",
+    };
+  }
+
+  const applicationId = getFormString(formData, "application_id");
+  const status = getFormString(formData, "triage_status");
+  const notes = getFormString(formData, "notes");
+  if (!applicationId || !status) {
+    return { status: "error", message: "Missing outreach triage details." };
+  }
+
+  const allowed = new Set(["interested", "not_now", "rejected", "no_response"]);
+  if (!allowed.has(status)) {
+    return { status: "error", message: "Invalid triage value." };
+  }
+
+  const now = new Date();
+  const triageStage = `triage_${status}`;
+  const nextDue =
+    status === "not_now"
+      ? addBusinessDays(now, 5)
+      : status === "no_response"
+        ? addBusinessDays(now, 3)
+        : null;
+
+  try {
+    await createApplicationActivity(supabase, user.id, {
+      application_id: applicationId,
+      type: "outreach.triage",
+      channel: null,
+      subject: status,
+      body: notes ?? null,
+      occurred_at: now.toISOString(),
+    });
+
+    await updateApplication(supabase, user.id, applicationId, {
+      outreach_stage: triageStage,
+      outreach_next_due_at: nextDue ? nextDue.toISOString() : null,
+      next_action_due: nextDue ? nextDue.toISOString().slice(0, 10) : null,
+      last_touch_at: now.toISOString(),
+      last_activity_at: now.toISOString(),
+    });
+
+    revalidatePath(`/app/applications/${applicationId}`);
+    revalidatePath("/app/pipeline");
+    return { status: "success", message: "Triage saved." };
+  } catch (error) {
+    console.error("[logOutreachTriageAction]", error);
+    return {
+      status: "error",
+      message: "Unable to update outreach triage right now.",
+    };
+  }
+}
+
 export async function updateClosingDateAction(
   formData: FormData
 ): Promise<ActionState> {

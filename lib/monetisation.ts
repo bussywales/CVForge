@@ -174,7 +174,15 @@ export type MonetisationEventName =
   | "outreach_mailto_fallback_copy"
   | "outreach_contact_missing_block"
   | "outreach_contact_save"
-  | "outreach_contact_edit";
+  | "outreach_contact_edit"
+  | "outreach_mailto_long_copy"
+  | "outreach_send_blocked_no_contact"
+  | "outreach_triage_view"
+  | "outreach_triage_select"
+  | "outreach_next_move_view"
+  | "outreach_next_move_click"
+  | "outreach_outcome_quicklog_success"
+  | "outreach_outcome_quicklog_fail";
 
 export async function logMonetisationEvent(
   supabase: SupabaseClient,

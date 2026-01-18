@@ -54,10 +54,10 @@ export async function POST(
   const { name, email, linkedin_url } = parsed.data;
 
   if (email && !isValidEmail(email)) {
-    return NextResponse.json({ ok: false, error: "Enter a valid email." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "INVALID_EMAIL" }, { status: 400 });
   }
   if (linkedin_url && !isValidLinkedIn(linkedin_url)) {
-    return NextResponse.json({ ok: false, error: "Enter a valid LinkedIn URL." }, { status: 400 });
+    return NextResponse.json({ ok: false, error: "INVALID_LINKEDIN_URL" }, { status: 400 });
   }
 
   const existing = await fetchApplication(supabase, user.id, params.id);

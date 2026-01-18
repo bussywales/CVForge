@@ -67,6 +67,14 @@ export function getOutreachStageLabel(stage: string | null) {
       return "Replied";
     case "closed":
       return "Closed";
+    case "triage_interested":
+      return "Interested";
+    case "triage_not_now":
+      return "Not now";
+    case "triage_rejected":
+      return "Rejected";
+    case "triage_no_response":
+      return "No response";
     default:
       return "Not started";
   }

@@ -50,6 +50,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Mark “Reply received” and confirm outcome prompt; deep-link to activity log still works.
 - Applications Command Centre → Outreach tab shows overdue/due soon follow-ups; Copy + log updates the row and “Open” deep-links to the outreach anchor.
 - Add recruiter email/LinkedIn in Outreach panel, Save, then click Open Gmail to see mail prefilled; LinkedIn opens when set.
+- Add a reply triage selection: Interested/Not now/Rejected/No response shows; quick outcome logging works; Next move CTA updates and matches command centre row.
 
 ## STAR Library
 - From the application detail page, create a STAR draft for a gap.

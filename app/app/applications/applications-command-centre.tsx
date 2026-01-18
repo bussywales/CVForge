@@ -10,6 +10,8 @@ import {
 } from "@/lib/application-status";
 import { createFollowupFromTemplateAction } from "./actions";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { buildNextMove } from "@/lib/outreach-next-move";
+import { getOutreachStageLabel } from "@/lib/outreach-utils";
 
 type Props = {
   items: CommandCentreItem[];
@@ -178,127 +180,162 @@ function DefaultRow({ item }: { item: CommandCentreItem }) {
 }
 
 function OutreachList({ items }: { items: CommandCentreItem[] }) {
-  const [expanded, setExpanded] = useState<string | null>(null);
   return (
     <div className="space-y-3">
-      {items.map((item) => {
-        const isOpen = expanded === item.id;
-        const hasEmail = Boolean(item.contactEmail);
-        const hasLinkedIn = Boolean(item.contactLinkedin);
-        return (
-          <div
-            key={item.id}
-            className="rounded-2xl border border-black/10 bg-white/80 p-4"
-          >
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-semibold text-[rgb(var(--ink))]">
-                  {item.title}
-                </p>
-                <p className="text-xs text-[rgb(var(--muted))]">{item.company}</p>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-[rgb(var(--muted))]">
-                  <span className="rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-700">
-                    {item.followupStatus}
-                  </span>
-                  <span>Stage: {item.outreachStage ?? "not started"}</span>
-                </div>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!isOpen) {
-                      logMonetisationClientEvent(
-                        "outreach_queue_copy_log_open",
-                        item.id,
-                        "applications",
-                        { stage: item.outreachStage }
-                      );
-                    }
-                    setExpanded(isOpen ? null : item.id);
-                  }}
-                  className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
-                >
-                  Copy + log
-                </button>
-                <Link
-                  href={`/app/applications/${item.id}?tab=activity#outreach`}
-                  className="rounded-full border border-black/10 bg-[rgb(var(--ink))] px-3 py-2 text-xs font-semibold text-white hover:bg-black"
-                >
-                  Open
-                </Link>
-                {hasEmail ? (
-                  <a
-                    href={
-                      item.outreachBody
-                        ? `mailto:${item.contactEmail}?subject=${encodeURIComponent(item.outreachSubject ?? "Follow-up")}&body=${encodeURIComponent(item.outreachBody)}`
-                        : `mailto:${item.contactEmail}`
-                    }
-                    onClick={() =>
-                      logMonetisationClientEvent(
-                        "outreach_open_gmail_click",
-                        item.id,
-                        "applications",
-                        { stage: item.outreachStage }
-                      )
-                    }
-                    className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
-                  >
-                    Send (Gmail)
-                  </a>
-                ) : (
-                  <Link
-                    href={`/app/applications/${item.id}?tab=activity#outreach`}
-                    className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
-                    onClick={() =>
-                      logMonetisationClientEvent(
-                        "outreach_contact_missing_block",
-                        item.id,
-                        "applications",
-                        { stage: item.outreachStage }
-                      )
-                    }
-                  >
-                    Add contact
-                  </Link>
-                )}
-                {hasLinkedIn ? (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      logMonetisationClientEvent(
-                        "outreach_open_linkedin_click",
-                        item.id,
-                        "applications",
-                        { stage: item.outreachStage }
-                      );
-                      window.open(item.contactLinkedin, "_blank", "noopener,noreferrer");
-                    }}
-                    className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
-                  >
-                    Send (LinkedIn)
-                  </button>
-                ) : null}
-              </div>
-            </div>
-            {isOpen ? (
-              <div className="mt-3 space-y-2 rounded-2xl border border-dashed border-black/10 bg-white/70 p-3 text-sm text-[rgb(var(--muted))]">
-                {item.outreachSubject ? (
-                  <p className="text-sm font-semibold text-[rgb(var(--ink))]">
-                    {item.outreachSubject}
-                  </p>
-                ) : null}
-                <pre className="whitespace-pre-wrap text-xs">
-                  {item.outreachBody ?? "No template ready."}
-                </pre>
-                <div className="flex flex-wrap items-center gap-2">
-                  <CopyLogForm item={item} />
-                </div>
-              </div>
+      {items.map((item) => (
+        <OutreachRow key={item.id} item={item} />
+      ))}
+    </div>
+  );
+}
+
+function OutreachRow({ item }: { item: CommandCentreItem }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasEmail = Boolean(item.contactEmail);
+  const hasLinkedIn = Boolean(item.contactLinkedin);
+  const triageLabel = item.outreachStage
+    ? getOutreachStageLabel(item.outreachStage)
+    : null;
+  const nextMove = buildNextMove({
+    application: {
+      ...item,
+      outreach_stage: item.outreachStage ?? null,
+      outreach_next_due_at: item.followupDueAt ?? null,
+      next_followup_at: item.followupDueAt ?? null,
+      next_action_due: item.followupDueAt ?? null,
+      outcome_status: null,
+    } as any,
+    triage: item.outreachStage?.startsWith("triage_")
+      ? item.outreachStage.replace("triage_", "")
+      : null,
+    hasCredits: false,
+  });
+
+  return (
+    <div className="rounded-2xl border border-black/10 bg-white/80 p-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+            {item.title}
+          </p>
+          <p className="text-xs text-[rgb(var(--muted))]">{item.company}</p>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-[rgb(var(--muted))]">
+            <span className="rounded-full bg-amber-100 px-3 py-1 font-semibold text-amber-700">
+              {item.followupStatus}
+            </span>
+            {triageLabel ? (
+              <span className="rounded-full bg-slate-100 px-3 py-1 font-semibold text-slate-700">
+                {triageLabel}
+              </span>
             ) : null}
           </div>
-        );
-      })}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {nextMove ? (
+            <Link
+              href={nextMove.href}
+              className="rounded-full border border-black/10 bg-[rgb(var(--ink))] px-3 py-2 text-xs font-semibold text-white"
+              onClick={() =>
+                logMonetisationClientEvent("outreach_next_move_click", item.id, "applications", {
+                  key: nextMove.key,
+                })
+              }
+            >
+              {nextMove.label}
+            </Link>
+          ) : null}
+          <Link
+            href={`/app/applications/${item.id}?tab=activity#outreach`}
+            className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
+          >
+            Open outreach
+          </Link>
+          <button
+            type="button"
+            onClick={() => {
+              if (!expanded) {
+                logMonetisationClientEvent(
+                  "outreach_queue_copy_log_open",
+                  item.id,
+                  "applications",
+                  { stage: item.outreachStage }
+                );
+              }
+              setExpanded((prev) => !prev);
+            }}
+            className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
+          >
+            Copy + log
+          </button>
+          {hasEmail ? (
+            <a
+              href={
+                item.outreachBody
+                  ? `mailto:${item.contactEmail}?subject=${encodeURIComponent(item.outreachSubject ?? "Follow-up")}&body=${encodeURIComponent(item.outreachBody)}`
+                  : `mailto:${item.contactEmail}`
+              }
+              onClick={() =>
+                logMonetisationClientEvent(
+                  "outreach_open_gmail_click",
+                  item.id,
+                  "applications",
+                  { stage: item.outreachStage }
+                )
+              }
+              className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
+            >
+              Send (Gmail)
+            </a>
+          ) : (
+            <Link
+              href={`/app/applications/${item.id}?tab=activity#outreach`}
+              className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
+              onClick={() =>
+                logMonetisationClientEvent(
+                  "outreach_send_blocked_no_contact",
+                  item.id,
+                  "applications",
+                  { stage: item.outreachStage }
+                )
+              }
+            >
+              Add contact
+            </Link>
+          )}
+          {hasLinkedIn ? (
+            <button
+              type="button"
+              onClick={() => {
+                logMonetisationClientEvent(
+                  "outreach_open_linkedin_click",
+                  item.id,
+                  "applications",
+                  { stage: item.outreachStage }
+                );
+                window.open(item.contactLinkedin, "_blank", "noopener,noreferrer");
+              }}
+              className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
+            >
+              Send (LinkedIn)
+            </button>
+          ) : null}
+        </div>
+      </div>
+      {expanded ? (
+        <div className="mt-3 space-y-2 rounded-2xl border border-dashed border-black/10 bg-white/70 p-3 text-sm text-[rgb(var(--muted))]">
+          {item.outreachSubject ? (
+            <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+              {item.outreachSubject}
+            </p>
+          ) : null}
+          <pre className="whitespace-pre-wrap text-xs">
+            {item.outreachBody ?? "No template ready."}
+          </pre>
+          <div className="flex flex-wrap items-center gap-2">
+            <CopyLogForm item={item} />
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

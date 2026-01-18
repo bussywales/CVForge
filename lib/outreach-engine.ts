@@ -18,7 +18,12 @@ export function buildOutreachRecommendation(input: {
   const { application } = input;
   const now = input.now ?? new Date();
   const stage = application.outreach_stage as string | null;
-  if (stage === "replied" || stage === "closed" || application.outcome_status) {
+  if (
+    stage === "replied" ||
+    stage === "closed" ||
+    stage?.startsWith("triage_") ||
+    application.outcome_status
+  ) {
     return null;
   }
   const nextStep = getNextOutreachStep(stage as any);

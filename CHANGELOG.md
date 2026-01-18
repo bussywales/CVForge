@@ -6,6 +6,12 @@
 - Applications Command Centre Outreach tab shows Send (Gmail/LinkedIn) when contact exists or Add contact deep link when missing.
 - New outreach logging events allowlisted; added helper test for contact validation/mailto builder.
 
+## v0.7.71
+- Outreach panel adds reply triage (Interested/Not now/Rejected/No response), notes, and quick outcome logging plus next-move card.
+- Deterministic next-move helper surfaces in Outreach panel and Command Centre rows; follows triage/overdue state.
+- New monetisation events for triage/next-move/mailto/quick outcomes; outreach contact/send flows preserved.
+- Added helper test for next-move mapping; docs updated for reply triage smoke checks.
+
 ## v0.7.69
 - Added Outreach panel on Activity tab with copy/log/schedule flow, next follow-up status, and reply capture, anchored at `#outreach`.
 - Applications Command Centre now has an Outreach queue with overdue/due sorting, copy + log modal, and deep links into applications.

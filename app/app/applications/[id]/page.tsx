@@ -79,6 +79,7 @@ import { getIsoWeekKey } from "@/lib/weekly-review";
 import InterviewFocusCard from "./interview-focus-card";
 import { buildOutreachRecommendation } from "@/lib/outreach-engine";
 import OutreachPanel from "../outreach-panel";
+import { buildNextMove } from "@/lib/outreach-next-move";
 
 const RoleFitCard = dynamic(() => import("../role-fit-card"), {
   ssr: false,
@@ -330,6 +331,24 @@ export default async function ApplicationPage({
     application,
     roleFitSignals: roleFit.matchedSignals.map((signal) => signal.label),
     bestMetric: achievements[0]?.metrics ?? null,
+  });
+  const outreachTriageActivity = activities
+    .filter((activity) => activity.type === "outreach.triage")
+    .sort((a, b) => {
+      const aTime = a.occurred_at ? new Date(a.occurred_at).getTime() : 0;
+      const bTime = b.occurred_at ? new Date(b.occurred_at).getTime() : 0;
+      return bTime - aTime;
+    })[0];
+  const outreachTriageStatus =
+    outreachTriageActivity?.subject ||
+    (application.outreach_stage?.startsWith("triage_")
+      ? application.outreach_stage.replace("triage_", "")
+      : null);
+  const outreachTriageNotes = outreachTriageActivity?.body ?? null;
+  const outreachNextMove = buildNextMove({
+    application,
+    triage: outreachTriageStatus,
+    hasCredits: credits > 0,
   });
 
   let outcomes: OutcomeRecord[] = [];
@@ -1000,6 +1019,9 @@ export default async function ApplicationPage({
                 contactLinkedin={application.contact_linkedin}
                 jobTitle={application.job_title}
                 company={application.company_name ?? application.company}
+                triageStatus={outreachTriageStatus}
+                triageNotes={outreachTriageNotes}
+                nextMove={outreachNextMove}
               />
             </Section>
           </div>

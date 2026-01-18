@@ -21,6 +21,7 @@ export type CommandCentreItem = {
   followupDue: boolean;
   followupStatus: string;
   followupDueRank: number;
+  followupDueAt?: string | null;
   outreachSubject?: string;
   outreachBody?: string;
   outreachStage?: string;
@@ -130,6 +131,7 @@ export function buildCommandCentreItems(
       nextActionHref: next.href,
       progressLabel: `Ready: ${readiness}/5`,
       followupDue,
+      followupDueAt: outreachDue,
       followupStatus,
       followupDueRank,
       outreachSubject: outreachReco?.subject,
