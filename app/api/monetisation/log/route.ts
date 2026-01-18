@@ -167,6 +167,13 @@ const allowedEvents = [
   "interview_focus_session_complete",
   "interview_focus_add_one_more",
   "interview_focus_leave_it",
+  "outreach_panel_view",
+  "outreach_copy_click",
+  "outreach_log_sent",
+  "outreach_schedule_next",
+  "outreach_queue_view",
+  "outreach_queue_copy_log_open",
+  "outreach_queue_logged",
 ] as const;
 
 const bodySchema = z.object({

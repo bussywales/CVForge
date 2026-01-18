@@ -45,6 +45,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Open the Practice Dashboard and start Drill Mode to practise the lowest-score question.
 - In Drill Mode, generate the Answer Pack (90-second first) and confirm answers appear in an accordion with per-answer copy and copy-all; toggle to Standard and copy still works.
 
+## Outreach
+- In Activity tab, open Outreach panel (`#outreach`), copy a message, log sent, and schedule next follow-up; status badge updates.
+- Mark “Reply received” and confirm outcome prompt; deep-link to activity log still works.
+- Applications Command Centre → Outreach tab shows overdue/due soon follow-ups; Copy + log updates the row and “Open” deep-links to the outreach anchor.
+
 ## STAR Library
 - From the application detail page, create a STAR draft for a gap.
 - Open the STAR draft editor and save edits.

@@ -77,6 +77,8 @@ import ResumeCompletionNudge from "@/components/ResumeCompletionNudge";
 import CompletionWatchdogNudge from "@/components/CompletionWatchdogNudge";
 import { getIsoWeekKey } from "@/lib/weekly-review";
 import InterviewFocusCard from "./interview-focus-card";
+import { buildOutreachRecommendation } from "@/lib/outreach-engine";
+import OutreachPanel from "../outreach-panel";
 
 const RoleFitCard = dynamic(() => import("../role-fit-card"), {
   ssr: false,
@@ -323,6 +325,11 @@ export default async function ApplicationPage({
       index,
     })),
     answers: practiceAnswers,
+  });
+  const outreachRecommendation = buildOutreachRecommendation({
+    application,
+    roleFitSignals: roleFit.matchedSignals.map((signal) => signal.label),
+    bestMetric: achievements[0]?.metrics ?? null,
   });
 
   let outcomes: OutcomeRecord[] = [];
@@ -974,6 +981,20 @@ export default async function ApplicationPage({
                 templates={followupTemplates}
                 createFollowupAction={createFollowupFromTemplateAction}
                 calendarUrl={calendarUrl}
+              />
+            </Section>
+          </div>
+
+          <div id="outreach">
+            <Section
+              title="Outreach"
+              description="Copy, send, log, and schedule the next follow-up."
+            >
+              <OutreachPanel
+                applicationId={application.id}
+                statusLabel={statusLabel}
+                recommendation={outreachRecommendation}
+                nextDue={application.outreach_next_due_at ?? application.next_followup_at ?? application.next_action_due}
               />
             </Section>
           </div>

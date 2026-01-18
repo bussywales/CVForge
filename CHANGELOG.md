@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.69
+- Added Outreach panel on Activity tab with copy/log/schedule flow, next follow-up status, and reply capture, anchored at `#outreach`.
+- Applications Command Centre now has an Outreach queue with overdue/due sorting, copy + log modal, and deep links into applications.
+- Deterministic outreach engine + microcopy deck, new logging events allowlisted, and a small helper test for template selection.
+
 ## v0.7.68
 - Added “Today’s Focus” card on the Interview tab with deterministic top-3 recommendations, Done/Undo, and weekly persistence.
 - Answer Pack items now have stable anchors with quality/next-step lines; Interview Pack questions show quality badges to deep-link from focus.

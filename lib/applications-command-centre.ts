@@ -6,6 +6,7 @@ import { buildNextBestActions } from "@/lib/next-best-actions";
 import { formatRelativeTime } from "@/lib/tracking-utils";
 import { getEffectiveJobText } from "@/lib/job-text";
 import type { ApplicationRecord } from "@/lib/data/applications";
+import { buildOutreachRecommendation, describeFollowupStatus } from "@/lib/outreach-engine";
 
 export type CommandCentreItem = {
   id: string;
@@ -18,6 +19,11 @@ export type CommandCentreItem = {
   nextActionHref: string;
   progressLabel: string;
   followupDue: boolean;
+  followupStatus: string;
+  followupDueRank: number;
+  outreachSubject?: string;
+  outreachBody?: string;
+  outreachStage?: string;
   updatedLabel: string;
   updatedTs: number;
   urgencyRank: number;
@@ -59,6 +65,16 @@ export function buildCommandCentreItems(
       Boolean(app.submitted_at);
     const followupScheduled =
       Boolean(app.next_action_due) || Boolean(app.next_followup_at);
+    const outreachDue =
+      app.outreach_next_due_at ||
+      app.next_followup_at ||
+      app.next_action_due ||
+      null;
+    const followupStatus = describeFollowupStatus(outreachDue);
+    const followupDueRank = rankFollowup(outreachDue);
+    const outreachReco = buildOutreachRecommendation({
+      application: app,
+    });
 
     const readiness =
       Number(hasJobText) +
@@ -112,6 +128,11 @@ export function buildCommandCentreItems(
       nextActionHref: next.href,
       progressLabel: `Ready: ${readiness}/5`,
       followupDue,
+      followupStatus,
+      followupDueRank,
+      outreachSubject: outreachReco?.subject,
+      outreachBody: outreachReco?.body,
+      outreachStage: outreachReco?.stage,
       updatedLabel,
       updatedTs,
       urgencyRank,
@@ -147,6 +168,18 @@ function deriveStatusCategory(
   )
     return "closed";
   return "other";
+}
+
+function rankFollowup(dueAt?: string | null) {
+  if (!dueAt) return 3;
+  const now = new Date();
+  const due = new Date(dueAt);
+  const diff = due.getTime() - now.getTime();
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  if (days < 0) return 0;
+  if (days === 0) return 0.5;
+  if (days <= 3) return 1;
+  return 2;
 }
 
 function isPast(value?: string | null) {
