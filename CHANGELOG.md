@@ -5,6 +5,11 @@
 - Premium error UX: central error microcopy, reusable ErrorBanner with copyable reference/support snippet, checkout/portal/contact/outcome flows now surface references and retry/dismiss actions.
 - Support snippet helper + tests to speed support handoff; docs updated with error reference smoke.
 
+## v0.7.82
+- Ops Incident Console v1: requestId lookup + recent incident feed (last 7d) with copyable support snippet and masked user info, behind ops guard.
+- Incident helper normalises monetisation/checkout failure logs into safe surfaces/codes/messages; filters by surface/time.
+- Added microcopy deck and ops smoke steps; requestId meta now logged for checkout/portal failures to enable lookup.
+
 ## v0.7.79
 - Offer close-out loop after acceptance: panel under Offer Pack lists other apps, lets you select/bulk mark closed with outcome logging, and send warm/direct/short withdrawal templates via Gmail/LinkedIn/Copy.
 - Contact-missing path links to outreach; retries on failed outcome logging; dismiss/persist per week.

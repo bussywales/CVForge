@@ -173,6 +173,7 @@ export default function SubscriptionPlansSection({
           {
             planKey: selectedPlanKey,
             reason,
+            requestId: resolvedRequestId,
           }
         );
       }
@@ -186,6 +187,7 @@ export default function SubscriptionPlansSection({
           {
             planKey: selectedPlanKey,
             reason: "network_error",
+            requestId: null,
           }
         );
       }
@@ -234,6 +236,10 @@ export default function SubscriptionPlansSection({
           })
         );
       }
+      logMonetisationClientEvent("sub_portal_open_failed", applicationId ?? null, "billing", {
+        planKey: selectedPlanKey,
+        requestId: resolvedRequestId,
+      });
     } catch {
       setError("We couldn’t open the subscription portal. Please try again.");
     } finally {

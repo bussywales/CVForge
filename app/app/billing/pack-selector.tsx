@@ -147,6 +147,7 @@ export default function PackSelector({
         logMonetisationClientEvent("checkout_start_failed", applicationId, surface, {
           packKey,
           status: response.status,
+          requestId: resolvedRequestId,
         });
         setState({
           status: "error",
@@ -179,6 +180,7 @@ export default function PackSelector({
       logMonetisationClientEvent("checkout_start_failed", applicationId, surface, {
         packKey,
         status: "network_error",
+        requestId: null,
       });
       setState({
         status: "error",

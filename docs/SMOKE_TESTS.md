@@ -243,6 +243,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Trigger a portal open failure; banner shows Reference ID and retry/dismiss.
 - Force an outcome/contact save failure and confirm the Reference ID surfaces for support handoff.
 
+## Ops Incident Console (v0.7.82)
+- Visit /app/ops/incidents as an ops user; non-ops gets 404.
+- Paste a known Reference ID from checkout/portal failure; incident detail shows surface/code/message and copyable support snippet.
+- Recent incidents feed shows last items with reference copy; filters by surface/time apply.
+
 ## Applications Command Centre (v0.7.43)
 - /app/applications shows Queue with next-action CTA and readiness 0–5.
 - Tabs filter between Queue/Drafts/Submitted/Interview/Closed.
