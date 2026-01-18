@@ -17,4 +17,8 @@
 - `OPENAI_API_KEY`: OpenAI API key for autopack generation.
 - `CVFORGE_ALLOW_NO_CREDITS`: Set to `true` to bypass credit checks in development.
 - `CVFORGE_ADMIN_EMAILS`: Comma-separated list of admin emails allowed to access `/app/admin/learning`.
+- `OPS_ADMIN_EMAILS`: Comma-separated list of emails allowed to access `/app/ops`.
+- `OPS_ADMIN_DOMAIN`: Optional domain allowlist for `/app/ops` access (e.g., `yourcompany.com`).
+- `OPS_ADMIN_EMAILS`: Comma-separated list of emails allowed to access `/app/ops`.
+- `OPS_ADMIN_DOMAIN`: Optional domain allowlist for `/app/ops` access (e.g., `yourcompany.com`).
 - DOCX exports run server-side and do not require any additional env vars.

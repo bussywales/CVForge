@@ -52,6 +52,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Add recruiter email/LinkedIn in Outreach panel, Save, then click Open Gmail to see mail prefilled; LinkedIn opens when set.
 - Add a reply triage selection: Interested/Not now/Rejected/No response shows; quick outcome logging works; Next move CTA updates and matches command centre row.
 
+## Ops
+- Ops access blocked for non-whitelisted users (404).
+- Whitelisted email can open `/app/ops` and search users by email to see billing snapshot.
+- `/app/ops/users/:id` loads dossier with billing/apps/outreach/outcomes (read-only).
+
 ## STAR Library
 - From the application detail page, create a STAR draft for a gap.
 - Open the STAR draft editor and save edits.

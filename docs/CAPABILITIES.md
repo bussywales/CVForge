@@ -94,6 +94,9 @@ Shareable referral link gives +3 credits to inviter and invitee once on signup; 
 ## Admin learning
 Opt-in, anonymised JD learning events feed admin-reviewed domain pack proposals that can be published globally.
 
+## Ops/Support
+Ops Command Centre at `/app/ops` (env-guarded) lets support staff search users, view billing/credits/app snapshots, and open read-only dossiers at `/app/ops/users/:id` covering billing, outreach, outcomes, and next actions.
+
 ## Deterministic vs OpenAI usage
 Deterministic engines include role-fit.ts, interview-lift.ts, outreach-templates.ts, submission-quality.ts, and metrics-helper.ts. OpenAI is only used for autopack generation via server-side API calls.
 

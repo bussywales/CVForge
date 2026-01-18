@@ -12,6 +12,11 @@
 - New monetisation events for triage/next-move/mailto/quick outcomes; outreach contact/send flows preserved.
 - Added helper test for next-move mapping; docs updated for reply triage smoke checks.
 
+## v0.7.72
+- Added `/app/ops` Command Centre guarded by env allowlist for support; search users and view billing/credits/app snapshots.
+- New user dossier at `/app/ops/users/:id` shows billing, apps, outreach, outcomes, and next actions (read-only).
+- Ops env variables documented; diagnostics/ops usage guarded with server-only checks.
+
 ## v0.7.69
 - Added Outreach panel on Activity tab with copy/log/schedule flow, next follow-up status, and reply capture, anchored at `#outreach`.
 - Applications Command Centre now has an Outreach queue with overdue/due sorting, copy + log modal, and deep links into applications.
