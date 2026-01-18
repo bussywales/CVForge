@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import CopyIconButton from "@/components/CopyIconButton";
 import ErrorBanner from "@/components/ErrorBanner";
 import { OPS_COPY } from "@/lib/microcopy/ops";
@@ -9,7 +9,6 @@ import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { safeReadJson } from "@/lib/http/safe-json";
 import { type SupportLinkKind } from "@/lib/ops/support-links";
 import { type UserRole } from "@/lib/rbac";
-import { useRef } from "react";
 
 type ApplicationOption = { id: string; title: string; company?: string | null };
 type AuditEntry = { id: string; action: string; actor: string | null; createdAt: string; meta: Record<string, any> };
@@ -111,14 +110,21 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
           applicationId: linkKind === "application" ? linkApplicationId || null : undefined,
         }),
       });
-      const { data } = await safeReadJson(res);
+      const raw = await res.text();
+      let data: any = null;
+      try {
+        data = raw ? JSON.parse(raw) : null;
+      } catch {
+        data = null;
+      }
       const reqId = res.headers.get("x-request-id") ?? data?.error?.requestId;
       if (!res.ok) {
         setLinkError({ requestId: reqId, message: data?.error?.message ?? OPS_COPY.linkError, code: data?.error?.code });
         return;
       }
-      generatedUrl = data?.url ?? null;
-      setLinkUrl(generatedUrl);
+      const parsedUrl = (data?.url as string | undefined) ?? (raw && raw.startsWith("http") ? raw : null);
+      generatedUrl = parsedUrl;
+      setLinkUrl(parsedUrl);
       setLastGeneratedAt(new Date());
     } finally {
       setLinkLoading(false);
