@@ -1,5 +1,12 @@
 # Changelog
 
+# Changelog
+
+## v0.7.90
+- Fix ops support-link JSON integrity: route now always returns complete JSON (NextResponse.json) with full URL and destination params.
+- Ops Support actions UI recovers from parse issues, only shows “generated” after a URL is set, keeps last good link visible, and shows ErrorBanner with requestId on failure.
+- Added route regression test for support links to ensure parseable JSON with required params.
+
 ## v0.7.87
 - Ops Support Toolkit v1: ops user dossier gains Support actions card with manual credit adjustments (admin+ only, guarded with requestId/error banners) and support link generator with from=ops_support flags.
 - New ops APIs for credits adjust and support links are audited into ops_audit_log; audit trail now visible on the dossier.

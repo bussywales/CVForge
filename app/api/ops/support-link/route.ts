@@ -29,7 +29,17 @@ export async function POST(request: Request) {
   const tab = typeof body?.tab === "string" ? body.tab : undefined;
   const anchor = typeof body?.anchor === "string" ? body.anchor : undefined;
 
-  if (!targetUserId || !kind) {
+  const allowedKinds: SupportLinkKind[] = [
+    "billing_compare",
+    "billing_subscription_30",
+    "billing_subscription_80",
+    "billing_topup_starter",
+    "billing_topup_pro",
+    "billing_topup_power",
+    "application",
+  ];
+
+  if (!targetUserId || !kind || !allowedKinds.includes(kind)) {
     return jsonError({ code: "INVALID_PAYLOAD", message: "Invalid payload", requestId, status: 400 });
   }
 

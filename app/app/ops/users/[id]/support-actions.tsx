@@ -137,8 +137,8 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
           }
         }
       }
-      if (!parsedUrl) {
-        setLinkError({ requestId, message: OPS_COPY.linkError, code: "PARSE_FAIL" });
+      if (!parsedUrl || parsedUrl.indexOf("support=1") === -1) {
+        setLinkError({ requestId, message: "We couldn't generate a shareable link just now.", code: "PARSE_FAIL" });
         return;
       }
       generatedUrl = parsedUrl;
