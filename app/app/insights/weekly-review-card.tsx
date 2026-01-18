@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { WEEKLY_COACH_COPY, formatCompleted } from "@/lib/copy/weekly-coach";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { getIsoWeekKey } from "@/lib/weekly-review";
-import { OUTCOME_STATUSES } from "@/lib/outcome-loop";
+import OutcomeQuickLog from "@/components/OutcomeQuickLog";
 
 type Props = {
   weekKey: string;
@@ -23,9 +23,11 @@ type Props = {
 };
 
 export default function WeeklyReviewCard({ weekKey, summary }: Props) {
+  const firstAppId = summary.examples[0]?.applicationId ?? null;
+
   useEffect(() => {
-    logMonetisationClientEvent("weekly_review_view", null, "insights", { week: weekKey });
-  }, [weekKey]);
+    logMonetisationClientEvent("weekly_review_view", firstAppId, "insights", { week: weekKey });
+  }, [firstAppId, weekKey]);
 
   const doneThisWeek = useMemo(() => {
     if (typeof window === "undefined") return 0;
@@ -42,42 +44,6 @@ export default function WeeklyReviewCard({ weekKey, summary }: Props) {
 
   const showOutcomePrompt = summary.outcomesLogged === 0 && (summary.followupsSent > 0 || summary.applicationsMoved > 0);
   const [inlineOpen, setInlineOpen] = useState(false);
-  const [inlineStatus, setInlineStatus] = useState<typeof OUTCOME_STATUSES[number] | "">("");
-  const [inlineNotes, setInlineNotes] = useState("");
-  const [inlineSaving, setInlineSaving] = useState(false);
-  const [inlineSaved, setInlineSaved] = useState(false);
-  const [inlineError, setInlineError] = useState<string | null>(null);
-
-  const handleInlineSave = async () => {
-    if (!inlineStatus) return;
-    setInlineSaving(true);
-    setInlineError(null);
-    try {
-      const res = await fetch("/api/outcomes/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          status: inlineStatus,
-          notes: inlineNotes || undefined,
-          applicationId: summary.examples[0]?.applicationId,
-        }),
-      });
-      if (!res.ok) {
-        throw new Error("save_failed");
-      }
-      setInlineSaved(true);
-      setInlineSaving(false);
-      logMonetisationClientEvent("weekly_review_outcome_inline_save_success", summary.examples[0]?.applicationId ?? null, "insights", {
-        week: weekKey,
-      });
-    } catch (error) {
-      setInlineSaving(false);
-      setInlineError(WEEKLY_COACH_COPY.ERRORS.SAVE_FAILED);
-      logMonetisationClientEvent("weekly_review_outcome_inline_save_fail", summary.examples[0]?.applicationId ?? null, "insights", {
-        week: weekKey,
-      });
-    }
-  };
 
   return (
     <SectionShell>
@@ -123,7 +89,7 @@ export default function WeeklyReviewCard({ weekKey, summary }: Props) {
                 className="rounded-full bg-[rgb(var(--accent))] px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-[rgb(var(--accent-strong))]"
                 onClick={() => {
                   setInlineOpen(true);
-                  logMonetisationClientEvent("weekly_review_outcome_inline_open", null, "insights", { week: weekKey });
+                  logMonetisationClientEvent("weekly_review_outcome_inline_open", firstAppId, "insights", { week: weekKey });
                 }}
               >
                 Log outcomes
@@ -136,44 +102,17 @@ export default function WeeklyReviewCard({ weekKey, summary }: Props) {
                 Not now
               </button>
             </div>
-            {inlineOpen ? (
+            {inlineOpen && firstAppId ? (
               <div className="rounded-2xl border border-black/10 bg-white px-3 py-3 text-sm shadow-sm">
-                <div className="flex flex-wrap gap-2">
-                  <select
-                    value={inlineStatus}
-                    onChange={(e) => setInlineStatus(e.target.value as typeof OUTCOME_STATUSES[number])}
-                    className="rounded-xl border border-black/10 bg-white px-3 py-2 text-xs"
-                  >
-                    <option value="">Select status</option>
-                    {OUTCOME_STATUSES.filter((s) =>
-                      ["rejected", "no_response", "interview_scheduled", "offer", "accepted"].includes(s)
-                    ).map((status) => (
-                      <option key={status} value={status}>
-                        {status.replace("_", " ")}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={inlineNotes}
-                    onChange={(e) => setInlineNotes(e.target.value)}
-                    placeholder="Notes (optional)"
-                    className="w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-xs"
-                  />
-                  <button
-                    type="button"
-                    className="rounded-full bg-[rgb(var(--accent))] px-4 py-2 text-xs font-semibold text-white shadow-sm hover:bg-[rgb(var(--accent-strong))] disabled:opacity-50"
-                    onClick={handleInlineSave}
-                    disabled={!inlineStatus || inlineSaving}
-                  >
-                    {inlineSaving ? "Saving..." : "Save outcome"}
-                  </button>
-                </div>
-                {inlineSaved ? (
-                  <p className="mt-2 text-xs text-emerald-700">Saved — nice. Your funnel just got smarter.</p>
-                ) : null}
-                {inlineError ? (
-                  <p className="mt-2 text-xs text-red-600">{inlineError}</p>
-                ) : null}
+                <OutcomeQuickLog
+                  applicationId={firstAppId}
+                  defaultStatus="rejected"
+                  onSaved={() => {
+                    logMonetisationClientEvent("weekly_review_outcome_inline_save_success", firstAppId, "insights", {
+                      week: weekKey,
+                    });
+                  }}
+                />
               </div>
             ) : null}
           </div>

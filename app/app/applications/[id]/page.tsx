@@ -561,6 +561,7 @@ export default async function ApplicationPage({
     isSubmitted:
       application.status === "submitted" || Boolean(application.submitted_at),
     outcomeRecorded: Boolean(application.last_outcome_status),
+    lastOutcomeStatus: application.last_outcome_status,
   });
 
   return (

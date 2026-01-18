@@ -18,17 +18,46 @@ export type NextBestInput = {
   hasDueFollowup?: boolean;
   isSubmitted?: boolean;
   outcomeRecorded?: boolean;
+  lastOutcomeStatus?: string | null;
 };
 
 export function buildNextBestActions(input: NextBestInput): NextBestAction[] {
   const actions: NextBestAction[] = [];
   const { applicationId } = input;
+  const added = new Set<string>();
 
   const add = (action: NextBestAction) => {
-    if (actions.length < 3) {
+    if (actions.length < 3 && !added.has(action.id)) {
       actions.push(action);
+      added.add(action.id);
     }
   };
+
+  const outcome = (input.lastOutcomeStatus ?? "").toLowerCase();
+
+  if (outcome === "rejected") {
+    add({
+      id: "start-new-application",
+      label: "Create new application",
+      why: "Keep momentum after a rejection.",
+      href: "/app/applications/new",
+    });
+    add({
+      id: "add-evidence",
+      label: "Strengthen evidence",
+      why: "Tighten fit before the next application.",
+      href: `/app/applications/${applicationId}?tab=evidence#role-fit`,
+    });
+  }
+
+  if (outcome === "no_response") {
+    add({
+      id: "send-followup",
+      label: "Send follow-up",
+      why: "No response yet — nudge again.",
+      href: `/app/applications/${applicationId}?tab=activity#outreach`,
+    });
+  }
 
   if (!input.closingDate) {
     add({
@@ -98,6 +127,15 @@ export function buildNextBestActions(input: NextBestInput): NextBestAction[] {
       label: "Practise weakest question",
       why: "Raise interview readiness quickly.",
       href: `/app/applications/${applicationId}?tab=interview#practice-dashboard`,
+    });
+  }
+
+  if (outcome === "interview_scheduled") {
+    add({
+      id: "interview-focus",
+      label: "Start interview focus",
+      why: "Prep focused answers before the interview.",
+      href: `/app/applications/${applicationId}?tab=interview#interview-pack`,
     });
   }
 

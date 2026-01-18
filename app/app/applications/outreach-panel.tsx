@@ -16,6 +16,7 @@ import { useEffect } from "react";
 import { buildMailto, isValidEmail, isValidLinkedIn } from "@/lib/outreach-mailto";
 import { logOutreachTriageAction } from "./actions";
 import { buildNextMove } from "@/lib/outreach-next-move";
+import OutcomeQuickLog from "@/components/OutcomeQuickLog";
 
 type OutreachPanelProps = {
   applicationId: string;
@@ -539,6 +540,14 @@ export default function OutreachPanel({
           <p className="mt-2 text-xs text-[rgb(var(--muted))]">
             If you received a reply, log the outcome next to keep pipeline stats tidy.
           </p>
+          {triage === "interested" || triage === "rejected" ? (
+            <div className="mt-3">
+              <OutcomeQuickLog
+                applicationId={applicationId}
+                defaultStatus={triage === "rejected" ? "rejected" : "interview_scheduled"}
+              />
+            </div>
+          ) : null}
         </div>
         {nextMove ? (
           <div className="rounded-2xl border border-black/10 bg-white/80 p-4">

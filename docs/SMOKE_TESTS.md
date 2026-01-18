@@ -202,6 +202,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - With credits available, soft gate/modal appears (or proceeds) and the action succeeds.
 - Credits idle: when credits > 0 and a paid action is ready, dashboard/command centre shows a nudge; Go deep-links correctly and dismiss hides it.
 
+## Outcome Loop v2 (v0.7.73)
+- Weekly Review card: click “Log outcomes” → quick log opens, save succeeds without full refresh, and outcomes count updates.
+- Outreach panel: when triage shows reply/rejection, quick log appears; save logs success and next move updates.
+- Application Overview Outcome panel: quick log saves outcome (status/reason/note) and shows success toast; insights show top reasons + recommended links.
+
 ## Applications Command Centre (v0.7.43)
 - /app/applications shows Queue with next-action CTA and readiness 0–5.
 - Tabs filter between Queue/Drafts/Submitted/Interview/Closed.

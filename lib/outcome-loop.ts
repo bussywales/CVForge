@@ -154,3 +154,53 @@ export function buildOutcomeInsights(
 
   return insights;
 }
+
+export function buildOutcomeInsightsV2(
+  outcomes: Array<{ outcome_status: string; outcome_reason?: string | null; happened_at?: string | null }>
+) {
+  const recent = outcomes.slice(0, 20);
+  const reasons = recent
+    .map((o) => o.outcome_reason)
+    .filter(Boolean) as string[];
+  const reasonCounts = reasons.reduce<Record<string, number>>((acc, reason) => {
+    acc[reason] = (acc[reason] ?? 0) + 1;
+    return acc;
+  }, {});
+  const topReasons = Object.entries(reasonCounts)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([reason, count]) => `${reason.replace("_", " ")} (${count})`);
+
+  const last = recent[0];
+  const recommendations: Array<{ label: string; href: string }> = [];
+  if (last?.outcome_status === "rejected") {
+    recommendations.push({
+      label: "Strengthen evidence",
+      href: "#role-fit",
+    });
+  }
+  if (last?.outcome_status === "no_response") {
+    recommendations.push({
+      label: "Send follow-up",
+      href: "#outreach",
+    });
+  }
+  if (last?.outcome_status === "interview_scheduled") {
+    recommendations.push({
+      label: "Prep interview",
+      href: "#interview-pack",
+    });
+  }
+  if (last?.outcome_status === "offer") {
+    recommendations.push({
+      label: "Log offer outcome",
+      href: "#outcome-loop",
+    });
+  }
+
+  const bullets = topReasons.length
+    ? [`Top reasons: ${topReasons.join(", ")}`]
+    : ["Not enough outcomes yet to spot patterns."];
+
+  return { bullets, recommendations };
+}

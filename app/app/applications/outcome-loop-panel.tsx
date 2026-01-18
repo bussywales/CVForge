@@ -1,14 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Button from "@/components/Button";
 import type { OutcomeRecord } from "@/lib/data/outcomes";
 import type { ActionSummary, OutcomeInsight } from "@/lib/outcome-loop";
-import {
-  OUTCOME_REASON_CODES,
-  OUTCOME_STATUSES,
-} from "@/lib/outcome-loop";
 import { formatDateUk, formatDateTimeUk } from "@/lib/tracking-utils";
+import OutcomeQuickLog from "@/components/OutcomeQuickLog";
+import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type OutcomeLoopPanelProps = {
   applicationId: string;
@@ -18,16 +15,6 @@ type OutcomeLoopPanelProps = {
   lastOutcomeAt?: string | null;
 };
 
-type SaveState = "idle" | "saving" | "error" | "saved";
-
-function reasonCodesForStatus(status: string | null) {
-  if (!status) return OUTCOME_REASON_CODES;
-  if (["rejected", "no_response", "withdrawn"].includes(status)) {
-    return OUTCOME_REASON_CODES;
-  }
-  return [];
-}
-
 export default function OutcomeLoopPanel({
   applicationId,
   initialOutcomes,
@@ -36,10 +23,6 @@ export default function OutcomeLoopPanel({
   lastOutcomeAt,
 }: OutcomeLoopPanelProps) {
   const [outcomes, setOutcomes] = useState<OutcomeRecord[]>(initialOutcomes);
-  const [status, setStatus] = useState<string>(lastOutcomeStatus ?? "");
-  const [reason, setReason] = useState<string>("");
-  const [notes, setNotes] = useState<string>("");
-  const [saveState, setSaveState] = useState<SaveState>("idle");
   const [insights, setInsights] = useState<OutcomeInsight[] | null>(null);
   const [insightsMessage, setInsightsMessage] = useState<string | null>(null);
 
@@ -53,6 +36,7 @@ export default function OutcomeLoopPanel({
         const payload = await response.json();
         if (payload?.insights) {
           setInsights(payload.insights);
+          logMonetisationClientEvent("outcome_insights_view", applicationId, "outcomes");
         } else if (payload?.message) {
           setInsightsMessage(payload.message);
         }
@@ -61,45 +45,13 @@ export default function OutcomeLoopPanel({
       }
     };
     loadInsights();
-  }, []);
-
-  const reasonOptions = reasonCodesForStatus(status);
+  }, [applicationId]);
 
   const actionEntries = useMemo(
     () =>
       Object.entries(actionSummary).filter(([, value]) => Number(value) > 0),
     [actionSummary]
   );
-
-  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!status) return;
-    setSaveState("saving");
-    try {
-      const response = await fetch("/api/outcomes/create", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          applicationId,
-          status,
-          reason: reason || null,
-          notes: notes || null,
-        }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !payload?.outcome) {
-        setSaveState("error");
-        return;
-      }
-      setOutcomes((prev) => [payload.outcome, ...prev].slice(0, 10));
-      setSaveState("saved");
-      setTimeout(() => setSaveState("idle"), 1500);
-    } catch (error) {
-      console.error("[outcomes.save]", error);
-      setSaveState("error");
-    }
-  };
 
   const lastOutcome = outcomes[0] ?? null;
   const headerStatus = lastOutcome?.outcome_status ?? lastOutcomeStatus;
@@ -126,67 +78,27 @@ export default function OutcomeLoopPanel({
             </p>
           ) : null}
         </div>
-        {saveState === "saved" ? (
-          <span className="text-xs text-emerald-700">Outcome saved ✓</span>
-        ) : saveState === "error" ? (
-          <span className="text-xs text-rose-700">
-            Could not save outcome.
-          </span>
-        ) : null}
       </div>
 
-      <form
-        onSubmit={handleSubmit}
-        className="mt-4 grid gap-3 md:grid-cols-3"
-      >
-        <label className="text-sm text-[rgb(var(--muted))]">
-          Status
-          <select
-            value={status}
-            onChange={(event) => setStatus(event.target.value)}
-            className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm"
-            required
-          >
-            <option value="">Choose status</option>
-            {OUTCOME_STATUSES.map((value) => (
-              <option key={value} value={value}>
-                {value.replace("_", " ")}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm text-[rgb(var(--muted))]">
-          Reason (optional)
-          <select
-            value={reason}
-            onChange={(event) => setReason(event.target.value)}
-            className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm"
-            disabled={!reasonOptions.length}
-          >
-            <option value="">Not set</option>
-            {reasonOptions.map((value) => (
-              <option key={value} value={value}>
-                {value.replace("_", " ")}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-sm text-[rgb(var(--muted))]">
-          Notes (optional)
-          <textarea
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            rows={1}
-            className="mt-1 w-full rounded-xl border border-black/10 bg-white px-3 py-2 text-sm"
-            placeholder="Interview round, rejection reason, etc."
-          />
-        </label>
-        <div className="md:col-span-3">
-          <Button type="submit" disabled={saveState === "saving"}>
-            {saveState === "saving" ? "Saving…" : "Save outcome"}
-          </Button>
-        </div>
-      </form>
+      <div className="mt-4">
+        <OutcomeQuickLog
+          applicationId={applicationId}
+          defaultStatus={lastOutcomeStatus ?? undefined}
+          onSaved={(payload) =>
+            setOutcomes((prev) => [
+              {
+                id: `local-${Date.now()}`,
+                application_id: applicationId,
+                outcome_status: payload.status,
+                outcome_reason: payload.reason ?? null,
+                outcome_notes: payload.notes ?? null,
+                happened_at: new Date().toISOString(),
+              } as any,
+              ...prev,
+            ])
+          }
+        />
+      </div>
 
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <div className="rounded-2xl border border-black/5 bg-white/60 p-4">

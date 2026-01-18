@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.73
+- Outcome Loop v2 with reusable OutcomeQuickLog across Weekly Review, Outreach panel, and Outcome panel (status/reason/notes, success toast).
+- Outcome insights now surface top reasons and recommended actions; next-best actions weighted by latest outcomes for more relevant nudges.
+- Added outcome next-move helper/test and allowlisted logging for quick log/insights/next move; docs updated with new smoke steps.
+
 ## v0.7.70
 - Outreach Engine now supports saved recruiter contact (name/email/LinkedIn) with API read/write and validation.
 - Outreach panel adds contact capture plus one-click Gmail/LinkedIn sends with mailto prefill and missing-contact logging.
