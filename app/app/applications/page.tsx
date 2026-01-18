@@ -6,6 +6,8 @@ import ApplicationsCommandCentre from "./applications-command-centre";
 import { buildCommandCentreItems } from "@/lib/applications-command-centre";
 import { getUserCredits } from "@/lib/data/credits";
 import CreditsIdleNudge from "@/components/CreditsIdleNudge";
+import { buildFollowupItems } from "@/lib/outreach-autopilot";
+import FollowupsDueStrip from "@/components/followups-due-strip";
 import { computeOutreachInsight } from "@/lib/outreach-insights";
 
 export default async function ApplicationsPage({
@@ -101,6 +103,7 @@ export default async function ApplicationsPage({
     star: starCounts,
     autopack: autopackCounts,
   });
+  const followupsDue = buildFollowupItems(applications as any);
   const paidItem =
     credits > 0
       ? items.find((item) =>
@@ -119,6 +122,11 @@ export default async function ApplicationsPage({
             href={paidItem.nextActionHref}
             surface="applications"
           />
+        </div>
+      ) : null}
+      {followupsDue.length ? (
+        <div className="mb-4">
+          <FollowupsDueStrip items={followupsDue} surface="applications" />
         </div>
       ) : null}
       <Section

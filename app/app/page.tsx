@@ -9,6 +9,8 @@ import { buildDashboardActions, selectActiveApplications } from "@/lib/dashboard
 import { detectWeakestStep } from "@/lib/coach-mode";
 import TelemetryBanner from "./telemetry-banner";
 import CreditsIdleNudge from "@/components/CreditsIdleNudge";
+import { buildFollowupItems } from "@/lib/outreach-autopilot";
+import FollowupsDueStrip from "@/components/followups-due-strip";
 
 export const dynamic = "force-dynamic";
 
@@ -112,10 +114,12 @@ export default async function AppPage() {
 
   const primaryCta =
     activeApps[0]?.href ?? "/app/applications/new";
+  const followupsDue = buildFollowupItems(applications as any);
 
   return (
     <div className="space-y-6">
       <TelemetryBanner telemetryOptIn={telemetryOptIn} />
+      {followupsDue.length ? <FollowupsDueStrip items={followupsDue} surface="dashboard" /> : null}
       {credits > 0 && paidAction ? (
         <CreditsIdleNudge
           applicationId={paidAction.applicationId}

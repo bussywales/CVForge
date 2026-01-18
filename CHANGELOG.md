@@ -5,6 +5,10 @@
 - Contact-missing path links to outreach; retries on failed outcome logging; dismiss/persist per week.
 - Monetisation events updated; deterministic helper/tests keep templates and grouping stable.
 
+## v0.7.80
+- Outreach Autopilot v1: follow-ups due strip on Dashboard and Applications shows overdue/due items (max 7) with one-tap send/log/schedule modal using outreach variants.
+- Contact-missing path deep-links to outreach; recovery badge for ≥72h overdue; new logging events allowlisted.
+
 ## v0.7.78
 - Offer Win Loop tile on Insights highlights the most recent offer/negotiation with deep links into Offer Pack, outcome logging, and a guided checklist.
 - Monetisation events allowlisted for offer win interactions; deterministic helper/test for candidate selection and step hrefs.

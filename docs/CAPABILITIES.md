@@ -79,6 +79,9 @@ When an offer is logged, the Offer Pack on Overview provides offer summary captu
 Decision logging updates outcomes and next best actions; accepted state includes “close other applications” templates.
 Close-out loop after acceptance helps withdraw from other applications and log outcomes quickly.
 
+## Outreach Autopilot
+Follow-up autopilot surfaces due/overdue follow-ups on Dashboard and Command Centre with one-tap send/log/schedule modal plus recovery cues.
+
 ## Imports and exports
 DOCX import previews and applies profile fields, achievements, and work history. DOCX export supports Standard and ATS-Minimal variants plus a submission-pack ZIP.
 

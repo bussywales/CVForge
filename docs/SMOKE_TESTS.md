@@ -233,6 +233,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Withdrawal templates (warm/direct/short) send via Gmail/LinkedIn/Copy; Add contact path works.
 - Refresh keeps dismissal/completion via local storage (week/app scoped).
 
+## Outreach Autopilot (v0.7.80)
+- Dashboard and Applications Command Centre show “Follow-ups due” strip (overdue first, max 7).
+- Send + log opens modal with variant copy + Gmail/LinkedIn/Copy; contact missing path deep-links to outreach.
+- Log + schedule updates strip optimistically; recovery badge appears for ≥72h overdue and preselects warm copy.
+
 ## Applications Command Centre (v0.7.43)
 - /app/applications shows Queue with next-action CTA and readiness 0–5.
 - Tabs filter between Queue/Drafts/Submitted/Interview/Closed.
