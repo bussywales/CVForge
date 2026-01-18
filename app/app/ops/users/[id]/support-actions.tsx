@@ -110,19 +110,37 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
           applicationId: linkKind === "application" ? linkApplicationId || null : undefined,
         }),
       });
-      const raw = await res.text();
       let data: any = null;
       try {
-        data = raw ? JSON.parse(raw) : null;
+        data = await res.json();
       } catch {
         data = null;
       }
-      const reqId = res.headers.get("x-request-id") ?? data?.error?.requestId;
+      const requestId = res.headers.get("x-request-id") ?? data?.error?.requestId ?? null;
       if (!res.ok) {
-        setLinkError({ requestId: reqId, message: data?.error?.message ?? OPS_COPY.linkError, code: data?.error?.code });
+        const raw = data ?? (await res.text().catch(() => null));
+        setLinkError({ requestId, message: data?.error?.message ?? OPS_COPY.linkError, code: data?.error?.code });
         return;
       }
-      const parsedUrl = (data?.url as string | undefined) ?? (raw && raw.startsWith("http") ? raw : null);
+      let parsedUrl: string | null =
+        (data?.url as string | undefined) ??
+        null;
+      if (!parsedUrl) {
+        const raw = await res.text().catch(() => "");
+        const match = raw.match(/"url":"(https?:[^"]+)"/);
+        if (match?.[1]) {
+          parsedUrl = match[1];
+        } else {
+          const httpsIndex = raw.indexOf("https://");
+          if (httpsIndex >= 0) {
+            parsedUrl = raw.slice(httpsIndex).split(/\\s|"|}/)[0] ?? null;
+          }
+        }
+      }
+      if (!parsedUrl) {
+        setLinkError({ requestId, message: OPS_COPY.linkError, code: "PARSE_FAIL" });
+        return;
+      }
       generatedUrl = parsedUrl;
       setLinkUrl(parsedUrl);
       setLastGeneratedAt(new Date());

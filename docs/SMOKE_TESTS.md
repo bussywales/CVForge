@@ -12,6 +12,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Generate a support link (billing compare or app tab) and copy it (includes from=ops_support); URL must appear even if logging fails.
 - If clipboard is blocked, manual copy hint appears but link stays visible.
 - Errors show ErrorBanner with request reference.
+- Validate response JSON: support-link endpoint returns complete JSON and UI shows the URL.
 
 ## Applications
 - Create an application with job title, job description, and optional job URL.

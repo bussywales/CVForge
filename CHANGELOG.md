@@ -10,6 +10,11 @@
 - /api/ops/support-link logging is best-effort; monetisation log API now returns ok:false instead of 500s on failures, with a safety test.
 - Ops microcopy expanded for support link success/copy blocked; docs updated with new smoke steps.
 
+## v0.7.89-hotfix
+- Fix ops support-link JSON truncation: /api/ops/support-link now always returns complete JSON via NextResponse.json with full URL.
+- Ops Support actions UI recovers from JSON parse failures (regex/text fallback) and still displays the URL for manual copy; shows ErrorBanner with requestId on failure.
+- Added regression test for support link builder to ensure required params.
+
 ## v0.7.84
 - Completed observability coverage: remaining API routes now return structured errors with requestId headers and safe capture (outcomes summary/insights/link, referrals, diagnostics, etc.).
 - Premium ErrorBanner and support snippet wiring kept across billing/outreach/outcome flows; added error-shape test for requestId/code.

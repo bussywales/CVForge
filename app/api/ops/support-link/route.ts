@@ -57,7 +57,7 @@ export async function POST(request: Request) {
       meta: { kind: resolvedKind, plan, pack, applicationId, tab, anchor, requestId },
     });
 
-    return NextResponse.json({ ok: true, url }, { headers });
+    return NextResponse.json({ ok: true, url: String(url) }, { headers, status: 200 });
   } catch (error) {
     captureServerError(error, { requestId, route: "/api/ops/support-link", userId: user.id, code: "SUPPORT_LINK_FAIL" });
     return jsonError({ code: "SUPPORT_LINK_FAIL", message: "Unable to generate link", requestId });
