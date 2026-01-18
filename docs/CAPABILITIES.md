@@ -66,7 +66,7 @@ Weekly Coach Plan (This Week) on Insights shows a deterministic 3–5 action pla
 A pipeline board shows status lanes, next actions, and activity history. The Action Centre provides follow-up templates, activity logging, and calendar invite downloads.
 
 ## Outreach Engine
-Deterministic outreach templates for email and LinkedIn, one-click logging, and automated next-outreach scheduling. Outreach panel on Activity tab plus an Outreach queue in Applications Command Centre for copy + log and deep-linking.
+Deterministic outreach templates for email and LinkedIn, one-click logging, and automated next-outreach scheduling. Outreach panel on Activity tab plus an Outreach queue in Applications Command Centre for copy + log and deep-linking. Supports saved recruiter contact and one-click Gmail/LinkedIn send.
 
 ## Imports and exports
 DOCX import previews and applies profile fields, achievements, and work history. DOCX export supports Standard and ATS-Minimal variants plus a submission-pack ZIP.

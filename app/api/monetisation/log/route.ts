@@ -174,6 +174,12 @@ const allowedEvents = [
   "outreach_queue_view",
   "outreach_queue_copy_log_open",
   "outreach_queue_logged",
+  "outreach_open_gmail_click",
+  "outreach_open_linkedin_click",
+  "outreach_mailto_fallback_copy",
+  "outreach_contact_missing_block",
+  "outreach_contact_save",
+  "outreach_contact_edit",
 ] as const;
 
 const bodySchema = z.object({

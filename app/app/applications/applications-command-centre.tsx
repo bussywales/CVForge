@@ -183,6 +183,8 @@ function OutreachList({ items }: { items: CommandCentreItem[] }) {
     <div className="space-y-3">
       {items.map((item) => {
         const isOpen = expanded === item.id;
+        const hasEmail = Boolean(item.contactEmail);
+        const hasLinkedIn = Boolean(item.contactLinkedin);
         return (
           <div
             key={item.id}
@@ -225,6 +227,58 @@ function OutreachList({ items }: { items: CommandCentreItem[] }) {
                 >
                   Open
                 </Link>
+                {hasEmail ? (
+                  <a
+                    href={
+                      item.outreachBody
+                        ? `mailto:${item.contactEmail}?subject=${encodeURIComponent(item.outreachSubject ?? "Follow-up")}&body=${encodeURIComponent(item.outreachBody)}`
+                        : `mailto:${item.contactEmail}`
+                    }
+                    onClick={() =>
+                      logMonetisationClientEvent(
+                        "outreach_open_gmail_click",
+                        item.id,
+                        "applications",
+                        { stage: item.outreachStage }
+                      )
+                    }
+                    className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
+                  >
+                    Send (Gmail)
+                  </a>
+                ) : (
+                  <Link
+                    href={`/app/applications/${item.id}?tab=activity#outreach`}
+                    className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
+                    onClick={() =>
+                      logMonetisationClientEvent(
+                        "outreach_contact_missing_block",
+                        item.id,
+                        "applications",
+                        { stage: item.outreachStage }
+                      )
+                    }
+                  >
+                    Add contact
+                  </Link>
+                )}
+                {hasLinkedIn ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      logMonetisationClientEvent(
+                        "outreach_open_linkedin_click",
+                        item.id,
+                        "applications",
+                        { stage: item.outreachStage }
+                      );
+                      window.open(item.contactLinkedin, "_blank", "noopener,noreferrer");
+                    }}
+                    className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
+                  >
+                    Send (LinkedIn)
+                  </button>
+                ) : null}
               </div>
             </div>
             {isOpen ? (

@@ -24,6 +24,8 @@ export type CommandCentreItem = {
   outreachSubject?: string;
   outreachBody?: string;
   outreachStage?: string;
+  contactEmail?: string;
+  contactLinkedin?: string;
   updatedLabel: string;
   updatedTs: number;
   urgencyRank: number;
@@ -133,6 +135,8 @@ export function buildCommandCentreItems(
       outreachSubject: outreachReco?.subject,
       outreachBody: outreachReco?.body,
       outreachStage: outreachReco?.stage,
+      contactEmail: app.contact_email ?? undefined,
+      contactLinkedin: app.contact_linkedin ?? undefined,
       updatedLabel,
       updatedTs,
       urgencyRank,

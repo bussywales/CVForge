@@ -49,6 +49,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - In Activity tab, open Outreach panel (`#outreach`), copy a message, log sent, and schedule next follow-up; status badge updates.
 - Mark “Reply received” and confirm outcome prompt; deep-link to activity log still works.
 - Applications Command Centre → Outreach tab shows overdue/due soon follow-ups; Copy + log updates the row and “Open” deep-links to the outreach anchor.
+- Add recruiter email/LinkedIn in Outreach panel, Save, then click Open Gmail to see mail prefilled; LinkedIn opens when set.
 
 ## STAR Library
 - From the application detail page, create a STAR draft for a gap.

@@ -995,6 +995,11 @@ export default async function ApplicationPage({
                 statusLabel={statusLabel}
                 recommendation={outreachRecommendation}
                 nextDue={application.outreach_next_due_at ?? application.next_followup_at ?? application.next_action_due}
+                contactName={application.contact_name}
+                contactEmail={application.contact_email}
+                contactLinkedin={application.contact_linkedin}
+                jobTitle={application.job_title}
+                company={application.company_name ?? application.company}
               />
             </Section>
           </div>

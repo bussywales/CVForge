@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.70
+- Outreach Engine now supports saved recruiter contact (name/email/LinkedIn) with API read/write and validation.
+- Outreach panel adds contact capture plus one-click Gmail/LinkedIn sends with mailto prefill and missing-contact logging.
+- Applications Command Centre Outreach tab shows Send (Gmail/LinkedIn) when contact exists or Add contact deep link when missing.
+- New outreach logging events allowlisted; added helper test for contact validation/mailto builder.
+
 ## v0.7.69
 - Added Outreach panel on Activity tab with copy/log/schedule flow, next follow-up status, and reply capture, anchored at `#outreach`.
 - Applications Command Centre now has an Outreach queue with overdue/due sorting, copy + log modal, and deep links into applications.
