@@ -143,10 +143,10 @@ export default function PortalReturnBanner({ applicationId, state, isActive, por
           <button
             type="button"
             className="rounded-full bg-emerald-700 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-800"
-            onClick={() => handleDismiss("sub_portal_return_keep_momentum")}
-          >
-            {isActive ? "Continue with CVForge" : "Resubscribe"}
-          </button>
+          onClick={() => handleDismiss("sub_portal_return_keep_momentum")}
+        >
+          {isActive ? "Continue with CVForge" : "Resubscribe"}
+        </button>
           {isActive ? (
             <button
               type="button"

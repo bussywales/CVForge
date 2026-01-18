@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { portalReturnKey } from "@/lib/billing/portal-return";
 import CancelDeflection from "./cancel-deflection";
+import { BILLING_MICROCOPY } from "@/lib/billing/microcopy";
 
 type ReasonKey = "expensive" | "low_usage" | "alternative" | "unsure" | "technical";
 
@@ -108,10 +109,10 @@ export default function SubCancelReasons({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-[rgb(var(--ink))]">
-            What’s driving the cancellation?
+            {BILLING_MICROCOPY.cancelDeflection.reasonTitle}
           </p>
           <p className="text-xs text-[rgb(var(--muted))]">
-            Choose the closest reason so we can tailor options.
+            {BILLING_MICROCOPY.cancelDeflection.reasonHelper}
           </p>
         </div>
       </div>
@@ -138,14 +139,14 @@ export default function SubCancelReasons({
           className="rounded-full bg-[rgb(var(--accent))] px-4 py-2 text-sm font-semibold text-white shadow hover:bg-[rgb(var(--accent-strong))] disabled:cursor-not-allowed disabled:opacity-60"
           onClick={openPortal}
         >
-          Continue in Billing Portal
+          {BILLING_MICROCOPY.cancelDeflection.secondaryCta}
         </button>
         <button
           type="button"
           className="rounded-full border border-black/10 px-3 py-2 text-xs font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
           onClick={dismiss}
         >
-          Not now
+          {BILLING_MICROCOPY.cancelDeflection.tertiaryCta}
         </button>
       </div>
       <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-800">

@@ -5,6 +5,7 @@ import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import type { CancelReasonKey } from "@/lib/billing/cancel-deflect";
 import { recommendCancelDeflect } from "@/lib/billing/cancel-deflect";
 import { portalReturnKey } from "@/lib/billing/portal-return";
+import { BILLING_MICROCOPY, formatCta } from "@/lib/billing/microcopy";
 
 const REASONS: Array<{ key: CancelReasonKey; label: string }> = [
   { key: "expensive", label: "Too expensive right now" },
@@ -99,12 +100,25 @@ export default function CancelDeflection({
 
   if (!open) return null;
 
+  const offerLabel =
+    reco.offerKey === "downgrade"
+      ? BILLING_MICROCOPY.cancelDeflection.downgradeLabel
+      : reco.offerKey === "pause"
+        ? BILLING_MICROCOPY.cancelDeflection.pauseLabel
+        : BILLING_MICROCOPY.cancelDeflection.stayLabel;
+  const offerDesc =
+    reco.offerKey === "downgrade"
+      ? BILLING_MICROCOPY.cancelDeflection.downgradeDesc
+      : reco.offerKey === "pause"
+        ? BILLING_MICROCOPY.cancelDeflection.pauseDesc
+        : BILLING_MICROCOPY.cancelDeflection.stayDesc;
+
   return (
     <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 shadow-lg">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="text-sm font-semibold text-amber-900">Before you go…</p>
-          <p className="text-xs text-amber-700">Pick a reason and we’ll tailor the best option.</p>
+          <p className="text-sm font-semibold text-amber-900">{BILLING_MICROCOPY.cancelDeflection.title}</p>
+          <p className="text-xs text-amber-700">{BILLING_MICROCOPY.cancelDeflection.subtitle}</p>
         </div>
         <button
           type="button"
@@ -118,7 +132,7 @@ export default function CancelDeflection({
             dismiss("cancel_deflect_not_now");
           }}
         >
-          Not now
+          {BILLING_MICROCOPY.cancelDeflection.tertiaryCta}
         </button>
       </div>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -144,11 +158,16 @@ export default function CancelDeflection({
         ))}
       </div>
       <div className="mt-3 rounded-2xl border border-white/60 bg-white p-3">
-        <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Recommended</p>
-        <p className="text-sm font-semibold text-[rgb(var(--ink))]">{reco.label}</p>
-        <p className="text-[11px] text-[rgb(var(--muted))]">
-          We’ll adjust your plan or options in the portal.
+        <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+          {BILLING_MICROCOPY.cancelDeflection.stepTitle}
         </p>
+        <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+          {formatCta(BILLING_MICROCOPY.cancelDeflection.primaryCtaTemplate, { offerLabel })}
+        </p>
+        <p className="text-[11px] text-[rgb(var(--muted))]">
+          {BILLING_MICROCOPY.cancelDeflection.stepSubtitle}
+        </p>
+        <p className="mt-1 text-[11px] text-[rgb(var(--muted))]">{offerDesc}</p>
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -163,7 +182,7 @@ export default function CancelDeflection({
               openPortal(reco.flow, reco.planTarget);
             }}
           >
-            {reco.label}
+            {formatCta(BILLING_MICROCOPY.cancelDeflection.primaryCtaTemplate, { offerLabel })}
           </button>
           <button
             type="button"
@@ -173,9 +192,12 @@ export default function CancelDeflection({
               openPortal(flow ?? "cancel", planParam ?? planKey);
             }}
           >
-            Continue to Stripe
+            {BILLING_MICROCOPY.cancelDeflection.secondaryCta}
           </button>
         </div>
+        <p className="mt-2 text-[11px] text-[rgb(var(--muted))]">
+          {BILLING_MICROCOPY.cancelDeflection.trust} {BILLING_MICROCOPY.cancelDeflection.dismissCopy}
+        </p>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { BILLING_MICROCOPY } from "@/lib/billing/microcopy";
 import { portalSaveOfferDismissKey } from "@/lib/billing/portal-return";
 import type { SaveOfferReco } from "@/lib/billing/sub-save-offer";
 
@@ -93,10 +94,10 @@ export default function SubSaveOfferCard({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-1">
           <p className="text-sm font-semibold text-amber-900">
-            Before you go — keep your momentum
+            {BILLING_MICROCOPY.cancelDeflection.title} — keep your momentum
           </p>
           <p className="text-xs text-amber-700">
-            We’ll adjust your plan so you don’t lose progress.
+            {BILLING_MICROCOPY.cancelDeflection.subtitle}
           </p>
           {reco.reasons.length ? (
             <div className="flex flex-wrap gap-2">
