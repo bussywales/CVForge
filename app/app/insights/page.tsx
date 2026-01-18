@@ -31,6 +31,8 @@ import SubLowActivityBanner from "./sub-low-activity-banner";
 import { getSubscriptionStatus } from "@/lib/billing/subscription-status";
 import { computeOutreachInsight } from "@/lib/outreach-insights";
 import OutreachInsightTile from "./outreach-insight-tile";
+import { getOfferWinCandidate } from "@/lib/offer-win-loop";
+import OfferWinTile from "./offer-win-tile";
 
 export const dynamic = "force-dynamic";
 
@@ -141,6 +143,7 @@ export default async function InsightsPage({
   let starMissingCount = 0;
   let starApp: string | null = null;
   let outreachInsight: ReturnType<typeof computeOutreachInsight> | null = null;
+  let offerCandidate: ReturnType<typeof getOfferWinCandidate> | null = null;
 
   const { start, end } = (() => {
     const now = new Date();
@@ -256,6 +259,8 @@ export default async function InsightsPage({
   } catch (error) {
     console.error("[insights.outreach_insight]", error);
   }
+
+  offerCandidate = getOfferWinCandidate(applicationsForInsights);
 
   const weeklyTargets = computeWeeklyTargets({
     followups: followupsThisWeek,
@@ -470,6 +475,7 @@ export default async function InsightsPage({
         weekKey={weekKey}
         summary={weeklyReviewSummary}
       />
+      {offerCandidate ? <OfferWinTile candidate={offerCandidate} weekKey={weekKey} /> : null}
       <SubscriptionIntentCard weekKey={weekKey} recommendation={intentReco} />
 
       <Section
