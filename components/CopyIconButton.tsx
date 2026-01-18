@@ -7,6 +7,7 @@ type Props = {
   label?: string;
   className?: string;
   iconOnly?: boolean;
+  onCopy?: () => void;
 };
 
 export default function CopyIconButton({
@@ -14,12 +15,14 @@ export default function CopyIconButton({
   label,
   className,
   iconOnly,
+  onCopy,
 }: Props) {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(text);
+      if (onCopy) onCopy();
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (error) {

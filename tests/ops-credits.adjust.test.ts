@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateCreditPayload } from "@/app/api/ops/credits/adjust/route";
+import { validateCreditPayload } from "@/lib/ops/credit-adjust";
 
 describe("validateCreditPayload", () => {
   it("rejects zero or out of range amounts", () => {

@@ -243,7 +243,7 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
               <CopyIconButton
                 text={linkUrl}
                 label={OPS_COPY.copyLink}
-                onClick={() => logMonetisationClientEvent("ops_support_link_copy", targetUserId, "ops", { kind: linkKind })}
+                onCopy={() => logMonetisationClientEvent("ops_support_link_copy", targetUserId, "ops", { kind: linkKind })}
               />
             </div>
           ) : null}
