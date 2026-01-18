@@ -113,6 +113,7 @@ Ops Command Centre at `/app/ops` (env-guarded) lets support staff search users, 
 Observability: key flows return request IDs with premium error banners plus copyable support snippets; Sentry capture uses the same references for faster debugging.
 Incident Console (v0.7.82) lets ops look up Reference IDs and browse recent incidents (billing/checkout/portal/outcomes) with masked user info and support snippets.
 v0.7.84 extends requestId + structured error coverage across remaining APIs and surfaces, making support handoff consistent.
+Incident Console v2 (v0.7.85) adds grouped feeds, filters, related timelines, and CSV/JSON export for ops with no secrets exposed.
 
 ## Deterministic vs OpenAI usage
 Deterministic engines include role-fit.ts, interview-lift.ts, outreach-templates.ts, submission-quality.ts, and metrics-helper.ts. OpenAI is only used for autopack generation via server-side API calls.

@@ -4,6 +4,11 @@
 - Completed observability coverage: remaining API routes now return structured errors with requestId headers and safe capture (outcomes summary/insights/link, referrals, diagnostics, etc.).
 - Premium ErrorBanner and support snippet wiring kept across billing/outreach/outcome flows; added error-shape test for requestId/code.
 
+## v0.7.85
+- Ops Incident Console v2: grouped/deduped incident feed with counts, filters (time/surface/code/flow/search/high-impact), related-event timeline, and CSV/JSON export with safe fields.
+- Added correlation/grouping helpers and incident-correlation test; export is sanitized (masked users, no secrets).
+- Lookup shows related timeline and copyable snippets/refs; docs updated with new smoke steps and capabilities note.
+
 ## v0.7.83
 - Billing compare section recommends subscription vs top-up with deterministic helper, “Why this?” bullets, and checkout/portal handling with requestId-aware error banners.
 - New compare events allowlisted; smoke tests updated.

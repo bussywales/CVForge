@@ -258,6 +258,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Trigger portal open failure → Reference visible; snippet copies.
 - Force outcome/contact save failure → banner shows standard message + requestId for support.
 
+## Ops Incident Console v2 (v0.7.85)
+- Open /app/ops/incidents as ops: feed shows grouped incidents with counts and filters (time/surface/code/flow/high impact).
+- Expand a group to see individual events and copy requestIds/snippets; related timeline shows nearby events.
+- RequestId lookup shows details + related timeline; export CSV/JSON works and omits secrets (masked users).
+
 ## Applications Command Centre (v0.7.43)
 - /app/applications shows Queue with next-action CTA and readiness 0–5.
 - Tabs filter between Queue/Drafts/Submitted/Interview/Closed.

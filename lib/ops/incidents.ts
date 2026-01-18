@@ -2,19 +2,7 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import type { ApplicationActivityRecord } from "@/lib/data/application-activities";
-
-export type IncidentSurface = "billing" | "portal" | "checkout" | "outcomes" | "outreach" | "referrals" | "other";
-export type IncidentRecord = {
-  requestId: string;
-  at: string;
-  surface: IncidentSurface;
-  code: string | null;
-  message: string | null;
-  userId: string | null;
-  emailMasked?: string | null;
-  context?: Record<string, unknown>;
-  eventName?: string | null;
-};
+import type { IncidentSurface, IncidentRecord } from "./incidents-shared";
 
 const SURFACE_HINTS: Record<string, IncidentSurface> = {
   checkout_start_failed: "checkout",
@@ -51,6 +39,9 @@ function parseActivity(activity: ApplicationActivityRecord, userEmail?: string |
   const requestId = meta.requestId ?? meta.request_id ?? null;
   if (!requestId) return null;
   const eventName = activity.type?.replace("monetisation.", "") ?? null;
+  const flow = (meta.flow as string | undefined) ?? (meta.from as string | undefined) ?? null;
+  const path = (meta.path as string | undefined) ?? (meta.returnTo as string | undefined) ?? null;
+  const returnTo = (meta.returnTo as string | undefined) ?? null;
   const surface =
     (meta.surface as IncidentSurface) ??
     (eventName && SURFACE_HINTS[eventName]) ??
@@ -68,6 +59,9 @@ function parseActivity(activity: ApplicationActivityRecord, userEmail?: string |
     emailMasked: maskEmail(userEmail),
     context: meta,
     eventName,
+    flow,
+    path,
+    returnTo,
   };
 }
 
