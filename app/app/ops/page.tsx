@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabaseUser } from "@/lib/data/supabase";
-import { isOpsAdmin } from "@/lib/ops/auth";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getUserCredits, listCreditActivity } from "@/lib/data/credits";
 import { getSubscriptionStatus } from "@/lib/billing/subscription-status";
 import { listApplications } from "@/lib/data/applications";
 import { headers } from "next/headers";
+import { requireOpsAccess } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +52,7 @@ async function buildUserSnapshot(userId: string, email: string) {
 
 export default async function OpsPage({ searchParams }: { searchParams?: { q?: string } }) {
   const { supabase, user } = await getSupabaseUser();
-  if (!user || !isOpsAdmin(user.email)) {
+  if (!user || !(await requireOpsAccess(user.id, user.email))) {
     notFound();
   }
 

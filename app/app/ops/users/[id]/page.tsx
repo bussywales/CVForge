@@ -1,18 +1,19 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getSupabaseUser } from "@/lib/data/supabase";
-import { isOpsAdmin } from "@/lib/ops/auth";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getUserCredits, listCreditActivity } from "@/lib/data/credits";
 import { getSubscriptionStatus } from "@/lib/billing/subscription-status";
 import { listApplications } from "@/lib/data/applications";
 import { buildNextBestActions } from "@/lib/next-best-actions";
+import { getUserRole, requireOpsAccess, isAdminRole, canAssignRole, type UserRole } from "@/lib/rbac";
+import RoleEditor from "./role-editor";
 
 export const dynamic = "force-dynamic";
 
 export default async function OpsUserPage({ params }: { params: { id: string } }) {
   const { user } = await getSupabaseUser();
-  if (!user || !isOpsAdmin(user.email)) {
+  if (!user || !(await requireOpsAccess(user.id, user.email))) {
     notFound();
   }
 
@@ -21,6 +22,9 @@ export default async function OpsUserPage({ params }: { params: { id: string } }
   if (!authUser?.data?.user) {
     notFound();
   }
+  const viewerRole = (await getUserRole(user.id)).role;
+  const targetRoleInfo = await getUserRole(params.id);
+  const canEdit = isAdminRole(viewerRole) && canAssignRole(viewerRole, targetRoleInfo.role);
 
   const credits = await getUserCredits(admin as any, params.id);
   const ledger = await listCreditActivity(admin as any, params.id, 5);
@@ -65,6 +69,7 @@ export default async function OpsUserPage({ params }: { params: { id: string } }
                 ? subscription.currentPlanKey ?? "active"
                 : "none"}
             </p>
+            <p>Role: {targetRoleInfo.role}</p>
           </div>
           <div>
             <p className="text-xs font-semibold text-[rgb(var(--ink))]">Recent credits</p>
@@ -147,6 +152,14 @@ export default async function OpsUserPage({ params }: { params: { id: string } }
           ))}
         </ul>
       </div>
+      {canEdit ? (
+        <RoleEditor
+          targetUserId={params.id}
+          targetEmail={authUser.data.user.email ?? "unknown"}
+          currentRole={targetRoleInfo.role as UserRole}
+          canSetSuperAdmin={viewerRole === "super_admin"}
+        />
+      ) : null}
     </div>
   );
 }

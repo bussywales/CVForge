@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
 import { getSupabaseUser } from "@/lib/data/supabase";
-import { isOpsAdmin } from "@/lib/ops/auth";
 import { getIncidentByRequestId, getRecentIncidentEvents } from "@/lib/ops/incidents";
 import IncidentsClient from "./incidents-client";
+import { requireOpsAccess } from "@/lib/rbac";
 
 export const dynamic = "force-dynamic";
 
 export default async function IncidentConsole({ searchParams }: { searchParams?: { requestId?: string; days?: string } }) {
-  const { supabase, user } = await getSupabaseUser();
-  if (!user || !isOpsAdmin(user.email)) {
+  const { user } = await getSupabaseUser();
+  if (!user || !(await requireOpsAccess(user.id, user.email))) {
     notFound();
   }
 
