@@ -63,6 +63,8 @@ export default async function MarketingPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  const loginPath = "/login";
+  const signupPath = "/login?next=/app";
   const ctas: CtaLinks = user?.id
     ? {
         primary: "/app/applications/new",
@@ -70,8 +72,8 @@ export default async function MarketingPage() {
         pricing: "/app/billing",
       }
     : {
-        primary: "/login?next=/app/applications/new",
-        secondary: "/login",
+        primary: signupPath,
+        secondary: loginPath,
         pricing: "/login?next=/app/billing",
       };
 
