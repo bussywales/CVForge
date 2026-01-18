@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.75
+- Outreach Engine v4: added Polite/Direct/Warm variants with quality cues, persistence, and Gmail/LinkedIn/send/copy logging.
+- Outreach performance insights (14d reply rate, sent/replies/follow-ups + tip) on Insights and Command Centre Outreach tab.
+- New deterministic outreach variant and insights helpers with tests; new monetisation events allowlisted.
+
 ## v0.7.74
 - Interview Focus Session v3 on Interview tab: guided 15–25 minute flow with Do now/Up next/If time lanes, Ready/Undo, session completion, and copy-all answers.
 - Deterministic session builder and microcopy deck; new session logging events allowlisted; anchored above Answer Pack for deep links.

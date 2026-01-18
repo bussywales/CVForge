@@ -12,9 +12,12 @@ import { createFollowupFromTemplateAction } from "./actions";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { buildNextMove } from "@/lib/outreach-next-move";
 import { getOutreachStageLabel } from "@/lib/outreach-utils";
+import type { OutreachInsight } from "@/lib/outreach-insights";
 
 type Props = {
   items: CommandCentreItem[];
+  outreachInsight?: OutreachInsight | null;
+  initialView?: ViewFilter;
 };
 
 const statusStyles: Record<string, string> = {
@@ -40,8 +43,8 @@ const filters: { id: ViewFilter; label: string }[] = [
 
 type ViewFilter = "queue" | "outreach" | "drafts" | "submitted" | "interview" | "closed";
 
-export default function ApplicationsCommandCentre({ items }: Props) {
-  const [view, setView] = useState<ViewFilter>("queue");
+export default function ApplicationsCommandCentre({ items, outreachInsight, initialView = "queue" }: Props) {
+  const [view, setView] = useState<ViewFilter>(initialView);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
@@ -49,6 +52,14 @@ export default function ApplicationsCommandCentre({ items }: Props) {
       logMonetisationClientEvent("outreach_queue_view", items[0].id, "applications");
     }
   }, [items, view]);
+
+  useEffect(() => {
+    if (view === "outreach" && outreachInsight && items[0]) {
+      logMonetisationClientEvent("outreach_insight_view", items[0].id, "applications", {
+        replyRate: outreachInsight.replyRate,
+      });
+    }
+  }, [items, outreachInsight, view]);
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -116,7 +127,38 @@ export default function ApplicationsCommandCentre({ items }: Props) {
           No matches. Try clearing search or switch view.
         </div>
       ) : view === "outreach" ? (
-        <OutreachList items={filtered} />
+        <div className="space-y-3">
+          {outreachInsight ? (
+            <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--muted))]">
+                    Outreach performance (14d)
+                  </p>
+                  <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+                    Reply rate: {outreachInsight.replyRate}%
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
+                  onClick={() =>
+                    logMonetisationClientEvent("outreach_insight_click", items[0]?.id, "applications")
+                  }
+                >
+                  View tips
+                </button>
+              </div>
+              <div className="mt-2 flex flex-wrap items-center gap-3 text-[11px] text-[rgb(var(--muted))]">
+                <span>Sent: {outreachInsight.sent}</span>
+                <span>Replies: {outreachInsight.replies}</span>
+                <span>Follow-ups: {outreachInsight.followups}</span>
+              </div>
+              <p className="mt-1 text-xs text-[rgb(var(--muted))]">{outreachInsight.tip}</p>
+            </div>
+          ) : null}
+          <OutreachList items={filtered} />
+        </div>
       ) : (
         <div className="space-y-3">
           {filtered.map((item) => (
@@ -276,7 +318,7 @@ function OutreachRow({ item }: { item: CommandCentreItem }) {
               }
               onClick={() =>
                 logMonetisationClientEvent(
-                  "outreach_open_gmail_click",
+                  "outreach_send_gmail",
                   item.id,
                   "applications",
                   { stage: item.outreachStage }
@@ -307,7 +349,7 @@ function OutreachRow({ item }: { item: CommandCentreItem }) {
               type="button"
               onClick={() => {
                 logMonetisationClientEvent(
-                  "outreach_open_linkedin_click",
+                  "outreach_send_linkedin",
                   item.id,
                   "applications",
                   { stage: item.outreachStage }

@@ -9,4 +9,19 @@ export const OUTREACH_COPY = Object.freeze({
   STATE_OVERDUE: "Overdue — send today",
   STATE_LOGGED: "Logged — next follow-up scheduled",
   QUEUE_EMPTY: "Nothing due. That’s good — keep building evidence and interview prep.",
+  VARIANTS: {
+    POLITE: "Polite",
+    DIRECT: "Direct",
+    WARM: "Warm",
+  },
+  QUALITY_LABEL: "Quality",
+  QUALITY_CHIPS: {
+    SHORT: "Short",
+    MEDIUM: "Medium length",
+    LONG: "Detailed",
+    PROOF: "Proof included",
+    ASK: "Clear ask",
+  },
+  INSIGHTS_TITLE: "Outreach performance",
+  INSIGHTS_TIP_LABEL: "Next improvement",
 });

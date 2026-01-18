@@ -6,8 +6,13 @@ import ApplicationsCommandCentre from "./applications-command-centre";
 import { buildCommandCentreItems } from "@/lib/applications-command-centre";
 import { getUserCredits } from "@/lib/data/credits";
 import CreditsIdleNudge from "@/components/CreditsIdleNudge";
+import { computeOutreachInsight } from "@/lib/outreach-insights";
 
-export default async function ApplicationsPage() {
+export default async function ApplicationsPage({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[]>;
+}) {
   const { supabase, user } = await getSupabaseUser();
 
   if (!user) {
@@ -20,6 +25,7 @@ export default async function ApplicationsPage() {
 
   const applications = await listApplications(supabase, user.id);
   const credits = await getUserCredits(supabase, user.id);
+  let outreachInsight: ReturnType<typeof computeOutreachInsight> | null = null;
   const [evidenceRows, starRows, autopackRows] = await Promise.all([
     supabase
       .from("application_evidence")
@@ -43,6 +49,21 @@ export default async function ApplicationsPage() {
   }
   if (autopackRows.error) {
     console.error("[applications.autopackCounts]", autopackRows.error);
+  }
+
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - 14);
+    const { data, error } = await supabase
+      .from("application_activities")
+      .select("type,occurred_at")
+      .eq("user_id", user.id)
+      .gte("occurred_at", since.toISOString());
+    if (!error && data) {
+      outreachInsight = computeOutreachInsight(data);
+    }
+  } catch (error) {
+    console.error("[applications.outreachInsight]", error);
   }
 
   const evidenceCounts = (evidenceRows.data ?? []).reduce<Record<string, number>>(
@@ -128,7 +149,11 @@ export default async function ApplicationsPage() {
             </Link>
           </div>
         ) : (
-          <ApplicationsCommandCentre items={items} />
+          <ApplicationsCommandCentre
+            items={items}
+            outreachInsight={outreachInsight}
+            initialView={searchParams?.view === "outreach" ? "outreach" : "queue"}
+          />
         )}
       </Section>
     </>

@@ -69,7 +69,7 @@ A pipeline board shows status lanes, next actions, and activity history. The Act
 Outcome Loop v2 offers quick outcome logging (status/reason/note) embedded across Weekly Review, Outreach, and application overview, plus insights with top reasons and recommended next moves that feed into next-best actions.
 
 ## Outreach Engine
-Deterministic outreach templates for email and LinkedIn, one-click logging, and automated next-outreach scheduling. Outreach panel on Activity tab plus an Outreach queue in Applications Command Centre for copy + log and deep-linking. Supports saved recruiter contact, one-click Gmail/LinkedIn send, reply triage, and next-move recommendations.
+Deterministic outreach templates for email and LinkedIn, one-click logging, and automated next-outreach scheduling. Outreach panel on Activity tab plus an Outreach queue in Applications Command Centre for copy + log and deep-linking. Supports saved recruiter contact, one-click Gmail/LinkedIn send, reply triage, next-move recommendations, message variants with quality cues, and reply-rate insights.
 
 ## Interview Focus Session
 Interview tab includes a guided Focus Session (15–25 mins) with prioritised questions, quality cues, Ready/Undo persistence per week, copy-all answers, and deep links into Answer Pack items.

@@ -29,6 +29,8 @@ import SubscriptionIntentCard from "./subscription-intent-card";
 import { recommendSubscriptionIntent } from "@/lib/billing/subscription-intent";
 import SubLowActivityBanner from "./sub-low-activity-banner";
 import { getSubscriptionStatus } from "@/lib/billing/subscription-status";
+import { computeOutreachInsight } from "@/lib/outreach-insights";
+import OutreachInsightTile from "./outreach-insight-tile";
 
 export const dynamic = "force-dynamic";
 
@@ -138,6 +140,7 @@ export default async function InsightsPage({
   let evidenceApp: string | null = null;
   let starMissingCount = 0;
   let starApp: string | null = null;
+  let outreachInsight: ReturnType<typeof computeOutreachInsight> | null = null;
 
   const { start, end } = (() => {
     const now = new Date();
@@ -237,6 +240,21 @@ export default async function InsightsPage({
     }
   } catch (error) {
     console.error("[coach.applications]", error);
+  }
+
+  try {
+    const since = new Date();
+    since.setDate(since.getDate() - 14);
+    const { data, error } = await supabase
+      .from("application_activities")
+      .select("type,occurred_at")
+      .eq("user_id", user.id)
+      .gte("occurred_at", since.toISOString());
+    if (!error && data) {
+      outreachInsight = computeOutreachInsight(data);
+    }
+  } catch (error) {
+    console.error("[insights.outreach_insight]", error);
   }
 
   const weeklyTargets = computeWeeklyTargets({
@@ -419,12 +437,17 @@ export default async function InsightsPage({
               surface="insights"
               packAvailability={packAvailability}
             />
-          </div>
-        </div>
-      ) : null}
-      {referral?.code ? <ReferralCta code={referral.code} /> : null}
+      </div>
+    </div>
+  ) : null}
+  {referral?.code ? <ReferralCta code={referral.code} /> : null}
+  {outreachInsight ? (
+    <div className="mb-4">
+      <OutreachInsightTile applicationId={latestApplicationId} insight={outreachInsight} />
+    </div>
+  ) : null}
 
-      <Section title="This Week" description={weeklyCoachPlan.weekLabel}>
+  <Section title="This Week" description={weeklyCoachPlan.weekLabel}>
         {lowActivity ? (
           <div className="mb-3">
             <SubLowActivityBanner

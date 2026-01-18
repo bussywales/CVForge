@@ -17,6 +17,7 @@ import { buildMailto, isValidEmail, isValidLinkedIn } from "@/lib/outreach-mailt
 import { logOutreachTriageAction } from "./actions";
 import { buildNextMove } from "@/lib/outreach-next-move";
 import OutcomeQuickLog from "@/components/OutcomeQuickLog";
+import { buildOutreachVariants } from "@/lib/outreach-variants";
 
 type OutreachPanelProps = {
   applicationId: string;
@@ -63,14 +64,51 @@ export default function OutreachPanel({
   const [triage, setTriage] = useState<string | null>(triageStatus ?? null);
   const [triageNote, setTriageNote] = useState(triageNotes ?? "");
   const [triageMessage, setTriageMessage] = useState<string | null>(null);
+  const variants = useMemo(
+    () =>
+      buildOutreachVariants({
+        role: jobTitle,
+        company,
+        contactName,
+        stage: recommendation?.stage,
+        triage: triageStatus ?? undefined,
+      }),
+    [company, contactName, jobTitle, recommendation?.stage, triageStatus]
+  );
+  const storageKey = useMemo(
+    () => `cvf:outreach_variant:${applicationId}`,
+    [applicationId]
+  );
+  const [variantKey, setVariantKey] = useState<string>(variants[0]?.key ?? "polite");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(storageKey, variantKey);
+  }, [storageKey, variantKey]);
 
   const subject = recommendation?.subject ?? "";
-  const body = recommendation?.body ?? "";
   const dueLabel = describeFollowupStatus(nextDue ?? recommendation?.dueAt);
 
-  useMemo(() => {
-    setMessage(body);
-  }, [body]);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const raw = window.localStorage.getItem(storageKey);
+    if (raw) {
+      setVariantKey(raw);
+    }
+  }, [storageKey]);
+
+  const selectedVariant = variants.find((v) => v.key === variantKey) ?? variants[0];
+
+  useEffect(() => {
+    if (!selectedVariant) return;
+    setMessage(selectedVariant.body);
+    logMonetisationClientEvent("outreach_quality_shown", applicationId, "applications", {
+      variant: selectedVariant.key,
+      quality: selectedVariant.quality,
+    });
+    logMonetisationClientEvent("outreach_variant_view", applicationId, "applications", {
+      variant: selectedVariant.key,
+    });
+  }, [applicationId, selectedVariant]);
 
   useEffect(() => {
     logMonetisationClientEvent("outreach_panel_view", applicationId, "applications", {
@@ -93,11 +131,13 @@ export default function OutreachPanel({
   }, [triageStatus, triageNotes]);
 
   const handleCopy = async () => {
+    if (!selectedVariant) return;
     try {
       await navigator.clipboard.writeText(message);
       setCopied(true);
-      logMonetisationClientEvent("outreach_copy_click", applicationId, "applications", {
+      logMonetisationClientEvent("outreach_variant_copy", applicationId, "applications", {
         stage: recommendation?.stage,
+        variant: selectedVariant.key,
       });
       setTimeout(() => setCopied(false), 2500);
     } catch (error) {
@@ -152,20 +192,25 @@ export default function OutreachPanel({
 
   const mailtoHref = useMemo(() => {
     if (!contactEmail || !message) return null;
-    const sub = subject || `Re: ${jobTitle ?? "Role"}${company ? ` at ${company}` : ""}`;
+    const sub =
+      selectedVariant?.subject ||
+      subject ||
+      `Re: ${jobTitle ?? "Role"}${company ? ` at ${company}` : ""}`;
     return buildMailto({
       email: contactEmail,
       subject: sub,
       body: message,
     });
-  }, [contactEmail, message, subject, jobTitle, company]);
+  }, [contactEmail, message, subject, selectedVariant?.subject, jobTitle, company]);
 
   const handleOpenMail = () => {
     if (!mailtoHref) {
       logMonetisationClientEvent("outreach_send_blocked_no_contact", applicationId, "applications", {});
       return;
     }
-    logMonetisationClientEvent("outreach_open_gmail_click", applicationId, "applications", {});
+    logMonetisationClientEvent("outreach_send_gmail", applicationId, "applications", {
+      variant: selectedVariant?.key,
+    });
     const tooLong = message.length > 1500;
     if (tooLong) {
       void navigator.clipboard.writeText(message).catch(() => undefined);
@@ -179,7 +224,9 @@ export default function OutreachPanel({
       logMonetisationClientEvent("outreach_send_blocked_no_contact", applicationId, "applications", {});
       return;
     }
-    logMonetisationClientEvent("outreach_open_linkedin_click", applicationId, "applications", {});
+    logMonetisationClientEvent("outreach_send_linkedin", applicationId, "applications", {
+      variant: selectedVariant?.key,
+    });
     window.open(contactLinkedin, "_blank", "noopener,noreferrer");
   };
 
@@ -414,83 +461,125 @@ export default function OutreachPanel({
           ) : null}
         </div>
 
-        {recommendation ? (
-          <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <div>
-                {subject ? (
-                  <p className="text-sm font-semibold text-[rgb(var(--ink))]">
-                    {subject}
-                  </p>
-                ) : null}
-                <p className="text-xs text-[rgb(var(--muted))]">
-                  {recommendation.stage ? recommendation.stage.replace(/_/g, " ") : "Follow-up"}
-                </p>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={handleOpenMail}
-                    className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
-                    disabled={!mailtoHref}
-                  >
-                    {contactEmail ? "Open Gmail" : "Add contact"}
-                  </button>
-                  {contactLinkedin ? (
-                    <button
-                      type="button"
-                      onClick={handleOpenLinkedIn}
-                      className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
-                    >
-                      Open LinkedIn
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    onClick={handleCopy}
-                    className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
-                  >
-                    {copied ? "Copied" : OUTREACH_COPY.CTA_COPY}
-                  </button>
-                </div>
-                <form
-                  action={createFollowupFromTemplateAction}
-                  onSubmit={() =>
-                    logMonetisationClientEvent(
-                      "outreach_log_sent",
-                      applicationId,
-                      "applications",
-                      { stage: recommendation.stage }
-                    )
-                  }
+        <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {variants.map((variant) => (
+                <button
+                  key={variant.key}
+                  type="button"
+                  onClick={() => {
+                    setVariantKey(variant.key);
+                    setMessage(variant.body);
+                    logMonetisationClientEvent("outreach_variant_select", applicationId, "applications", {
+                      variant: variant.key,
+                    });
+                  }}
+                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                    variantKey === variant.key
+                      ? "bg-[rgb(var(--ink))] text-white"
+                      : "border border-black/10 bg-white text-[rgb(var(--ink))]"
+                  }`}
                 >
-                  <input type="hidden" name="application_id" value={applicationId} />
-                  <input type="hidden" name="subject" value={subject} />
-                  <input type="hidden" name="body" value={message} />
-                  <Button type="submit" disabled={isPending}>
-                    {OUTREACH_COPY.CTA_LOG}
-                  </Button>
-                </form>
+                  {variant.key === "polite"
+                    ? OUTREACH_COPY.VARIANTS.POLITE
+                    : variant.key === "direct"
+                      ? OUTREACH_COPY.VARIANTS.DIRECT
+                      : OUTREACH_COPY.VARIANTS.WARM}
+                </button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[10px] text-[rgb(var(--muted))]">
+              <span className="rounded-full bg-slate-100 px-2 py-1 font-semibold">
+                {OUTREACH_COPY.QUALITY_LABEL}: {selectedVariant?.reason ?? "Clear ask"}
+              </span>
+              {selectedVariant ? (
+                <span className="flex flex-wrap items-center gap-1">
+                  <ChipLabel value={selectedVariant.quality.lengthBand} />
+                  {selectedVariant.quality.hasProof ? (
+                    <span className="rounded-full bg-emerald-100 px-2 py-1 font-semibold text-emerald-700">
+                      {OUTREACH_COPY.QUALITY_CHIPS.PROOF}
+                    </span>
+                  ) : null}
+                  {selectedVariant.quality.hasAsk ? (
+                    <span className="rounded-full bg-blue-100 px-2 py-1 font-semibold text-blue-700">
+                      {OUTREACH_COPY.QUALITY_CHIPS.ASK}
+                    </span>
+                  ) : null}
+                </span>
+              ) : null}
+            </div>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              {selectedVariant?.subject || subject ? (
+                <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+                  {selectedVariant?.subject || subject}
+                </p>
+              ) : null}
+              <p className="text-xs text-[rgb(var(--muted))]">
+                {recommendation?.stage ? recommendation.stage.replace(/_/g, " ") : "Follow-up"}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleOpenMail}
+                className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
+                disabled={!mailtoHref}
+              >
+                {contactEmail ? "Open Gmail" : "Add contact"}
+              </button>
+              {contactLinkedin ? (
                 <button
                   type="button"
-                  onClick={handleSchedule}
+                  onClick={handleOpenLinkedIn}
                   className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
-                  disabled={isPending}
                 >
-                  {OUTREACH_COPY.CTA_SCHEDULE}
+                  Open LinkedIn
                 </button>
-              </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
+              >
+                {copied ? "Copied" : OUTREACH_COPY.CTA_COPY}
+              </button>
             </div>
-            <pre className="mt-3 whitespace-pre-wrap text-sm text-[rgb(var(--muted))]">
-              {message}
-            </pre>
           </div>
-        ) : (
-          <p className="text-sm text-[rgb(var(--muted))]">
-            {OUTREACH_COPY.STATE_NONE}
-          </p>
-        )}
+          <pre className="mt-3 whitespace-pre-wrap text-sm text-[rgb(var(--muted))]">
+            {message}
+          </pre>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <form
+              action={createFollowupFromTemplateAction}
+              onSubmit={() =>
+                logMonetisationClientEvent(
+                  "outreach_log_sent",
+                  applicationId,
+                  "applications",
+                  { stage: recommendation?.stage, variant: selectedVariant?.key }
+                )
+              }
+            >
+              <input type="hidden" name="application_id" value={applicationId} />
+              <input type="hidden" name="subject" value={selectedVariant?.subject || subject} />
+              <input type="hidden" name="body" value={message} />
+              <Button type="submit" disabled={isPending}>
+                {OUTREACH_COPY.CTA_LOG}
+              </Button>
+            </form>
+            <button
+              type="button"
+              onClick={handleSchedule}
+              className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
+              disabled={isPending}
+            >
+              {OUTREACH_COPY.CTA_SCHEDULE}
+            </button>
+          </div>
+        </div>
 
         <div className="rounded-2xl border border-black/10 bg-white/70 p-4">
           <p className="text-xs font-semibold text-[rgb(var(--muted))]">
@@ -583,5 +672,19 @@ export default function OutreachPanel({
         </div>
       </div>
     </div>
+  );
+}
+
+function ChipLabel({ value }: { value: string }) {
+  const map: Record<string, string> = {
+    short: OUTREACH_COPY.QUALITY_CHIPS.SHORT,
+    medium: OUTREACH_COPY.QUALITY_CHIPS.MEDIUM,
+    long: OUTREACH_COPY.QUALITY_CHIPS.LONG,
+  };
+  const label = map[value] ?? value;
+  return (
+    <span className="rounded-full bg-slate-100 px-2 py-1 font-semibold text-[rgb(var(--muted))]">
+      {label}
+    </span>
   );
 }
