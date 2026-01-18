@@ -463,15 +463,6 @@ export default function SubscriptionPlansSection({
           </div>
         </div>
       ) : null}
-      <CompareCard
-        comparison={comparison}
-        applicationId={applicationId}
-        recommendedPack={recommendedPack}
-        returnTo={returnTo}
-        packAvailable={packAvailable}
-        subscriptionAvailable={planAvailability[selectedPlanKey] ?? true}
-        selectedPlanKey={selectedPlanKey}
-      />
     </div>
   );
 }

@@ -32,6 +32,8 @@ import { parsePortalReturn, portalReturnKey } from "@/lib/billing/portal-return"
 import SubSaveOfferCard from "./sub-save-offer-card";
 import { recommendSaveOffer } from "@/lib/billing/sub-save-offer";
 import SubCancelReasons from "./sub-cancel-reasons";
+import CompareCard from "./compare-card";
+import { buildCompareRecommendation } from "@/lib/billing/compare-reco";
 
 export const dynamic = "force-dynamic";
 
@@ -199,6 +201,17 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       })
     : null;
   const portalKey = portalReturnKey(portalState, weekKey);
+  const compareReco = buildCompareRecommendation({
+    hasSubscription,
+    currentPlanKey: (subscriptionStatus.currentPlanKey as "monthly_30" | "monthly_80" | null) ?? null,
+    activeApplications: appCount,
+    weeklyStreakActive: false,
+    completions7: signals.completions7,
+    credits,
+    topups30: signals.topups30,
+    subscriptionAvailable: Boolean(planAvailability.monthly_30 || planAvailability.monthly_80),
+    packAvailability,
+  });
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -262,6 +275,20 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           returnTo="/app/billing"
         />
       ) : null}
+      <CompareCard
+        hasSubscription={hasSubscription}
+        currentPlanKey={(subscriptionStatus.currentPlanKey ?? "monthly_30") as "monthly_30" | "monthly_80"}
+        activeApplications={appCount}
+        weeklyStreakActive={false}
+        completions7={signals.completions7}
+        credits={credits}
+        topups30={signals.topups30}
+        planAvailability={planAvailability}
+        packAvailability={packAvailability}
+        subscriptionAvailable={Boolean(planAvailability.monthly_30 || planAvailability.monthly_80)}
+        applicationId={latestApplicationId}
+        returnTo="/app/billing"
+      />
       {showPortalReturn ? (
         <PortalReturnBanner
           applicationId={latestApplicationId}

@@ -1,230 +1,415 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { formatGbp } from "@/lib/billing/packs-data";
-import { SUBSCRIPTION_PLANS } from "@/lib/billing/plans-data";
-import { CompareResult } from "@/lib/billing/compare";
+import { useEffect, useMemo, useState } from "react";
+import { CREDIT_PACKS, type CreditPack, formatGbp } from "@/lib/billing/packs-data";
+import { SUBSCRIPTION_PLANS, type SubscriptionPlan } from "@/lib/billing/plans-data";
+import { buildCompareRecommendation, type CompareRecommendation } from "@/lib/billing/compare-reco";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { withRequestIdHeaders } from "@/lib/observability/request-id";
+import { safeReadJson } from "@/lib/http/safe-json";
+import ErrorBanner from "@/components/ErrorBanner";
+import { ERROR_COPY } from "@/lib/microcopy/errors";
+import { buildSupportSnippet } from "@/lib/observability/support-snippet";
 
 type Props = {
-  comparison: CompareResult;
-  applicationId: string | null;
-  recommendedPack: { key: string; name: string; priceGbp: number };
-  returnTo: string;
-  packAvailable: boolean;
+  hasSubscription: boolean;
+  currentPlanKey?: "monthly_30" | "monthly_80" | null;
+  activeApplications: number;
+  weeklyStreakActive?: boolean;
+  completions7: number;
+  credits: number;
+  topups30: number;
+  planAvailability: { monthly_30?: boolean; monthly_80?: boolean };
+  packAvailability: Partial<Record<CreditPack["key"], boolean>>;
   subscriptionAvailable: boolean;
-  selectedPlanKey?: "monthly_30" | "monthly_80";
+  applicationId?: string | null;
+  returnTo?: string;
+};
+
+const COPY = {
+  title: "Choose the best option for you",
+  subtitle: "Pick the plan that matches your job search pace — we’ll recommend one.",
+  subscription: {
+    title: "Subscription",
+    tagline: "Best for weekly momentum",
+    bullets: ["Keeps you applying every week", "Less decision-making, more shipping", "Upgrade or downgrade anytime"],
+    cta: "Start subscription",
+    manage: "Manage subscription",
+  },
+  topup: {
+    title: "Top-up credits",
+    tagline: "Best for a focused push",
+    bullets: ["Finish 1–2 applications now", "Pay once, use when needed", "Great for one-off deadlines"],
+    cta: "Top up now",
+  },
+  recommended: "Recommended",
+  whyOpen: "Why this?",
+  whyClose: "Hide why",
+  secondary: "Choose this instead",
+  reasons: {
+    weekly_momentum: "Recommended because you’re building weekly momentum.",
+    single_push: "Recommended because you’re in a focused push right now.",
+    heavy_user_upgrade: "Recommended because your usage fits the Monthly 80 plan.",
+    already_subscribed: "You’re already subscribed — keep your momentum going.",
+  },
 };
 
 export default function CompareCard({
-  comparison,
-  applicationId,
-  recommendedPack,
-  returnTo,
-  packAvailable,
+  hasSubscription,
+  currentPlanKey,
+  activeApplications,
+  weeklyStreakActive,
+  completions7,
+  credits,
+  topups30,
+  planAvailability,
+  packAvailability,
   subscriptionAvailable,
-  selectedPlanKey,
+  applicationId,
+  returnTo = "/app/billing",
 }: Props) {
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState<"topup" | "subscribe" | null>(null);
-  const subscriptionUnavailable = !subscriptionAvailable;
-  const selectedPlan =
-    SUBSCRIPTION_PLANS.find((plan) => plan.key === selectedPlanKey) ??
-    SUBSCRIPTION_PLANS.find((plan) => plan.key === comparison.suggestedPlanKey);
-  const rows = comparison.rows.map((row) =>
-    row.label === "Covers this month" && selectedPlan
-      ? { ...row, subscription: `Up to ${selectedPlan.creditsPerMonth} credits` }
-      : row
+  const recommendation: CompareRecommendation = useMemo(
+    () =>
+      buildCompareRecommendation({
+        hasSubscription,
+        currentPlanKey,
+        activeApplications,
+        weeklyStreakActive,
+        completions7,
+        credits,
+        topups30,
+        subscriptionAvailable,
+        packAvailability,
+      }),
+    [hasSubscription, currentPlanKey, activeApplications, weeklyStreakActive, completions7, credits, topups30, subscriptionAvailable, packAvailability]
   );
+  const [showWhy, setShowWhy] = useState(false);
+  const isSubscriptionReco = recommendation.recommended === "subscription";
+  const recommendedPlan: SubscriptionPlan | undefined = SUBSCRIPTION_PLANS.find(
+    (plan) => plan.key === recommendation.recommendedPlanKey
+  );
+  const recommendedPack: CreditPack | undefined = CREDIT_PACKS.find((pack) => pack.key === recommendation.recommendedPackKey);
+  const [error, setError] = useState<string | null>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [supportSnippet, setSupportSnippet] = useState<string | null>(null);
 
   useEffect(() => {
-    logMonetisationClientEvent("billing_compare_view", applicationId ?? null, "billing", {
-      recommendedChoice: comparison.recommendedChoice,
-    });
-    if (subscriptionUnavailable) {
-      logMonetisationClientEvent("billing_plan_unavailable", applicationId ?? null, "billing", {
-        planKey: comparison.suggestedPlanKey,
-        surface: "billing_compare",
-      });
-    }
-  }, [applicationId, comparison.recommendedChoice, comparison.suggestedPlanKey, subscriptionUnavailable]);
+    logMonetisationClientEvent("compare_view", null, "billing", {});
+    logMonetisationClientEvent("compare_reco_view", null, "billing", { choice: recommendation.recommended });
+  }, [recommendation.recommended]);
 
-  const startTopup = async () => {
-    setLoading("topup");
+  const startSubscriptionCheckout = async (planKey: "monthly_30" | "monthly_80") => {
     setError(null);
-    logMonetisationClientEvent("billing_compare_choice_topup", applicationId ?? null, "billing", {
-      packKey: recommendedPack.key,
-    });
+    setRequestId(null);
+    setSupportSnippet(null);
     try {
+      const { headers, requestId: rid } = withRequestIdHeaders({ "Content-Type": "application/json" });
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({
-          packKey: recommendedPack.key,
-          returnTo,
-          applicationId: applicationId ?? undefined,
-        }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (response.ok && payload?.url) {
-        window.location.href = payload.url as string;
-        return;
-      }
-      setError("Unable to start checkout. Please try again.");
-    } catch {
-      setError("Unable to start checkout. Please try again.");
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  const startSubscription = async () => {
-    if (subscriptionUnavailable) {
-      setError("Subscription isn’t available right now.");
-      return;
-    }
-    setLoading("subscribe");
-    setError(null);
-    logMonetisationClientEvent("billing_compare_choice_subscribe", applicationId ?? null, "billing", {
-      planKey: comparison.suggestedPlanKey,
-    });
-    try {
-      const response = await fetch("/api/stripe/checkout", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         credentials: "include",
         body: JSON.stringify({
           mode: "subscription",
-          planKey: comparison.suggestedPlanKey,
-          returnTo,
+          planKey,
+          returnTo: `${returnTo}?from=compare_reco&plan=${planKey}`,
           applicationId: applicationId ?? undefined,
         }),
       });
-      const payload = await response.json().catch(() => ({}));
-      if (response.ok && payload?.url) {
-        window.location.href = payload.url as string;
+      const payload = await safeReadJson(response);
+      const payloadError = (payload.data as any)?.error;
+      const resolvedRequestId = payloadError?.requestId ?? response.headers.get("x-request-id") ?? rid ?? null;
+      if (!response.ok || !(payload.data as any)?.url) {
+        setError(payloadError?.message ?? ERROR_COPY.checkoutStart.message);
+        if (resolvedRequestId) {
+          setRequestId(resolvedRequestId);
+          setSupportSnippet(
+            buildSupportSnippet({
+              action: "Start subscription checkout",
+              path: returnTo,
+              requestId: resolvedRequestId,
+              code: payloadError?.code,
+            })
+          );
+        }
+        logMonetisationClientEvent("compare_checkout_fail", applicationId ?? null, "billing", {
+          choice: "subscription",
+          planKey,
+          requestId: resolvedRequestId,
+        });
         return;
       }
-      setError("Unable to start checkout. Please try again.");
+      logMonetisationClientEvent("compare_checkout_start", applicationId ?? null, "billing", {
+        choice: "subscription",
+        planKey,
+        from: "compare_reco",
+        requestId: resolvedRequestId,
+      });
+      window.location.href = (payload.data as any).url as string;
     } catch {
-      setError("Unable to start checkout. Please try again.");
-    } finally {
-      setLoading(null);
+      setError(ERROR_COPY.checkoutStart.message);
+      logMonetisationClientEvent("compare_checkout_fail", applicationId ?? null, "billing", {
+        choice: "subscription",
+        planKey,
+        requestId: null,
+      });
     }
   };
 
-  const topupRecommended = comparison.recommendedChoice === "topup";
-  const subscriptionRecommended = comparison.recommendedChoice === "subscription";
+  const startTopupCheckout = async (packKey: CreditPack["key"]) => {
+    setError(null);
+    setRequestId(null);
+    setSupportSnippet(null);
+    try {
+      const { headers, requestId: rid } = withRequestIdHeaders({ "Content-Type": "application/json" });
+      const response = await fetch("/api/stripe/checkout", {
+        method: "POST",
+        headers,
+        credentials: "include",
+        body: JSON.stringify({
+          packKey,
+          returnTo: `${returnTo}?from=compare_reco&pack=${packKey}`,
+          applicationId: applicationId ?? undefined,
+        }),
+      });
+      const payload = await safeReadJson(response);
+      const payloadError = (payload.data as any)?.error;
+      const resolvedRequestId = payloadError?.requestId ?? response.headers.get("x-request-id") ?? rid ?? null;
+      if (!response.ok || !(payload.data as any)?.url) {
+        setError(payloadError?.message ?? ERROR_COPY.checkoutStart.message);
+        if (resolvedRequestId) {
+          setRequestId(resolvedRequestId);
+          setSupportSnippet(
+            buildSupportSnippet({
+              action: "Start top-up checkout",
+              path: returnTo,
+              requestId: resolvedRequestId,
+              code: payloadError?.code,
+            })
+          );
+        }
+        logMonetisationClientEvent("compare_checkout_fail", applicationId ?? null, "billing", {
+          choice: "topup",
+          packKey,
+          requestId: resolvedRequestId,
+        });
+        return;
+      }
+      logMonetisationClientEvent("compare_checkout_start", applicationId ?? null, "billing", {
+        choice: "topup",
+        packKey,
+        from: "compare_reco",
+        requestId: resolvedRequestId,
+      });
+      window.location.href = (payload.data as any).url as string;
+    } catch {
+      setError(ERROR_COPY.checkoutStart.message);
+      logMonetisationClientEvent("compare_checkout_fail", applicationId ?? null, "billing", {
+        choice: "topup",
+        packKey,
+        requestId: null,
+      });
+    }
+  };
 
-  const reasonChips = comparison.reasons.slice(0, 3);
+  const handleManage = async () => {
+    setError(null);
+    setRequestId(null);
+    setSupportSnippet(null);
+    try {
+      const { headers, requestId: rid } = withRequestIdHeaders({ "Content-Type": "application/json" });
+      const response = await fetch(`/api/stripe/portal?flow=manage&returnTo=${encodeURIComponent(returnTo)}`, {
+        method: "POST",
+        headers,
+        credentials: "include",
+      });
+      const payload = await safeReadJson(response);
+      const payloadError = (payload.data as any)?.error;
+      const resolvedRequestId = payloadError?.requestId ?? response.headers.get("x-request-id") ?? rid ?? null;
+      if (!response.ok || !(payload.data as any)?.url) {
+        setError(payloadError?.message ?? ERROR_COPY.portalOpen.message);
+        if (resolvedRequestId) {
+          setRequestId(resolvedRequestId);
+          setSupportSnippet(
+            buildSupportSnippet({
+              action: "Open Stripe portal",
+              path: returnTo,
+              requestId: resolvedRequestId,
+              code: payloadError?.code,
+            })
+          );
+        }
+        logMonetisationClientEvent("compare_checkout_fail", applicationId ?? null, "billing", {
+          choice: "subscription",
+          requestId: resolvedRequestId,
+        });
+        return;
+      }
+      logMonetisationClientEvent("compare_portal_open", applicationId ?? null, "billing", { from: "compare_reco" });
+      window.location.href = (payload.data as any).url as string;
+    } catch {
+      setError(ERROR_COPY.portalOpen.message);
+    }
+  };
 
-  const renderColumn = (
-    type: "topup" | "subscription",
-    {
-      title,
-      subtitle,
-      cta,
-      onClick,
-      disabled,
-      recommended,
-    }: { title: string; subtitle: string; cta: string; onClick: () => void; disabled?: boolean; recommended?: boolean }
-  ) => (
-    <div
-      className={`flex-1 rounded-2xl border p-4 shadow-sm ${
-        recommended ? "border-indigo-300 bg-indigo-50/60" : "border-black/10 bg-white/70"
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <div>
-          <p className="text-sm font-semibold text-[rgb(var(--ink))]">{title}</p>
-          <p className="text-xs text-[rgb(var(--muted))]">{subtitle}</p>
-        </div>
-        {recommended ? (
-          <span className="rounded-full bg-indigo-100 px-3 py-1 text-[11px] font-semibold text-indigo-700">
-            Recommended
-          </span>
-        ) : null}
-      </div>
-      <div className="mt-3 space-y-1 text-xs text-[rgb(var(--muted))]">
-        {rows.map((row) => (
-          <div key={`${row.label}-${type}`} className="flex items-center justify-between gap-2">
-            <span className="font-semibold text-[rgb(var(--ink))]">{row.label}</span>
-            <span>{type === "topup" ? row.topup : row.subscription}</span>
-          </div>
-        ))}
-      </div>
-      <div className="mt-3">
-        <button
-          type="button"
-          onClick={onClick}
-          disabled={disabled || loading === type}
-          className={`w-full rounded-full px-4 py-2 text-sm font-semibold ${
-            recommended
-              ? "bg-[rgb(var(--ink))] text-white hover:bg-black"
-              : "bg-white text-[rgb(var(--ink))] border border-black/10 hover:bg-slate-50"
-          } disabled:cursor-not-allowed disabled:opacity-60`}
-        >
-          {disabled
-            ? type === "subscription"
-              ? "Subscription unavailable"
-              : "Pack unavailable"
-            : loading === type
-              ? "Starting..."
-              : cta}
-        </button>
-        {type === "topup" ? (
-          <p className="mt-1 text-[11px] text-[rgb(var(--muted))]">
-            {`Top up ${formatGbp(recommendedPack.priceGbp)} (${recommendedPack.name})`}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
+  const handleSubscription = () => {
+    const planKey = recommendation.recommendedPlanKey ?? "monthly_30";
+    logMonetisationClientEvent("compare_reco_click", null, "billing", { choice: "subscription", planKey });
+    if (hasSubscription) {
+      handleManage();
+      return;
+    }
+    startSubscriptionCheckout(planKey);
+  };
+
+  const handleTopup = () => {
+    const packKey = recommendation.recommendedPackKey ?? "starter";
+    logMonetisationClientEvent("compare_reco_click", null, "billing", { choice: "topup", packKey });
+    startTopupCheckout(packKey);
+  };
+
+  const handleToggleWhy = () => {
+    setShowWhy((prev) => !prev);
+    logMonetisationClientEvent("compare_why_open", null, "billing", { open: !showWhy });
+  };
 
   return (
-    <div className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold text-[rgb(var(--ink))]">
-            Save money if you’re applying consistently
-          </p>
-          <p className="text-xs text-[rgb(var(--muted))]">
-            Choose a one-off top up, or subscribe and keep momentum without interruptions.
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-1">
-          {reasonChips.map((reason) => (
-            <span
-              key={reason}
-              className="rounded-full bg-slate-100 px-3 py-1 text-[11px] font-semibold text-[rgb(var(--muted))]"
-            >
-              {reason}
-            </span>
-          ))}
-        </div>
-      </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        {renderColumn("topup", {
-          title: "Top up once",
-          subtitle: "Best for one application right now.",
-          cta: `Top up`,
-          onClick: startTopup,
-          recommended: topupRecommended,
-          disabled: !packAvailable,
-        })}
-        {renderColumn("subscription", {
-          title: "Subscribe monthly",
-          subtitle: "Best for steady applications each week.",
-          cta: "Subscribe",
-          onClick: startSubscription,
-          recommended: subscriptionRecommended,
-          disabled: subscriptionUnavailable,
-        })}
-      </div>
+    <div className="space-y-3 rounded-3xl border border-black/10 bg-white/80 p-5 shadow-sm">
       {error ? (
-        <p className="mt-2 text-xs text-red-600">{error}</p>
+        <ErrorBanner
+          title={ERROR_COPY.checkoutStart.title}
+          message={error}
+          requestId={requestId}
+          supportSnippet={supportSnippet}
+          onDismiss={() => setError(null)}
+        />
       ) : null}
+      <div>
+        <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">{COPY.title}</p>
+        <p className="text-sm text-[rgb(var(--muted))]">{COPY.subtitle}</p>
+      </div>
+      <div className="grid gap-4 md:grid-cols-2">
+        <div
+          className={`flex flex-col gap-3 rounded-2xl border ${isSubscriptionReco ? "border-indigo-200 bg-indigo-50/70" : "border-black/10 bg-white" } p-4`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">{COPY.subscription.title}</p>
+              <p className="text-xs text-[rgb(var(--muted))]">{COPY.subscription.tagline}</p>
+            </div>
+            {isSubscriptionReco ? (
+              <span className="rounded-full bg-indigo-600 px-3 py-1 text-[11px] font-semibold text-white">
+                {COPY.recommended}
+              </span>
+            ) : null}
+          </div>
+          <ul className="space-y-1 text-xs text-[rgb(var(--muted))]">
+            {COPY.subscription.bullets.map((item) => (
+              <li key={item}>• {item}</li>
+            ))}
+          </ul>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={handleSubscription}
+              className="rounded-full bg-[rgb(var(--ink))] px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+              disabled={!subscriptionAvailable || (recommendation.recommended === "topup" && !hasSubscription && !recommendation.recommendedPlanKey)}
+            >
+              {hasSubscription ? COPY.subscription.manage : COPY.subscription.cta}
+              {recommendedPlan ? ` • ${recommendedPlan.name}` : ""}
+            </button>
+            {!isSubscriptionReco ? (
+              <button
+                type="button"
+                className="text-xs font-semibold text-[rgb(var(--muted))] underline-offset-2 hover:underline"
+                onClick={() => {
+                  logMonetisationClientEvent("compare_option_switch", null, "billing", { choice: "subscription" });
+                  startSubscriptionCheckout(recommendation.recommendedPlanKey ?? "monthly_30");
+                }}
+              >
+                {COPY.secondary}
+              </button>
+            ) : null}
+          </div>
+          <div className="text-xs text-[rgb(var(--muted))]">
+            {COPY.reasons[recommendation.variant] ?? COPY.reasons.weekly_momentum}
+          </div>
+          <button
+            type="button"
+            className="text-xs font-semibold text-[rgb(var(--muted))] underline-offset-2 hover:underline"
+            onClick={handleToggleWhy}
+          >
+            {showWhy ? COPY.whyClose : COPY.whyOpen}
+          </button>
+          {showWhy ? (
+            <ul className="space-y-1 text-xs text-[rgb(var(--muted))]">
+              {recommendation.reasons.map((reason) => (
+                <li key={reason}>• {reason}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+
+        <div
+          className={`flex flex-col gap-3 rounded-2xl border ${!isSubscriptionReco ? "border-indigo-200 bg-indigo-50/70" : "border-black/10 bg-white"} p-4`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">{COPY.topup.title}</p>
+              <p className="text-xs text-[rgb(var(--muted))]">{COPY.topup.tagline}</p>
+            </div>
+            {!isSubscriptionReco ? (
+              <span className="rounded-full bg-indigo-600 px-3 py-1 text-[11px] font-semibold text-white">
+                {COPY.recommended}
+              </span>
+            ) : null}
+          </div>
+          <ul className="space-y-1 text-xs text-[rgb(var(--muted))]">
+            {COPY.topup.bullets.map((item) => (
+              <li key={item}>• {item}</li>
+            ))}
+          </ul>
+          <div className="flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={handleTopup}
+              className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] hover:bg-slate-50 disabled:opacity-50"
+              disabled={!recommendedPack || packAvailability[recommendedPack?.key] === false}
+            >
+              {COPY.topup.cta}
+              {recommendedPack ? ` • ${recommendedPack.credits} credits (${formatGbp(recommendedPack.priceGbp)})` : ""}
+            </button>
+            {isSubscriptionReco ? (
+              <button
+                type="button"
+                className="text-xs font-semibold text-[rgb(var(--muted))] underline-offset-2 hover:underline"
+                onClick={() => {
+                  logMonetisationClientEvent("compare_option_switch", null, "billing", { choice: "topup" });
+                  startTopupCheckout((recommendedPack?.key ?? "starter") as CreditPack["key"]);
+                }}
+              >
+                {COPY.secondary}
+              </button>
+            ) : null}
+          </div>
+          <div className="text-xs text-[rgb(var(--muted))]">
+            {!isSubscriptionReco ? (COPY.reasons[recommendation.variant] ?? COPY.reasons.single_push) : COPY.reasons.single_push}
+          </div>
+          <button
+            type="button"
+            className="text-xs font-semibold text-[rgb(var(--muted))] underline-offset-2 hover:underline"
+            onClick={handleToggleWhy}
+          >
+            {showWhy ? COPY.whyClose : COPY.whyOpen}
+          </button>
+          {showWhy ? (
+            <ul className="space-y-1 text-xs text-[rgb(var(--muted))]">
+              {recommendation.reasons.map((reason) => (
+                <li key={reason}>• {reason}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      </div>
     </div>
   );
 }
