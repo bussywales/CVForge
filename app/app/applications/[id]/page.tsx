@@ -24,6 +24,7 @@ import type { RoleFitPack } from "@/lib/role-fit";
 import { buildCadence } from "@/lib/conversion-cadence";
 import { buildNextBestActions } from "@/lib/next-best-actions";
 import { buildQuestionKey } from "@/lib/interview-practice";
+import { buildInterviewFocus } from "@/lib/interview-focus";
 import {
   computeKitChecklist,
   getKitContentsList,
@@ -74,6 +75,8 @@ import AutopackResumeBanner from "../autopack-resume-banner";
 import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
 import ResumeCompletionNudge from "@/components/ResumeCompletionNudge";
 import CompletionWatchdogNudge from "@/components/CompletionWatchdogNudge";
+import { getIsoWeekKey } from "@/lib/weekly-review";
+import InterviewFocusCard from "./interview-focus-card";
 
 const RoleFitCard = dynamic(() => import("../role-fit-card"), {
   ssr: false,
@@ -309,6 +312,18 @@ export default async function ApplicationPage({
     console.error("[application.kit.practice]", error);
   }
   const practiceBacklog = Object.keys(practiceAnswers).length;
+  const weekKey = getIsoWeekKey(new Date());
+  const interviewFocus = buildInterviewFocus({
+    applicationId: application.id,
+    questions: interviewPack.questions.map((question, index) => ({
+      key: buildQuestionKey(question.question, index),
+      question: question.question,
+      priority: question.priority,
+      source: question.source,
+      index,
+    })),
+    answers: practiceAnswers,
+  });
 
   let outcomes: OutcomeRecord[] = [];
   let outcomeActions: ActionSummary | null = null;
@@ -887,6 +902,17 @@ export default async function ApplicationPage({
               />
             </Section>
           </div>
+
+          <Section
+            title="Today’s Focus (15 mins)"
+            description="Jump straight to the answers that will move you fastest."
+          >
+            <InterviewFocusCard
+              applicationId={application.id}
+              weekKey={weekKey}
+              items={interviewFocus}
+            />
+          </Section>
 
           <div id="interview-pack">
             <Section

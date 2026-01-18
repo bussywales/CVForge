@@ -41,6 +41,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Copy a STAR prompt and create a STAR draft from a question.
 - Export the Interview Pack in Standard and ATS-Minimal variants.
 - Toggle Practice Mode, score an answer, generate a rewrite, and confirm the draft persists after refresh.
+- In the Interview tab, “Today’s Focus (15 mins)” shows three items, Open deep-links to the matching answer anchor, and Done/Undo persists for the week.
 - Open the Practice Dashboard and start Drill Mode to practise the lowest-score question.
 - In Drill Mode, generate the Answer Pack (90-second first) and confirm answers appear in an accordion with per-answer copy and copy-all; toggle to Standard and copy still works.
 

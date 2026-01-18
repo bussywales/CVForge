@@ -20,6 +20,7 @@ import {
   computeAnswerPackReadiness,
 } from "@/lib/answer-pack-ui";
 import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
+import { assessAnswerQuality } from "@/lib/interview-focus";
 import CreditGateModal from "@/app/app/billing/credit-gate-modal";
 import {
   addResumeParam,
@@ -91,6 +92,9 @@ type AnswerPackPanelProps = {
   onCopy: (text: string) => void;
   onApply: () => void;
   applying: boolean;
+  anchorId?: string;
+  qualityLabel?: string;
+  nextStep?: string;
 };
 
 function AnswerPackPanel({
@@ -100,6 +104,9 @@ function AnswerPackPanel({
   onCopy,
   onApply,
   applying,
+  anchorId,
+  qualityLabel,
+  nextStep,
 }: AnswerPackPanelProps) {
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const items = entry
@@ -154,6 +161,7 @@ function AnswerPackPanel({
           return (
             <div
               key={index}
+              id={anchorId ? `${anchorId}-${index}` : undefined}
               className="rounded-xl border border-black/10 bg-white/70 p-3 text-xs text-[rgb(var(--muted))]"
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -199,6 +207,22 @@ function AnswerPackPanel({
                   >
                     {applying ? "Applying..." : "Apply to draft"}
                   </Button>
+                </div>
+                <div className="w-full text-[11px] text-[rgb(var(--muted))]">
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <span
+                      className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                        qualityLabel === "Strong"
+                          ? "bg-emerald-100 text-emerald-700"
+                          : qualityLabel === "Solid"
+                            ? "bg-blue-100 text-blue-700"
+                            : "bg-amber-100 text-amber-700"
+                      }`}
+                    >
+                      Quality: {qualityLabel ?? "Draft"}
+                    </span>
+                    <span>Next improvement: {nextStep ?? "Add a first draft."}</span>
+                  </div>
                 </div>
               </div>
               {isExpanded ? (
@@ -326,7 +350,10 @@ export default function DrillClient({
 
   const currentKey = orderedKeys[currentIndex] ?? orderedKeys[0];
   const currentQuestion = questionMap[currentKey];
-  const currentAnswer = answers[currentKey] ?? {};
+  const currentAnswer = useMemo(
+    () => answers[currentKey] ?? {},
+    [answers, currentKey]
+  );
   const currentDraft = drafts[currentKey] ?? "";
   const rubric = currentAnswer.rubric_json ?? null;
   const score = currentAnswer.score ?? 0;
@@ -349,6 +376,10 @@ export default function DrillClient({
     ...currentAnswer,
     answer_text: currentDraft,
   });
+  const answerQuality = useMemo(
+    () => assessAnswerQuality(currentAnswer),
+    [currentAnswer]
+  );
   const currentGapKey = questionGapMap[currentKey] ?? null;
   const starDraft = currentGapKey ? starLibraryMap[currentGapKey] : null;
   const starDraftText = starDraft
@@ -1134,6 +1165,9 @@ export default function DrillClient({
                   pendingKey === `apply-${currentKey}-${answerPackVariant}`
                 }
                 question={currentQuestion?.questionText ?? ""}
+                anchorId="answerpack-q"
+                qualityLabel={answerQuality.quality}
+                nextStep={answerQuality.nextStep}
               />
               <CreditGateModal
                 open={showGate}

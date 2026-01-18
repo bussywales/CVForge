@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.68
+- Added “Today’s Focus” card on the Interview tab with deterministic top-3 recommendations, Done/Undo, and weekly persistence.
+- Answer Pack items now have stable anchors with quality/next-step lines; Interview Pack questions show quality badges to deep-link from focus.
+- New interview focus logging events allowlisted plus helper/test to keep ranking deterministic; docs updated with new smoke steps.
+
 ## v0.7.62
 - Unified checkout return handling with a shared parser and premium banner states (success, cancel, failed) plus resume countdown copy.
 - Added redirect-blocked helpers on checkout CTAs with retry/open-billing buttons and new monetisation events, plus a compact completion nudge on return.

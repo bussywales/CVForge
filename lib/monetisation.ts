@@ -154,7 +154,14 @@ export type MonetisationEventName =
   | "resume_clicked"
   | "resume_dismissed"
   | "autopack_generated"
-  | "billing_pack_unavailable";
+  | "billing_pack_unavailable"
+  | "interview_focus_view"
+  | "interview_focus_open_click"
+  | "interview_focus_mark_done"
+  | "interview_focus_undo"
+  | "interview_focus_session_complete"
+  | "interview_focus_add_one_more"
+  | "interview_focus_leave_it";
 
 export async function logMonetisationEvent(
   supabase: SupabaseClient,

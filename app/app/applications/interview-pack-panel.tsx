@@ -12,6 +12,7 @@ import {
   type InterviewPracticeScore,
 } from "@/lib/interview-practice";
 import { needsHardGate, shouldSoftGate } from "@/lib/billing/gating";
+import { assessAnswerQuality } from "@/lib/interview-focus";
 import CreditGateModal from "@/app/app/billing/credit-gate-modal";
 import {
   addResumeParam,
@@ -862,15 +863,31 @@ export default function InterviewPackPanel({
               new Date(answerUpdatedAt as string).getTime() >
                 new Date(improvedUpdatedAt as string).getTime();
             const originalText = draft || practiceAnswers[key]?.answer_text || "";
+            const quality = assessAnswerQuality(practiceAnswers[key]);
 
             return (
               <div
                 key={`${question.question}-${index}`}
+                id={`answerpack-q-${index}`}
                 className="rounded-2xl border border-black/10 bg-white/80 p-3"
               >
                 <p className="text-sm font-semibold text-[rgb(var(--ink))]">
                   {question.question}
                 </p>
+                <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[rgb(var(--muted))]">
+                  <span
+                    className={`rounded-full px-2 py-1 text-[10px] font-semibold ${
+                      quality.quality === "Strong"
+                        ? "bg-emerald-100 text-emerald-700"
+                        : quality.quality === "Solid"
+                          ? "bg-blue-100 text-blue-700"
+                          : "bg-amber-100 text-amber-700"
+                    }`}
+                  >
+                    Quality: {quality.quality}
+                  </span>
+                  <span>Next improvement: {quality.nextStep}</span>
+                </div>
                 {question.signals.length ? (
                   <div className="mt-2 flex flex-wrap gap-2">
                     {question.signals.map((signal) => (
