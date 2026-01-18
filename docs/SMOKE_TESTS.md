@@ -207,6 +207,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Outreach panel: when triage shows reply/rejection, quick log appears; save logs success and next move updates.
 - Application Overview Outcome panel: quick log saves outcome (status/reason/note) and shows success toast; insights show top reasons + recommended links.
 
+## Interview Focus Session (v0.7.74)
+- On Interview tab, the Focus Session card shows Do now/Up next/If time lanes with 5–7 questions.
+- Mark items ready/undo; progress updates and persists per week/application; copy-all works and opens Answer Pack link.
+- Session complete state appears after all ready; logging remains non-blocking.
+
 ## Applications Command Centre (v0.7.43)
 - /app/applications shows Queue with next-action CTA and readiness 0–5.
 - Tabs filter between Queue/Drafts/Submitted/Interview/Closed.

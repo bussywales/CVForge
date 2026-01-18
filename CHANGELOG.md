@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.74
+- Interview Focus Session v3 on Interview tab: guided 15–25 minute flow with Do now/Up next/If time lanes, Ready/Undo, session completion, and copy-all answers.
+- Deterministic session builder and microcopy deck; new session logging events allowlisted; anchored above Answer Pack for deep links.
+- Added helper test for deterministic session selection.
+
 ## v0.7.73
 - Outcome Loop v2 with reusable OutcomeQuickLog across Weekly Review, Outreach panel, and Outcome panel (status/reason/notes, success toast).
 - Outcome insights now surface top reasons and recommended actions; next-best actions weighted by latest outcomes for more relevant nudges.

@@ -24,7 +24,7 @@ import type { RoleFitPack } from "@/lib/role-fit";
 import { buildCadence } from "@/lib/conversion-cadence";
 import { buildNextBestActions } from "@/lib/next-best-actions";
 import { buildQuestionKey } from "@/lib/interview-practice";
-import { buildInterviewFocus } from "@/lib/interview-focus";
+import { buildInterviewFocusSession } from "@/lib/interview-focus-session";
 import {
   computeKitChecklist,
   getKitContentsList,
@@ -76,7 +76,7 @@ import PostPurchaseSuccessBanner from "@/components/PostPurchaseSuccessBanner";
 import ResumeCompletionNudge from "@/components/ResumeCompletionNudge";
 import CompletionWatchdogNudge from "@/components/CompletionWatchdogNudge";
 import { getIsoWeekKey } from "@/lib/weekly-review";
-import InterviewFocusCard from "./interview-focus-card";
+import InterviewFocusSessionCard from "../interview-focus-session-card";
 import { buildOutreachRecommendation } from "@/lib/outreach-engine";
 import OutreachPanel from "../outreach-panel";
 import { buildNextMove } from "@/lib/outreach-next-move";
@@ -316,7 +316,7 @@ export default async function ApplicationPage({
   }
   const practiceBacklog = Object.keys(practiceAnswers).length;
   const weekKey = getIsoWeekKey(new Date());
-  const interviewFocus = buildInterviewFocus({
+  const interviewFocusSession = buildInterviewFocusSession({
     applicationId: application.id,
     questions: interviewPack.questions.map((question, index) => ({
       key: buildQuestionKey(question.question, index),
@@ -324,6 +324,7 @@ export default async function ApplicationPage({
       priority: question.priority,
       source: question.source,
       index,
+      answerText: practiceAnswers[buildQuestionKey(question.question, index)]?.improved_text,
     })),
     answers: practiceAnswers,
   });
@@ -930,16 +931,18 @@ export default async function ApplicationPage({
             </Section>
           </div>
 
-          <Section
-            title="Today’s Focus (15 mins)"
-            description="Jump straight to the answers that will move you fastest."
-          >
-            <InterviewFocusCard
-              applicationId={application.id}
-              weekKey={weekKey}
-              items={interviewFocus}
-            />
-          </Section>
+          <div id="interview-focus-session">
+            <Section
+              title="Interview Focus Session"
+              description="Guided 15–25 minute sprint to raise interview readiness."
+            >
+              <InterviewFocusSessionCard
+                applicationId={application.id}
+                weekKey={weekKey}
+                session={interviewFocusSession}
+              />
+            </Section>
+          </div>
 
           <div id="interview-pack">
             <Section
