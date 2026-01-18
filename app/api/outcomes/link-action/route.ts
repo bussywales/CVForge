@@ -1,17 +1,20 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
+import { withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
+import { captureServerError } from "@/lib/observability/sentry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
+  const { headers, requestId } = withRequestIdHeaders(request.headers);
   const supabase = createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
   }
 
   const body = await request.json().catch(() => ({}));
@@ -21,7 +24,7 @@ export async function POST(request: Request) {
   const actionCount = Number(body?.actionCount ?? 1);
 
   if (!outcomeId || !applicationId || !actionKey) {
-    return NextResponse.json({ error: "Missing fields." }, { status: 400 });
+    return jsonError({ code: "MISSING_FIELDS", message: "Missing fields.", requestId, status: 400 });
   }
 
   try {
@@ -34,9 +37,9 @@ export async function POST(request: Request) {
     });
     if (error) throw error;
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true }, { headers });
   } catch (error) {
-    console.error("[outcomes.link-action]", error);
-    return NextResponse.json({ error: "Unable to link action." }, { status: 500 });
+    captureServerError(error, { requestId, route: "/api/outcomes/link-action", userId: user.id, code: "OUTCOME_LINK_FAIL" });
+    return jsonError({ code: "OUTCOME_LINK_FAIL", message: "Unable to link action.", requestId });
   }
 }

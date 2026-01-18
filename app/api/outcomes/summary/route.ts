@@ -2,24 +2,27 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { computeOutcomeSummary } from "@/lib/data/outcomes";
 import { computeActionSummaryForApplication } from "@/lib/outcome-loop";
+import { withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
+import { captureServerError } from "@/lib/observability/sentry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
+  const { headers, requestId } = withRequestIdHeaders(request.headers);
   const supabase = createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
   }
 
   const { searchParams } = new URL(request.url);
   const applicationId = searchParams.get("applicationId");
   if (!applicationId) {
-    return NextResponse.json({ error: "Missing applicationId." }, { status: 400 });
+    return jsonError({ code: "MISSING_APPLICATION_ID", message: "Missing applicationId.", requestId, status: 400 });
   }
 
   try {
@@ -55,9 +58,9 @@ export async function GET(request: Request) {
       summary,
       actionSummary,
       suggestedNext,
-    });
+    }, { headers });
   } catch (error) {
-    console.error("[outcomes.summary]", error);
-    return NextResponse.json({ error: "Unable to load outcomes." }, { status: 500 });
+    captureServerError(error, { requestId, route: "/api/outcomes/summary", userId: user.id, code: "OUTCOME_SUMMARY_FAIL" });
+    return jsonError({ code: "OUTCOME_SUMMARY_FAIL", message: "Unable to load outcomes.", requestId });
   }
 }

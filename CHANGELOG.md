@@ -1,14 +1,22 @@
 # Changelog
 
-## v0.7.81
-- Observability v1: request IDs threaded through key APIs (checkout, portal, outcomes, referrals, contacts, monetisation, diagnostics, webhook) with standard JSON error shapes and lightweight Sentry capture.
-- Premium error UX: central error microcopy, reusable ErrorBanner with copyable reference/support snippet, checkout/portal/contact/outcome flows now surface references and retry/dismiss actions.
-- Support snippet helper + tests to speed support handoff; docs updated with error reference smoke.
+## v0.7.84
+- Completed observability coverage: remaining API routes now return structured errors with requestId headers and safe capture (outcomes summary/insights/link, referrals, diagnostics, etc.).
+- Premium ErrorBanner and support snippet wiring kept across billing/outreach/outcome flows; added error-shape test for requestId/code.
+
+## v0.7.83
+- Billing compare section recommends subscription vs top-up with deterministic helper, “Why this?” bullets, and checkout/portal handling with requestId-aware error banners.
+- New compare events allowlisted; smoke tests updated.
 
 ## v0.7.82
 - Ops Incident Console v1: requestId lookup + recent incident feed (last 7d) with copyable support snippet and masked user info, behind ops guard.
 - Incident helper normalises monetisation/checkout failure logs into safe surfaces/codes/messages; filters by surface/time.
 - Added microcopy deck and ops smoke steps; requestId meta now logged for checkout/portal failures to enable lookup.
+
+## v0.7.81
+- Observability v1: request IDs threaded through key APIs (checkout, portal, outcomes, referrals, contacts, monetisation, diagnostics, webhook) with standard JSON error shapes and lightweight Sentry capture.
+- Premium error UX: central error microcopy, reusable ErrorBanner with copyable reference/support snippet, checkout/portal/contact/outcome flows now surface references and retry/dismiss actions.
+- Support snippet helper + tests to speed support handoff; docs updated with error reference smoke.
 
 ## v0.7.79
 - Offer close-out loop after acceptance: panel under Offer Pack lists other apps, lets you select/bulk mark closed with outcome logging, and send warm/direct/short withdrawal templates via Gmail/LinkedIn/Copy.

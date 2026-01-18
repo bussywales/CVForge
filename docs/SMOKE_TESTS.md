@@ -253,6 +253,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Recommended badge appears with one-line reason; “Why this?” shows bullets.
 - Click recommended CTA → checkout/portal starts; switching options logs and starts the other path.
 
+## Observability coverage (v0.7.84)
+- Trigger a checkout failure (missing price/mode) → ErrorBanner shows Reference + support snippet; response header x-request-id is set.
+- Trigger portal open failure → Reference visible; snippet copies.
+- Force outcome/contact save failure → banner shows standard message + requestId for support.
+
 ## Applications Command Centre (v0.7.43)
 - /app/applications shows Queue with next-action CTA and readiness 0–5.
 - Tabs filter between Queue/Drafts/Submitted/Interview/Closed.

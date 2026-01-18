@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@/lib/supabase/server";
 import { buildOutcomeInsights } from "@/lib/outcome-loop";
+import { withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
+import { captureServerError } from "@/lib/observability/sentry";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const { headers, requestId } = withRequestIdHeaders();
   const supabase = createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
   }
 
   try {
@@ -38,9 +41,9 @@ export async function GET() {
       ok: true,
       insights: insights.length ? insights : null,
       message: insights.length ? null : "Not enough outcomes yet",
-    });
+    }, { headers });
   } catch (error) {
-    console.error("[outcomes.insights]", error);
-    return NextResponse.json({ error: "Unable to load insights." }, { status: 500 });
+    captureServerError(error, { requestId, route: "/api/outcomes/insights", userId: user.id, code: "OUTCOME_INSIGHTS_FAIL" });
+    return jsonError({ code: "OUTCOME_INSIGHTS_FAIL", message: "Unable to load insights.", requestId });
   }
 }
