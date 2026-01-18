@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "npm run lint:guards && next lint",
-    "lint:guards": "bash scripts/guard-client-env.sh",
+    "lint:guards": "bash scripts/guard-client-env.sh && bash scripts/guard-ops-auth.sh",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --threads=false",
     "test:ci": "vitest run --threads=false",

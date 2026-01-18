@@ -253,6 +253,12 @@ const ALLOWED = [
   "outcome_quicklog_save_fail",
   "outcome_insights_view",
   "outcome_nextmove_click",
+  "ops_credit_adjust_view",
+  "ops_credit_adjust_submit",
+  "ops_credit_adjust_success",
+  "ops_credit_adjust_failed",
+  "ops_support_link_generate",
+  "ops_support_link_copy",
 ] as const;
 
 export type MonetisationClientEvent = (typeof ALLOWED)[number];

@@ -8,6 +8,7 @@ import { listApplications } from "@/lib/data/applications";
 import { buildNextBestActions } from "@/lib/next-best-actions";
 import { getUserRole, requireOpsAccess, isAdminRole, canAssignRole, type UserRole } from "@/lib/rbac";
 import RoleEditor from "./role-editor";
+import SupportActions from "./support-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +44,12 @@ export default async function OpsUserPage({ params }: { params: { id: string } }
     .ilike("type", "outreach%")
     .order("occurred_at", { ascending: false })
     .limit(5);
+  const auditEntriesRaw = await admin
+    .from("ops_audit_log")
+    .select("id,action,meta,created_at,actor_user_id")
+    .eq("target_user_id", params.id)
+    .order("created_at", { ascending: false })
+    .limit(10);
 
   const dueFollowups = applications.filter((app) => {
     const due = app.next_action_due ?? app.outreach_next_due_at;
@@ -152,6 +159,18 @@ export default async function OpsUserPage({ params }: { params: { id: string } }
           ))}
         </ul>
       </div>
+      <SupportActions
+        targetUserId={params.id}
+        viewerRole={viewerRole as UserRole}
+        applications={applications.map((app) => ({ id: app.id, title: app.job_title ?? "Application", company: app.company_name ?? app.company }))}
+        auditEntries={(auditEntriesRaw.data ?? []).map((row) => ({
+          id: row.id,
+          action: row.action,
+          actor: row.actor_user_id,
+          createdAt: row.created_at,
+          meta: (row.meta as Record<string, any>) ?? {},
+        }))}
+      />
       {canEdit ? (
         <RoleEditor
           targetUserId={params.id}

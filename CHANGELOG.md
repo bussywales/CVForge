@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.87
+- Ops Support Toolkit v1: ops user dossier gains Support actions card with manual credit adjustments (admin+ only, guarded with requestId/error banners) and support link generator with from=ops_support flags.
+- New ops APIs for credits adjust and support links are audited into ops_audit_log; audit trail now visible on the dossier.
+- Added ops guard script, ops microcopy, and tests for credit validation and support-link builder; docs/smoke updated.
+
 ## v0.7.84
 - Completed observability coverage: remaining API routes now return structured errors with requestId headers and safe capture (outcomes summary/insights/link, referrals, diagnostics, etc.).
 - Premium ErrorBanner and support snippet wiring kept across billing/outreach/outcome flows; added error-shape test for requestId/code.

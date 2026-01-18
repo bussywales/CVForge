@@ -6,6 +6,12 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Request a magic link from /login.
 - Confirm redirect to /app after /auth/callback.
 
+## Ops support toolkit (ops/admin only)
+- Open /app/ops/users/<id> as an ops user; Support actions card renders.
+- Apply a small credit adjustment (e.g., +5 goodwill) and see the new balance + audit entry.
+- Generate a support link (billing compare or app tab) and copy it (includes from=ops_support).
+- Errors show ErrorBanner with request reference.
+
 ## Applications
 - Create an application with job title, job description, and optional job URL.
 - Edit the application and confirm changes persist.
