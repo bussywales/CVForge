@@ -238,6 +238,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Send + log opens modal with variant copy + Gmail/LinkedIn/Copy; contact missing path deep-links to outreach.
 - Log + schedule updates strip optimistically; recovery badge appears for ≥72h overdue and preselects warm copy.
 
+## Observability (v0.7.81)
+- Trigger a checkout start failure (invalid mode/unavailable pack) and confirm the error banner shows a Reference ID and copyable support snippet.
+- Trigger a portal open failure; banner shows Reference ID and retry/dismiss.
+- Force an outcome/contact save failure and confirm the Reference ID surfaces for support handoff.
+
 ## Applications Command Centre (v0.7.43)
 - /app/applications shows Queue with next-action CTA and readiness 0–5.
 - Tabs filter between Queue/Drafts/Submitted/Interview/Closed.

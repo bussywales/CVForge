@@ -4,6 +4,11 @@ import { useState } from "react";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { OUTCOME_STATUSES } from "@/lib/outcome-loop";
 import { OUTCOME_COPY } from "@/lib/microcopy/outcomes";
+import { safeReadJson } from "@/lib/http/safe-json";
+import { withRequestIdHeaders } from "@/lib/observability/request-id";
+import ErrorBanner from "@/components/ErrorBanner";
+import { ERROR_COPY } from "@/lib/microcopy/errors";
+import { buildSupportSnippet } from "@/lib/observability/support-snippet";
 
 type OutcomeQuickLogProps = {
   applicationId: string;
@@ -25,6 +30,8 @@ export default function OutcomeQuickLog({ applicationId, defaultStatus, onSaved 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [supportSnippet, setSupportSnippet] = useState<string | null>(null);
 
   const reasons = REASONS[status] ?? [];
 
@@ -33,11 +40,14 @@ export default function OutcomeQuickLog({ applicationId, defaultStatus, onSaved 
     setSaving(true);
     setMessage(null);
     setError(null);
+    setRequestId(null);
+    setSupportSnippet(null);
     logMonetisationClientEvent("outcome_quicklog_open", applicationId, "outcomes", { status });
     try {
+      const { headers, requestId: generatedId } = withRequestIdHeaders({ "Content-Type": "application/json" });
       const res = await fetch("/api/outcomes/create", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         credentials: "include",
         body: JSON.stringify({
           applicationId,
@@ -46,9 +56,22 @@ export default function OutcomeQuickLog({ applicationId, defaultStatus, onSaved 
           notes: note || undefined,
         }),
       });
-      const payload = await res.json().catch(() => ({}));
+      const payload = await safeReadJson(res);
+      const payloadError = (payload.data as any)?.error;
+      const resolvedRequestId = payloadError?.requestId ?? res.headers.get("x-request-id") ?? generatedId ?? null;
+      if (resolvedRequestId) setRequestId(resolvedRequestId);
       if (!res.ok) {
-        setError("Could not save outcome.");
+        setError(payloadError?.message ?? "Could not save outcome.");
+        if (resolvedRequestId) {
+          setSupportSnippet(
+            buildSupportSnippet({
+              action: "Log outcome",
+              path: typeof window !== "undefined" ? window.location.pathname + window.location.search : "/app/outcomes",
+              requestId: resolvedRequestId,
+              code: payloadError?.code,
+            })
+          );
+        }
         logMonetisationClientEvent("outcome_quicklog_save_fail", applicationId, "outcomes", { status });
       } else {
         setMessage("Outcome saved");
@@ -66,13 +89,22 @@ export default function OutcomeQuickLog({ applicationId, defaultStatus, onSaved 
 
   return (
     <div className="rounded-2xl border border-black/10 bg-white/80 p-4">
+      {error ? (
+        <div className="mb-2">
+          <ErrorBanner
+            title={ERROR_COPY.outcomeSave.title}
+            message={error ?? ERROR_COPY.outcomeSave.message}
+            requestId={requestId}
+            supportSnippet={supportSnippet}
+          />
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <p className="text-xs uppercase tracking-[0.18em] text-[rgb(var(--muted))]">{OUTCOME_COPY.TITLE}</p>
           <p className="text-sm text-[rgb(var(--muted))]">{OUTCOME_COPY.SUBTITLE}</p>
         </div>
         {message ? <span className="text-xs text-emerald-700">{OUTCOME_COPY.SUCCESS}</span> : null}
-        {error ? <span className="text-xs text-rose-700">{error}</span> : null}
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <select

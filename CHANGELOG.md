@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.81
+- Observability v1: request IDs threaded through key APIs (checkout, portal, outcomes, referrals, contacts, monetisation, diagnostics, webhook) with standard JSON error shapes and lightweight Sentry capture.
+- Premium error UX: central error microcopy, reusable ErrorBanner with copyable reference/support snippet, checkout/portal/contact/outcome flows now surface references and retry/dismiss actions.
+- Support snippet helper + tests to speed support handoff; docs updated with error reference smoke.
+
 ## v0.7.79
 - Offer close-out loop after acceptance: panel under Offer Pack lists other apps, lets you select/bulk mark closed with outcome logging, and send warm/direct/short withdrawal templates via Gmail/LinkedIn/Copy.
 - Contact-missing path links to outreach; retries on failed outcome logging; dismiss/persist per week.

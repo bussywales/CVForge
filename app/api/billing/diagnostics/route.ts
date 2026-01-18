@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { resolvePriceIdForPack } from "@/lib/billing/packs";
 import { resolvePriceIdForPlan } from "@/lib/billing/plans";
+import { withRequestIdHeaders } from "@/lib/observability/request-id";
 
 export async function GET() {
+  const { headers, requestId } = withRequestIdHeaders();
   const hasStarter = Boolean(resolvePriceIdForPack("starter"));
   const hasPro = Boolean(resolvePriceIdForPack("pro"));
   const hasPower = Boolean(resolvePriceIdForPack("power"));
@@ -27,5 +29,6 @@ export async function GET() {
     hasStripeSecret,
     siteUrl,
     deploymentHint,
-  });
+    requestId,
+  }, { headers });
 }

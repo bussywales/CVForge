@@ -11,15 +11,18 @@ import {
   getPlanByPriceId,
   SUBSCRIPTION_PLANS,
 } from "@/lib/billing/plans";
+import { withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
+import { captureServerError } from "@/lib/observability/sentry";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const { headers, requestId } = withRequestIdHeaders(request.headers);
   const signature = request.headers.get("stripe-signature");
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!signature || !webhookSecret) {
-    return NextResponse.json({ error: "Missing webhook signature" }, { status: 400 });
+    return jsonError({ code: "MISSING_SIGNATURE", message: "Missing webhook signature", requestId, status: 400 });
   }
 
   const payload = await request.text();
@@ -30,17 +33,15 @@ export async function POST(request: Request) {
   try {
     event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
   } catch (error) {
-    return NextResponse.json({ error: "Invalid webhook signature" }, { status: 400 });
+    captureServerError(error, { requestId, route: "/api/stripe/webhook", code: "INVALID_SIGNATURE" });
+    return jsonError({ code: "INVALID_SIGNATURE", message: "Invalid webhook signature", requestId, status: 400 });
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceRoleKey) {
-    return NextResponse.json(
-      { error: "Missing Supabase service credentials" },
-      { status: 500 }
-    );
+    return jsonError({ code: "MISSING_SERVICE_CREDS", message: "Missing Supabase service credentials", requestId });
   }
 
   const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   if (existingEvent) {
-    return NextResponse.json({ received: true });
+    return NextResponse.json({ received: true }, { headers });
   }
 
   const { error: insertError } = await supabaseAdmin
@@ -70,7 +71,7 @@ export async function POST(request: Request) {
     }
     return NextResponse.json(
       { error: "Failed to record webhook event" },
-      { status: 500 }
+      { status: 500, headers }
     );
   }
 
@@ -95,7 +96,7 @@ export async function POST(request: Request) {
       console.warn("[stripe webhook] missing user mapping", {
         sessionId: session.id,
       });
-      return NextResponse.json({ received: true });
+      return NextResponse.json({ received: true }, { headers });
     }
 
     if (customerId) {
@@ -252,5 +253,5 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ received: true });
+  return NextResponse.json({ received: true }, { headers });
 }

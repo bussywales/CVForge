@@ -7,6 +7,11 @@ import { formatGbp } from "@/lib/billing/packs-data";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import CompareCard from "./compare-card";
 import type { CompareResult } from "@/lib/billing/compare";
+import { withRequestIdHeaders } from "@/lib/observability/request-id";
+import { safeReadJson } from "@/lib/http/safe-json";
+import ErrorBanner from "@/components/ErrorBanner";
+import { ERROR_COPY } from "@/lib/microcopy/errors";
+import { buildSupportSnippet } from "@/lib/observability/support-snippet";
 
 type PlanKey = "monthly_30" | "monthly_80";
 
@@ -46,6 +51,8 @@ export default function SubscriptionPlansSection({
   const [redirectIssue, setRedirectIssue] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [requestId, setRequestId] = useState<string | null>(null);
+  const [supportSnippet, setSupportSnippet] = useState<string | null>(null);
   const reasonLogged = useRef(false);
   const manageLogged = useRef(false);
 
@@ -95,6 +102,8 @@ export default function SubscriptionPlansSection({
     }
     setLoading(true);
     setError(null);
+    setRequestId(null);
+    setSupportSnippet(null);
     setRedirectIssue(false);
     logMonetisationClientEvent("sub_selector_start_checkout", applicationId ?? null, "billing", {
       planKey: selectedPlanKey,
@@ -109,9 +118,10 @@ export default function SubscriptionPlansSection({
         fromStreakSaver && returnTo.startsWith("/app/billing")
           ? `/app/billing?from=streak_saver&plan=${selectedPlanKey}`
           : returnTo;
+      const { headers, requestId: generatedId } = withRequestIdHeaders({ "Content-Type": "application/json" });
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         credentials: "include",
         body: JSON.stringify({
           mode: "subscription",
@@ -120,8 +130,11 @@ export default function SubscriptionPlansSection({
           applicationId: applicationId ?? undefined,
         }),
       });
-      const payload = await response.json().catch(() => ({}));
-      if (response.ok && payload?.url) {
+      const payload = await safeReadJson(response);
+      const payloadError = (payload.data as any)?.error;
+      const resolvedRequestId = payloadError?.requestId ?? response.headers.get("x-request-id") ?? generatedId ?? null;
+      if (resolvedRequestId) setRequestId(resolvedRequestId);
+      if (response.ok && (payload.data as any)?.url) {
         const timer = window.setTimeout(() => {
           setRedirectIssue(true);
           logMonetisationClientEvent(
@@ -131,14 +144,24 @@ export default function SubscriptionPlansSection({
             { planKey: selectedPlanKey, from: fromStreakSaver ? "streak_saver" : "billing" }
           );
         }, 2000);
-        window.location.href = payload.url as string;
+        window.location.href = (payload.data as any)?.url as string;
         window.setTimeout(() => window.clearTimeout(timer), 2500);
         return;
       }
-      setError("We couldn’t start checkout. Please try again.");
+      setError(payloadError?.message ?? ERROR_COPY.checkoutStart.message);
+      if (resolvedRequestId) {
+        setSupportSnippet(
+          buildSupportSnippet({
+            action: "Start checkout",
+            path: typeof window !== "undefined" ? window.location.pathname + window.location.search : "/app/billing",
+            requestId: resolvedRequestId,
+            code: payloadError?.code,
+          })
+        );
+      }
       if (fromStreakSaver) {
         const reason =
-          payload?.error === "MISSING_SUBSCRIPTION_PRICE_ID"
+          payloadError?.code === "MISSING_SUBSCRIPTION_PRICE_ID"
             ? "missing_price_id"
             : response.ok
               ? "unknown"
@@ -178,22 +201,39 @@ export default function SubscriptionPlansSection({
     }
     setPortalLoading(true);
     setError(null);
+    setRequestId(null);
+    setSupportSnippet(null);
     logMonetisationClientEvent("sub_selector_manage_portal_click", applicationId ?? null, "billing", {
       planKey: selectedPlanKey,
     });
     try {
+      const { headers, requestId: generatedId } = withRequestIdHeaders({ "Content-Type": "application/json" });
       const response = await fetch("/api/stripe/portal", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         credentials: "include",
         body: JSON.stringify({ returnTo }),
       });
-      const payload = await response.json().catch(() => ({}));
-      if (response.ok && payload?.url) {
-        window.location.href = payload.url as string;
+      const payload = await safeReadJson(response);
+      const payloadError = (payload.data as any)?.error;
+      const resolvedRequestId = payloadError?.requestId ?? response.headers.get("x-request-id") ?? generatedId ?? null;
+      if (resolvedRequestId) setRequestId(resolvedRequestId);
+      const url = (payload.data as any)?.url;
+      if (response.ok && url) {
+        window.location.href = url as string;
         return;
       }
-      setError("We couldn’t open the subscription portal. Please try again.");
+      setError(payloadError?.message ?? ERROR_COPY.portalOpen.message);
+      if (resolvedRequestId) {
+        setSupportSnippet(
+          buildSupportSnippet({
+            action: "Open Stripe portal",
+            path: typeof window !== "undefined" ? window.location.pathname + window.location.search : "/app/billing",
+            requestId: resolvedRequestId,
+            code: payloadError?.code,
+          })
+        );
+      }
     } catch {
       setError("We couldn’t open the subscription portal. Please try again.");
     } finally {
@@ -277,6 +317,20 @@ export default function SubscriptionPlansSection({
 
   return (
     <div className="space-y-4 rounded-2xl border border-indigo-100 bg-white/80 p-4 shadow-sm">
+      {error ? (
+        <ErrorBanner
+          title={error?.toLowerCase().includes("portal") ? ERROR_COPY.portalOpen.title : ERROR_COPY.checkoutStart.title}
+          message={error}
+          requestId={requestId}
+          supportSnippet={supportSnippet}
+          onRetry={
+            error?.toLowerCase().includes("portal")
+              ? () => handleManage()
+              : () => handleCheckout()
+          }
+          onDismiss={() => setError(null)}
+        />
+      ) : null}
       <SubscriptionPlanSelector
         selectedPlanKey={selectedPlanKey}
         recommendedPlanKey={recommendedPlanKey}

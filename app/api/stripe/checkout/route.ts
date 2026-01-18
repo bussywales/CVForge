@@ -11,17 +11,20 @@ import {
   resolvePriceIdForPlan,
 } from "@/lib/billing/plans";
 import { fetchBillingSettings, upsertBillingSettings } from "@/lib/data/billing";
+import { withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
+import { captureServerError } from "@/lib/observability/sentry";
 
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  const { headers, requestId } = withRequestIdHeaders(request.headers);
   const supabase = createServerClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
   }
 
   const body = await request.json().catch(() => ({} as any));
@@ -42,7 +45,7 @@ export async function POST(request: Request) {
   const planKeyResolved = plan?.key ?? planKey ?? "monthly_30";
 
   if (!mode) {
-    return NextResponse.json({ error: "INVALID_MODE" }, { status: 400 });
+    return jsonError({ code: "INVALID_MODE", message: "INVALID_MODE", requestId, status: 400 });
   }
 
   const priceId =
@@ -62,69 +65,72 @@ export async function POST(request: Request) {
   };
 
   if (!priceId) {
-    return NextResponse.json(
-      mode === "subscription"
-        ? { error: "MISSING_SUBSCRIPTION_PRICE_ID", planKey: planKeyResolved }
-        : { error: "MISSING_PRICE_ID", packKey: pack.key },
-      { status: 400 }
-    );
+    return jsonError({
+      code: mode === "subscription" ? "MISSING_SUBSCRIPTION_PRICE_ID" : "MISSING_PRICE_ID",
+      message: mode === "subscription" ? "Missing subscription price id" : "Missing price id",
+      requestId,
+      status: 400,
+    });
   }
 
-  const stripe = getStripeClient();
+  try {
+    const stripe = getStripeClient();
 
-  let customerId: string | null = null;
-  if (mode === "subscription") {
-    const existing = await fetchBillingSettings(supabase, user.id);
-    customerId = existing?.stripe_customer_id ?? null;
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email ?? undefined,
-        metadata: { user_id: user.id },
-      });
-      customerId = customer.id;
-      await upsertBillingSettings(supabase, user.id, {
-        stripe_customer_id: customerId,
-      });
+    let customerId: string | null = null;
+    if (mode === "subscription") {
+      const existing = await fetchBillingSettings(supabase, user.id);
+      customerId = existing?.stripe_customer_id ?? null;
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email: user.email ?? undefined,
+          metadata: { user_id: user.id },
+        });
+        customerId = customer.id;
+        await upsertBillingSettings(supabase, user.id, {
+          stripe_customer_id: customerId,
+        });
+      }
     }
-  }
 
-  const successUrl = new URL(buildUrl(returnTo, "purchased"));
-  successUrl.searchParams.set("mode", mode);
-  if (mode === "subscription") {
-    successUrl.searchParams.set("sub", "1");
-  }
+    const successUrl = new URL(buildUrl(returnTo, "purchased"));
+    successUrl.searchParams.set("mode", mode);
+    if (mode === "subscription") {
+      successUrl.searchParams.set("sub", "1");
+    }
 
-  const cancelUrl = new URL(buildUrl(returnTo, "canceled"));
-  cancelUrl.searchParams.set("mode", mode);
+    const cancelUrl = new URL(buildUrl(returnTo, "canceled"));
+    cancelUrl.searchParams.set("mode", mode);
 
-  const customerArgs =
-    mode === "subscription" && customerId
-      ? { customer: customerId }
-      : { customer_email: user.email ?? undefined };
+    const customerArgs =
+      mode === "subscription" && customerId
+        ? { customer: customerId }
+        : { customer_email: user.email ?? undefined };
 
-  const session = await stripe.checkout.sessions.create({
-    mode,
-    line_items: [{ price: priceId, quantity: 1 }],
-    success_url: successUrl.toString(),
-    cancel_url: cancelUrl.toString(),
-    client_reference_id: user.id,
-    ...customerArgs,
-    metadata: {
-      user_id: user.id,
-      pack_key: pack.key,
-      plan_key: planKey ?? null,
+    const session = await stripe.checkout.sessions.create({
       mode,
-      application_id: applicationId,
-      return_to: returnTo ?? undefined,
-    },
-  });
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: successUrl.toString(),
+      cancel_url: cancelUrl.toString(),
+      client_reference_id: user.id,
+      ...customerArgs,
+      metadata: {
+        user_id: user.id,
+        pack_key: pack.key,
+        plan_key: planKey ?? null,
+        mode,
+        application_id: applicationId,
+        return_to: returnTo ?? undefined,
+      },
+    });
 
-  if (!session.url) {
-    return NextResponse.json(
-      { error: "Unable to create checkout session" },
-      { status: 500 }
-    );
+    if (!session.url) {
+      captureServerError(new Error("Missing session url"), { requestId, route: "/api/stripe/checkout", userId: user.id, code: "CHECKOUT_SESSION_MISSING" });
+      return jsonError({ code: "CHECKOUT_SESSION_MISSING", message: "Unable to create checkout session", requestId });
+    }
+
+    return NextResponse.json({ url: session.url }, { headers });
+  } catch (error) {
+    captureServerError(error, { requestId, route: "/api/stripe/checkout", userId: user.id, code: "CHECKOUT_ERROR" });
+    return jsonError({ code: "CHECKOUT_ERROR", message: "Unable to start checkout", requestId });
   }
-
-  return NextResponse.json({ url: session.url });
 }

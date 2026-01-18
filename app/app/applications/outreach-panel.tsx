@@ -18,6 +18,11 @@ import { logOutreachTriageAction } from "./actions";
 import { buildNextMove } from "@/lib/outreach-next-move";
 import OutcomeQuickLog from "@/components/OutcomeQuickLog";
 import { buildOutreachVariants } from "@/lib/outreach-variants";
+import { withRequestIdHeaders } from "@/lib/observability/request-id";
+import { safeReadJson } from "@/lib/http/safe-json";
+import { buildSupportSnippet } from "@/lib/observability/support-snippet";
+import { ERROR_COPY } from "@/lib/microcopy/errors";
+import ErrorBanner from "@/components/ErrorBanner";
 
 type OutreachPanelProps = {
   applicationId: string;
@@ -61,6 +66,8 @@ export default function OutreachPanel({
   });
   const [contactError, setContactError] = useState<string | null>(null);
   const [contactSaving, setContactSaving] = useState(false);
+  const [contactRequestId, setContactRequestId] = useState<string | null>(null);
+  const [contactSupportSnippet, setContactSupportSnippet] = useState<string | null>(null);
   const [triage, setTriage] = useState<string | null>(triageStatus ?? null);
   const [triageNote, setTriageNote] = useState(triageNotes ?? "");
   const [triageMessage, setTriageMessage] = useState<string | null>(null);
@@ -156,6 +163,8 @@ export default function OutreachPanel({
 
   const handleSaveContact = async () => {
     setContactError(null);
+    setContactRequestId(null);
+    setContactSupportSnippet(null);
     setContactSaving(true);
     try {
       if (contactForm.email && !isValidEmail(contactForm.email)) {
@@ -166,18 +175,32 @@ export default function OutreachPanel({
         setContactError("Enter a valid LinkedIn URL.");
         return;
       }
+      const { headers, requestId } = withRequestIdHeaders({ "Content-Type": "application/json" });
       const res = await fetch(`/api/applications/${applicationId}/contact`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           name: contactForm.name.trim() || null,
           email: contactForm.email.trim() || null,
           linkedin_url: contactForm.linkedin.trim() || null,
         }),
       });
-      const payload = await res.json().catch(() => ({}));
-      if (!res.ok || !payload.ok) {
-        setContactError(payload?.error ?? "Unable to save contact.");
+      const payload = await safeReadJson(res);
+      const payloadError = (payload.data as any)?.error;
+      const resolvedRequestId = payloadError?.requestId ?? res.headers.get("x-request-id") ?? requestId ?? null;
+      if (resolvedRequestId) setContactRequestId(resolvedRequestId);
+      if (!res.ok || !(payload.data as any)?.ok) {
+        setContactError(payloadError?.message ?? payloadError ?? "Unable to save contact.");
+        if (resolvedRequestId) {
+          setContactSupportSnippet(
+            buildSupportSnippet({
+              action: "Save contact",
+              path: typeof window !== "undefined" ? window.location.pathname + window.location.search : "/app/applications",
+              requestId: resolvedRequestId,
+              code: payloadError?.code,
+            })
+          );
+        }
         return;
       }
       setEditingContact(false);
@@ -350,7 +373,14 @@ export default function OutreachPanel({
               className="w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
             />
             {contactError ? (
-              <p className="text-xs text-rose-700">{contactError}</p>
+              <ErrorBanner
+                title={ERROR_COPY.contactSave.title}
+                message={contactError}
+                requestId={contactRequestId}
+                supportSnippet={contactSupportSnippet}
+                onRetry={() => handleSaveContact()}
+                onDismiss={() => setContactError(null)}
+              />
             ) : (
               <p className="text-xs text-[rgb(var(--muted))]">
                 Add a contact so CVForge can open the right channel for you.

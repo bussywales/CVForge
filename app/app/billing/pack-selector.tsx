@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { CREDIT_PACKS, formatGbp, type CreditPack } from "@/lib/billing/packs-data";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import ErrorBanner from "@/components/ErrorBanner";
+import { withRequestIdHeaders } from "@/lib/observability/request-id";
+import { safeReadJson } from "@/lib/http/safe-json";
+import { ERROR_COPY } from "@/lib/microcopy/errors";
+import { buildSupportSnippet } from "@/lib/observability/support-snippet";
 
 type Props = {
   contextLabel?: string;
@@ -21,6 +26,8 @@ type CheckoutState = {
   status: "idle" | "loading" | "error";
   packKey?: CreditPack["key"] | null;
   message?: string;
+  requestId?: string | null;
+  supportSnippet?: string | null;
 };
 
 function PackCard({
@@ -124,14 +131,19 @@ export default function PackSelector({
       });
     }
     try {
+      const { headers, requestId } = withRequestIdHeaders({ "Content-Type": "application/json" });
       const response = await fetch("/api/stripe/checkout", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         credentials: "include",
         body: JSON.stringify({ packKey, returnTo, applicationId }),
       });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !payload?.url) {
+      const payload = await safeReadJson(response);
+      const payloadError = (payload.data as any)?.error;
+      const requestIdFromHeader = response.headers.get("x-request-id");
+      const resolvedRequestId = payloadError?.requestId ?? requestIdFromHeader ?? requestId ?? null;
+      const redirectUrl = (payload.data as any)?.url;
+      if (!response.ok || !redirectUrl) {
         logMonetisationClientEvent("checkout_start_failed", applicationId, surface, {
           packKey,
           status: response.status,
@@ -139,7 +151,16 @@ export default function PackSelector({
         setState({
           status: "error",
           packKey,
-          message: payload?.error ?? "Unable to start checkout.",
+          message: payloadError?.message ?? payloadError ?? "Unable to start checkout.",
+          requestId: resolvedRequestId,
+          supportSnippet: resolvedRequestId
+            ? buildSupportSnippet({
+                action: "Start checkout",
+                path: typeof window !== "undefined" ? window.location.pathname + window.location.search : "/app/billing",
+                requestId: resolvedRequestId,
+                code: payloadError?.code,
+              })
+            : null,
         });
         return;
       }
@@ -152,7 +173,7 @@ export default function PackSelector({
           { packKey }
         );
       }, 2000);
-      window.location.href = payload.url as string;
+      window.location.href = redirectUrl as string;
       window.setTimeout(() => window.clearTimeout(timer), 2500);
     } catch (error) {
       logMonetisationClientEvent("checkout_start_failed", applicationId, surface, {
@@ -169,6 +190,17 @@ export default function PackSelector({
 
   return (
     <div className="space-y-3">
+      {state.status === "error" ? (
+        <ErrorBanner
+          title={ERROR_COPY.checkoutStart.title}
+          message={state.message ?? ERROR_COPY.checkoutStart.message}
+          hint={ERROR_COPY.checkoutStart.hint}
+          requestId={state.requestId}
+          supportSnippet={state.supportSnippet}
+          onRetry={() => state.packKey && startCheckout(state.packKey)}
+          onDismiss={() => setState({ status: "idle", packKey: null })}
+        />
+      ) : null}
       {contextLabel ? (
         <p className="text-sm font-semibold text-[rgb(var(--ink))]">
           Top up to continue — {contextLabel}
