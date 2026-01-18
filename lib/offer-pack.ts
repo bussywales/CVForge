@@ -29,6 +29,8 @@ export type NegotiationScript = {
   reason: string;
 };
 
+export type OfferDecision = "negotiating" | "accepted" | "declined" | "asked_for_time" | null;
+
 export function countOfferCompletion(summary: OfferSummary): { filled: number; total: number } {
   const total = 13;
   const filled = [
@@ -164,4 +166,18 @@ export function buildNegotiationScripts(summary: OfferSummary, counter: CounterP
   };
 
   return [polite, direct, warm];
+}
+
+export function mapDecisionToOutcome(decision: OfferDecision) {
+  switch (decision) {
+    case "accepted":
+      return { status: "offer", reason: "accepted" };
+    case "declined":
+      return { status: "rejected", reason: "declined_offer" };
+    case "asked_for_time":
+      return { status: "offer", reason: "asked_for_time" };
+    case "negotiating":
+    default:
+      return { status: "offer", reason: "negotiating" };
+  }
 }

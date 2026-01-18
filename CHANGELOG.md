@@ -5,6 +5,11 @@
 - Panel unlocks on offer outcome or manual toggle; local persistence, completeness indicator, and new logging events.
 - Next-best actions include offer follow-ups; outreach insights and variants remain intact.
 
+## v0.7.77
+- Offer Pack gains Decision logging (negotiating/accepted/declined/asked for time) with notes, auto outcome quick log, and persistence.
+- Next-best actions now react to offer decisions; accepted state surfaces “close other applications” copy templates; new monetisation events allowlisted.
+- Added deterministic tests for decision → outcome mapping; docs updated.
+
 ## v0.7.75
 - Outreach Engine v4: added Polite/Direct/Warm variants with quality cues, persistence, and Gmail/LinkedIn/send/copy logging.
 - Outreach performance insights (14d reply rate, sent/replies/follow-ups + tip) on Insights and Command Centre Outreach tab.

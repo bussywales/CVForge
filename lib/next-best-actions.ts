@@ -19,6 +19,7 @@ export type NextBestInput = {
   isSubmitted?: boolean;
   outcomeRecorded?: boolean;
   lastOutcomeStatus?: string | null;
+  offerDecision?: "negotiating" | "accepted" | "declined" | "asked_for_time" | null;
 };
 
 export function buildNextBestActions(input: NextBestInput): NextBestAction[] {
@@ -34,6 +35,7 @@ export function buildNextBestActions(input: NextBestInput): NextBestAction[] {
   };
 
   const outcome = (input.lastOutcomeStatus ?? "").toLowerCase();
+  const offerDecision = input.offerDecision;
 
   if (outcome === "rejected") {
     add({
@@ -69,6 +71,39 @@ export function buildNextBestActions(input: NextBestInput): NextBestAction[] {
       why: "Record accept/decline/ask for time to keep the pipeline tidy.",
       href: `/app/applications/${applicationId}?tab=overview#offer-pack`,
     });
+
+    if (offerDecision === "negotiating") {
+      add({
+        id: "offer-counter",
+        label: "Send counter / follow-up",
+        why: "Follow up on your negotiation while it’s warm.",
+        href: `/app/applications/${applicationId}?tab=overview#offer-pack`,
+      });
+    }
+    if (offerDecision === "asked_for_time") {
+      add({
+        id: "offer-followup",
+        label: "Schedule follow-up",
+        why: "Keep momentum after asking for time.",
+        href: `/app/applications/${applicationId}?tab=activity#outreach`,
+      });
+    }
+    if (offerDecision === "accepted") {
+      add({
+        id: "offer-close-others",
+        label: "Close other applications",
+        why: "Politely close out parallel processes.",
+        href: `/app/applications/${applicationId}?tab=overview#offer-pack`,
+      });
+    }
+    if (offerDecision === "declined") {
+      add({
+        id: "offer-move-on",
+        label: "Log outcome + move on",
+        why: "Record the decline and continue with next roles.",
+        href: `/app/applications/${applicationId}?tab=overview#offer-pack`,
+      });
+    }
   }
 
   if (outcome === "no_response") {

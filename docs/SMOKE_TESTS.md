@@ -222,6 +222,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Fill offer fields, Save, reload → details persist locally; completeness updates.
 - Set counter, copy negotiation scripts (email/LinkedIn/phone) and decision templates; next-best actions include offer tasks.
 
+## Offer Decision Loop (v0.7.77)
+- Decision block shows (negotiating/accepted/declined/asked for time); save persists + auto logs outcome.
+- Refresh retains decision; next-best actions reflect decision (counter/follow-up/close others).
+- Accepted decision shows “Close other applications” templates; copy email/LinkedIn buttons work and log.
+
 ## Applications Command Centre (v0.7.43)
 - /app/applications shows Queue with next-action CTA and readiness 0–5.
 - Tabs filter between Queue/Drafts/Submitted/Interview/Closed.

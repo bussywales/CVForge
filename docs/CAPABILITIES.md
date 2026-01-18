@@ -76,6 +76,7 @@ Interview tab includes a guided Focus Session (15–25 mins) with prioritised qu
 
 ## Offer & Negotiation Pack
 When an offer is logged, the Offer Pack on Overview provides offer summary capture, counter builder, negotiation scripts (polite/direct/warm), and decision templates with copy buttons.
+Decision logging updates outcomes and next best actions; accepted state includes “close other applications” templates.
 
 ## Imports and exports
 DOCX import previews and applies profile fields, achievements, and work history. DOCX export supports Standard and ATS-Minimal variants plus a submission-pack ZIP.

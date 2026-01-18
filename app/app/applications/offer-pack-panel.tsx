@@ -8,8 +8,10 @@ import {
   buildNegotiationScripts,
   buildCounterSummary,
   countOfferCompletion,
+  mapDecisionToOutcome,
+  type OfferDecision,
 } from "@/lib/offer-pack";
-import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { logMonetisationClientEvent, type MonetisationClientEvent } from "@/lib/monetisation-client";
 
 type Props = {
   applicationId: string;
@@ -27,6 +29,9 @@ export default function OfferPackPanel({ applicationId, roleTitle, company, hasO
   const [variant, setVariant] = useState<"polite" | "direct" | "warm">("polite");
   const [isActive, setIsActive] = useState(hasOfferOutcome);
   const [viewLogged, setViewLogged] = useState(false);
+  const [decision, setDecision] = useState<OfferDecision>(null);
+  const [decisionNotes, setDecisionNotes] = useState("");
+  const [decisionSaved, setDecisionSaved] = useState(false);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -37,6 +42,10 @@ export default function OfferPackPanel({ applicationId, roleTitle, company, hasO
         setSummary({ roleTitle, company: company ?? "", ...(parsed.summary ?? {}) });
         setCounter(parsed.counter ?? { asks: [] });
         setSavedAt(parsed.savedAt ?? null);
+        if ((parsed as any).decision) {
+          setDecision((parsed as any).decision as OfferDecision);
+          setDecisionNotes((parsed as any).decisionNotes ?? "");
+        }
       } catch {
         /* ignore */
       }
@@ -57,6 +66,8 @@ export default function OfferPackPanel({ applicationId, roleTitle, company, hasO
       summary,
       counter,
       savedAt: new Date().toISOString(),
+      decision,
+      decisionNotes,
     };
     if (typeof window !== "undefined") {
       window.localStorage.setItem(storageKey, JSON.stringify(payload));
@@ -65,10 +76,14 @@ export default function OfferPackPanel({ applicationId, roleTitle, company, hasO
     logMonetisationClientEvent("offer_pack_save", applicationId, "applications");
   };
 
-  const handleCopy = (text: string, meta: Record<string, any>) => {
+  const handleCopy = (
+    text: string,
+    meta: Record<string, any>,
+    event: MonetisationClientEvent = "offer_pack_copy_script"
+  ) => {
     if (!text) return;
     navigator.clipboard.writeText(text).catch(() => undefined);
-    logMonetisationClientEvent("offer_pack_copy_script", applicationId, "applications", meta);
+    logMonetisationClientEvent(event, applicationId, "applications", meta);
   };
 
   const copyDecision = (text: string, key: string) => {
@@ -85,6 +100,40 @@ export default function OfferPackPanel({ applicationId, roleTitle, company, hasO
       setViewLogged(true);
     }
   }, [applicationId, isActive, viewLogged]);
+
+  const saveDecision = async () => {
+    const payload = {
+      summary,
+      counter,
+      savedAt,
+      decision,
+      decisionNotes,
+    };
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(storageKey, JSON.stringify(payload));
+    }
+    logMonetisationClientEvent("offer_decision_save", applicationId, "applications", { decision });
+    const mapped = mapDecisionToOutcome(decision);
+    try {
+      await fetch("/api/outcomes/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          applicationId,
+          status: mapped.status,
+          reason: mapped.reason,
+          notes: decisionNotes || undefined,
+        }),
+      });
+      setDecisionSaved(true);
+      logMonetisationClientEvent("offer_decision_outcome_autologged", applicationId, "applications", {
+        decision,
+      });
+    } catch {
+      /* ignore */
+    }
+  };
 
   if (!isActive) {
     return (
@@ -158,6 +207,91 @@ export default function OfferPackPanel({ applicationId, roleTitle, company, hasO
             <p className="text-xs text-[rgb(var(--muted))]">{OFFER_COPY.HELPERS.TRUST}</p>
           </div>
         </SectionCard>
+
+        <SectionCard title="Decision">
+          <p className="text-xs text-[rgb(var(--muted))]">
+            Log what you decided so CVForge can recommend the right next steps.
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            {[
+              { key: "negotiating", label: "Negotiating" },
+              { key: "accepted", label: "Accepted" },
+              { key: "declined", label: "Declined" },
+              { key: "asked_for_time", label: "Asked for time" },
+            ].map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                onClick={() => setDecision(option.key as any)}
+                className={`rounded-full px-3 py-1 text-[11px] font-semibold ${
+                  decision === option.key
+                    ? "bg-[rgb(var(--ink))] text-white"
+                    : "border border-black/10 bg-white text-[rgb(var(--ink))]"
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <textarea
+            className="mt-3 w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
+            placeholder="Notes (optional)"
+            value={decisionNotes}
+            onChange={(e) => setDecisionNotes(e.target.value)}
+          />
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={saveDecision}
+              className="rounded-full bg-[rgb(var(--ink))] px-4 py-2 text-xs font-semibold text-white"
+            >
+              Save decision
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDecision(null);
+                setDecisionNotes("");
+                setDecisionSaved(false);
+                logMonetisationClientEvent("offer_decision_undo", applicationId, "applications");
+              }}
+              className="text-xs font-semibold text-[rgb(var(--ink))] underline-offset-2 hover:underline"
+            >
+              Undo
+            </button>
+            {decisionSaved ? <span className="text-xs text-emerald-700">Outcome saved.</span> : null}
+          </div>
+        </SectionCard>
+
+        {decision === "accepted" ? (
+          <SectionCard title="Close other applications (polite)">
+            <p className="text-xs text-[rgb(var(--muted))]">Copy a short note to close out other processes.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
+                onClick={() =>
+                  handleCopy(buildCloseTemplate(summary, "email"), { key: "close_email" }, "offer_close_others_copy_email")
+                }
+              >
+                Copy email
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]"
+                onClick={() =>
+                  handleCopy(
+                    buildCloseTemplate(summary, "linkedin"),
+                    { key: "close_linkedin" },
+                    "offer_close_others_copy_linkedin"
+                  )
+                }
+              >
+                Copy LinkedIn note
+              </button>
+            </div>
+          </SectionCard>
+        ) : null}
 
         <SectionCard title="Your counter">
           <div className="grid gap-3 md:grid-cols-3">
@@ -393,4 +527,21 @@ function buildDecisionTemplates(summary: OfferSummary) {
     "",
   ].join("\n");
   return { accept, decline, time };
+}
+
+function buildCloseTemplate(summary: OfferSummary, channel: "email" | "linkedin") {
+  const role = summary.roleTitle ?? "the role";
+  const company = summary.company ?? "your team";
+  if (channel === "email") {
+    return [
+      "Hi there,",
+      "",
+      `I’ve accepted an offer for ${role} and need to withdraw from this process.`,
+      `Thank you for the time and consideration — I appreciate the conversations with ${company}.`,
+      "",
+      "Best,",
+      "",
+    ].join("\n");
+  }
+  return `Thanks for considering me for ${role}. I’ve accepted another offer and will withdraw here. Appreciate the time with ${company}.`;
 }
