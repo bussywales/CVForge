@@ -2,6 +2,11 @@
 
 # Changelog
 
+## v0.7.92
+- Billing deeplink anchors are now always present (#compare/#portal-return/#subscription/#packs) so ops support links reliably scroll/highlight the intended section.
+- Deeplink handler retries until anchors appear and logs target-missing; highlight + helper line now run after anchor resolves.
+- Added anchor regression test; logging allowlist expanded for deeplink events.
+
 ## v0.7.91
 - Ops support links now deep-link into Billing: packs/subscription/portal-return sections get anchors (#packs/#subscription/#portal-return/#compare), auto-scroll + highlight for support visitors.
 - Added deterministic billing deep-link resolver with tests; logging for ops_support_deeplink applied/cta click.

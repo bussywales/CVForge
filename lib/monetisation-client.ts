@@ -261,6 +261,9 @@ const ALLOWED = [
   "ops_support_link_copy",
   "ops_support_deeplink_applied",
   "ops_support_deeplink_cta_click",
+  "ops_support_deeplink_target_missing",
+  "ops_support_deeplink_applied",
+  "ops_support_deeplink_cta_click",
 ] as const;
 
 export type MonetisationClientEvent = (typeof ALLOWED)[number];

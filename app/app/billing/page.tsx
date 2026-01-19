@@ -35,6 +35,7 @@ import SubCancelReasons from "./sub-cancel-reasons";
 import CompareCard from "./compare-card";
 import { buildCompareRecommendation } from "@/lib/billing/compare-reco";
 import nextDynamic from "next/dynamic";
+import BillingAnchors from "./billing-anchors";
 
 const BillingDeepLinkClient = nextDynamic(() => import("./billing-deeplink-client"), { ssr: false });
 
@@ -261,6 +262,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
   return (
     <div className="space-y-6" id="billing-root">
+      <BillingAnchors />
       <BillingDeepLinkClient />
       <PostPurchaseSuccessBanner
         show={Boolean(searchParams?.success)}

@@ -24,17 +24,38 @@ export default function BillingDeepLinkClient({ onHighlight }: Props) {
       return;
     }
 
-    const anchorEl = typeof document !== "undefined" ? document.getElementById(intent.anchor) : null;
-    if (anchorEl) {
+    let attempts = 0;
+    const supportFlag = searchParams.get("support") === "1";
+    const tryApply = () => {
+      const anchorEl = typeof document !== "undefined" ? document.getElementById(intent.anchor) : null;
+      attempts += 1;
+      if (!anchorEl) {
+        if (attempts < 10) {
+          window.setTimeout(tryApply, 100);
+        } else {
+          try {
+            logMonetisationClientEvent("ops_support_deeplink_target_missing", null, "billing", {
+              kind: intent.kind,
+              target: intent.target,
+              anchor: intent.anchor,
+              from: searchParams.get("from") ?? undefined,
+              support: supportFlag,
+            });
+          } catch {
+            // ignore
+          }
+        }
+        return;
+      }
       anchorEl.scrollIntoView({ behavior: "smooth", block: "start" });
       anchorEl.classList.add("ring-2", "ring-amber-400", "ring-offset-2", "transition", "duration-500");
-      if (searchParams.get("support") === "1") {
+      if (supportFlag) {
         const helper = document.createElement("div");
         helper.textContent = "Focused for support — review and choose safely.";
         helper.setAttribute("data-billing-support-helper", "1");
         helper.className = "mt-2 text-xs text-amber-700";
         anchorEl.appendChild(helper);
-        window.setTimeout(() => helper.remove(), 4500);
+        window.setTimeout(() => helper.remove(), 2000);
       }
       const handleClick = () => {
         try {
@@ -51,24 +72,27 @@ export default function BillingDeepLinkClient({ onHighlight }: Props) {
       window.setTimeout(() => {
         anchorEl.classList.remove("ring-2", "ring-amber-400", "ring-offset-2");
         anchorEl.removeEventListener("click", handleClick);
-      }, 4500);
-    }
-    onHighlight?.(intent.highlightKey);
-    appliedRef.current = intent.intentKey;
-    if (typeof window !== "undefined") {
-      window.sessionStorage.setItem(sessionKey, "1");
-    }
-    try {
-      logMonetisationClientEvent("ops_support_deeplink_applied", null, "billing", {
-        kind: intent.kind,
-        target: intent.target,
-        anchor: intent.anchor,
-        from: searchParams.get("from") ?? undefined,
-        support: searchParams.get("support") === "1",
-      });
-    } catch {
-      // ignore
-    }
+      }, 2000);
+
+      onHighlight?.(intent.highlightKey);
+      appliedRef.current = intent.intentKey;
+      if (typeof window !== "undefined") {
+        window.sessionStorage.setItem(sessionKey, "1");
+      }
+      try {
+        logMonetisationClientEvent("ops_support_deeplink_applied", null, "billing", {
+          kind: intent.kind,
+          target: intent.target,
+          anchor: intent.anchor,
+          from: searchParams.get("from") ?? undefined,
+          support: supportFlag,
+        });
+      } catch {
+        // ignore
+      }
+    };
+
+    tryApply();
   }, [onHighlight, searchParams]);
 
   return null;
