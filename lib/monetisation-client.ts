@@ -266,6 +266,10 @@ const ALLOWED = [
   "ops_support_deeplink_cta_click",
   "ops_support_deeplink_target_missing",
   "ops_support_deeplink_attempt",
+  "ops_audits_view",
+  "ops_audits_filter_apply",
+  "ops_audits_export_json",
+  "ops_audits_export_csv",
 ] as const;
 
 export type MonetisationClientEvent = (typeof ALLOWED)[number];

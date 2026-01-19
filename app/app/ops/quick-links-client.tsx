@@ -30,10 +30,13 @@ export default function QuickLinksClient() {
         User lookup
         <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">Search by email or user id</p>
       </button>
-      <div className="rounded-2xl border border-black/10 bg-white/60 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))]">
+      <Link
+        href="/app/ops/audits"
+        className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
+      >
         Audits
-        <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">Coming soon</p>
-      </div>
+        <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">Review ops actions with filters/export</p>
+      </Link>
     </div>
   );
 }

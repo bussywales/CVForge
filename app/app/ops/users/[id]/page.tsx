@@ -68,6 +68,14 @@ export default async function OpsUserPage({ params }: { params: { id: string } }
         <h1 className="text-lg font-semibold text-[rgb(var(--ink))]">User support dossier</h1>
         <p className="text-sm text-[rgb(var(--muted))]">{authUser.data.user.email}</p>
         <p className="text-xs text-[rgb(var(--muted))]">{authUser.data.user.id}</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <Link
+            href={`/app/ops/audits?userId=${encodeURIComponent(authUser.data.user.id)}&from=dossier`}
+            className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+          >
+            View audits
+          </Link>
+        </div>
       </div>
 
       <div className="rounded-2xl border border-black/10 bg-white/80 p-4">

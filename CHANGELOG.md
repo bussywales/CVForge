@@ -5,6 +5,11 @@
 - New ops search API enforces RBAC + structured errors, hashes queries in audit logs, and fills names/roles from profiles/user_roles.
 - Ops guardrail script now checks for requestId/error helpers across ops routes; guard runs in CI; quick links include Incidents + Audits (coming soon).
 
+## v0.7.99
+- Ops Audits v1: new ops-only /app/ops/audits page with filters (user/actor/action/date/q), masked results table, pagination, and JSON/CSV export; dossier now links directly with user filter.
+- New /api/ops/audits endpoint enforces RBAC, requestId/jsonError, masking, and cursor pagination with limit caps + validation.
+- Observability: ops audit list logs view/filter/export events (hashed q), guard script covers new route; smoke/docs updated.
+
 ## v0.7.97
 - Ops support links v2: unified destination mapper (billing/app/interview) with from=ops_support/support=1 flags, tab/focus defaults, and app-ownership validation on the API.
 - Support actions card now generates billing pack/plan/portal links plus application outreach/offer/outcome or interview focus links (recent app/manual ID), showing the URL + timestamp even if copy is blocked.

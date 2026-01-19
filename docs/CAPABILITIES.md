@@ -121,6 +121,7 @@ v0.7.84 extends requestId + structured error coverage across remaining APIs and 
 Incident Console v2 (v0.7.85) adds grouped feeds, filters, related timelines, and CSV/JSON export for ops with no secrets exposed.
 Support links now deep-link into Billing sections (subscription/packs/portal-return) with scroll + highlight when `support=1` or `from=ops_support`.
 Deeplink handler retries until anchors exist and logs attempt/applied/missing events for ops debugging.
+Ops Audits (v0.7.99): ops-only audits page at `/app/ops/audits` lists masked audit entries with filters (user/actor/action/date/q), cursor pagination, JSON/CSV export, and dossier deep-linking; API is RBAC-guarded with structured errors and hashed search logging.
 
 ## Deterministic vs OpenAI usage
 Deterministic engines include role-fit.ts, interview-lift.ts, outreach-templates.ts, submission-quality.ts, and metrics-helper.ts. OpenAI is only used for autopack generation via server-side API calls.
