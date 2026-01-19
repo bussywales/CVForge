@@ -14,17 +14,21 @@ describe("buildSupportLink", () => {
     expect(url).toContain("plan=monthly_80");
   });
 
-  it("builds application link with tab and anchor", () => {
+  it("builds application link with focus and tab", () => {
     const url = buildSupportLink({
-      kind: "application",
+      kind: "application_outreach",
       userId: "u1",
-      applicationId: "app123",
-      tab: "activity",
-      anchor: "outreach",
+      appId: "app123",
     });
     expect(url).toContain("/app/applications/app123");
     expect(url).toContain("tab=activity");
-    expect(url).toContain("#outreach");
+    expect(url).toContain("focus=outreach");
     expect(url).toContain("from=ops_support");
+  });
+
+  it("builds interview link without app id", () => {
+    const url = buildSupportLink({ kind: "interview", userId: "u1" });
+    expect(url).toContain("/app/interview");
+    expect(url).toContain("focus=interview-focus-session");
   });
 });

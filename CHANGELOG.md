@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.97
+- Ops support links v2: unified destination mapper (billing/app/interview) with from=ops_support/support=1 flags, tab/focus defaults, and app-ownership validation on the API.
+- Support actions card now generates billing pack/plan/portal links plus application outreach/offer/outcome or interview focus links (recent app/manual ID), showing the URL + timestamp even if copy is blocked.
+- Application/Interview focus scroll-highlights retry for ~1.5s with per-app dedupe; new /app/interview anchor handles ops deep links to the Interview Focus Session.
+
 ## v0.7.96
 - Ops entry now visible in the app nav for ops/admin/super_admin, logging ops_entry_click when used.
 - All /app/ops routes show a premium Access denied (403) page for non-ops with reference/support snippet instead of 404.

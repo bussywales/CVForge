@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 let POST: any;
+let applicationSingle: any;
 
 beforeAll(async () => {
   class SimpleHeaders {
@@ -68,11 +69,21 @@ beforeAll(async () => {
   }));
 
   const insert = vi.fn().mockResolvedValue({ data: null, error: null });
+  applicationSingle = vi.fn().mockResolvedValue({ data: { user_id: "11111111-1111-1111-1111-111111111111" }, error: null });
+  const applicationEq = vi.fn().mockReturnValue({ single: applicationSingle });
+  const applicationSelect = vi.fn().mockReturnValue({ eq: applicationEq });
   vi.doMock("@/lib/supabase/service", () => ({
     createServiceRoleClient: () => ({
-      from: () => ({
-        insert,
-      }),
+      from: (table: string) => {
+        if (table === "applications") {
+          return {
+            select: applicationSelect,
+          };
+        }
+        return {
+          insert,
+        };
+      },
     }),
   }));
 
@@ -108,5 +119,34 @@ describe("ops support-link route", () => {
     const res = await POST(req);
     const body = await res.json();
     expect(body.error?.code).toBe("INVALID_PAYLOAD");
+  });
+
+  it("rejects when application does not belong to the user", async () => {
+    applicationSingle.mockResolvedValueOnce({ data: { user_id: "someone_else" }, error: null });
+    const req = new Request("http://localhost/api/ops/support-link", {
+      method: "POST",
+      body: JSON.stringify({ userId: "11111111-1111-1111-1111-111111111111", kind: "application", appId: "app-123", focus: "outreach" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(req);
+    const body = await res.json();
+    expect(res.status).toBe(400);
+    expect(body.error?.code).toBe("INVALID_APP");
+  });
+
+  it("returns application link with ops flags when valid", async () => {
+    const req = new Request("http://localhost/api/ops/support-link", {
+      method: "POST",
+      body: JSON.stringify({ userId: "11111111-1111-1111-1111-111111111111", kind: "application_outreach", appId: "app-123" }),
+      headers: { "Content-Type": "application/json" },
+    });
+    const res = await POST(req);
+    expect(res.status).toBe(200);
+    const text = await res.text();
+    const parsed = JSON.parse(text);
+    expect(parsed.url).toContain("/app/applications/app-123");
+    expect(parsed.url).toContain("focus=outreach");
+    expect(parsed.url).toContain("from=ops_support");
+    expect(parsed.url).toContain("support=1");
   });
 });

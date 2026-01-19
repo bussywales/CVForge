@@ -167,7 +167,14 @@ export default async function OpsUserPage({ params }: { params: { id: string } }
       <SupportActions
         targetUserId={params.id}
         viewerRole={viewerRole as UserRole}
-        applications={applications.map((app) => ({ id: app.id, title: app.job_title ?? "Application", company: app.company_name ?? app.company }))}
+        applications={applications.map((app) => ({
+          id: app.id,
+          title: app.job_title ?? "Application",
+          company: app.company_name ?? app.company,
+          status: app.status,
+          updatedAt: app.updated_at ?? null,
+          createdAt: app.created_at,
+        }))}
         auditEntries={(auditEntriesRaw.data ?? []).map((row) => ({
           id: row.id,
           action: row.action,

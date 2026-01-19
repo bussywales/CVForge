@@ -4,7 +4,13 @@ import { captureServerError } from "@/lib/observability/sentry";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { buildSupportLink, type SupportLinkKind } from "@/lib/ops/support-links";
+import {
+  BILLING_PACKS,
+  BILLING_PLANS,
+  SUPPORT_FOCUS_TARGETS,
+  buildSupportLink,
+  type SupportLinkKind,
+} from "@/lib/ops/support-links";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,48 +31,81 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => ({}));
   const targetUserId = typeof body?.userId === "string" ? body.userId : null;
   const kind = body?.kind as SupportLinkKind | undefined;
-  const plan = typeof body?.plan === "string" ? body.plan : undefined;
-  const pack = typeof body?.pack === "string" ? body.pack : undefined;
-  const applicationId = typeof body?.applicationId === "string" ? body.applicationId : undefined;
-  const tab = typeof body?.tab === "string" ? body.tab : undefined;
-  const anchor = typeof body?.anchor === "string" ? body.anchor : undefined;
+  const planRaw = typeof body?.plan === "string" ? body.plan : null;
+  const packRaw = typeof body?.pack === "string" ? body.pack : null;
+  const appId = typeof body?.appId === "string"
+    ? body.appId
+    : typeof body?.applicationId === "string"
+    ? body.applicationId
+    : null;
+  const anchor = typeof body?.anchor === "string" ? body.anchor : null;
+  const flow =
+    typeof body?.flow === "string"
+      ? body.flow
+          .toString()
+          .trim()
+          .slice(0, 32)
+          .replace(/[^a-zA-Z0-9_-]/g, "") || null
+      : null;
+  const focusRaw = typeof body?.focus === "string" ? body.focus : null;
+  const portal = body?.portal ? "1" : null;
 
   const allowedKinds: SupportLinkKind[] = [
+    "billing",
     "billing_compare",
+    "billing_subscription",
     "billing_subscription_30",
     "billing_subscription_80",
+    "billing_topup",
     "billing_topup_starter",
     "billing_topup_pro",
     "billing_topup_power",
     "application",
+    "application_outreach",
+    "application_offer",
+    "application_outcome",
+    "application_interview",
+    "interview",
   ];
 
   if (!targetUserId || !kind || !allowedKinds.includes(kind)) {
     return jsonError({ code: "INVALID_PAYLOAD", message: "Invalid payload", requestId, status: 400 });
   }
 
+  const plan = BILLING_PLANS.includes(planRaw as any) ? (planRaw as (typeof BILLING_PLANS)[number]) : null;
+  const pack = BILLING_PACKS.includes(packRaw as any) ? (packRaw as (typeof BILLING_PACKS)[number]) : null;
+  const focus = SUPPORT_FOCUS_TARGETS.includes(focusRaw as any) ? (focusRaw as (typeof SUPPORT_FOCUS_TARGETS)[number]) : null;
+
+  if (kind.startsWith("application") && !appId) {
+    return jsonError({ code: "INVALID_PAYLOAD", message: "Application required", requestId, status: 400 });
+  }
+
   try {
-    let resolvedKind: SupportLinkKind = kind;
-    if (kind === "billing_subscription_30" || kind === "billing_subscription_80") {
-      resolvedKind = kind;
-    }
-    if (kind === "billing_topup_starter" || kind === "billing_topup_pro" || kind === "billing_topup_power") {
-      resolvedKind = kind;
+    const admin = createServiceRoleClient();
+    // Validate application ownership when provided
+    if (appId) {
+      const { data, error } = await admin.from("applications").select("user_id").eq("id", appId).single();
+      if (error || !data || data.user_id !== targetUserId) {
+        return jsonError({ code: "INVALID_APP", message: "Application not found for user", requestId, status: 400 });
+      }
     }
     const url = buildSupportLink({
-      kind: resolvedKind,
+      kind,
       userId: targetUserId,
-      applicationId,
-      tab,
+      appId,
       anchor,
+      flow,
+      focus,
+      pack,
+      plan,
+      portal,
     });
 
-    const admin = createServiceRoleClient();
     await admin.from("ops_audit_log").insert({
       actor_user_id: user.id,
       target_user_id: targetUserId,
       action: "support_link_generated",
-      meta: { kind: resolvedKind, plan, pack, applicationId, tab, anchor, requestId },
+      meta: { kind, plan, pack, appId, anchor, focus, flow, portal, requestId },
     });
 
     return NextResponse.json({ ok: true, url: String(url) }, { headers: responseHeaders, status: 200 });

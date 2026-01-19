@@ -11,11 +11,13 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.
 - Open /app/ops/users/<id> as an ops user; Support actions card renders.
 - Apply a small credit adjustment (e.g., +5 goodwill) and see the new balance + audit entry.
-- Generate a support link (billing compare or app tab) and copy it (includes from=ops_support); URL must appear even if logging fails.
-- If clipboard is blocked, manual copy hint appears but link stays visible.
+- Generate support links (billing pack, app outreach focus, interview focus session) and copy/regenerate them (includes from=ops_support&support=1) — URL + timestamp stay visible even if logging/copy fails.
+- If clipboard is blocked, manual copy hint appears but the link stays visible for copy/paste.
 - Errors show ErrorBanner with request reference.
 - Validate response JSON: support-link endpoint returns complete JSON and UI shows the URL.
   - Response ends with `}` and includes `from=ops_support&support=1` in the URL.
+- Open generated support link for outreach focus → Applications page scrolls/highlights `#outreach` with a short offset.
+- Open generated interview focus link (with or without appId) → Interview Focus Session anchor scrolls/highlights.
 - Open generated support link with pack=starter → Billing scrolls to Packs section and highlights it.
 - Open generated support link with plan=monthly_80 → Billing scrolls to Subscription section and highlights it.
 - Support link with portal=1&flow=cancel... → Billing scrolls to portal-return (or subscription fallback) and highlights banner.

@@ -7,10 +7,17 @@ import { OPS_COPY } from "@/lib/microcopy/ops";
 import { buildSupportSnippet } from "@/lib/observability/support-snippet";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { safeReadJson } from "@/lib/http/safe-json";
-import { type SupportLinkKind } from "@/lib/ops/support-links";
+import { type SupportFocus, type SupportLinkKind } from "@/lib/ops/support-links";
 import { type UserRole } from "@/lib/rbac";
 
-type ApplicationOption = { id: string; title: string; company?: string | null };
+type ApplicationOption = {
+  id: string;
+  title: string;
+  company?: string | null;
+  status?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+};
 type AuditEntry = { id: string; action: string; actor: string | null; createdAt: string; meta: Record<string, any> };
 
 type Props = {
@@ -28,8 +35,15 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
   const [adjustError, setAdjustError] = useState<{ requestId?: string | null; message?: string | null; code?: string | null } | null>(null);
   const [adjustLoading, setAdjustLoading] = useState(false);
 
-  const [linkKind, setLinkKind] = useState<SupportLinkKind>("billing_compare");
-  const [linkApplicationId, setLinkApplicationId] = useState<string>("");
+  const [linkKind, setLinkKind] = useState<SupportLinkKind>("billing");
+  const [billingTarget, setBillingTarget] = useState<
+    "compare" | "subscription_30" | "subscription_80" | "pack_starter" | "pack_pro" | "pack_power" | "portal_return"
+  >("compare");
+  const [billingFlow, setBillingFlow] = useState<string>("");
+  const [linkFocus, setLinkFocus] = useState<SupportFocus>("outreach");
+  const [appSelectionMode, setAppSelectionMode] = useState<"recent" | "choose" | "manual">(applications.length ? "recent" : "manual");
+  const [linkApplicationId, setLinkApplicationId] = useState<string>(applications[0]?.id ?? "");
+  const [manualAppId, setManualAppId] = useState<string>("");
   const [linkUrl, setLinkUrl] = useState<string | null>(null);
   const [lastGeneratedAt, setLastGeneratedAt] = useState<Date | null>(null);
   const [copyBlocked, setCopyBlocked] = useState(false);
@@ -47,10 +61,36 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
     () =>
       applications.map((app) => ({
         id: app.id,
-        label: `${app.title}${app.company ? ` · ${app.company}` : ""}`,
+        label: `${app.title}${app.company ? ` · ${app.company}` : ""}${app.status ? ` (${app.status})` : ""}`,
       })),
     [applications]
   );
+
+  const recentActiveApplication = useMemo(() => {
+    const sorted = [...applications].sort((a, b) => {
+      const aTime = a.updatedAt ?? a.createdAt;
+      const bTime = b.updatedAt ?? b.createdAt;
+      return (bTime ? new Date(bTime).getTime() : 0) - (aTime ? new Date(aTime).getTime() : 0);
+    });
+    const active = sorted.find((app) => app.status !== "rejected" && app.status !== "on_hold");
+    return active ?? sorted[0] ?? null;
+  }, [applications]);
+
+  const selectedApplicationId = useMemo(() => {
+    if (linkKind === "billing") return null;
+    if (appSelectionMode === "manual") return manualAppId.trim() || null;
+    if (appSelectionMode === "recent") return recentActiveApplication?.id ?? null;
+    return linkApplicationId || null;
+  }, [appSelectionMode, linkKind, linkApplicationId, manualAppId, recentActiveApplication]);
+
+  const selectedApplicationLabel = useMemo(() => {
+    if (!selectedApplicationId) return null;
+    const app = applications.find((a) => a.id === selectedApplicationId);
+    if (app) {
+      return `${app.title}${app.company ? ` · ${app.company}` : ""}`;
+    }
+    return selectedApplicationId;
+  }, [applications, selectedApplicationId]);
 
   const supportSnippet = (requestId?: string | null, action = "Ops support action", code?: string | null) => {
     if (!requestId) return undefined;
@@ -100,15 +140,49 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
     setLinkError(null);
     setCopyBlocked(false);
     let generatedUrl: string | null = null;
+    const payload: Record<string, any> = { userId: targetUserId, kind: linkKind };
+
+    if (linkKind === "billing") {
+      payload.kind = "billing";
+      if (billingTarget === "subscription_30") {
+        payload.plan = "monthly_30";
+      } else if (billingTarget === "subscription_80") {
+        payload.plan = "monthly_80";
+      } else if (billingTarget === "pack_starter") {
+        payload.pack = "starter";
+      } else if (billingTarget === "pack_pro") {
+        payload.pack = "pro";
+      } else if (billingTarget === "pack_power") {
+        payload.pack = "power";
+      } else if (billingTarget === "portal_return") {
+        payload.portal = "1";
+        const cleanedFlow = billingFlow
+          .trim()
+          .slice(0, 32)
+          .replace(/[^a-zA-Z0-9_-]/g, "");
+        if (cleanedFlow) {
+          payload.flow = cleanedFlow;
+        }
+      }
+    } else {
+      const appId = selectedApplicationId;
+      if (!appId && linkKind !== "interview") {
+        setLinkError({ requestId: null, message: "Select an application first", code: "INVALID_APP" });
+        setLinkLoading(false);
+        return null;
+      }
+      payload.kind = linkKind === "interview" ? "interview" : "application";
+      if (appId) {
+        payload.appId = appId;
+      }
+      payload.focus = linkKind === "interview" ? "interview-focus-session" : linkFocus;
+    }
+
     try {
       const res = await fetch("/api/ops/support-link", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: targetUserId,
-          kind: linkKind,
-          applicationId: linkKind === "application" ? linkApplicationId || null : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
       let data: any = null;
       try {
@@ -149,7 +223,7 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
     }
     // Fire-and-forget logging; never block the UI
     try {
-      logMonetisationClientEvent("ops_support_link_generate", targetUserId, "ops", { kind: linkKind });
+      logMonetisationClientEvent("ops_support_link_generate", targetUserId, "ops", { kind: payload.kind, focus: payload.focus });
     } catch {
       // ignore
     }
@@ -255,38 +329,147 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
               onChange={(e) => setLinkKind(e.target.value as SupportLinkKind)}
               className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
             >
-              <option value="billing_compare">Billing → Compare</option>
-              <option value="billing_subscription_30">Billing → Subscription (Monthly 30)</option>
-              <option value="billing_subscription_80">Billing → Subscription (Monthly 80)</option>
-              <option value="billing_topup_starter">Billing → Top-up Starter</option>
-              <option value="billing_topup_pro">Billing → Top-up Pro</option>
-              <option value="billing_topup_power">Billing → Top-up Power</option>
-              <option value="application">Application → Specific tab</option>
+              <option value="billing">Billing (packs/subscription/portal)</option>
+              <option value="application">Application (Outreach / Offer pack / Outcomes)</option>
+              <option value="interview">Interview (Focus session)</option>
             </select>
           </div>
-          {linkKind === "application" ? (
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-[rgb(var(--ink))]">Application</label>
+          {linkKind === "billing" ? (
+            <div className="space-y-2">
+              <label className="text-xs font-semibold text-[rgb(var(--ink))]">Billing target</label>
               <select
-                value={linkApplicationId}
-                onChange={(e) => setLinkApplicationId(e.target.value)}
+                value={billingTarget}
+                onChange={(e) =>
+                  setBillingTarget(
+                    e.target.value as "compare" | "subscription_30" | "subscription_80" | "pack_starter" | "pack_pro" | "pack_power" | "portal_return"
+                  )
+                }
                 className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
               >
-                <option value="">Select application</option>
-                {applicationOptions.map((app) => (
-                  <option key={app.id} value={app.id}>
-                    {app.label}
-                  </option>
-                ))}
+                <option value="compare">Compare plans</option>
+                <option value="subscription_30">Subscription (Monthly 30)</option>
+                <option value="subscription_80">Subscription (Monthly 80)</option>
+                <option value="pack_starter">Top-up Starter</option>
+                <option value="pack_pro">Top-up Pro</option>
+                <option value="pack_power">Top-up Power</option>
+                <option value="portal_return">Portal return</option>
               </select>
-              <p className="text-[10px] text-[rgb(var(--muted))]">Links include from=ops_support&support=1</p>
+              {billingTarget === "portal_return" ? (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-semibold text-[rgb(var(--ink))]">Flow (optional)</label>
+                  <input
+                    value={billingFlow}
+                    onChange={(e) => setBillingFlow(e.target.value)}
+                    className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
+                    placeholder="e.g. cancel"
+                  />
+                  <p className="text-[10px] text-[rgb(var(--muted))]">Portal flag is added automatically.</p>
+                </div>
+              ) : null}
             </div>
-          ) : null}
+          ) : (
+            <>
+              <div className="space-y-2">
+                <label className="text-xs font-semibold text-[rgb(var(--ink))]">
+                  {linkKind === "interview" ? "Application (optional)" : "Application"}
+                </label>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAppSelectionMode("recent")}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      appSelectionMode === "recent"
+                        ? "border-[rgb(var(--ink))] bg-[rgb(var(--ink))] text-white"
+                        : "border-black/10 bg-white text-[rgb(var(--ink))]"
+                    }`}
+                  >
+                    Most recent active
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAppSelectionMode("choose")}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      appSelectionMode === "choose"
+                        ? "border-[rgb(var(--ink))] bg-[rgb(var(--ink))] text-white"
+                        : "border-black/10 bg-white text-[rgb(var(--ink))]"
+                    }`}
+                  >
+                    Choose from list
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAppSelectionMode("manual")}
+                    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
+                      appSelectionMode === "manual"
+                        ? "border-[rgb(var(--ink))] bg-[rgb(var(--ink))] text-white"
+                        : "border-black/10 bg-white text-[rgb(var(--ink))]"
+                    }`}
+                  >
+                    Paste app ID
+                  </button>
+                </div>
+                {appSelectionMode === "choose" ? (
+                  <select
+                    value={linkApplicationId}
+                    onChange={(e) => setLinkApplicationId(e.target.value)}
+                    className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
+                  >
+                    <option value="">Select application</option>
+                    {applicationOptions.map((app) => (
+                      <option key={app.id} value={app.id}>
+                        {app.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+                {appSelectionMode === "manual" ? (
+                  <input
+                    value={manualAppId}
+                    onChange={(e) => setManualAppId(e.target.value)}
+                    className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
+                    placeholder="app_xxx..."
+                  />
+                ) : null}
+                {selectedApplicationId && appSelectionMode !== "recent" ? (
+                  <p className="text-[10px] text-[rgb(var(--muted))]">Selected: {selectedApplicationLabel}</p>
+                ) : null}
+                {appSelectionMode === "recent" ? (
+                  <p className="text-[10px] text-[rgb(var(--muted))]">
+                    {recentActiveApplication
+                      ? `Using ${recentActiveApplication.title}${recentActiveApplication.company ? ` · ${recentActiveApplication.company}` : ""}${
+                          recentActiveApplication.status ? ` (${recentActiveApplication.status})` : ""
+                        }`
+                      : "No applications found."}
+                  </p>
+                ) : null}
+                {linkKind === "interview" && !selectedApplicationId ? (
+                  <p className="text-[10px] text-[rgb(var(--muted))]">No app selected — link will open the interview page.</p>
+                ) : null}
+              </div>
+              {linkKind === "application" ? (
+                <div className="space-y-1">
+                  <label className="text-xs font-semibold text-[rgb(var(--ink))]">Focus</label>
+                  <select
+                    value={linkFocus}
+                    onChange={(e) => setLinkFocus(e.target.value as SupportFocus)}
+                    className="w-full rounded-lg border border-black/10 px-3 py-2 text-sm"
+                  >
+                    <option value="outreach">Outreach</option>
+                    <option value="offer-pack">Offer pack</option>
+                    <option value="outcome">Outcomes</option>
+                  </select>
+                </div>
+              ) : (
+                <p className="text-[10px] text-[rgb(var(--muted))]">Focuses on Interview Focus Session.</p>
+              )}
+            </>
+          )}
+          <p className="text-[10px] text-[rgb(var(--muted))]">Links include from=ops_support&support=1</p>
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
               onClick={handleGenerateLink}
-              disabled={linkLoading || (linkKind === "application" && !linkApplicationId)}
+              disabled={linkLoading || (linkKind === "application" && !selectedApplicationId)}
               className="rounded-full bg-[rgb(var(--ink))] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/30"
             >
               {linkLoading ? "Generating..." : "Generate link"}

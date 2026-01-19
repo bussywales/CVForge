@@ -82,6 +82,7 @@ import OfferCloseoutPanel from "../offer-closeout-panel";
 import { buildOutreachRecommendation } from "@/lib/outreach-engine";
 import OutreachPanel from "../outreach-panel";
 import { buildNextMove } from "@/lib/outreach-next-move";
+import SupportFocusClient from "../support-focus-client";
 
 const RoleFitCard = dynamic(() => import("../role-fit-card"), {
   ssr: false,
@@ -587,6 +588,7 @@ export default async function ApplicationPage({
 
   return (
     <div className="space-y-6">
+      <SupportFocusClient applicationId={application.id} />
       <PostPurchaseSuccessBanner
         applicationId={application.id}
         surface="applications"
