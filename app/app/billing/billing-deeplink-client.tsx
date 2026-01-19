@@ -46,20 +46,23 @@ export default function BillingDeepLinkClient({ onHighlight }: Props) {
       // ignore
     }
 
-    applyBillingDeeplinkIntent({
-      intent,
-      getElement: () => document.getElementById(intent.anchor),
-      onFound: (anchorEl, elapsedMs) => {
-        anchorEl.scrollIntoView({ behavior: "smooth", block: "start" });
-        anchorEl.classList.add("ring-2", "ring-amber-400", "ring-offset-2", "transition", "duration-500");
-        if (supportFlag) {
-          const helper = document.createElement("div");
-          helper.textContent = "Support link opened — review and choose safely.";
-          helper.setAttribute("data-billing-support-helper", "1");
-          helper.className = "mt-2 text-xs text-amber-700";
-          anchorEl.appendChild(helper);
-          window.setTimeout(() => helper.remove(), 2000);
-        }
+      applyBillingDeeplinkIntent({
+        intent,
+        getElement: () => document.getElementById(intent.anchor),
+        onFound: (anchorEl, elapsedMs) => {
+          anchorEl.scrollIntoView({ behavior: "smooth", block: "start" });
+          requestAnimationFrame(() => {
+            window.scrollBy({ top: -48, behavior: "smooth" });
+          });
+          anchorEl.classList.add("ring-2", "ring-amber-400", "ring-offset-2", "transition", "duration-500");
+          if (supportFlag) {
+            const helper = document.createElement("div");
+            helper.textContent = "Support link opened — review and choose safely.";
+            helper.setAttribute("data-billing-support-helper", "1");
+            helper.className = "mt-2 text-xs text-amber-700";
+            anchorEl.appendChild(helper);
+            window.setTimeout(() => helper.remove(), 2000);
+          }
         const handleClick = () => {
           try {
             logMonetisationClientEvent("ops_support_deeplink_cta_click", null, "billing", {

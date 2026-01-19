@@ -35,8 +35,6 @@ import SubCancelReasons from "./sub-cancel-reasons";
 import CompareCard from "./compare-card";
 import { buildCompareRecommendation } from "@/lib/billing/compare-reco";
 import nextDynamic from "next/dynamic";
-import BillingAnchors from "./billing-anchors";
-
 const BillingDeepLinkClient = nextDynamic(() => import("./billing-deeplink-client"), { ssr: false });
 
 export const dynamic = "force-dynamic";
@@ -53,6 +51,9 @@ type BillingPageProps = {
     purchased?: string;
     sub?: string;
     mode?: string;
+    support?: string;
+    pack?: string;
+    flow?: string;
   };
 };
 
@@ -260,9 +261,12 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     };
   });
 
+  const supportLinkIntent =
+    searchParams?.support === "1" || searchParams?.from === "ops_support" || searchParams?.portal || searchParams?.flow;
+  const wantsPortalPlaceholder = supportLinkIntent && !showPortalReturn && (searchParams?.portal || searchParams?.flow);
+
   return (
     <div className="space-y-6" id="billing-root">
-      <BillingAnchors />
       <BillingDeepLinkClient />
       <PostPurchaseSuccessBanner
         show={Boolean(searchParams?.success)}
@@ -305,6 +309,13 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
             isActive={hasSubscription}
             portalKey={portalKey}
           />
+        </div>
+      ) : wantsPortalPlaceholder ? (
+        <div
+          id="portal-return"
+          className="rounded-2xl border border-black/10 bg-white/70 p-4 text-xs text-[rgb(var(--muted))]"
+        >
+          Portal return actions will appear here when available.
         </div>
       ) : null}
       {showPortalReturn && portalState.flow === "cancel" && (hasSubscription || subscriptionStatus.currentPlanKey) && retentionSummary ? (
