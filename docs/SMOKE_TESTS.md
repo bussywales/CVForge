@@ -18,6 +18,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Open generated support link with plan=monthly_80 → Billing scrolls to Subscription section and highlights it.
 - Support link with portal=1&flow=cancel... → Billing scrolls to portal-return (or subscription fallback) and highlights banner.
 - Anchors exist: #compare, #portal-return, #subscription, #packs should all resolve when visiting /app/billing#anchor.
+- With debug=1 in the support link, a small debug note briefly shows where the deeplink applied.
 
 ## Applications
 - Create an application with job title, job description, and optional job URL.

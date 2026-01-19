@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v0.7.93
+- Billing deeplink handler reliability: runs on page load, retries until anchors exist, scrolls + highlights with support helper; debug note available via debug=1. Logs attempt/applied/missing without blocking.
+- New apply helper with retry test; ops support deeplink events allowlisted.
+
 ## v0.7.92
 - Billing deeplink anchors are now always present (#compare/#portal-return/#subscription/#packs) so ops support links reliably scroll/highlight the intended section.
 - Deeplink handler retries until anchors appear and logs target-missing; highlight + helper line now run after anchor resolves.

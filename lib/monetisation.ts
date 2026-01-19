@@ -238,6 +238,7 @@ export type MonetisationEventName =
   | "ops_support_deeplink_applied"
   | "ops_support_deeplink_cta_click"
   | "ops_support_deeplink_target_missing"
+  | "ops_support_deeplink_attempt"
   | "ops_support_deeplink_applied"
   | "ops_support_deeplink_cta_click"
   | "followups_strip_view"
