@@ -25,6 +25,10 @@ export function isOpsRole(role: UserRole) {
   return ROLE_ORDER[role] >= ROLE_ORDER.support;
 }
 
+export function canSeeOpsNav(role: UserRole) {
+  return isOpsRole(role);
+}
+
 export function isAdminRole(role: UserRole) {
   return ROLE_ORDER[role] >= ROLE_ORDER.admin;
 }

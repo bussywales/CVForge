@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getUserCredits, listCreditActivity } from "@/lib/data/credits";
 import { getSubscriptionStatus } from "@/lib/billing/subscription-status";
 import { listApplications } from "@/lib/data/applications";
-import { headers } from "next/headers";
 import { requireOpsAccess } from "@/lib/rbac";
+import AccessDenied from "@/components/AccessDenied";
+import { makeRequestId } from "@/lib/observability/request-id";
 
 export const dynamic = "force-dynamic";
 
@@ -51,9 +52,11 @@ async function buildUserSnapshot(userId: string, email: string) {
 }
 
 export default async function OpsPage({ searchParams }: { searchParams?: { q?: string } }) {
-  const { supabase, user } = await getSupabaseUser();
-  if (!user || !(await requireOpsAccess(user.id, user.email))) {
-    notFound();
+  const { user } = await getSupabaseUser();
+  const requestId = makeRequestId(headers().get("x-request-id"));
+  const canAccess = user && (await requireOpsAccess(user.id, user.email));
+  if (!user || !canAccess) {
+    return <AccessDenied requestId={requestId} code="ACCESS_DENIED" />;
   }
 
   const query = searchParams?.q ?? "";
@@ -71,6 +74,27 @@ export default async function OpsPage({ searchParams }: { searchParams?: { q?: s
         <div>
           <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Ops</p>
           <h1 className="text-lg font-semibold text-[rgb(var(--ink))]">Ops Command Centre</h1>
+        </div>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Link
+          href="/app/ops/incidents"
+          className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
+        >
+          Incidents
+          <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">Request ID lookup & recent errors</p>
+        </Link>
+        <Link
+          href="/app/ops?focus=users"
+          className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
+        >
+          User lookup
+          <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">Search by email or user id</p>
+        </Link>
+        <div className="rounded-2xl border border-black/10 bg-white/60 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))]">
+          Audits
+          <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">Recent ops actions appear in user dossiers.</p>
         </div>
       </div>
 

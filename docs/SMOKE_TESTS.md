@@ -7,6 +7,8 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Confirm redirect to /app after /auth/callback.
 
 ## Ops support toolkit (ops/admin only)
+- Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
+- Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.
 - Open /app/ops/users/<id> as an ops user; Support actions card renders.
 - Apply a small credit adjustment (e.g., +5 goodwill) and see the new balance + audit entry.
 - Generate a support link (billing compare or app tab) and copy it (includes from=ops_support); URL must appear even if logging fails.

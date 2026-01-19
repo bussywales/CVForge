@@ -253,6 +253,9 @@ const ALLOWED = [
   "outcome_quicklog_save_fail",
   "outcome_insights_view",
   "outcome_nextmove_click",
+  "ops_entry_click",
+  "ops_access_denied_view",
+  "ops_access_denied_copy_snippet",
   "ops_credit_adjust_view",
   "ops_credit_adjust_submit",
   "ops_credit_adjust_success",
@@ -263,8 +266,6 @@ const ALLOWED = [
   "ops_support_deeplink_cta_click",
   "ops_support_deeplink_target_missing",
   "ops_support_deeplink_attempt",
-  "ops_support_deeplink_applied",
-  "ops_support_deeplink_cta_click",
 ] as const;
 
 export type MonetisationClientEvent = (typeof ALLOWED)[number];
@@ -276,7 +277,6 @@ export function logMonetisationClientEvent(
   meta?: Record<string, any>
 ) {
   if (typeof window === "undefined") return;
-  if (!applicationId) return;
   try {
     fetch("/api/monetisation/log", {
       method: "POST",

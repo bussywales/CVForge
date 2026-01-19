@@ -266,6 +266,9 @@ const allowedEvents = [
   "outcome_quicklog_save_fail",
   "outcome_insights_view",
   "outcome_nextmove_click",
+  "ops_entry_click",
+  "ops_access_denied_view",
+  "ops_access_denied_copy_snippet",
 ] as const;
 
 const bodySchema = z.object({

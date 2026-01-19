@@ -1,6 +1,9 @@
 # Changelog
 
-# Changelog
+## v0.7.96
+- Ops entry now visible in the app nav for ops/admin/super_admin, logging ops_entry_click when used.
+- All /app/ops routes show a premium Access denied (403) page for non-ops with reference/support snippet instead of 404.
+- Ops landing page now acts as a simple hub with quick links; new logging allowlists and nav visibility test added.
 
 ## v0.7.95
 - Ops support deeplinks now jump to the specific pack card (`pack-starter|pro|power`), with fallback to the Packs section if missing. Resolver priority unchanged (portal/flow > plan > pack > compare) with pack anchors stable.

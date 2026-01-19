@@ -79,6 +79,9 @@ When an offer is logged, the Offer Pack on Overview provides offer summary captu
 Decision logging updates outcomes and next best actions; accepted state includes “close other applications” templates.
 Close-out loop after acceptance helps withdraw from other applications and log outcomes quickly.
 
+## Ops Console
+Ops/admin/super_admin roles see an Ops Console entry and can access /app/ops (others get a premium Access denied view with reference/support snippet). Ops support links deep-link into Billing sections (plan/pack/portal flows) with scroll/highlight for guided handoff.
+
 ## Outreach Autopilot
 Follow-up autopilot surfaces due/overdue follow-ups on Dashboard and Command Centre with one-tap send/log/schedule modal plus recovery cues.
 

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -9,13 +10,17 @@ import { buildNextBestActions } from "@/lib/next-best-actions";
 import { getUserRole, requireOpsAccess, isAdminRole, canAssignRole, type UserRole } from "@/lib/rbac";
 import RoleEditor from "./role-editor";
 import SupportActions from "./support-actions";
+import AccessDenied from "@/components/AccessDenied";
+import { makeRequestId } from "@/lib/observability/request-id";
 
 export const dynamic = "force-dynamic";
 
 export default async function OpsUserPage({ params }: { params: { id: string } }) {
   const { user } = await getSupabaseUser();
-  if (!user || !(await requireOpsAccess(user.id, user.email))) {
-    notFound();
+  const requestId = makeRequestId(headers().get("x-request-id"));
+  const canAccess = user && (await requireOpsAccess(user.id, user.email));
+  if (!user || !canAccess) {
+    return <AccessDenied requestId={requestId} code="ACCESS_DENIED" />;
   }
 
   const admin = createServiceRoleClient();
