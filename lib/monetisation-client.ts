@@ -259,6 +259,8 @@ const ALLOWED = [
   "ops_credit_adjust_failed",
   "ops_support_link_generate",
   "ops_support_link_copy",
+  "ops_support_deeplink_applied",
+  "ops_support_deeplink_cta_click",
 ] as const;
 
 export type MonetisationClientEvent = (typeof ALLOWED)[number];

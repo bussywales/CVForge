@@ -2,6 +2,11 @@
 
 # Changelog
 
+## v0.7.91
+- Ops support links now deep-link into Billing: packs/subscription/portal-return sections get anchors (#packs/#subscription/#portal-return/#compare), auto-scroll + highlight for support visitors.
+- Added deterministic billing deep-link resolver with tests; logging for ops_support_deeplink applied/cta click.
+- Billing shows support-focused helper when support links are used; support-link destination params remain unchanged.
+
 ## v0.7.90
 - Fix ops support-link JSON integrity: route now always returns complete JSON (NextResponse.json) with full URL and destination params.
 - Ops Support actions UI recovers from parse issues, only shows “generated” after a URL is set, keeps last good link visible, and shows ErrorBanner with requestId on failure.

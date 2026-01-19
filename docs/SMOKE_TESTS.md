@@ -14,6 +14,9 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Errors show ErrorBanner with request reference.
 - Validate response JSON: support-link endpoint returns complete JSON and UI shows the URL.
   - Response ends with `}` and includes `from=ops_support&support=1` in the URL.
+- Open generated support link with pack=starter → Billing scrolls to Packs section and highlights it.
+- Open generated support link with plan=monthly_80 → Billing scrolls to Subscription section and highlights it.
+- Support link with portal=1&flow=cancel... → Billing scrolls to portal-return (or subscription fallback) and highlights banner.
 
 ## Applications
 - Create an application with job title, job description, and optional job URL.

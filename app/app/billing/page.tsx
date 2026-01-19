@@ -34,6 +34,9 @@ import { recommendSaveOffer } from "@/lib/billing/sub-save-offer";
 import SubCancelReasons from "./sub-cancel-reasons";
 import CompareCard from "./compare-card";
 import { buildCompareRecommendation } from "@/lib/billing/compare-reco";
+import nextDynamic from "next/dynamic";
+
+const BillingDeepLinkClient = nextDynamic(() => import("./billing-deeplink-client"), { ssr: false });
 
 export const dynamic = "force-dynamic";
 
@@ -257,7 +260,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" id="billing-root">
+      <BillingDeepLinkClient />
       <PostPurchaseSuccessBanner
         show={Boolean(searchParams?.success)}
         applicationId={latestApplicationId ?? undefined}
@@ -275,27 +279,31 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           returnTo="/app/billing"
         />
       ) : null}
-      <CompareCard
-        hasSubscription={hasSubscription}
-        currentPlanKey={(subscriptionStatus.currentPlanKey ?? "monthly_30") as "monthly_30" | "monthly_80"}
-        activeApplications={appCount}
-        weeklyStreakActive={false}
-        completions7={signals.completions7}
-        credits={credits}
-        topups30={signals.topups30}
-        planAvailability={planAvailability}
-        packAvailability={packAvailability}
-        subscriptionAvailable={Boolean(planAvailability.monthly_30 || planAvailability.monthly_80)}
-        applicationId={latestApplicationId}
-        returnTo="/app/billing"
-      />
-      {showPortalReturn ? (
-        <PortalReturnBanner
+      <div id="compare">
+        <CompareCard
+          hasSubscription={hasSubscription}
+          currentPlanKey={(subscriptionStatus.currentPlanKey ?? "monthly_30") as "monthly_30" | "monthly_80"}
+          activeApplications={appCount}
+          weeklyStreakActive={false}
+          completions7={signals.completions7}
+          credits={credits}
+          topups30={signals.topups30}
+          planAvailability={planAvailability}
+          packAvailability={packAvailability}
+          subscriptionAvailable={Boolean(planAvailability.monthly_30 || planAvailability.monthly_80)}
           applicationId={latestApplicationId}
-          state={portalState}
-          isActive={hasSubscription}
-          portalKey={portalKey}
+          returnTo="/app/billing"
         />
+      </div>
+      {showPortalReturn ? (
+        <div id="portal-return">
+          <PortalReturnBanner
+            applicationId={latestApplicationId}
+            state={portalState}
+            isActive={hasSubscription}
+            portalKey={portalKey}
+          />
+        </div>
       ) : null}
       {showPortalReturn && portalState.flow === "cancel" && (hasSubscription || subscriptionStatus.currentPlanKey) && retentionSummary ? (
         <div className="space-y-3">
@@ -398,7 +406,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         </div>
       </Section>
 
-      <div id="subscription-plans">
+      <div id="subscription">
         <SubscriptionPlansSection
           applicationId={latestApplicationId}
           recommendedPlanKey={subscriptionPlanReco.recommendedPlanKey}
@@ -418,7 +426,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
       {showDiagnostics ? <BillingDiagnostics show={true} /> : null}
 
-      <Section title="Need more or less?" description="Secondary options if you prefer another size.">
+      <Section id="packs" title="Need more or less?" description="Secondary options if you prefer another size.">
         <PackSelector
           contextLabel="Other packs"
           returnTo="/app/billing"

@@ -235,6 +235,8 @@ export type MonetisationEventName =
   | "ops_credit_adjust_failed"
   | "ops_support_link_generate"
   | "ops_support_link_copy"
+  | "ops_support_deeplink_applied"
+  | "ops_support_deeplink_cta_click"
   | "followups_strip_view"
   | "followups_strip_send_click"
   | "followup_modal_view"
