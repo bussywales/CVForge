@@ -10,7 +10,9 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const { headers, requestId } = withRequestIdHeaders(request.headers);
+  // derive requestId from inbound headers but build fresh response headers to avoid carrying request content headers
+  const { requestId } = withRequestIdHeaders(request.headers);
+  const responseHeaders = new Headers({ "x-request-id": requestId });
   const { user } = await getSupabaseUser();
   if (!user) {
     return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
@@ -67,7 +69,7 @@ export async function POST(request: Request) {
       meta: { kind: resolvedKind, plan, pack, applicationId, tab, anchor, requestId },
     });
 
-    return NextResponse.json({ ok: true, url: String(url) }, { headers, status: 200 });
+    return NextResponse.json({ ok: true, url: String(url) }, { headers: responseHeaders, status: 200 });
   } catch (error) {
     captureServerError(error, { requestId, route: "/api/ops/support-link", userId: user.id, code: "SUPPORT_LINK_FAIL" });
     return jsonError({ code: "SUPPORT_LINK_FAIL", message: "Unable to generate link", requestId });
