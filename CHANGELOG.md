@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.7.98
+- Ops Command Centre: user lookup now searches by email or user id via /api/ops/users/search, shows results with Open dossier action, and focuses the search box from the shortcut card.
+- New ops search API enforces RBAC + structured errors, hashes queries in audit logs, and fills names/roles from profiles/user_roles.
+- Ops guardrail script now checks for requestId/error helpers across ops routes; guard runs in CI; quick links include Incidents + Audits (coming soon).
+
 ## v0.7.97
 - Ops support links v2: unified destination mapper (billing/app/interview) with from=ops_support/support=1 flags, tab/focus defaults, and app-ownership validation on the API.
 - Support actions card now generates billing pack/plan/portal links plus application outreach/offer/outcome or interview focus links (recent app/manual ID), showing the URL + timestamp even if copy is blocked.

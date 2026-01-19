@@ -14,6 +14,14 @@ while IFS= read -r file; do
     echo "Ops route missing RBAC guard: $file"
     missing=1
   fi
+  if ! grep -Eq "jsonError" "$file"; then
+    echo "Ops route missing structured error helper: $file"
+    missing=1
+  fi
+  if ! grep -Eq "withRequestIdHeaders" "$file"; then
+    echo "Ops route missing requestId headers: $file"
+    missing=1
+  fi
 done < <(find app/api/ops -name "route.ts")
 
 exit $missing

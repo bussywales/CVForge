@@ -10,7 +10,7 @@
     "lint:guards": "bash scripts/guard-client-env.sh && bash scripts/guard-ops-auth.sh",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --threads=false",
-    "test:ci": "vitest run --threads=false",
+    "test:ci": "npm run lint:guards && vitest run --threads=false",
     "test:watch": "vitest",
     "test:unit": "vitest run"
   },

@@ -18,6 +18,8 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
   - Response ends with `}` and includes `from=ops_support&support=1` in the URL.
 - Open generated support link for outreach focus → Applications page scrolls/highlights `#outreach` with a short offset.
 - Open generated interview focus link (with or without appId) → Interview Focus Session anchor scrolls/highlights.
+- Ops Command Centre: search by email or UUID, see results table, click “Open dossier” to load user page.
+- Non-ops access: /app/ops shows AccessDenied; /api/ops/users/search returns 403 JSON with requestId.
 - Open generated support link with pack=starter → Billing scrolls to Packs section and highlights it.
 - Open generated support link with plan=monthly_80 → Billing scrolls to Subscription section and highlights it.
 - Support link with portal=1&flow=cancel... → Billing scrolls to portal-return (or subscription fallback) and highlights banner.
