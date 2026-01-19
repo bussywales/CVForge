@@ -58,6 +58,8 @@ function PackCard({
 
   return (
     <div
+      id={`pack-${pack.key}`}
+      data-billing-section={`pack-${pack.key}`}
       className={`flex flex-1 flex-col gap-2 rounded-2xl border border-black/10 bg-white/80 shadow-sm ${
         compact ? "p-3" : "p-4"
       }`}

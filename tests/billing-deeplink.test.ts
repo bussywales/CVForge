@@ -6,8 +6,8 @@ describe("billing deep-link resolver", () => {
     const intent = resolveBillingDeeplink(new URLSearchParams({ support: "1", pack: "starter" }));
     expect(intent).not.toBeNull();
     expect(intent?.kind).toBe("pack");
-    expect(intent?.anchor).toBe("packs");
-    expect(intent?.target).toBe("starter");
+    expect(intent?.anchor).toBe("pack-starter");
+    expect(intent?.target).toBe("pack-starter");
   });
 
   it("maps plan to subscription anchor", () => {
@@ -37,7 +37,8 @@ describe("billing deep-link resolver", () => {
 
   it("pack maps to packs anchor", () => {
     const intent = resolveBillingDeeplink(new URLSearchParams({ support: "1", pack: "starter" }));
-    expect(intent?.anchor).toBe("packs");
+    expect(intent?.anchor).toBe("pack-starter");
+    expect(intent?.highlightKey).toBe("pack-starter");
   });
 
   it("portal missing but flow present still maps to portal-return", () => {

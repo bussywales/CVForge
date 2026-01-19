@@ -20,6 +20,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Anchors exist: #compare, #portal-return, #subscription, #packs should all resolve when visiting /app/billing#anchor.
 - With debug=1 in the support link, a small debug note briefly shows where the deeplink applied.
 - Verify in Firefox: element top positions differ (packs vs subscription vs compare) and height > 0; pack link must not highlight compare.
+- Pack-specific: pack=starter/pro/power scrolls/highlights the matching pack card; if missing, falls back to Packs section.
 
 ## Applications
 - Create an application with job title, job description, and optional job URL.

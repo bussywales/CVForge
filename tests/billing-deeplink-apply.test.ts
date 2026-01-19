@@ -42,5 +42,28 @@ describe("applyBillingDeeplinkIntent", () => {
     expect(missingCalled).toBe(true);
     vi.useRealTimers();
   });
-});
 
+  it("falls back to fallbackAnchor when primary missing", () => {
+    vi.useFakeTimers();
+    const fallback = {} as HTMLElement;
+    (globalThis as any).document = {
+      getElementById: (id: string) => (id === "packs" ? fallback : null),
+    };
+    let foundFallback = false;
+    applyBillingDeeplinkIntent({
+      intent: { anchor: "pack-starter", fallbackAnchor: "packs" },
+      getElement: () => null,
+      onFound: (el, _elapsed, fallbackUsed) => {
+        foundFallback = el === fallback && fallbackUsed;
+      },
+      onMissing: () => {
+        throw new Error("should not miss when fallback exists");
+      },
+      intervalMs: 50,
+      maxMs: 200,
+    });
+    vi.runAllTimers();
+    expect(foundFallback).toBe(true);
+    vi.useRealTimers();
+  });
+});

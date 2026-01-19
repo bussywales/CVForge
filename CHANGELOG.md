@@ -2,9 +2,10 @@
 
 # Changelog
 
-## v0.7.94
-- Billing ops deeplinks now target the real section wrappers: compare, subscription, packs, and portal-return ids sit on the visible blocks (portal-return always has a placeholder anchor). Resolver priority fixed (portal/flow > plan > pack) so pack links no longer highlight compare. Scroll uses offset + fallback to ensure movement and highlights the correct section briefly with support helper copy.
-- Added retry apply helper test; logging covers attempt/applied/target-missing.
+## v0.7.95
+- Ops support deeplinks now jump to the specific pack card (`pack-starter|pro|power`), with fallback to the Packs section if missing. Resolver priority unchanged (portal/flow > plan > pack > compare) with pack anchors stable.
+- Deeplink apply helper supports preferred + fallback targets and logs fallback usage; scroll offset fallback stays in place; highlight applies to the actual target.
+- Added resolver + apply fallback tests; docs/smoke updated for pack-card focus.
 
 ## v0.7.93
 - Billing deeplink handler reliability: runs on page load, retries until anchors exist, scrolls + highlights with support helper; debug note available via debug=1. Logs attempt/applied/missing without blocking.

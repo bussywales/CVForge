@@ -1,11 +1,12 @@
 export type DeeplinkIntent = {
   anchor: string;
+  fallbackAnchor?: string;
 };
 
 type ApplyOptions = {
   intent: DeeplinkIntent;
   getElement: () => HTMLElement | null;
-  onFound: (el: HTMLElement, elapsedMs: number) => void;
+  onFound: (el: HTMLElement, elapsedMs: number, fallbackUsed: boolean) => void;
   onMissing?: (elapsedMs: number) => void;
   intervalMs?: number;
   maxMs?: number;
@@ -30,10 +31,17 @@ export function applyBillingDeeplinkIntent({
     const el = getElement();
     if (el) {
       const elapsed = Date.now() - start;
-      onFound(el, elapsed);
+      onFound(el, elapsed, false);
       return;
     }
     if (Date.now() - start >= maxMs) {
+      if (intent.fallbackAnchor) {
+        const fallbackEl = document.getElementById(intent.fallbackAnchor);
+        if (fallbackEl) {
+          onFound(fallbackEl, Date.now() - start, true);
+          return;
+        }
+      }
       onMissing?.(Date.now() - start);
       return;
     }
@@ -41,4 +49,3 @@ export function applyBillingDeeplinkIntent({
   };
   tryFind();
 }
-

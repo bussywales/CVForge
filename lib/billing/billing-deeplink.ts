@@ -4,6 +4,7 @@ export type BillingDeepLinkIntent = {
   anchor: string;
   highlightKey: string;
   intentKey: string;
+  fallbackAnchor?: string;
 };
 
 type Search = URLSearchParams | Record<string, string | string[] | undefined | null> | undefined;
@@ -43,7 +44,13 @@ export function resolveBillingDeeplink(params: URLSearchParams | Record<string, 
   } else if (plan && (plan === "monthly_30" || plan === "monthly_80")) {
     intent = { kind: "plan", target: plan, anchor: "subscription", highlightKey: plan, intentKey: `plan:${plan}` };
   } else if (pack && ["starter", "pro", "power"].includes(pack)) {
-    intent = { kind: "pack", target: pack, anchor: "packs", highlightKey: pack, intentKey: `pack:${pack}` };
+    intent = {
+      kind: "pack",
+      target: `pack-${pack}`,
+      anchor: `pack-${pack}`,
+      highlightKey: `pack-${pack}`,
+      intentKey: `pack:${pack}`,
+    };
   } else {
     intent = { kind: "unknown", target: undefined, anchor: "compare", highlightKey: "compare", intentKey: "compare" };
   }

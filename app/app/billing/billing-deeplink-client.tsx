@@ -47,9 +47,9 @@ export default function BillingDeepLinkClient({ onHighlight }: Props) {
     }
 
     applyBillingDeeplinkIntent({
-      intent,
+      intent: { ...intent, fallbackAnchor: intent.kind === "pack" ? "packs" : intent.fallbackAnchor },
       getElement: () => document.getElementById(intent.anchor),
-      onFound: (anchorEl, elapsedMs) => {
+      onFound: (anchorEl, elapsedMs, fallbackUsed) => {
         const startY = window.scrollY;
         const targetRect = anchorEl.getBoundingClientRect();
         anchorEl.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -67,10 +67,10 @@ export default function BillingDeepLinkClient({ onHighlight }: Props) {
           const helper = document.createElement("div");
           helper.textContent = "Support link opened — review and choose safely.";
           helper.setAttribute("data-billing-support-helper", "1");
-            helper.className = "mt-2 text-xs text-amber-700";
-            anchorEl.appendChild(helper);
-            window.setTimeout(() => helper.remove(), 2000);
-          }
+          helper.className = "mt-2 text-xs text-amber-700";
+          anchorEl.appendChild(helper);
+          window.setTimeout(() => helper.remove(), 2000);
+        }
         const handleClick = () => {
           try {
             logMonetisationClientEvent("ops_support_deeplink_cta_click", null, "billing", {
@@ -97,6 +97,7 @@ export default function BillingDeepLinkClient({ onHighlight }: Props) {
             kind: intent.kind,
             target: intent.target,
             anchor: intent.anchor,
+            fallbackUsed,
             from: params.get("from") ?? undefined,
             support: supportFlag,
             timeToAnchorMs: elapsedMs,
