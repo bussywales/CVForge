@@ -21,12 +21,27 @@ describe("billing deep-link resolver", () => {
     const intent = resolveBillingDeeplink(
       new URLSearchParams({ support: "1", portal: "1", flow: "cancel_save_offer", plan: "monthly_30", pack: "starter" })
     );
-    expect(intent?.kind === "portal_return" || intent?.kind === "flow").toBe(true);
+    expect(intent?.kind).toBe("portal_return");
     expect(intent?.anchor).toBe("portal-return");
   });
 
   it("still resolves when plan/pack provided without support flag", () => {
     const intent = resolveBillingDeeplink(new URLSearchParams({ plan: "monthly_30" }));
     expect(intent?.kind).toBe("plan");
+  });
+
+  it("plan maps to subscription anchor", () => {
+    const intent = resolveBillingDeeplink(new URLSearchParams({ support: "1", plan: "monthly_80" }));
+    expect(intent?.anchor).toBe("subscription");
+  });
+
+  it("pack maps to packs anchor", () => {
+    const intent = resolveBillingDeeplink(new URLSearchParams({ support: "1", pack: "starter" }));
+    expect(intent?.anchor).toBe("packs");
+  });
+
+  it("portal missing but flow present still maps to portal-return", () => {
+    const intent = resolveBillingDeeplink(new URLSearchParams({ support: "1", flow: "cancel" }));
+    expect(intent?.anchor).toBe("portal-return");
   });
 });

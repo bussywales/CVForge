@@ -285,7 +285,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           returnTo="/app/billing"
         />
       ) : null}
-      <div id="compare">
+      <div id="compare" data-billing-section="compare">
         <CompareCard
           hasSubscription={hasSubscription}
           currentPlanKey={(subscriptionStatus.currentPlanKey ?? "monthly_30") as "monthly_30" | "monthly_80"}
@@ -301,23 +301,20 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           returnTo="/app/billing"
         />
       </div>
-      {showPortalReturn ? (
-        <div id="portal-return">
+      <div id="portal-return" data-billing-section="portal-return">
+        {showPortalReturn ? (
           <PortalReturnBanner
             applicationId={latestApplicationId}
             state={portalState}
             isActive={hasSubscription}
             portalKey={portalKey}
           />
-        </div>
-      ) : wantsPortalPlaceholder ? (
-        <div
-          id="portal-return"
-          className="rounded-2xl border border-black/10 bg-white/70 p-4 text-xs text-[rgb(var(--muted))]"
-        >
-          Portal return actions will appear here when available.
-        </div>
-      ) : null}
+        ) : wantsPortalPlaceholder ? (
+          <div className="rounded-2xl border border-black/10 bg-white/70 p-4 text-xs text-[rgb(var(--muted))]">
+            Portal return actions will appear here when available.
+          </div>
+        ) : null}
+      </div>
       {showPortalReturn && portalState.flow === "cancel" && (hasSubscription || subscriptionStatus.currentPlanKey) && retentionSummary ? (
         <div className="space-y-3">
           <SubSaveOfferCard
@@ -419,7 +416,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         </div>
       </Section>
 
-      <div id="subscription">
+      <div id="subscription" data-billing-section="subscription">
         <SubscriptionPlansSection
           applicationId={latestApplicationId}
           recommendedPlanKey={subscriptionPlanReco.recommendedPlanKey}
@@ -439,7 +436,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
       {showDiagnostics ? <BillingDiagnostics show={true} /> : null}
 
-      <Section id="packs" title="Need more or less?" description="Secondary options if you prefer another size.">
+      <Section id="packs" data-billing-section="packs" title="Need more or less?" description="Secondary options if you prefer another size.">
         <PackSelector
           contextLabel="Other packs"
           returnTo="/app/billing"

@@ -19,6 +19,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Support link with portal=1&flow=cancel... → Billing scrolls to portal-return (or subscription fallback) and highlights banner.
 - Anchors exist: #compare, #portal-return, #subscription, #packs should all resolve when visiting /app/billing#anchor.
 - With debug=1 in the support link, a small debug note briefly shows where the deeplink applied.
+- Verify in Firefox: element top positions differ (packs vs subscription vs compare) and height > 0; pack link must not highlight compare.
 
 ## Applications
 - Create an application with job title, job description, and optional job URL.

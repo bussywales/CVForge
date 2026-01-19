@@ -11,7 +11,8 @@ type Search = URLSearchParams | Record<string, string | string[] | undefined | n
 function readParam(params: Search, key: string): string | null {
   if (!params) return null;
   if (params instanceof URLSearchParams) {
-    return params.get(key);
+    const val = params.get(key);
+    return val && val.trim() !== "" ? val : null;
   }
   const value = (params as any)[key];
   if (Array.isArray(value)) return value[0] ?? null;
@@ -43,6 +44,8 @@ export function resolveBillingDeeplink(params: URLSearchParams | Record<string, 
     intent = { kind: "plan", target: plan, anchor: "subscription", highlightKey: plan, intentKey: `plan:${plan}` };
   } else if (pack && ["starter", "pro", "power"].includes(pack)) {
     intent = { kind: "pack", target: pack, anchor: "packs", highlightKey: pack, intentKey: `pack:${pack}` };
+  } else {
+    intent = { kind: "unknown", target: undefined, anchor: "compare", highlightKey: "compare", intentKey: "compare" };
   }
 
   if (!intent) return null;
