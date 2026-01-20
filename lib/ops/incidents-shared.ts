@@ -87,3 +87,11 @@ export function correlateIncidents(target: IncidentRecord, incidents: IncidentRe
     })
     .sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime());
 }
+
+export function buildIncidentsLink(requestId: string) {
+  return `/app/ops/incidents?requestId=${encodeURIComponent(requestId)}&from=ops_audits`;
+}
+
+export function buildAuditsLink(requestId: string) {
+  return `/app/ops/audits?q=${encodeURIComponent(requestId)}&from=ops_incidents`;
+}

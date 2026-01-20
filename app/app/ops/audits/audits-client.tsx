@@ -6,6 +6,8 @@ import ErrorBanner from "@/components/ErrorBanner";
 import CopyIconButton from "@/components/CopyIconButton";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { buildAuditCsv } from "@/lib/ops/audits-export";
+import { buildSupportBundleFromAudit } from "@/lib/ops/support-bundle";
+import { buildIncidentsLink } from "@/lib/ops/incidents-shared";
 
 type AuditItem = {
   id: string;
@@ -30,13 +32,13 @@ function hashString(input: string) {
   return `h${(hash >>> 0).toString(16)}`;
 }
 
-export default function AuditsClient({ initialUserId }: { initialUserId?: string | null }) {
+export default function AuditsClient({ initialUserId, initialQuery }: { initialUserId?: string | null; initialQuery?: string | null }) {
   const [userId, setUserId] = useState(initialUserId ?? "");
   const [actorId, setActorId] = useState("");
   const [action, setAction] = useState("");
   const [since, setSince] = useState("");
   const [until, setUntil] = useState("");
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState(initialQuery ?? "");
   const [items, setItems] = useState<AuditItem[]>([]);
   const [page, setPage] = useState<PageInfo>({ hasMore: false, nextCursor: null });
   const [loading, setLoading] = useState(false);
@@ -104,7 +106,7 @@ export default function AuditsClient({ initialUserId }: { initialUserId?: string
   }, []);
 
   const exportJson = () => {
-    const payload = { masked: true, items };
+    const payload = { masked: true, note: "masked export", items };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -120,7 +122,7 @@ export default function AuditsClient({ initialUserId }: { initialUserId?: string
   };
 
   const exportCsv = () => {
-    const csv = buildAuditCsv(items);
+    const csv = ["# masked export", buildAuditCsv(items)].join("\n");
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -258,55 +260,122 @@ export default function AuditsClient({ initialUserId }: { initialUserId?: string
               </tr>
             </thead>
             <tbody>
-              {items.map((item) => (
-                <tr key={item.id} className="border-t border-black/5">
-                  <td className="px-3 py-2 text-[rgb(var(--ink))]">{createdFormatter.format(new Date(item.at))}</td>
-                  <td className="px-3 py-2 text-[rgb(var(--ink))]">{item.action}</td>
-                  <td className="px-3 py-2">
-                    {item.actor ? (
-                      <div className="space-y-0.5">
-                        <p className="text-[rgb(var(--ink))]">{item.actor.email ?? "—"}</p>
-                        <p className="text-[10px] text-[rgb(var(--muted))]">
-                          {item.actor.role ?? "—"} · {item.actor.id}
-                        </p>
+              {items.map((item) => {
+                const bundle = buildSupportBundleFromAudit(item);
+                return (
+                  <tr key={item.id} className="border-t border-black/5">
+                    <td className="px-3 py-2 text-[rgb(var(--ink))]">{createdFormatter.format(new Date(item.at))}</td>
+                    <td className="px-3 py-2 text-[rgb(var(--ink))]">
+                      <div className="space-y-1">
+                        <p>{item.action}</p>
+                        {item.requestId ? (
+                          <button
+                            type="button"
+                            className="text-[10px] font-semibold text-blue-700 underline-offset-2 hover:underline"
+                            onClick={() => {
+                              logMonetisationClientEvent("ops_audits_open_incidents_click", null, "ops");
+                              window.open(buildIncidentsLink(item.requestId ?? ""), "_blank");
+                            }}
+                          >
+                            Open in Incidents
+                          </button>
+                        ) : null}
                       </div>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-[rgb(var(--ink))]">
-                    {item.target?.userId ? (
-                      <Link
-                        href={`/app/ops/users/${item.target.userId}`}
-                        className="text-[rgb(var(--ink))] underline-offset-2 hover:underline"
-                      >
-                        {item.target.userId}
-                      </Link>
-                    ) : (
-                      "—"
-                    )}
-                  </td>
-                  <td className="px-3 py-2 text-[rgb(var(--ink))]">
-                    <div className="space-y-1">
-                      <p>{item.ref ?? "—"}</p>
-                      {item.requestId ? (
-                        <div className="flex items-center gap-1">
-                          <span className="font-mono text-[10px] text-[rgb(var(--muted))]">{item.requestId}</span>
-                          <CopyIconButton text={item.requestId} label="Copy" />
+                    </td>
+                    <td className="px-3 py-2">
+                      {item.actor ? (
+                        <div className="space-y-0.5">
+                          <p className="text-[rgb(var(--ink))]">{item.actor.email ?? "—"}</p>
+                          <p className="text-[10px] text-[rgb(var(--muted))]">
+                            {item.actor.role ?? "—"} · {item.actor.id}
+                          </p>
                         </div>
-                      ) : null}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2">
-                    <details className="text-[10px]">
-                      <summary className="cursor-pointer text-[rgb(var(--ink))]">View</summary>
-                      <pre className="mt-1 max-w-xs overflow-auto rounded border border-black/10 bg-white px-2 py-1 text-[10px] text-[rgb(var(--muted))]">
-                        {JSON.stringify(item.meta ?? {}, null, 2)}
-                      </pre>
-                    </details>
-                  </td>
-                </tr>
-              ))}
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-[rgb(var(--ink))]">
+                      {item.target?.userId ? (
+                        <div className="space-y-1">
+                          <Link
+                            href={`/app/ops/users/${item.target.userId}`}
+                            className="text-[rgb(var(--ink))] underline-offset-2 hover:underline"
+                          >
+                            {item.target.userId}
+                          </Link>
+                          <Link
+                            href={`/app/ops/audits?userId=${item.target.userId}`}
+                            className="text-[10px] text-[rgb(var(--muted))] underline-offset-2 hover:underline"
+                          >
+                            Audits for user
+                          </Link>
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-[rgb(var(--ink))]">
+                      <div className="space-y-1">
+                        <p>{item.ref ?? "—"}</p>
+                        {item.requestId ? (
+                          <div className="flex items-center gap-1">
+                            <Link
+                              href={buildIncidentsLink(item.requestId ?? "")}
+                              onClick={() => logMonetisationClientEvent("ops_audits_open_incidents_click", null, "ops")}
+                              className="font-mono text-[10px] text-blue-700 underline-offset-2 hover:underline"
+                            >
+                              {item.requestId}
+                            </Link>
+                            <CopyIconButton text={item.requestId} label="Copy" />
+                          </div>
+                        ) : null}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2">
+                      <details className="text-[10px] space-y-1">
+                        <summary
+                          className="cursor-pointer text-[rgb(var(--ink))]"
+                          onClick={() => logMonetisationClientEvent("ops_support_bundle_view", null, "ops")}
+                        >
+                          View
+                        </summary>
+                        <pre className="mt-1 max-w-xs overflow-auto rounded border border-black/10 bg-white px-2 py-1 text-[10px] text-[rgb(var(--muted))]">
+                          {JSON.stringify(item.meta ?? {}, null, 2)}
+                        </pre>
+                        <div className="rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 text-[10px] text-emerald-800">
+                          <p className="font-semibold text-[rgb(var(--ink))]">Support bundle</p>
+                          <p className="text-[rgb(var(--muted))]">{bundle.summary}</p>
+                          <p className="text-[rgb(var(--muted))]">Next: {bundle.nextAction}</p>
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            <CopyIconButton
+                              text={bundle.snippet}
+                              label="Copy snippet"
+                              onCopy={() => logMonetisationClientEvent("ops_support_bundle_copy", null, "ops")}
+                            />
+                            <CopyIconButton
+                              text={JSON.stringify(bundle, null, 2)}
+                              label="Copy bundle"
+                              onCopy={() => logMonetisationClientEvent("ops_support_bundle_copy", null, "ops")}
+                            />
+                          </div>
+                          {item.requestId ? (
+                            <button
+                              type="button"
+                              className="mt-1 text-[10px] font-semibold text-blue-700 underline-offset-2 hover:underline"
+                              onClick={() => {
+                                logMonetisationClientEvent("ops_audits_open_incidents_click", null, "ops");
+                                window.open(buildIncidentsLink(item.requestId ?? ""), "_blank");
+                              }}
+                            >
+                              Open in Incidents
+                            </button>
+                          ) : null}
+                        </div>
+                      </details>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

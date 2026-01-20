@@ -270,6 +270,11 @@ const ALLOWED = [
   "ops_audits_filter_apply",
   "ops_audits_export_json",
   "ops_audits_export_csv",
+  "ops_audits_open_incidents_click",
+  "ops_incidents_open_audits_click",
+  "ops_incidents_requestid_filter_applied",
+  "ops_support_bundle_copy",
+  "ops_support_bundle_view",
 ] as const;
 
 export type MonetisationClientEvent = (typeof ALLOWED)[number];

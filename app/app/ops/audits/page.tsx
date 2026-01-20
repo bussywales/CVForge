@@ -7,7 +7,7 @@ import AuditsClient from "./audits-client";
 
 export const dynamic = "force-dynamic";
 
-export default async function OpsAuditsPage({ searchParams }: { searchParams?: { userId?: string | null } }) {
+export default async function OpsAuditsPage({ searchParams }: { searchParams?: { userId?: string | null; q?: string | null } }) {
   const { user } = await getSupabaseUser();
   const requestId = makeRequestId(headers().get("x-request-id"));
   const canAccess = user && (await requireOpsAccess(user.id, user.email));
@@ -22,7 +22,7 @@ export default async function OpsAuditsPage({ searchParams }: { searchParams?: {
         <h1 className="text-lg font-semibold text-[rgb(var(--ink))]">Audits</h1>
         <p className="text-xs text-[rgb(var(--muted))]">Review ops actions. Masked output, read-only.</p>
       </div>
-      <AuditsClient initialUserId={searchParams?.userId ?? null} />
+      <AuditsClient initialUserId={searchParams?.userId ?? null} initialQuery={searchParams?.q ?? null} />
     </div>
   );
 }

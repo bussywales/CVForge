@@ -22,5 +22,5 @@ export default async function IncidentConsole({ searchParams }: { searchParams?:
   const recent = await getRecentIncidentEvents({ limit: 200, sinceDays: Number.isFinite(days) ? days : 7 });
   const detail = lookupId ? await getIncidentByRequestId(lookupId) : null;
 
-  return <IncidentsClient incidents={recent} initialLookup={detail} />;
+  return <IncidentsClient incidents={recent} initialLookup={detail} initialRequestId={lookupId || null} />;
 }

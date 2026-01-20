@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
 import CopyIconButton from "@/components/CopyIconButton";
 import { OPS_INCIDENTS_COPY } from "@/lib/ops/incidents.microcopy";
 import {
@@ -8,47 +9,20 @@ import {
   type IncidentGroup,
   groupIncidents,
   correlateIncidents,
+  buildAuditsLink,
 } from "@/lib/ops/incidents-shared";
 import { buildSupportSnippet } from "@/lib/observability/support-snippet";
+import { filterIncidents } from "@/lib/ops/incidents-filters";
+import { buildSupportBundleFromIncident } from "@/lib/ops/support-bundle";
+import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type Props = {
   incidents: IncidentRecord[];
   initialLookup?: IncidentRecord | null;
+  initialRequestId?: string | null;
 };
 
 type TimeFilter = "1" | "24" | "168";
-
-function applyFilters(
-  incidents: IncidentRecord[],
-  filters: {
-    time: TimeFilter;
-    surface: string;
-    code: string;
-    flow: string;
-    search: string;
-    highImpact: boolean;
-  }
-) {
-  const now = Date.now();
-  const windowMs = Number(filters.time) * 60 * 60 * 1000;
-  const term = filters.search.toLowerCase().trim();
-  const highImpactSurfaces: Array<IncidentRecord["surface"]> = ["billing", "checkout", "portal"];
-  return incidents.filter((inc) => {
-    if (now - new Date(inc.at).getTime() > windowMs) return false;
-    if (filters.surface !== "all" && inc.surface !== filters.surface) return false;
-    if (filters.code && inc.code !== filters.code) return false;
-    if (filters.flow) {
-      const flow = inc.flow ?? (inc.context?.flow as string | undefined) ?? (inc.context?.from as string | undefined);
-      if (flow !== filters.flow) return false;
-    }
-    if (filters.highImpact && !highImpactSurfaces.includes(inc.surface)) return false;
-    if (term) {
-      const haystack = `${inc.requestId} ${inc.message ?? ""} ${inc.code ?? ""} ${inc.emailMasked ?? ""} ${inc.userId ?? ""}`.toLowerCase();
-      if (!haystack.includes(term)) return false;
-    }
-    return true;
-  });
-}
 
 function formatDate(value: string) {
   const d = new Date(value);
@@ -73,7 +47,7 @@ function exportCsv(groups: IncidentGroup[]) {
   return [header, ...rows].join("\n");
 }
 
-export default function IncidentsClient({ incidents, initialLookup }: Props) {
+export default function IncidentsClient({ incidents, initialLookup, initialRequestId }: Props) {
   const [filters, setFilters] = useState({
     time: "24" as TimeFilter,
     surface: "all",
@@ -81,11 +55,12 @@ export default function IncidentsClient({ incidents, initialLookup }: Props) {
     flow: "",
     search: "",
     highImpact: false,
+    requestId: initialRequestId ?? "",
   });
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [selected, setSelected] = useState<IncidentRecord | null>(initialLookup ?? null);
 
-  const filtered = useMemo(() => applyFilters(incidents, filters), [incidents, filters]);
+  const filtered = useMemo(() => filterIncidents(incidents, filters), [incidents, filters]);
   const groups = useMemo(() => groupIncidents(filtered), [filtered]);
   const codes = useMemo(() => Array.from(new Set(filtered.map((i) => i.code).filter(Boolean))) as string[], [filtered]);
   const flows = useMemo(
@@ -101,13 +76,19 @@ export default function IncidentsClient({ incidents, initialLookup }: Props) {
   );
   const related = selected ? correlateIncidents(selected, incidents) : [];
 
+  useEffect(() => {
+    if (filters.requestId) {
+      logMonetisationClientEvent("ops_incidents_requestid_filter_applied", null, "ops");
+    }
+  }, [filters.requestId]);
+
   const handleExport = (type: "csv" | "json") => {
     if (groups.length > 500) {
       alert(OPS_INCIDENTS_COPY.exportLimit);
       return;
     }
     if (type === "csv") {
-      const csv = exportCsv(groups);
+      const csv = ["# masked export", exportCsv(groups)].join("\n");
       const blob = new Blob([csv], { type: "text/csv" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -116,27 +97,31 @@ export default function IncidentsClient({ incidents, initialLookup }: Props) {
       a.click();
       URL.revokeObjectURL(url);
     } else {
-      const payload = groups.map((g) => ({
-        key: g.key,
-        surface: g.surface,
-        code: g.code,
-        message: g.message,
-        flow: g.flow,
-        count: g.count,
-        firstSeen: g.firstSeen,
-        lastSeen: g.lastSeen,
-        sampleRequestIds: g.sampleRequestIds,
-        incidents: g.incidents.slice(0, 5).map((i) => ({
-          at: i.at,
-          requestId: i.requestId,
-          userId: i.userId,
-          emailMasked: i.emailMasked,
-          flow: i.flow ?? i.context?.flow ?? i.context?.from,
-          path: i.path ?? i.context?.path,
-          code: i.code,
-          message: i.message,
+      const payload = {
+        masked: true,
+        note: "masked export",
+        groups: groups.map((g) => ({
+          key: g.key,
+          surface: g.surface,
+          code: g.code,
+          message: g.message,
+          flow: g.flow,
+          count: g.count,
+          firstSeen: g.firstSeen,
+          lastSeen: g.lastSeen,
+          sampleRequestIds: g.sampleRequestIds,
+          incidents: g.incidents.slice(0, 5).map((i) => ({
+            at: i.at,
+            requestId: i.requestId,
+            userId: i.userId,
+            emailMasked: i.emailMasked,
+            flow: i.flow ?? i.context?.flow ?? i.context?.from,
+            path: i.path ?? i.context?.path,
+            code: i.code,
+            message: i.message,
+          })),
         })),
-      }));
+      };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -220,6 +205,13 @@ export default function IncidentsClient({ incidents, initialLookup }: Props) {
         <div className="flex flex-1 items-center gap-2">
           <input
             type="text"
+            placeholder="Request ID"
+            value={filters.requestId}
+            onChange={(e) => setFilters((f) => ({ ...f, requestId: e.target.value }))}
+            className="w-48 rounded-md border border-black/10 px-3 py-1"
+          />
+          <input
+            type="text"
             placeholder={OPS_INCIDENTS_COPY.filters.searchPlaceholder}
             value={filters.search}
             onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
@@ -240,7 +232,61 @@ export default function IncidentsClient({ incidents, initialLookup }: Props) {
             Export JSON
           </button>
         </div>
+        <div className="mt-2 flex flex-wrap gap-2 text-[10px] text-[rgb(var(--muted))]">
+          <button
+            type="button"
+            className="rounded-full border border-black/10 bg-white px-2 py-1 font-semibold"
+            onClick={() => setFilters((f) => ({ ...f, time: "24" }))}
+          >
+            Last 24h
+          </button>
+          <button
+            type="button"
+            className="rounded-full border border-black/10 bg-white px-2 py-1 font-semibold"
+            onClick={() => setFilters((f) => ({ ...f, highImpact: true, surface: "billing" }))}
+          >
+            High impact
+          </button>
+          <button
+            type="button"
+            className="rounded-full border border-black/10 bg-white px-2 py-1 font-semibold"
+            onClick={() => setFilters((f) => ({ ...f, surface: "billing" }))}
+          >
+            Billing
+          </button>
+          <button
+            type="button"
+            className="rounded-full border border-black/10 bg-white px-2 py-1 font-semibold"
+            onClick={() => setFilters((f) => ({ ...f, surface: "other" }))}
+          >
+            Ops actions
+          </button>
+          <button
+            type="button"
+            className="rounded-full border border-black/10 bg-white px-2 py-1 font-semibold"
+            onClick={() => setFilters((f) => ({ ...f, search: "user", requestId: f.requestId }))}
+          >
+            User-reported
+          </button>
+        </div>
       </div>
+
+      {filters.requestId ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-xl border border-blue-100 bg-blue-50 px-3 py-2 text-[11px] text-blue-800">
+          <span>Filtered by requestId {filters.requestId}</span>
+          <CopyIconButton text={filters.requestId} label="Copy ref" />
+          <button
+            type="button"
+            className="underline-offset-2 hover:underline"
+            onClick={() => {
+              logMonetisationClientEvent("ops_incidents_open_audits_click", null, "ops");
+              window.open(buildAuditsLink(filters.requestId), "_blank");
+            }}
+          >
+            View audits
+          </button>
+        </div>
+      ) : null}
 
       <div className="space-y-2">
         {groups.length === 0 ? (
@@ -273,6 +319,22 @@ export default function IncidentsClient({ incidents, initialLookup }: Props) {
                 </div>
                 {expanded ? (
                   <div className="mt-3 space-y-2">
+                    {group.sampleRequestIds[0] ? (
+                      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-blue-100 bg-blue-50 px-3 py-2 text-[10px] text-blue-800">
+                        <span>Primary ref {group.sampleRequestIds[0]}</span>
+                        <CopyIconButton text={group.sampleRequestIds[0]} label="Copy" />
+                        <button
+                          type="button"
+                          className="underline-offset-2 hover:underline"
+                          onClick={() => {
+                            logMonetisationClientEvent("ops_incidents_open_audits_click", null, "ops");
+                            window.open(buildAuditsLink(group.sampleRequestIds[0]), "_blank");
+                          }}
+                        >
+                          View audits
+                        </button>
+                      </div>
+                    ) : null}
                     {group.incidents.map((inc) => {
                       const snippet = buildSupportSnippet({
                         action: inc.surface,
@@ -285,6 +347,7 @@ export default function IncidentsClient({ incidents, initialLookup }: Props) {
                         (inc.context?.flow as string | undefined) ??
                         (inc.context?.from as string | undefined) ??
                         "—";
+                      const bundle = buildSupportBundleFromIncident(inc);
                       return (
                         <div
                           key={inc.requestId + inc.at}
@@ -297,17 +360,45 @@ export default function IncidentsClient({ incidents, initialLookup }: Props) {
                                 Ref {inc.requestId} · {inc.emailMasked ?? "user unknown"} · flow {flowLabel}
                               </p>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <CopyIconButton text={inc.requestId} label="Copy ref" />
-                              <CopyIconButton text={snippet} label={OPS_INCIDENTS_COPY.copySnippet} />
-                              <button
-                                type="button"
+                              <div className="flex items-center gap-2">
+                                <CopyIconButton text={inc.requestId} label="Copy ref" />
+                                <CopyIconButton text={snippet} label={OPS_INCIDENTS_COPY.copySnippet} />
+                                <button
+                                  type="button"
                                 className="text-[11px] font-semibold text-[rgb(var(--muted))] underline-offset-2 hover:underline"
                                 onClick={() => setSelected(inc)}
                               >
                                 View related
                               </button>
                             </div>
+                          </div>
+                          <div
+                            className="mt-2 space-y-1 rounded-lg border border-emerald-100 bg-emerald-50 px-2 py-1 text-[10px] text-emerald-800"
+                            onClick={() => logMonetisationClientEvent("ops_support_bundle_view", null, "ops")}
+                          >
+                            <p className="font-semibold text-[rgb(var(--ink))]">{bundle.title}</p>
+                            <p className="text-[rgb(var(--muted))]">{bundle.summary}</p>
+                            <p className="text-[rgb(var(--muted))]">Next: {bundle.nextAction}</p>
+                            <div className="flex flex-wrap gap-1">
+                              <CopyIconButton
+                                text={bundle.snippet}
+                                label="Copy snippet"
+                                onCopy={() => logMonetisationClientEvent("ops_support_bundle_copy", null, "ops")}
+                              />
+                              <CopyIconButton
+                                text={JSON.stringify(bundle, null, 2)}
+                                label="Copy bundle"
+                                onCopy={() => logMonetisationClientEvent("ops_support_bundle_copy", null, "ops")}
+                              />
+                            </div>
+                            {inc.userId ? (
+                              <Link
+                                href={`/app/ops/users/${inc.userId}`}
+                                className="text-blue-700 underline-offset-2 hover:underline"
+                              >
+                                Open dossier
+                              </Link>
+                            ) : null}
                           </div>
                         </div>
                       );

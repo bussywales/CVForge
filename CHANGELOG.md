@@ -1,14 +1,19 @@
 # Changelog
 
-## v0.7.98
-- Ops Command Centre: user lookup now searches by email or user id via /api/ops/users/search, shows results with Open dossier action, and focuses the search box from the shortcut card.
-- New ops search API enforces RBAC + structured errors, hashes queries in audit logs, and fills names/roles from profiles/user_roles.
-- Ops guardrail script now checks for requestId/error helpers across ops routes; guard runs in CI; quick links include Incidents + Audits (coming soon).
+## v0.8.00
+- Ops correlation v1: audits requestIds open Incidents, incidents link back to audits; requestId filters prefill and log; actor/target quick dossier links.
+- Support bundle helper (masked) surfaced in audits + incidents with copyable snippet/bundle and billing-first next steps; exports now include masked header notes.
+- Quick filter chips (time/high-impact/billing) and export hardening; monetisation events allowlisted for cross-links/bundles; docs/smoke updated.
 
 ## v0.7.99
 - Ops Audits v1: new ops-only /app/ops/audits page with filters (user/actor/action/date/q), masked results table, pagination, and JSON/CSV export; dossier now links directly with user filter.
 - New /api/ops/audits endpoint enforces RBAC, requestId/jsonError, masking, and cursor pagination with limit caps + validation.
 - Observability: ops audit list logs view/filter/export events (hashed q), guard script covers new route; smoke/docs updated.
+
+## v0.7.98
+- Ops Command Centre: user lookup now searches by email or user id via /api/ops/users/search, shows results with Open dossier action, and focuses the search box from the shortcut card.
+- New ops search API enforces RBAC + structured errors, hashes queries in audit logs, and fills names/roles from profiles/user_roles.
+- Ops guardrail script now checks for requestId/error helpers across ops routes; guard runs in CI; quick links include Incidents + Audits (coming soon).
 
 ## v0.7.97
 - Ops support links v2: unified destination mapper (billing/app/interview) with from=ops_support/support=1 flags, tab/focus defaults, and app-ownership validation on the API.
