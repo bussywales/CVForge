@@ -44,6 +44,22 @@ export async function GET(request: Request) {
   if (url.searchParams.get("plan")) parsedReturn.searchParams.set("plan", url.searchParams.get("plan") as string);
   if (url.searchParams.get("flow")) parsedReturn.searchParams.set("flow", url.searchParams.get("flow") as string);
 
+  const wantsJson = request.headers.get("accept")?.includes("application/json") || url.searchParams.get("format") === "json";
+
+  const errorRedirect = (code: string, message: string, status = 500) => {
+    if (wantsJson) {
+      return jsonError({ code, message, requestId, status });
+    }
+    const redirectUrl = new URL(`${siteUrl}/app/billing`);
+    redirectUrl.searchParams.set("portal_error", "1");
+    if (requestId) redirectUrl.searchParams.set("req", requestId);
+    if (code) redirectUrl.searchParams.set("code", code);
+    const responseHeaders = new Headers(headers as any);
+    responseHeaders.set("location", redirectUrl.toString());
+    responseHeaders.set("x-request-id", requestId ?? "");
+    return NextResponse.redirect(redirectUrl.toString(), { status: 303, headers: responseHeaders });
+  };
+
   try {
     await logMonetisationEvent(supabase, user.id, "billing_portal_click", {
       meta: { flow, requestId },
@@ -77,7 +93,7 @@ export async function GET(request: Request) {
         userId: user.id,
         code: "PORTAL_SESSION_MISSING",
       });
-      return jsonError({ code: "PORTAL_SESSION_MISSING", message: "Unable to open portal", requestId });
+      return errorRedirect("PORTAL_SESSION_MISSING", "Unable to open portal");
     }
 
     try {
@@ -92,6 +108,7 @@ export async function GET(request: Request) {
 
     const responseHeaders = new Headers(headers as any);
     responseHeaders.set("location", session.url);
+    responseHeaders.set("x-request-id", requestId ?? "");
     return NextResponse.redirect(session.url, { status: 303, headers: responseHeaders });
   } catch (error) {
     try {
@@ -104,6 +121,6 @@ export async function GET(request: Request) {
       /* ignore */
     }
     captureServerError(error, { route: "/api/billing/portal", userId: user.id, code: "PORTAL_ERROR", requestId });
-    return jsonError({ code: "PORTAL_ERROR", message: "Unable to open portal", requestId });
+    return errorRedirect("PORTAL_ERROR", "Unable to open portal");
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import SubscriptionPlanSelector from "./subscription-plan-selector";
 import { SUBSCRIPTION_PLANS, type SubscriptionPlan } from "@/lib/billing/plans-data";
 import { formatGbp } from "@/lib/billing/packs-data";
@@ -49,13 +49,34 @@ export default function SubscriptionPlansSection({
 }: Props) {
   const [selectedPlanKey, setSelectedPlanKey] = useState<PlanKey>(initialPlanKey ?? recommendedPlanKey);
   const [loading, setLoading] = useState(false);
-  const [redirectIssue, setRedirectIssue] = useState(false);
-  const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [requestId, setRequestId] = useState<string | null>(null);
   const [supportSnippet, setSupportSnippet] = useState<string | null>(null);
   const reasonLogged = useRef(false);
   const manageLogged = useRef(false);
+
+  const sendPortalClick = (flow: string, planKey?: PlanKey | null) => {
+    const payload = {
+      event: "billing_portal_click",
+      applicationId: applicationId ?? null,
+      surface: "billing",
+      meta: { flow, planKey: planKey ?? selectedPlanKey },
+    };
+    try {
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon("/api/monetisation/log", JSON.stringify(payload));
+      } else {
+        fetch("/api/monetisation/log", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+          keepalive: true,
+        }).catch(() => undefined);
+      }
+    } catch {
+      /* ignore */
+    }
+  };
 
   useEffect(() => {
     if (reasonLogged.current) return;
@@ -93,57 +114,6 @@ export default function SubscriptionPlansSection({
     }
   };
 
-  const handlePortalNavigate = async (event: MouseEvent<HTMLAnchorElement>, flow: string, planOverride?: PlanKey) => {
-    if (!canManageInPortal) {
-      setError("Couldn’t open subscription settings. Please try again.");
-      return;
-    }
-    event.preventDefault();
-    setPortalLoading(true);
-    setError(null);
-    setRequestId(null);
-    setSupportSnippet(null);
-    const planKey = planOverride ?? selectedPlanKey;
-    const href = buildPortalLink({ flow, returnTo });
-    const { headers, requestId: generatedId } = withRequestIdHeaders();
-    logMonetisationClientEvent("billing_portal_click", applicationId ?? null, "billing", { flow, planKey });
-    try {
-      const res = await fetch(href, { method: "GET", headers, redirect: "manual" });
-      const resolvedRequestId = res.headers.get("x-request-id") ?? generatedId ?? null;
-      if (resolvedRequestId) setRequestId(resolvedRequestId);
-      const location = res.headers.get("location");
-      if (res.status >= 300 && res.status < 400 && location) {
-        logMonetisationClientEvent("billing_portal_redirected", applicationId ?? null, "billing", { flow, planKey });
-        window.location.href = location;
-        return;
-      }
-      let payload: any = null;
-      try {
-        payload = await res.json();
-      } catch {
-        payload = null;
-      }
-      const errorMessage = payload?.error?.message ?? ERROR_COPY.portalOpen.message;
-      setError(errorMessage);
-      const code = payload?.error?.code;
-      if (resolvedRequestId) {
-        setSupportSnippet(
-          buildSupportSnippet({
-            action: "Open Stripe portal",
-            path: typeof window !== "undefined" ? window.location.pathname + window.location.search : "/app/billing",
-            requestId: resolvedRequestId,
-            code,
-          })
-        );
-      }
-      logMonetisationClientEvent("billing_portal_error", applicationId ?? null, "billing", { flow, planKey, requestId: resolvedRequestId, code });
-    } catch {
-      window.location.assign(href);
-    } finally {
-      setPortalLoading(false);
-    }
-  };
-
   const handleCheckout = async () => {
     if (!selectedPlanAvailable) {
       logMonetisationClientEvent("sub_selector_plan_unavailable", applicationId ?? null, "billing", {
@@ -156,7 +126,6 @@ export default function SubscriptionPlansSection({
     setError(null);
     setRequestId(null);
     setSupportSnippet(null);
-    setRedirectIssue(false);
     logMonetisationClientEvent("sub_selector_start_checkout", applicationId ?? null, "billing", {
       planKey: selectedPlanKey,
     });
@@ -187,17 +156,7 @@ export default function SubscriptionPlansSection({
       const resolvedRequestId = payloadError?.requestId ?? response.headers.get("x-request-id") ?? generatedId ?? null;
       if (resolvedRequestId) setRequestId(resolvedRequestId);
       if (response.ok && (payload.data as any)?.url) {
-        const timer = window.setTimeout(() => {
-          setRedirectIssue(true);
-          logMonetisationClientEvent(
-            "checkout_redirect_blocked",
-            applicationId ?? null,
-            "billing",
-            { planKey: selectedPlanKey, from: fromStreakSaver ? "streak_saver" : "billing" }
-          );
-        }, 2000);
         window.location.href = (payload.data as any)?.url as string;
-        window.setTimeout(() => window.clearTimeout(timer), 2500);
         return;
       }
       setError(payloadError?.message ?? ERROR_COPY.checkoutStart.message);
@@ -259,39 +218,37 @@ export default function SubscriptionPlansSection({
         {currentPlanKey === "monthly_30" && planAvailability.monthly_80 ? (
           <a
             href={buildPortalLink({ flow: "upgrade_80", returnTo })}
-            onClick={(e) => {
+            onClick={() => {
               logMonetisationClientEvent("sub_upgrade_click", applicationId ?? null, "billing", { from: currentPlanKey, to: "monthly_80" });
-              handlePortalNavigate(e, "upgrade_80", "monthly_80");
+              sendPortalClick("upgrade_80", "monthly_80");
             }}
             className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
-            aria-disabled={portalLoading}
           >
-            {portalLoading ? "Opening…" : "Upgrade to Monthly 80"}
+            Upgrade to Monthly 80
           </a>
         ) : null}
         {currentPlanKey === "monthly_80" && planAvailability.monthly_30 ? (
           <a
             href={buildPortalLink({ flow: "downgrade_30", returnTo })}
-            onClick={(e) => {
+            onClick={() => {
               logMonetisationClientEvent("sub_downgrade_click", applicationId ?? null, "billing", { from: currentPlanKey, to: "monthly_30" });
-              handlePortalNavigate(e, "downgrade_30", "monthly_30");
+              sendPortalClick("downgrade_30", "monthly_30");
             }}
             className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
-            aria-disabled={portalLoading}
           >
-            {portalLoading ? "Opening…" : "Downgrade to Monthly 30"}
+            Downgrade to Monthly 30
           </a>
         ) : null}
         {canManageInPortal ? (
           <a
             href={buildPortalLink({ flow: "manage", returnTo })}
-            onClick={(e) => {
+            onClick={() => {
               logMonetisationClientEvent("sub_selector_manage_portal_click", applicationId ?? null, "billing", { planKey: selectedPlanKey });
-              handlePortalNavigate(e, "manage");
+              sendPortalClick("manage", selectedPlanKey);
             }}
-            className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+            className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
           >
-            {portalLoading ? "Opening…" : "Manage in Stripe"}
+            Manage in Stripe
           </a>
         ) : null}
       </div>
@@ -381,46 +338,6 @@ export default function SubscriptionPlansSection({
               onClick={() => setError(null)}
             >
               Dismiss
-            </button>
-            <button
-              type="button"
-              className="rounded-full border border-amber-200 px-3 py-1 text-xs font-semibold text-amber-800 hover:bg-amber-100"
-              onClick={() => {
-                logMonetisationClientEvent(
-                  "checkout_open_new_tab",
-                  applicationId ?? null,
-                  "billing",
-                  { planKey: selectedPlanKey }
-                );
-                window.open("/app/billing", "_blank");
-              }}
-            >
-              Open billing
-            </button>
-          </div>
-        </div>
-      ) : null}
-      {redirectIssue ? (
-        <div className="mt-2 rounded-2xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
-          <p className="font-semibold">
-            If nothing opened, your browser may be blocking redirects.
-          </p>
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <button
-              type="button"
-              className="rounded-full bg-amber-700 px-3 py-1 text-xs font-semibold text-white hover:bg-amber-800"
-              onClick={() => {
-                logMonetisationClientEvent(
-                  "checkout_try_again",
-                  applicationId ?? null,
-                  "billing",
-                  { planKey: selectedPlanKey }
-                );
-                handleCheckout();
-              }}
-              disabled={loading}
-            >
-              Try again
             </button>
             <button
               type="button"

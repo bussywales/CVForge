@@ -2,6 +2,11 @@
 
 # Changelog
 
+## v0.8.03
+- Stripe portal navigation uses direct redirects (no fetch) via /api/billing/portal; errors bounce back to billing with requestId banner params.
+- Billing portal buttons are anchors again; click logging uses fire-and-forget, and portal error banners can be dismissed without reload.
+- Portal route supports JSON errors via format=json/Accept header; tests updated for redirect and banner parsing.
+
 ## v0.8.02
 - Hotfix: Stripe portal buttons on Billing now use /api/billing/portal with real links, redirect fallback, and requestId-aware error banners.
 - Portal creation errors log billing_portal_* events and return structured JSON; incidents/audits can now see failures.

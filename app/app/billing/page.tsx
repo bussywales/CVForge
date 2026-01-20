@@ -35,6 +35,9 @@ import SubCancelReasons from "./sub-cancel-reasons";
 import CompareCard from "./compare-card";
 import { buildCompareRecommendation } from "@/lib/billing/compare-reco";
 import nextDynamic from "next/dynamic";
+import { parsePortalError } from "@/lib/billing/portal-error";
+import { buildSupportSnippet } from "@/lib/observability/support-snippet";
+import PortalErrorBanner from "./portal-error-banner";
 const BillingDeepLinkClient = nextDynamic(() => import("./billing-deeplink-client"), { ssr: false });
 
 export const dynamic = "force-dynamic";
@@ -67,6 +70,17 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       </div>
     );
   }
+
+  const portalError = parsePortalError(searchParams ?? undefined);
+  const portalSupportSnippet =
+    portalError.requestId != null
+      ? buildSupportSnippet({
+          action: "Open Stripe portal",
+          path: "/app/billing",
+          requestId: portalError.requestId,
+          code: portalError.code ?? undefined,
+        })
+      : null;
 
   const credits = await getUserCredits(supabase, user.id);
   const activity = await listCreditActivity(supabase, user.id, 20);
@@ -268,6 +282,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   return (
     <div className="space-y-6" id="billing-root">
       <BillingDeepLinkClient />
+      {portalError.show ? <PortalErrorBanner requestId={portalError.requestId} supportSnippet={portalSupportSnippet} /> : null}
       <PostPurchaseSuccessBanner
         show={Boolean(searchParams?.success)}
         applicationId={latestApplicationId ?? undefined}

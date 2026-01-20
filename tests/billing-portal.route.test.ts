@@ -96,12 +96,27 @@ describe("billing portal route", () => {
     expect((res.headers as any).get("location")).toContain("stripe.test/portal");
   });
 
-  it("returns structured error when stripe fails", async () => {
+  it("redirects back to billing with error when stripe fails", async () => {
     stripeCreate.mockRejectedValueOnce(new Error("fail"));
     const res = await GET(new Request("http://localhost/api/billing/portal?flow=manage"));
+    expect(res.status).toBe(303);
+    const location = (res.headers as any).get("location");
+    expect(location).toContain("/app/billing");
+    expect(location).toContain("portal_error=1");
+    expect(location).toContain("req=req_test");
+    expect((res.headers as any).get("x-request-id")).toBe("req_test");
+  });
+
+  it("returns json error when format=json requested", async () => {
+    stripeCreate.mockRejectedValueOnce(new Error("fail"));
+    const res = await GET(
+      new Request("http://localhost/api/billing/portal?flow=manage&format=json", {
+        headers: { accept: "application/json" },
+      })
+    );
     expect(res.status).toBe(500);
     const body = await res.json();
+    expect(body.error?.code).toBe("PORTAL_ERROR");
     expect(body.error?.requestId).toBe("req_test");
   });
 });
-
