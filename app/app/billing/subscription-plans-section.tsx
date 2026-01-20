@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type MouseEvent } from "react";
 import SubscriptionPlanSelector from "./subscription-plan-selector";
 import { SUBSCRIPTION_PLANS, type SubscriptionPlan } from "@/lib/billing/plans-data";
 import { formatGbp } from "@/lib/billing/packs-data";
@@ -12,6 +12,7 @@ import { safeReadJson } from "@/lib/http/safe-json";
 import ErrorBanner from "@/components/ErrorBanner";
 import { ERROR_COPY } from "@/lib/microcopy/errors";
 import { buildSupportSnippet } from "@/lib/observability/support-snippet";
+import { buildPortalLink } from "@/lib/billing/portal-link";
 
 type PlanKey = "monthly_30" | "monthly_80";
 
@@ -89,6 +90,57 @@ export default function SubscriptionPlansSection({
       logMonetisationClientEvent("streak_saver_plan_selected", applicationId ?? null, "billing", {
         planKey,
       });
+    }
+  };
+
+  const handlePortalNavigate = async (event: MouseEvent<HTMLAnchorElement>, flow: string, planOverride?: PlanKey) => {
+    if (!canManageInPortal) {
+      setError("Couldn’t open subscription settings. Please try again.");
+      return;
+    }
+    event.preventDefault();
+    setPortalLoading(true);
+    setError(null);
+    setRequestId(null);
+    setSupportSnippet(null);
+    const planKey = planOverride ?? selectedPlanKey;
+    const href = buildPortalLink({ flow, returnTo });
+    const { headers, requestId: generatedId } = withRequestIdHeaders();
+    logMonetisationClientEvent("billing_portal_click", applicationId ?? null, "billing", { flow, planKey });
+    try {
+      const res = await fetch(href, { method: "GET", headers, redirect: "manual" });
+      const resolvedRequestId = res.headers.get("x-request-id") ?? generatedId ?? null;
+      if (resolvedRequestId) setRequestId(resolvedRequestId);
+      const location = res.headers.get("location");
+      if (res.status >= 300 && res.status < 400 && location) {
+        logMonetisationClientEvent("billing_portal_redirected", applicationId ?? null, "billing", { flow, planKey });
+        window.location.href = location;
+        return;
+      }
+      let payload: any = null;
+      try {
+        payload = await res.json();
+      } catch {
+        payload = null;
+      }
+      const errorMessage = payload?.error?.message ?? ERROR_COPY.portalOpen.message;
+      setError(errorMessage);
+      const code = payload?.error?.code;
+      if (resolvedRequestId) {
+        setSupportSnippet(
+          buildSupportSnippet({
+            action: "Open Stripe portal",
+            path: typeof window !== "undefined" ? window.location.pathname + window.location.search : "/app/billing",
+            requestId: resolvedRequestId,
+            code,
+          })
+        );
+      }
+      logMonetisationClientEvent("billing_portal_error", applicationId ?? null, "billing", { flow, planKey, requestId: resolvedRequestId, code });
+    } catch {
+      window.location.assign(href);
+    } finally {
+      setPortalLoading(false);
     }
   };
 
@@ -197,90 +249,7 @@ export default function SubscriptionPlansSection({
   };
 
   const handleManage = async () => {
-    if (!canManageInPortal) {
-      setError("Couldn’t open subscription settings. Please try again.");
-      return;
-    }
-    setPortalLoading(true);
-    setError(null);
-    setRequestId(null);
-    setSupportSnippet(null);
-    logMonetisationClientEvent("sub_selector_manage_portal_click", applicationId ?? null, "billing", {
-      planKey: selectedPlanKey,
-    });
-    try {
-      const { headers, requestId: generatedId } = withRequestIdHeaders({ "Content-Type": "application/json" });
-      const response = await fetch("/api/stripe/portal", {
-        method: "POST",
-        headers,
-        credentials: "include",
-        body: JSON.stringify({ returnTo }),
-      });
-      const payload = await safeReadJson(response);
-      const payloadError = (payload.data as any)?.error;
-      const resolvedRequestId = payloadError?.requestId ?? response.headers.get("x-request-id") ?? generatedId ?? null;
-      if (resolvedRequestId) setRequestId(resolvedRequestId);
-      const url = (payload.data as any)?.url;
-      if (response.ok && url) {
-        window.location.href = url as string;
-        return;
-      }
-      setError(payloadError?.message ?? ERROR_COPY.portalOpen.message);
-      if (resolvedRequestId) {
-        setSupportSnippet(
-          buildSupportSnippet({
-            action: "Open Stripe portal",
-            path: typeof window !== "undefined" ? window.location.pathname + window.location.search : "/app/billing",
-            requestId: resolvedRequestId,
-            code: payloadError?.code,
-          })
-        );
-      }
-      logMonetisationClientEvent("sub_portal_open_failed", applicationId ?? null, "billing", {
-        planKey: selectedPlanKey,
-        requestId: resolvedRequestId,
-      });
-    } catch {
-      setError("We couldn’t open the subscription portal. Please try again.");
-    } finally {
-      setPortalLoading(false);
-    }
-  };
-
-  const handleUpgradeDowngrade = async (target: PlanKey, flow: string) => {
-    setPortalLoading(true);
-    setError(null);
-    logMonetisationClientEvent(
-      target === "monthly_80" ? "sub_upgrade_click" : "sub_downgrade_click",
-      applicationId ?? null,
-      "billing",
-      { from: currentPlanKey, to: target }
-    );
-    try {
-      const response = await fetch(
-        `/api/stripe/portal?flow=${encodeURIComponent(flow)}&returnTo=${encodeURIComponent(returnTo)}`,
-        {
-          method: "GET",
-          credentials: "include",
-        }
-      );
-      const payload = await response.json().catch(() => ({}));
-      if (response.ok && payload?.url) {
-        window.location.href = payload.url as string;
-        return;
-      }
-      logMonetisationClientEvent("sub_portal_open_failed", applicationId ?? null, "billing", {
-        planKey: target,
-      });
-      setError("Couldn’t open subscription settings. Please try again.");
-    } catch {
-      logMonetisationClientEvent("sub_portal_open_failed", applicationId ?? null, "billing", {
-        planKey: target,
-      });
-      setError("Couldn’t open subscription settings. Please try again.");
-    } finally {
-      setPortalLoading(false);
-    }
+    // deprecated
   };
 
   const renderManageActions = () => {
@@ -288,34 +257,42 @@ export default function SubscriptionPlansSection({
     return (
       <div className="flex flex-wrap items-center gap-2">
         {currentPlanKey === "monthly_30" && planAvailability.monthly_80 ? (
-          <button
-            type="button"
-            onClick={() => handleUpgradeDowngrade("monthly_80", "upgrade_80")}
+          <a
+            href={buildPortalLink({ flow: "upgrade_80", returnTo })}
+            onClick={(e) => {
+              logMonetisationClientEvent("sub_upgrade_click", applicationId ?? null, "billing", { from: currentPlanKey, to: "monthly_80" });
+              handlePortalNavigate(e, "upgrade_80", "monthly_80");
+            }}
             className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
-            disabled={portalLoading}
+            aria-disabled={portalLoading}
           >
             {portalLoading ? "Opening…" : "Upgrade to Monthly 80"}
-          </button>
+          </a>
         ) : null}
         {currentPlanKey === "monthly_80" && planAvailability.monthly_30 ? (
-          <button
-            type="button"
-            onClick={() => handleUpgradeDowngrade("monthly_30", "downgrade_30")}
+          <a
+            href={buildPortalLink({ flow: "downgrade_30", returnTo })}
+            onClick={(e) => {
+              logMonetisationClientEvent("sub_downgrade_click", applicationId ?? null, "billing", { from: currentPlanKey, to: "monthly_30" });
+              handlePortalNavigate(e, "downgrade_30", "monthly_30");
+            }}
             className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
-            disabled={portalLoading}
+            aria-disabled={portalLoading}
           >
             {portalLoading ? "Opening…" : "Downgrade to Monthly 30"}
-          </button>
+          </a>
         ) : null}
         {canManageInPortal ? (
-          <button
-            type="button"
-            onClick={handleManage}
-            disabled={portalLoading}
+          <a
+            href={buildPortalLink({ flow: "manage", returnTo })}
+            onClick={(e) => {
+              logMonetisationClientEvent("sub_selector_manage_portal_click", applicationId ?? null, "billing", { planKey: selectedPlanKey });
+              handlePortalNavigate(e, "manage");
+            }}
             className="rounded-full border border-black/10 bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {portalLoading ? "Opening…" : "Manage in Stripe"}
-          </button>
+          </a>
         ) : null}
       </div>
     );

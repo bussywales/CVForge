@@ -1,5 +1,12 @@
 # Changelog
 
+# Changelog
+
+## v0.8.02
+- Hotfix: Stripe portal buttons on Billing now use /api/billing/portal with real links, redirect fallback, and requestId-aware error banners.
+- Portal creation errors log billing_portal_* events and return structured JSON; incidents/audits can now see failures.
+- Billing UI shows portal ErrorBanner with copyable support snippet; new portal link builder + tests.
+
 ## v0.8.01
 - Ops Incident Playbooks v1: deterministic billing-first playbooks for portal/checkout/webhook/credits/monetisation issues with likely causes + next steps.
 - Incidents console shows playbook card with deeplink actions (Billing/dossier/support-link generation/customer reply copy) and masked link output.

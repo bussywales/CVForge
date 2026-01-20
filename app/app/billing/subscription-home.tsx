@@ -4,6 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import type { RetentionSummary } from "@/lib/subscription-retention";
+import ErrorBanner from "@/components/ErrorBanner";
+import { buildSupportSnippet } from "@/lib/observability/support-snippet";
+import { withRequestIdHeaders } from "@/lib/observability/request-id";
+import { buildPortalLink } from "@/lib/billing/portal-link";
 
 type PlanKey = "monthly_30" | "monthly_80";
 
@@ -30,6 +34,8 @@ export default function SubscriptionHome({
   returnTo,
 }: Props) {
   const [saveOpen, setSaveOpen] = useState(false);
+  const [portalError, setPortalError] = useState<{ message: string; requestId?: string | null; code?: string | null } | null>(null);
+  const [portalSupportSnippet, setPortalSupportSnippet] = useState<string | null>(null);
   const primaryAction = useMemo(() => actions[0], [actions]);
 
   useEffect(() => {
@@ -61,20 +67,47 @@ export default function SubscriptionHome({
       planKey,
       ...meta,
     });
+    const href = buildPortalLink({ flow: flow ?? "manage", returnTo });
+    logMonetisationClientEvent("billing_portal_click", appId, "billing", { flow, planKey });
+    const { headers, requestId: generatedId } = withRequestIdHeaders();
     try {
-      const url = `/api/stripe/portal?flow=${encodeURIComponent(flow ?? "manage")}&from=subscription_home`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ returnTo }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (response.ok && payload?.url) {
-        window.location.href = payload.url as string;
+      const res = await fetch(href, { method: "GET", headers, redirect: "manual" });
+      const resolvedRequestId = res.headers.get("x-request-id") ?? generatedId ?? null;
+      const location = res.headers.get("location");
+      if (res.status >= 300 && res.status < 400 && location) {
+        logMonetisationClientEvent("billing_portal_redirected", appId, "billing", { flow, planKey });
+        window.location.href = location;
+        return;
       }
+      let payload: any = null;
+      try {
+        payload = await res.json();
+      } catch {
+        payload = null;
+      }
+      setPortalError({
+        message: payload?.error?.message ?? "We couldn’t open the subscription portal. Please try again.",
+        requestId: resolvedRequestId,
+        code: payload?.error?.code,
+      });
+      if (resolvedRequestId) {
+        setPortalSupportSnippet(
+          buildSupportSnippet({
+            action: "Open Stripe portal",
+            path: typeof window !== "undefined" ? window.location.pathname + window.location.search : "/app/billing",
+            requestId: resolvedRequestId,
+            code: payload?.error?.code,
+          })
+        );
+      }
+      logMonetisationClientEvent("billing_portal_error", appId, "billing", {
+        flow: flow ?? "manage",
+        planKey,
+        requestId: resolvedRequestId,
+        code: payload?.error?.code,
+      });
     } catch {
-      /* ignore */
+      window.location.assign(href);
     }
   };
 
@@ -92,8 +125,21 @@ export default function SubscriptionHome({
   };
 
   return (
-    <div className="rounded-3xl border border-emerald-200 bg-emerald-50/80 p-5 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="space-y-3">
+      {portalError ? (
+        <ErrorBanner
+          title="Couldn’t open Stripe portal"
+          message={portalError.message}
+          requestId={portalError.requestId ?? undefined}
+          supportSnippet={portalSupportSnippet ?? undefined}
+          onDismiss={() => {
+            setPortalError(null);
+            setPortalSupportSnippet(null);
+          }}
+        />
+      ) : null}
+      <div className="rounded-3xl border border-emerald-200 bg-emerald-50/80 p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold text-[rgb(var(--ink))]">
             Your subscription this week
@@ -191,13 +237,16 @@ export default function SubscriptionHome({
           >
             Thinking of cancelling?
           </button>
-          <button
-            type="button"
+          <a
+            href={buildPortalLink({ flow: "manage", returnTo })}
             className="rounded-full border border-black/10 bg-black px-4 py-2 text-sm font-semibold text-white hover:bg-[rgb(var(--ink))]"
-            onClick={() => handlePortal("manage")}
+            onClick={(e) => {
+              e.preventDefault();
+              handlePortal("manage");
+            }}
           >
             Manage in Stripe
-          </button>
+          </a>
         </div>
       </div>
 
@@ -242,10 +291,11 @@ export default function SubscriptionHome({
               >
                 Keep plan
               </button>
-              <button
-                type="button"
+              <a
+                href={buildPortalLink({ flow: "cancel_save_offer", returnTo })}
                 className="rounded-full border border-amber-200 px-4 py-2 text-xs font-semibold text-amber-800 hover:bg-amber-100"
-                onClick={() => {
+                onClick={(e) => {
+                  e.preventDefault();
                   logMonetisationClientEvent(
                     "sub_save_offer_go_to_stripe",
                     primaryAction?.applicationId ?? latestApplicationId ?? null,
@@ -256,11 +306,12 @@ export default function SubscriptionHome({
                 }}
               >
                 Continue to Stripe
-              </button>
+              </a>
             </div>
           </div>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

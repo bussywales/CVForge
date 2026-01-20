@@ -278,6 +278,9 @@ const ALLOWED = [
   "ops_playbook_view",
   "ops_playbook_action_click",
   "ops_support_link_from_playbook",
+  "billing_portal_click",
+  "billing_portal_redirected",
+  "billing_portal_error",
 ] as const;
 
 export type MonetisationClientEvent = (typeof ALLOWED)[number];
