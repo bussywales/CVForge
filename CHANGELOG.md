@@ -15,6 +15,11 @@
 - Dashboard actions deduped/ranked deterministically (activation-first, then high-impact items) to avoid duplicate cards; progress copy aligned with activation core steps.
 - Activation helper uses persisted facts only, excludes archived apps, and exports core progress; new tests for dedupe, progress, telemetry meta, and activation routing logic.
 
+## v0.8.08
+- Keep Momentum loop v1: deterministic helper recommends one weekly move (follow-up, outcome, interview prep, evidence, fallback) with debug signals and skip handling.
+- Dashboard adds Keep Momentum card with CTA/secondary/skip logging, using activation-safe metadata and anchors; activation stays present without conflict.
+- Ops Activation Funnel shows keep-momentum aggregates (views/clicks/skips + top rules); monetisation allowlists expanded; new unit tests for rules/telemetry.
+
 ## v0.8.04
 - Portal route hardened: always sets x-request-id + no-store, redirects on errors with portal_error=1&mode=navigation, logs portal events without URLs, JSON errors only when requested.
 - Billing portal error banner gains Try again link; portal links stay navigation-only; logging includes mode/destination.

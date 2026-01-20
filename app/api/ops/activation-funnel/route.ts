@@ -23,6 +23,11 @@ const EVENT_TYPES = [
   "activation_first_outreach",
   "activation_first_followup",
   "activation_first_outcome",
+  "keep_momentum_view",
+  "keep_momentum_cta_click",
+  "keep_momentum_secondary_click",
+  "keep_momentum_skip_week",
+  "keep_momentum_model_error",
 ];
 
 type Counts = {
@@ -35,6 +40,11 @@ type Counts = {
   activation_skip_week: number;
   activation_funnel_view: number;
   activation_funnel_export: number;
+  keep_momentum_view: number;
+  keep_momentum_cta_click: number;
+  keep_momentum_secondary_click: number;
+  keep_momentum_skip_week: number;
+  keep_momentum_model_error: number;
 };
 
 type Milestones = {
@@ -92,25 +102,31 @@ export async function GET(request: Request) {
       throw error;
     }
 
-    const counts: Counts = {
-      activation_view: 0,
-      activation_step_click: 0,
-      activation_primary_cta_click: 0,
-      activation_cta_click: 0,
-      activation_completed: 0,
-      activation_model_error: {},
-      activation_skip_week: 0,
-      activation_funnel_view: 0,
-      activation_funnel_export: 0,
-    };
+  const counts: Counts = {
+    activation_view: 0,
+    activation_step_click: 0,
+    activation_primary_cta_click: 0,
+    activation_cta_click: 0,
+    activation_completed: 0,
+    activation_model_error: {},
+    activation_skip_week: 0,
+    activation_funnel_view: 0,
+    activation_funnel_export: 0,
+    keep_momentum_view: 0,
+    keep_momentum_cta_click: 0,
+    keep_momentum_secondary_click: 0,
+    keep_momentum_skip_week: 0,
+    keep_momentum_model_error: 0,
+  };
     const stepClicks: Record<string, number> = {};
     const ctaClicks: Record<string, number> = {};
-    const milestones: Milestones = {
-      first_application: 0,
-      first_outreach: 0,
-      first_followup: 0,
-      first_outcome: 0,
-    };
+  const milestones: Milestones = {
+    first_application: 0,
+    first_outreach: 0,
+    first_followup: 0,
+    first_outcome: 0,
+  };
+  const ruleCounts: Record<string, number> = {};
 
     (data ?? []).forEach((row: any) => {
       const event = (row?.type ?? "").toString().replace("monetisation.", "");
@@ -152,6 +168,25 @@ export async function GET(request: Request) {
         case "activation_funnel_export":
           counts.activation_funnel_export += 1;
           break;
+        case "keep_momentum_view":
+          counts.keep_momentum_view += 1;
+          if (meta?.ruleId) ruleCounts[meta.ruleId] = (ruleCounts[meta.ruleId] ?? 0) + 1;
+          break;
+        case "keep_momentum_cta_click":
+          counts.keep_momentum_cta_click += 1;
+          if (meta?.ruleId) ruleCounts[meta.ruleId] = (ruleCounts[meta.ruleId] ?? 0) + 1;
+          break;
+        case "keep_momentum_secondary_click":
+          counts.keep_momentum_secondary_click += 1;
+          if (meta?.ruleId) ruleCounts[meta.ruleId] = (ruleCounts[meta.ruleId] ?? 0) + 1;
+          break;
+        case "keep_momentum_skip_week":
+          counts.keep_momentum_skip_week += 1;
+          if (meta?.ruleId) ruleCounts[meta.ruleId] = (ruleCounts[meta.ruleId] ?? 0) + 1;
+          break;
+        case "keep_momentum_model_error":
+          counts.keep_momentum_model_error += 1;
+          break;
         case "activation_first_application":
           milestones.first_application += 1;
           break;
@@ -177,6 +212,10 @@ export async function GET(request: Request) {
         stepClicks,
         ctaClicks,
         milestones,
+        rules: Object.entries(ruleCounts)
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([ruleId, count]) => ({ ruleId, count })),
       },
       { headers }
     );

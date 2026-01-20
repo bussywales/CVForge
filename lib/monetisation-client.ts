@@ -295,6 +295,11 @@ const ALLOWED = [
   "activation_first_outreach",
   "activation_first_followup",
   "activation_first_outcome",
+  "keep_momentum_view",
+  "keep_momentum_cta_click",
+  "keep_momentum_secondary_click",
+  "keep_momentum_skip_week",
+  "keep_momentum_model_error",
 ] as const;
 
 export type MonetisationClientEvent = (typeof ALLOWED)[number];

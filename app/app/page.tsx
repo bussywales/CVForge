@@ -14,6 +14,8 @@ import FollowupsDueStrip from "@/components/followups-due-strip";
 import { buildActivationModel, type ActivationModel } from "@/lib/activation-loop";
 import { activationCoreProgress } from "@/lib/activation-loop";
 import ActivationCard from "./activation-card";
+import { buildKeepMomentumModel, type KeepMomentumModel } from "@/lib/keep-momentum";
+import KeepMomentumCard from "./keep-momentum-card";
 
 export const dynamic = "force-dynamic";
 
@@ -120,6 +122,8 @@ export default async function AppPage() {
   const followupsDue = buildFollowupItems(applications as any);
   let activation: ActivationModel | null = null;
   let activationError: { requestId?: string | null; message?: string | null; code?: string | null } | null = null;
+  let keepMomentum: KeepMomentumModel | null = null;
+  let keepMomentumError: { requestId?: string | null; message?: string | null; code?: string | null } | null = null;
   try {
     activation = buildActivationModel({ applications: applications as any, insights });
   } catch (error) {
@@ -128,6 +132,11 @@ export default async function AppPage() {
       message: (error as Error)?.message ?? "Unable to load activation steps",
       code: "build_failed",
     };
+  }
+  try {
+    keepMomentum = buildKeepMomentumModel({ applications: applications as any, insights });
+  } catch (error) {
+    keepMomentumError = { requestId: null, message: (error as Error)?.message ?? "Unable to load keep momentum", code: "build_failed" };
   }
   const activationProgress = activation ? activationCoreProgress(activation.steps) : { doneCount: 0, totalCount: 4 };
   const activationNext = activation?.steps.find((s) => !s.isDone);
@@ -150,6 +159,7 @@ export default async function AppPage() {
         />
       ) : null}
       <ActivationCard model={activation} error={activationError} />
+      <KeepMomentumCard model={keepMomentum} error={keepMomentumError} />
 
       <Section
         title={`Welcome back${user?.email ? `, ${user.email}` : ""}.`}

@@ -18,9 +18,15 @@ type FunnelResponse = {
     activation_skip_week: number;
     activation_funnel_view: number;
     activation_funnel_export: number;
+    keep_momentum_view: number;
+    keep_momentum_cta_click: number;
+    keep_momentum_secondary_click: number;
+    keep_momentum_skip_week: number;
+    keep_momentum_model_error: number;
   };
   stepClicks: Record<string, number>;
   ctaClicks: Record<string, number>;
+  rules?: { ruleId: string; count: number }[];
   milestones: {
     first_application: number;
     first_outreach: number;
@@ -106,6 +112,9 @@ export default function ActivationFunnelClient({ initialRange }: Props) {
         <Metric label="Completed" value={data?.counts.activation_completed ?? 0} />
         <Metric label="Skips" value={data?.counts.activation_skip_week ?? 0} />
         <Metric label="Model errors" value={Object.values(data?.counts.activation_model_error ?? {}).reduce((a, b) => a + b, 0)} />
+        <Metric label="Keep momentum views" value={data?.counts.keep_momentum_view ?? 0} />
+        <Metric label="Keep momentum clicks" value={(data?.counts.keep_momentum_cta_click ?? 0) + (data?.counts.keep_momentum_secondary_click ?? 0)} />
+        <Metric label="Keep momentum skips" value={data?.counts.keep_momentum_skip_week ?? 0} />
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2">
@@ -146,6 +155,21 @@ export default function ActivationFunnelClient({ initialRange }: Props) {
           <Metric label="First follow-up" value={data?.milestones.first_followup ?? 0} />
           <Metric label="First outcome" value={data?.milestones.first_outcome ?? 0} />
         </div>
+      </Card>
+
+      <Card title="Keep momentum rules (top)">
+        {data?.rules && data.rules.length > 0 ? (
+          <ul className="space-y-1 text-xs">
+            {data.rules.map((rule) => (
+              <li key={rule.ruleId} className="flex justify-between">
+                <span className="font-semibold text-[rgb(var(--ink))]">{rule.ruleId}</span>
+                <span>{rule.count}</span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-[rgb(var(--muted))]">No keep momentum signals yet.</p>
+        )}
       </Card>
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-[rgb(var(--muted))]">

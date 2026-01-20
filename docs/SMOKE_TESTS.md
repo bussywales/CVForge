@@ -14,6 +14,12 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Skip for now hides the card for the week and emits activation_skip_week; Do next/step links emit activation_cta_click/activation_step_click.
 - No duplicate “Next best actions” cards; ordering is activation steps first, then high-impact tasks, capped at 5; progress copy matches activation steps (0/4 → Add app, 4/4 → on track).
 
+## Keep Momentum
+- Dashboard shows “Keep momentum this week” card with one recommended move and secondary “Not now”.
+- CTA deep-links to the right page/anchor; skip hides the card for a week and emits keep_momentum_skip_week.
+- If activation is incomplete, Keep Momentum still renders without stealing focus.
+- Ops Activation Funnel reflects keep-momentum aggregates (views/clicks/skips) after interactions.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.
