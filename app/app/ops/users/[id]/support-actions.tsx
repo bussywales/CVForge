@@ -9,6 +9,7 @@ import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { safeReadJson } from "@/lib/http/safe-json";
 import { type SupportFocus, type SupportLinkKind } from "@/lib/ops/support-links";
 import { type UserRole } from "@/lib/rbac";
+import { buildPortalLink } from "@/lib/billing/portal-link";
 
 type ApplicationOption = {
   id: string;
@@ -50,6 +51,7 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
   const [linkError, setLinkError] = useState<{ requestId?: string | null; message?: string | null; code?: string | null } | null>(null);
   const [linkLoading, setLinkLoading] = useState(false);
   const linkRef = useRef<HTMLInputElement | null>(null);
+  const portalLink = buildPortalLink({ flow: "manage", from: "ops_support", support: "1", returnTo: "/app/billing" });
 
   const canAdjust = viewerRole === "admin" || viewerRole === "super_admin";
 
@@ -133,6 +135,14 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
     setNote("");
     logMonetisationClientEvent("ops_credit_adjust_success", targetUserId, "ops", { targetUserId, ref: data?.ledgerRef });
     setAdjustLoading(false);
+  };
+
+  const logPortalClick = () => {
+    try {
+      logMonetisationClientEvent("ops_support_portal_open_click", targetUserId, "ops");
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleGenerateLink = async () => {
@@ -308,6 +318,27 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
               {adjustLoading ? "Applying..." : OPS_COPY.applyCredit}
             </button>
           </form>
+
+          <div className="mt-4 space-y-2 rounded-lg border border-black/10 bg-white px-3 py-2">
+            <p className="text-sm font-semibold text-[rgb(var(--ink))]">Stripe portal</p>
+            <p className="text-[11px] text-[rgb(var(--muted))]">Open or retry the customer portal (navigation only).</p>
+            <div className="flex flex-wrap gap-2">
+              <a
+                href={portalLink}
+                className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                onClick={logPortalClick}
+              >
+                Open portal
+              </a>
+              <a
+                href={portalLink}
+                className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                onClick={logPortalClick}
+              >
+                Retry portal
+              </a>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-3 rounded-xl border border-black/10 bg-white/70 p-3">

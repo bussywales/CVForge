@@ -64,7 +64,7 @@ export default function SubscriptionHome({
     });
     const href = buildPortalLink({ flow: flow ?? "manage", returnTo });
     try {
-      const payload = { event: "billing_portal_click", applicationId: appId, surface: "billing", meta: { flow, planKey } };
+      const payload = { event: "billing_portal_click", applicationId: appId, surface: "billing", meta: { flow, planKey, mode: "navigation", destination: "portal" } };
       if (navigator.sendBeacon) {
         navigator.sendBeacon("/api/monetisation/log", JSON.stringify(payload));
       } else {

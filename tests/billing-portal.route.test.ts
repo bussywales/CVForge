@@ -94,6 +94,8 @@ describe("billing portal route", () => {
     const res = await GET(new Request("http://localhost/api/billing/portal?flow=manage"));
     expect(res.status).toBe(303);
     expect((res.headers as any).get("location")).toContain("stripe.test/portal");
+    expect((res.headers as any).get("x-request-id")).toBe("req_test");
+    expect(((res.headers as any).get("cache-control") as string | null)?.includes("no-store")).toBe(true);
   });
 
   it("redirects back to billing with error when stripe fails", async () => {
@@ -105,6 +107,7 @@ describe("billing portal route", () => {
     expect(location).toContain("portal_error=1");
     expect(location).toContain("req=req_test");
     expect((res.headers as any).get("x-request-id")).toBe("req_test");
+    expect(((res.headers as any).get("cache-control") as string | null)?.includes("no-store")).toBe(true);
   });
 
   it("returns json error when format=json requested", async () => {
@@ -116,7 +119,9 @@ describe("billing portal route", () => {
     );
     expect(res.status).toBe(500);
     const body = await res.json();
-    expect(body.error?.code).toBe("PORTAL_ERROR");
-    expect(body.error?.requestId).toBe("req_test");
+    expect(body.ok).toBe(false);
+    expect(body.code).toBe("PORTAL_ERROR");
+    expect(body.requestId).toBe("req_test");
+    expect((res.headers as any).get("x-request-id")).toBe("req_test");
   });
 });

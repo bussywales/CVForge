@@ -15,6 +15,7 @@ import { buildSupportSnippet } from "@/lib/observability/support-snippet";
 import { filterIncidents } from "@/lib/ops/incidents-filters";
 import { buildSupportBundleFromIncident } from "@/lib/ops/support-bundle";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { detectPortalSpike } from "@/lib/ops/portal-spike";
 import { buildIncidentPlaybook, type IncidentPlaybook } from "@/lib/ops/ops-incident-playbooks";
 
 type Props = {
@@ -80,6 +81,7 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
     [filtered]
   );
   const related = selected ? correlateIncidents(selected, incidents) : [];
+  const portalSpike = useMemo(() => detectPortalSpike(filtered), [filtered]);
 
   useEffect(() => {
     if (filters.requestId) {
@@ -376,6 +378,36 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
       ) : null}
 
       <div className="space-y-2">
+        {portalSpike.spike ? (
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-[11px] text-amber-800">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold text-amber-900">Stripe portal failures detected</p>
+                <p className="text-[11px] text-amber-800">
+                  {portalSpike.total} portal errors in this window. Top codes:{" "}
+                  {portalSpike.codes.slice(0, 2).map((c) => `${c.code} (${c.count})`).join(", ")}
+                </p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <Link
+                  href="/app/ops/audits?action=billing_portal_error"
+                  className="rounded-full border border-amber-300 bg-white px-3 py-1 font-semibold text-amber-800 underline-offset-2 hover:underline"
+                >
+                  View audits
+                </Link>
+                {filters.requestId ? (
+                  <button
+                    type="button"
+                    className="rounded-full border border-amber-300 bg-white px-3 py-1 font-semibold text-amber-800"
+                    onClick={() => setFilters((f) => ({ ...f, requestId: "" }))}
+                  >
+                    Clear request filter
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        ) : null}
         {groups.length === 0 ? (
           <p className="text-sm text-[rgb(var(--muted))]">{OPS_INCIDENTS_COPY.groupEmpty}</p>
         ) : (

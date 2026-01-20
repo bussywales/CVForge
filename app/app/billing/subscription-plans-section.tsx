@@ -60,7 +60,7 @@ export default function SubscriptionPlansSection({
       event: "billing_portal_click",
       applicationId: applicationId ?? null,
       surface: "billing",
-      meta: { flow, planKey: planKey ?? selectedPlanKey },
+      meta: { flow, planKey: planKey ?? selectedPlanKey, mode: "navigation", destination: "portal" },
     };
     try {
       if (navigator.sendBeacon) {

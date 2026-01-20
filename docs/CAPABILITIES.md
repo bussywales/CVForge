@@ -92,6 +92,7 @@ DOCX import previews and applies profile fields, achievements, and work history.
 Stripe Checkout is used for credit purchases, with a credit ledger and webhook-based crediting. Pack selector offers Starter/Pro/Power options and paywall CTAs appear at high-intent points (apply wizard, interview packs, answer packs). The Billing page now recommends a pack based on workload, shows ROI copy in gates, and threads return-to-action plus resume banners after checkout. Optional subscriptions + auto top-up preferences live in Billing; webhook grants monthly credits.
 Top-up vs Subscription comparison cards highlight the recommended option with deterministic reasons across Billing and soft gates, using the same resume-aware checkout.
 Stripe portal links use a dedicated /api/billing/portal endpoint with requestId-aware errors and masked logging so portal failures are observable to ops.
+Portal failures surface banner retry links for users and trigger Ops Incident callouts for portal spikes; ops support actions include navigation-only portal open/retry links.
 
 ## Monetisation analytics
 Credit gates, checkout starts/successes, resume clicks, and autopack completions are logged deterministically. Insights shows a revenue funnel (7d/30d) plus top surfaces for gates and billing clicks to spot leaks quickly.

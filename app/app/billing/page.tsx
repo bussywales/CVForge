@@ -282,7 +282,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   return (
     <div className="space-y-6" id="billing-root">
       <BillingDeepLinkClient />
-      {portalError.show ? <PortalErrorBanner requestId={portalError.requestId} supportSnippet={portalSupportSnippet} /> : null}
+      {portalError.show ? (
+        <PortalErrorBanner requestId={portalError.requestId} supportSnippet={portalSupportSnippet} retryHref={portalError.retryHref} />
+      ) : null}
       <PostPurchaseSuccessBanner
         show={Boolean(searchParams?.success)}
         applicationId={latestApplicationId ?? undefined}

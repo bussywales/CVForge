@@ -8,5 +8,11 @@ describe("portal link", () => {
     expect(href).toContain("flow=manage");
     expect(href).toContain(encodeURIComponent("/app/billing?from=test"));
   });
-});
 
+  it("includes plan/from/support when provided", () => {
+    const href = buildPortalLink({ flow: "manage", plan: "monthly_30", from: "ops_support", support: "1" });
+    expect(href).toContain("plan=monthly_30");
+    expect(href).toContain("from=ops_support");
+    expect(href).toContain("support=1");
+  });
+});

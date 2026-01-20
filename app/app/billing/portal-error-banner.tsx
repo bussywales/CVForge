@@ -7,9 +7,10 @@ import ErrorBanner from "@/components/ErrorBanner";
 type Props = {
   requestId: string | null;
   supportSnippet?: string | null;
+  retryHref: string;
 };
 
-export default function PortalErrorBanner({ requestId, supportSnippet }: Props) {
+export default function PortalErrorBanner({ requestId, supportSnippet, retryHref }: Props) {
   const [visible, setVisible] = useState(true);
   const router = useRouter();
   if (!visible) return null;
@@ -29,6 +30,7 @@ export default function PortalErrorBanner({ requestId, supportSnippet }: Props) 
       message="We couldn’t open the subscription portal. Please try again."
       requestId={requestId ?? undefined}
       supportSnippet={supportSnippet ?? undefined}
+      onRetry={() => window.location.assign(retryHref)}
       onDismiss={handleDismiss}
     />
   );

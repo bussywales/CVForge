@@ -90,6 +90,7 @@ export type MonetisationEventName =
   | "billing_portal_click"
   | "billing_portal_redirected"
   | "billing_portal_error"
+  | "ops_support_portal_open_click"
   | "sub_portal_opened"
   | "sub_portal_open_failed"
   | "sub_change_returned"
