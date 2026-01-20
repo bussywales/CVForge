@@ -123,6 +123,7 @@ Support links now deep-link into Billing sections (subscription/packs/portal-ret
 Deeplink handler retries until anchors exist and logs attempt/applied/missing events for ops debugging.
 Ops Audits (v0.7.99): ops-only audits page at `/app/ops/audits` lists masked audit entries with filters (user/actor/action/date/q), cursor pagination, JSON/CSV export, and dossier deep-linking; API is RBAC-guarded with structured errors and hashed search logging.
 Ops correlation (v0.8.00): audits and incidents cross-link via requestId with support bundles (masked actor/target/meta), billing-first next actions, quick filters, and masked exports.
+Incident Playbooks (v0.8.01): deterministic billing/Stripe playbooks suggest likely causes, next steps, safe deeplinks (billing/dossier/support link), and premium customer reply templates; outputs stay masked and ops-only.
 
 ## Deterministic vs OpenAI usage
 Deterministic engines include role-fit.ts, interview-lift.ts, outreach-templates.ts, submission-quality.ts, and metrics-helper.ts. OpenAI is only used for autopack generation via server-side API calls.

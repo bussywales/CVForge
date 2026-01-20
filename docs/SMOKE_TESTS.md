@@ -21,6 +21,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Ops Command Centre: search by email or UUID, see results table, click “Open dossier” to load user page.
 - Ops Audits: open /app/ops/audits, apply userId filter (from dossier link), see filtered entries; Export JSON/CSV downloads masked data.
 - Correlation: from audits click requestId → /app/ops/incidents filtered; from incidents “View audits” → audits filtered by requestId; support bundle copies masked data.
+- Incident Playbooks: filter incidents by requestId to trigger a playbook, click Open Billing deeplink, generate support link from playbook, copy customer reply template.
 - Non-ops access: /app/ops shows AccessDenied; /api/ops/users/search returns 403 JSON with requestId.
 - Open generated support link with pack=starter → Billing scrolls to Packs section and highlights it.
 - Open generated support link with plan=monthly_80 → Billing scrolls to Subscription section and highlights it.

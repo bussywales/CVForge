@@ -15,6 +15,7 @@ import { buildSupportSnippet } from "@/lib/observability/support-snippet";
 import { filterIncidents } from "@/lib/ops/incidents-filters";
 import { buildSupportBundleFromIncident } from "@/lib/ops/support-bundle";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { buildIncidentPlaybook, type IncidentPlaybook } from "@/lib/ops/ops-incident-playbooks";
 
 type Props = {
   incidents: IncidentRecord[];
@@ -59,6 +60,10 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
   });
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [selected, setSelected] = useState<IncidentRecord | null>(initialLookup ?? null);
+  const [playbookLinks, setPlaybookLinks] = useState<Record<string, { url: string; requestId?: string | null }>>({});
+  const [playbookErrors, setPlaybookErrors] = useState<Record<string, { message?: string | null; requestId?: string | null } | null>>({});
+  const [playbookLoadingKey, setPlaybookLoadingKey] = useState<string | null>(null);
+  const [playbookViewed, setPlaybookViewed] = useState<Record<string, boolean>>({});
 
   const filtered = useMemo(() => filterIncidents(incidents, filters), [incidents, filters]);
   const groups = useMemo(() => groupIncidents(filtered), [filtered]);
@@ -81,6 +86,21 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
       logMonetisationClientEvent("ops_incidents_requestid_filter_applied", null, "ops");
     }
   }, [filters.requestId]);
+
+  useEffect(() => {
+    if (!expandedGroup) return;
+    const group = groups.find((g) => g.key === expandedGroup);
+    if (!group) return;
+    const playbook = buildIncidentPlaybook(group);
+    if (playbook && !playbookViewed[`${playbook.id}|${group.key}`]) {
+      logMonetisationClientEvent("ops_playbook_view", null, "ops", {
+        playbookId: playbook.id,
+        surface: group.surface,
+        code: group.code,
+      });
+      setPlaybookViewed((prev) => ({ ...prev, [`${playbook.id}|${group.key}`]: true }));
+    }
+  }, [expandedGroup, groups, playbookViewed]);
 
   const handleExport = (type: "csv" | "json") => {
     if (groups.length > 500) {
@@ -129,6 +149,73 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
       a.download = "incidents.json";
       a.click();
       URL.revokeObjectURL(url);
+    }
+  };
+
+  const handlePlaybookAction = async (action: IncidentPlaybook["actions"][number], playbook: IncidentPlaybook, group: IncidentGroup) => {
+    logMonetisationClientEvent("ops_playbook_action_click", null, "ops", { playbookId: playbook.id, actionId: action.id });
+    if (action.kind === "link") {
+      if (action.href) window.open(action.href, "_blank");
+      return;
+    }
+    if (action.kind === "copy") {
+      if (action.copyText) {
+        try {
+          await navigator.clipboard.writeText(action.copyText);
+        } catch {
+          /* ignore */
+        }
+      }
+      return;
+    }
+    if (action.kind === "support-link") {
+      if (!action.supportPayload?.userId) {
+        setPlaybookErrors((prev) => ({ ...prev, [group.key]: { message: "User required to generate support link" } }));
+        return;
+      }
+      setPlaybookLoadingKey(group.key);
+      setPlaybookErrors((prev) => ({ ...prev, [group.key]: null }));
+      logMonetisationClientEvent("ops_support_link_from_playbook", action.supportPayload.userId, "ops", {
+        playbookId: playbook.id,
+        actionId: action.id,
+        plan: action.supportPayload.plan,
+        pack: action.supportPayload.pack,
+      });
+      try {
+        const res = await fetch("/api/ops/support-link", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(action.supportPayload),
+        });
+        let data: any = null;
+        try {
+          data = await res.json();
+        } catch {
+          data = null;
+        }
+        const reqId = res.headers.get("x-request-id") ?? data?.error?.requestId ?? null;
+        if (!res.ok || !data?.url) {
+          setPlaybookErrors((prev) => ({
+            ...prev,
+            [group.key]: { message: data?.error?.message ?? "Unable to generate support link", requestId: reqId },
+          }));
+          setPlaybookLoadingKey(null);
+          return;
+        }
+        setPlaybookLinks((prev) => ({ ...prev, [group.key]: { url: data.url as string, requestId: reqId } }));
+        try {
+          await navigator.clipboard.writeText(data.url as string);
+        } catch {
+          /* ignore */
+        }
+      } catch (err) {
+        setPlaybookErrors((prev) => ({
+          ...prev,
+          [group.key]: { message: err instanceof Error ? err.message : "Support link failed" },
+        }));
+      } finally {
+        setPlaybookLoadingKey(null);
+      }
     }
   };
 
@@ -335,6 +422,84 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
                         </button>
                       </div>
                     ) : null}
+                    {(() => {
+                      const playbook = buildIncidentPlaybook(group);
+                      const linkState = playbookLinks[group.key];
+                      const errorState = playbookErrors[group.key];
+                      if (!playbook) {
+                        return (
+                          <div className="rounded-lg border border-black/5 bg-white px-3 py-2 text-[11px] text-[rgb(var(--muted))]">
+                            No playbook yet — use requestId lookup and audits timeline.
+                          </div>
+                        );
+                      }
+                      return (
+                        <div className="space-y-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-900">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700">{playbook.severityHint.toUpperCase()} impact</p>
+                              <p className="text-sm font-semibold text-[rgb(var(--ink))]">{playbook.title}</p>
+                              <p className="text-[rgb(var(--muted))]">{playbook.summary}</p>
+                            </div>
+                          </div>
+                          <div className="grid gap-2 md:grid-cols-2">
+                            <div>
+                              <p className="font-semibold text-[rgb(var(--ink))]">Likely causes</p>
+                              <ul className="list-disc pl-4 text-[rgb(var(--muted))]">
+                                {playbook.likelyCauses.map((cause) => (
+                                  <li key={cause}>{cause}</li>
+                                ))}
+                              </ul>
+                            </div>
+                            <div>
+                              <p className="font-semibold text-[rgb(var(--ink))]">Next steps</p>
+                              <ul className="list-disc pl-4 text-[rgb(var(--muted))]">
+                                {playbook.nextSteps.map((step) => (
+                                  <li key={step.label}>
+                                    <span className="font-semibold text-[rgb(var(--ink))]">{step.label}</span>
+                                    {step.detail ? <span className="text-[rgb(var(--muted))]"> — {step.detail}</span> : null}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {playbook.actions.map((action) => {
+                              const disabled =
+                                (action.kind === "link" && !action.href) ||
+                                (action.kind === "support-link" && (!action.supportPayload?.userId || playbookLoadingKey === group.key));
+                              return (
+                                <button
+                                  key={action.id}
+                                  type="button"
+                                  className="rounded-full border border-emerald-200 bg-white px-3 py-1 text-[11px] font-semibold text-emerald-800 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                  onClick={() => handlePlaybookAction(action, playbook, group)}
+                                  disabled={disabled}
+                                >
+                                  {playbookLoadingKey === group.key && action.kind === "support-link" ? "Generating..." : action.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                          {linkState ? (
+                            <div className="flex flex-wrap items-center gap-2 rounded-lg border border-emerald-200 bg-white px-2 py-1 text-[10px] text-[rgb(var(--muted))]">
+                              <span className="font-semibold text-[rgb(var(--ink))]">Support link</span>
+                              <a href={linkState.url} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+                                {linkState.url}
+                              </a>
+                              <CopyIconButton text={linkState.url} label="Copy" />
+                              {linkState.requestId ? <span>ref {linkState.requestId}</span> : null}
+                            </div>
+                          ) : null}
+                          {errorState ? (
+                            <div className="rounded-lg border border-red-100 bg-white px-2 py-1 text-[10px] text-red-700">
+                              <p>{errorState.message ?? "Support link failed"}</p>
+                              {errorState.requestId ? <p>ref {errorState.requestId}</p> : null}
+                            </div>
+                          ) : null}
+                        </div>
+                      );
+                    })()}
                     {group.incidents.map((inc) => {
                       const snippet = buildSupportSnippet({
                         action: inc.surface,

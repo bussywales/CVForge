@@ -275,6 +275,9 @@ const ALLOWED = [
   "ops_incidents_requestid_filter_applied",
   "ops_support_bundle_copy",
   "ops_support_bundle_view",
+  "ops_playbook_view",
+  "ops_playbook_action_click",
+  "ops_support_link_from_playbook",
 ] as const;
 
 export type MonetisationClientEvent = (typeof ALLOWED)[number];

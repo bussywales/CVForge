@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.01
+- Ops Incident Playbooks v1: deterministic billing-first playbooks for portal/checkout/webhook/credits/monetisation issues with likely causes + next steps.
+- Incidents console shows playbook card with deeplink actions (Billing/dossier/support-link generation/customer reply copy) and masked link output.
+- New playbook microcopy + support link logging, requestId filter still pre-fills; exports remain masked; docs/smoke updated.
+
 ## v0.8.00
 - Ops correlation v1: audits requestIds open Incidents, incidents link back to audits; requestId filters prefill and log; actor/target quick dossier links.
 - Support bundle helper (masked) surfaced in audits + incidents with copyable snippet/bundle and billing-first next steps; exports now include masked header notes.
