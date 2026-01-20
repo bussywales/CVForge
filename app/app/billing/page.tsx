@@ -43,9 +43,9 @@ import BillingStatusStrip from "./billing-status-strip";
 import { buildBillingReconcileHint } from "@/lib/billing/billing-reconcile-hint";
 import BillingReconcileCard from "./billing-reconcile-card";
 import { buildBillingTimeline } from "@/lib/billing/billing-timeline";
-import BillingTimeline from "./billing-timeline";
 import { detectCreditDelay } from "@/lib/billing/billing-credit-delay";
-import CreditDelayCard from "./credit-delay-card";
+import { computeWebhookHealth } from "@/lib/webhook-health";
+import BillingTracePanel from "./billing-trace-panel";
 const BillingDeepLinkClient = nextDynamic(() => import("./billing-deeplink-client"), { ssr: false });
 
 export const dynamic = "force-dynamic";
@@ -264,6 +264,10 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   });
   const billingTimeline = buildBillingTimeline({ events: monetisationEvents as any, ledger: activitySignals });
   const creditDelay = detectCreditDelay({ timeline: billingTimeline });
+  const webhookHealth = computeWebhookHealth(
+    billingTimeline.map((item) => ({ kind: item.kind as any, at: item.at, code: (item as any).code ?? null })),
+    new Date()
+  );
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -316,13 +320,38 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     <div className="space-y-6" id="billing-root">
       <BillingDeepLinkClient />
       <BillingStatusStrip status={billingStatus} supportSnippet={statusSupportSnippet} />
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-black/10 bg-white/70 p-3 text-xs">
+        <span className="font-semibold text-[rgb(var(--ink))]">Webhook status:</span>
+        <span
+          className={`rounded-full px-3 py-1 font-semibold ${
+            webhookHealth.status === "healthy"
+              ? "bg-emerald-100 text-emerald-800"
+              : webhookHealth.status === "unknown"
+                ? "bg-slate-100 text-[rgb(var(--ink))]"
+                : "bg-amber-100 text-amber-800"
+          }`}
+        >
+          {webhookHealth.status}
+        </span>
+        {webhookHealth.status !== "healthy" && webhookHealth.status !== "unknown" ? (
+          <span className="text-[11px] text-[rgb(var(--muted))]">
+            {webhookHealth.status === "delayed"
+              ? "Webhook taking longer than usual — refresh or copy a support snippet."
+              : "We saw webhook issues recently — retry later or share a reference."}
+          </span>
+        ) : null}
+      </div>
       {portalError.show ? (
         <PortalErrorBanner requestId={portalError.requestId} supportSnippet={portalSupportSnippet} retryHref={portalError.retryHref} code={portalError.code} />
       ) : null}
       <div className="space-y-2">
-        <BillingTimeline timeline={billingTimeline} supportPath="/app/billing" />
         <BillingReconcileCard show={reconcileHint.show} message={reconcileHint.message} supportSnippet={statusSupportSnippet} />
-        <CreditDelayCard delay={creditDelay} supportPath="/app/billing" />
+        <BillingTracePanel
+          initialTimeline={billingTimeline}
+          initialDelay={creditDelay}
+          initialWebhookHealth={webhookHealth}
+          supportPath="/app/billing"
+        />
       </div>
       <PostPurchaseSuccessBanner
         show={Boolean(searchParams?.success)}

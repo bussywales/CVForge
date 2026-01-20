@@ -7,6 +7,11 @@ import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { deriveBillingTriageNextStep } from "@/lib/ops/ops-billing-triage";
 import type { BillingStatusSnapshot } from "@/lib/billing/billing-status";
 import { OPS_BILLING_COPY } from "@/lib/ops/ops-billing.microcopy";
+import BillingTimeline from "@/app/app/billing/billing-timeline";
+import type { BillingTimelineEntry } from "@/lib/billing/billing-timeline";
+import type { WebhookHealth } from "@/lib/webhook-health";
+import type { CreditDelayResult } from "@/lib/billing/billing-credit-delay";
+import { buildBillingTraceSnippet } from "@/lib/billing/billing-trace-snippet";
 
 type SnapshotResponse =
   | {
@@ -14,6 +19,9 @@ type SnapshotResponse =
       requestId: string;
       user: { id: string; emailMasked: string | null };
       local: BillingStatusSnapshot;
+      timeline?: BillingTimelineEntry[];
+      webhookHealth?: WebhookHealth;
+      delayState?: CreditDelayResult;
       stripe: {
         customerIdMasked: string | null;
         hasCustomer: boolean;
@@ -46,6 +54,18 @@ export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubs
     return deriveBillingTriageNextStep({
       local: snapshot.local,
       stripe: snapshot.stripe,
+    });
+  }, [snapshot]);
+
+  const supportPath = "/app/billing?from=ops_support&support=1&focus=billing_trace";
+
+  const traceSnippet = useMemo(() => {
+    if (!snapshot || !snapshot.ok || !snapshot.timeline || !snapshot.webhookHealth || !snapshot.delayState) return null;
+    return buildBillingTraceSnippet({
+      requestId: snapshot.timeline[0]?.requestId ?? snapshot.local.lastBillingEvent?.requestId ?? null,
+      timeline: snapshot.timeline,
+      webhook: snapshot.webhookHealth,
+      delay: snapshot.delayState,
     });
   }, [snapshot]);
 
@@ -83,6 +103,12 @@ export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubs
     fetchSnapshot("view");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (snapshot && snapshot.ok && snapshot.timeline && snapshot.timeline.length > 0) {
+      logMonetisationClientEvent("ops_user_billing_trace_view", null, "ops", { userId, hasRequestId: Boolean(snapshot.timeline[0]?.requestId) });
+    }
+  }, [snapshot, userId]);
 
   const stripeLinks = {
     customer: stripeCustomerId ? `https://dashboard.stripe.com/customers/${stripeCustomerId}` : null,
@@ -155,6 +181,13 @@ export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubs
               {OPS_BILLING_COPY.openBilling}
             </Link>
             <Link
+              href={`${supportPath}`}
+              className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+              onClick={() => logMonetisationClientEvent("ops_billing_triage_open_billing_click", null, "ops", { userId, focus: "billing_trace" })}
+            >
+              Open billing trace
+            </Link>
+            <Link
               href={nextStep?.portalLink ?? "/api/billing/portal?mode=navigation"}
               className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
               onClick={() => logMonetisationClientEvent("ops_billing_triage_open_portal_click", null, "ops", { userId })}
@@ -187,7 +220,30 @@ export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubs
                 {OPS_BILLING_COPY.openStripeSubscription}
               </a>
             ) : null}
+            {traceSnippet ? (
+              <button
+                type="button"
+                className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                onClick={() => {
+                  navigator.clipboard.writeText(traceSnippet).catch(() => undefined);
+                  logMonetisationClientEvent("ops_user_billing_trace_copy", null, "ops", { userId, hasRequestId: Boolean(snapshot.timeline?.[0]?.requestId) });
+                }}
+              >
+                Copy billing trace snippet
+              </button>
+            ) : null}
           </div>
+          {snapshot.timeline && snapshot.timeline.length > 0 ? (
+            <div className="rounded-xl border border-black/10 bg-white px-3 py-2">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-xs font-semibold text-[rgb(var(--ink))]">Recent billing timeline</p>
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-[rgb(var(--muted))]">
+                  {snapshot.timeline.length} items
+                </span>
+              </div>
+              <BillingTimeline timeline={snapshot.timeline} supportPath={supportPath} />
+            </div>
+          ) : null}
         </div>
       ) : snapshot ? null : (
         <p className="mt-3 text-xs text-[rgb(var(--muted))]">{OPS_BILLING_COPY.missing}</p>

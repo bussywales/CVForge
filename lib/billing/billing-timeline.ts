@@ -11,6 +11,7 @@ export type BillingTimelineEntry = {
   at: string;
   status: "ok" | "error" | "info";
   requestId?: string | null;
+  code?: string | null;
   label: string;
 };
 
@@ -42,20 +43,21 @@ export function buildBillingTimeline({
     const name = toEventName(evt.type);
     const meta = parseMeta(evt.body);
     const requestId = typeof meta.requestId === "string" ? meta.requestId : typeof meta.request_id === "string" ? meta.request_id : null;
+    const code = typeof meta.code === "string" ? meta.code : typeof meta.error_code === "string" ? meta.error_code : null;
     if (name === "billing_portal_click" || name === "sub_portal_opened") {
-      timeline.push({ kind: "portal_open", at: evt.occurred_at, status: "info", requestId, label: "Opened portal" });
+      timeline.push({ kind: "portal_open", at: evt.occurred_at, status: "info", requestId, label: "Opened portal", code: null });
     } else if (name === "billing_portal_error" || name === "billing_portal_error_banner_view" || name === "sub_portal_open_failed") {
-      timeline.push({ kind: "portal_error", at: evt.occurred_at, status: "error", requestId, label: "Portal error" });
+      timeline.push({ kind: "portal_error", at: evt.occurred_at, status: "error", requestId, label: "Portal error", code });
     } else if (name === "checkout_started") {
-      timeline.push({ kind: "checkout_started", at: evt.occurred_at, status: "info", requestId, label: "Checkout started" });
+      timeline.push({ kind: "checkout_started", at: evt.occurred_at, status: "info", requestId, label: "Checkout started", code: null });
     } else if (name === "checkout_start_failed" || name === "checkout_redirect_blocked" || name === "checkout_retry_click") {
-      timeline.push({ kind: "checkout_error", at: evt.occurred_at, status: "error", requestId, label: "Checkout issue" });
+      timeline.push({ kind: "checkout_error", at: evt.occurred_at, status: "error", requestId, label: "Checkout issue", code });
     } else if (name === "checkout_success") {
-      timeline.push({ kind: "checkout_success", at: evt.occurred_at, status: "ok", requestId, label: "Checkout success" });
+      timeline.push({ kind: "checkout_success", at: evt.occurred_at, status: "ok", requestId, label: "Checkout success", code: null });
     } else if (name === "webhook_error") {
-      timeline.push({ kind: "webhook_error", at: evt.occurred_at, status: "error", requestId, label: "Webhook error" });
+      timeline.push({ kind: "webhook_error", at: evt.occurred_at, status: "error", requestId, label: "Webhook error", code });
     } else if (name === "webhook_received") {
-      timeline.push({ kind: "webhook_received", at: evt.occurred_at, status: "info", requestId, label: "Webhook received" });
+      timeline.push({ kind: "webhook_received", at: evt.occurred_at, status: "info", requestId, label: "Webhook received", code: null });
     }
   });
 
@@ -66,6 +68,7 @@ export function buildBillingTimeline({
         at: entry.created_at,
         status: "ok",
         requestId: entry.ref,
+        code: null,
         label: "Credits applied",
       });
     }

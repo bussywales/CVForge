@@ -40,6 +40,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Add `?portal_error=1&req=req_test&code=STRIPE_PORTAL` → portal banner still shows with retry; credit delay card appears in “watching” state after checkout success logs in dev.
 - Ops Incident Console → webhook/credit trace card shows ratios/counts; chips filter incidents without exposing URLs.
 
+## Quick prod checks (v0.8.13)
+- /app/billing shows webhook status badge + Billing timeline block with #billing-trace anchor; clicking Re-check status refreshes timeline/delay without navigation and shows ErrorBanner with requestId on failure.
+- Copy billing trace snippet → masked snippet includes health + recent events without URLs; portal_error banner still works with requestId support snippet.
+- Ops Incident Console shows webhook health callout (24h/7d counts + code chips) that filters incidents; Ops dossier Billing triage card shows recent billing timeline + “Open billing trace” deep link for support.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

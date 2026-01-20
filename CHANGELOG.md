@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.13
+- Billing webhook health + trace: /app/billing shows a webhook status badge and anchorable Billing timeline panel with Re-check status (no navigation), masked trace snippet copy, and refreshed timeline/delay/webhook health model.
+- Webhook health helper + recheck API expose masked counts/status/lag; credit delay + timeline reuse deterministic helpers with non-blocking logging/allowlists.
+- Ops: Incident Console gains webhook health callout with filter chips; dossier billing triage card now shows billing timeline + trace link/snippet; monetisation logging allowlists expanded for new events.
+
 ## v0.8.12
 - Billing timeline + credit delay: /app/billing shows recent billing activity with request refs, support snippet copy, and a credit delay detector card with refresh and snippet logging.
 - Added deterministic helpers for billing timeline/credit delay; ops incidents gain webhook/credit trace ratios with filter chips; monetisation allowlist extended for timeline/delay/trace logging.

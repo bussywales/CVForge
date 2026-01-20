@@ -81,6 +81,11 @@ beforeAll(async () => {
           eq: () => ({
             maybeSingle: () => ({ data: null, error: null }),
             limit: () => ({ data: [], error: null }),
+            ilike: () => ({
+              order: () => ({
+                limit: () => ({ data: [], error: null }),
+              }),
+            }),
           }),
         }),
       }),

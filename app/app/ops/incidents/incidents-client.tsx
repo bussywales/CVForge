@@ -19,6 +19,7 @@ import { detectPortalSpike } from "@/lib/ops/portal-spike";
 import { buildIncidentPlaybook, type IncidentPlaybook } from "@/lib/ops/ops-incident-playbooks";
 import { buildOpsBillingHealth } from "@/lib/ops/ops-billing-health";
 import { buildBillingTraceSummary } from "@/lib/ops/ops-billing-trace";
+import { buildOpsWebhookHealth } from "@/lib/ops/ops-webhook-health";
 
 type Props = {
   incidents: IncidentRecord[];
@@ -94,6 +95,9 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
     billingHealth.window7d.checkoutErrors > 0 ||
     billingHealth.window7d.webhookErrors > 0;
   const billingTrace = useMemo(() => buildBillingTraceSummary(incidents), [incidents]);
+  const webhookHealth = useMemo(() => buildOpsWebhookHealth(incidents), [incidents]);
+  const hasWebhookHealth =
+    webhookHealth.topCodes.length > 0 || webhookHealth.counts24h.ok + webhookHealth.counts24h.error + webhookHealth.counts7d.ok + webhookHealth.counts7d.error > 0;
 
   useEffect(() => {
     if (filters.requestId) {
@@ -112,6 +116,12 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
       logMonetisationClientEvent("ops_billing_trace_view", null, "ops");
     }
   }, [incidents.length]);
+
+  useEffect(() => {
+    if (hasWebhookHealth) {
+      logMonetisationClientEvent("ops_webhook_health_view", null, "ops", { status: webhookHealth.status });
+    }
+  }, [hasWebhookHealth, webhookHealth.status]);
 
   useEffect(() => {
     if (!expandedGroup) return;
@@ -303,6 +313,54 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
                   }}
                 >
                   Top code: {entry.code} ({entry.count})
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {hasWebhookHealth ? (
+        <div className="rounded-2xl border border-sky-200 bg-sky-50 p-3 text-xs text-sky-900">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">Webhook health</p>
+              <p className="text-[11px] text-[rgb(var(--muted))]">
+                Status: {webhookHealth.status} · 24h ok {webhookHealth.counts24h.ok} / errors {webhookHealth.counts24h.error} · 7d ok{" "}
+                {webhookHealth.counts7d.ok} / errors {webhookHealth.counts7d.error}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="rounded-full border border-sky-200 bg-white px-3 py-1 font-semibold text-sky-800"
+                onClick={() => {
+                  setFilters((f) => ({ ...f, surface: "webhook", time: "24" }));
+                  logMonetisationClientEvent("ops_webhook_health_chip_click", null, "ops", { window: "24h" });
+                }}
+              >
+                Webhook (24h)
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-sky-200 bg-white px-3 py-1 font-semibold text-sky-800"
+                onClick={() => {
+                  setFilters((f) => ({ ...f, surface: "webhook", time: "168" }));
+                  logMonetisationClientEvent("ops_webhook_health_chip_click", null, "ops", { window: "7d" });
+                }}
+              >
+                Webhook (7d)
+              </button>
+              {webhookHealth.topCodes.map((entry) => (
+                <button
+                  key={entry.code}
+                  type="button"
+                  className="rounded-full border border-sky-200 bg-white px-3 py-1 font-semibold text-sky-800"
+                  onClick={() => {
+                    setFilters((f) => ({ ...f, code: entry.code, surface: "webhook", time: "24" }));
+                    logMonetisationClientEvent("ops_webhook_health_chip_click", null, "ops", { window: "24h", code: entry.code });
+                  }}
+                >
+                  Code: {entry.code} ({entry.count})
                 </button>
               ))}
             </div>

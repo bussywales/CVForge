@@ -9,6 +9,9 @@ import { getStripeClient } from "@/lib/stripe/stripe";
 import { captureServerError } from "@/lib/observability/sentry";
 import { buildBillingStatus } from "@/lib/billing/billing-status";
 import { mapStripePriceToPlanKey } from "@/lib/ops/stripe-price-map";
+import { buildBillingTimeline } from "@/lib/billing/billing-timeline";
+import { computeWebhookHealth } from "@/lib/webhook-health";
+import { detectCreditDelay } from "@/lib/billing/billing-credit-delay";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -57,6 +60,19 @@ export async function GET(request: Request) {
     const settings = await fetchBillingSettings(admin as any, targetUserId);
     const credits = await getUserCredits(admin as any, targetUserId).catch(() => 0);
     const ledger = await listCreditActivity(admin as any, targetUserId, 50).catch(() => []);
+    const { data: monetisationEventsRes } = await admin
+      .from("application_activities")
+      .select("type, occurred_at, body")
+      .eq("user_id", targetUserId)
+      .ilike("type", "monetisation.%")
+      .order("occurred_at", { ascending: false })
+      .limit(100);
+    const timeline = buildBillingTimeline({ events: (monetisationEventsRes ?? []) as any, ledger, limit: 12 });
+    const webhookHealth = computeWebhookHealth(
+      timeline.map((item) => ({ kind: item.kind as any, at: item.at, code: item.code ?? null })),
+      new Date()
+    );
+    const delayState = detectCreditDelay({ timeline });
     const local = buildBillingStatus({ settings, credits, activity: ledger, searchParams: null });
 
     const stripeCustomerId = settings?.stripe_customer_id ?? null;
@@ -134,6 +150,9 @@ export async function GET(request: Request) {
       user: { id: targetUserId, emailMasked },
       local,
       stripe: stripeSnapshot,
+      timeline,
+      webhookHealth,
+      delayState,
     };
 
     return NextResponse.json(response, { headers, status: 200 });
