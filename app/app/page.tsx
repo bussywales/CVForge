@@ -12,6 +12,7 @@ import CreditsIdleNudge from "@/components/CreditsIdleNudge";
 import { buildFollowupItems } from "@/lib/outreach-autopilot";
 import FollowupsDueStrip from "@/components/followups-due-strip";
 import { buildActivationModel, type ActivationModel } from "@/lib/activation-loop";
+import { activationCoreProgress } from "@/lib/activation-loop";
 import ActivationCard from "./activation-card";
 
 export const dynamic = "force-dynamic";
@@ -128,6 +129,14 @@ export default async function AppPage() {
       code: "build_failed",
     };
   }
+  const activationProgress = activation ? activationCoreProgress(activation.steps) : { doneCount: 0, totalCount: 4 };
+  const activationNext = activation?.steps.find((s) => !s.isDone);
+  const progressCopy =
+    activationProgress.doneCount >= activationProgress.totalCount
+      ? "You're on track — keep momentum with evidence and interviews."
+      : activationNext
+        ? `Next step: ${activationNext.title}.`
+        : "Complete the next step to keep momentum going.";
 
   return (
     <div className="space-y-6">
@@ -148,7 +157,7 @@ export default async function AppPage() {
       >
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="text-sm text-[rgb(var(--muted))]">
-            You’re {Math.max(actions.length, 1)} actions away from your next submission.
+            {progressCopy}
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <span className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] shadow-sm">

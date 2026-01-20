@@ -15,7 +15,27 @@ export function buildDashboardActions(
   limit = 5
 ): DashboardAction[] {
   const ordered = [...actions].sort((a, b) => a.priority - b.priority);
-  return ordered.slice(0, limit).map((action) => ({
+  const seen = new Set<string>();
+  const deduped: InsightTopAction[] = [];
+
+  const actionKey = (action: InsightTopAction) => {
+    if (action.id.startsWith("followup")) return "followup";
+    if (action.id.startsWith("jobtext")) return "jobtext";
+    if (action.id.startsWith("evidence")) return "evidence";
+    if (action.id.startsWith("star")) return "star";
+    if (action.id.startsWith("practice")) return "practice";
+    return action.id;
+  };
+
+  for (const action of ordered) {
+    const key = actionKey(action);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(action);
+    if (deduped.length >= limit) break;
+  }
+
+  return deduped.slice(0, limit).map((action) => ({
     id: action.id,
     label: action.label,
     why: action.why,

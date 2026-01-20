@@ -12,6 +12,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Clicking the CTA navigates to the linked tab/anchor without errors; if logging is blocked the UI still works.
 - Progress counts update as steps are completed; “Try again” reload works if the model fails to load.
 - Skip for now hides the card for the week and emits activation_skip_week; Do next/step links emit activation_cta_click/activation_step_click.
+- No duplicate “Next best actions” cards; ordering is activation steps first, then high-impact tasks, capped at 5; progress copy matches activation steps (0/4 → Add app, 4/4 → on track).
 
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.

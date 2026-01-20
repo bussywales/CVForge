@@ -105,7 +105,7 @@ A public landing page explains the 20-minute flow (job advert → evidence → S
 Signed-in users land on the Activation Command Centre: greeting with credits, top next-best actions, a compact active applications list with deep links into tabs/anchors, a coach nudge, and a funnel snapshot with response rate and a shortcut to Insights.
 
 ## Activation guidance
-A compact Activation card on the dashboard shows deterministic first-value steps (add app, outreach, follow-up, outcome, interview/keep momentum) with progress, next-best CTA, non-blocking logging, and ErrorBanner fallback.
+A compact Activation card on the dashboard shows deterministic first-value steps (add app, outreach, follow-up, outcome, interview/keep momentum) with progress, deduped next-best CTA, non-blocking logging, and ErrorBanner fallback; dashboard actions are ranked and deduped with activation steps first.
 Ops can view aggregated activation funnel metrics (views, clicks, completion, milestones) at `/app/ops/activation`, masked and read-only.
 
 ## Paywalls and resume

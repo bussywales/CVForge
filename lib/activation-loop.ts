@@ -54,9 +54,15 @@ function buildStep(
 export function buildActivationModel(input: Input): ActivationModel {
   const { applications, insights } = input;
   const steps: ActivationStep[] = [];
-  const activeApps = applications.filter((app) => (app.status ?? "").toString().toLowerCase() !== "archived");
+  const activeApps = applications
+    .filter((app) => (app.status ?? "").toString().toLowerCase() !== "archived")
+    .sort((a, b) => {
+      const aDate = a.last_activity_at ?? a.updated_at ?? a.created_at;
+      const bDate = b.last_activity_at ?? b.updated_at ?? b.created_at;
+      return (bDate ?? "").localeCompare(aDate ?? "");
+    });
+  const primaryApp = activeApps[0];
   const hasApps = activeApps.length > 0;
-  const firstApp = activeApps[0];
   const outreachDone = activeApps.some((app) => Boolean(app.outreach_last_sent_at || app.outreach_stage));
   const followupScheduled = activeApps.some((app) =>
     Boolean(app.outreach_next_due_at || app.next_action_due || app.next_followup_at)
@@ -64,84 +70,65 @@ export function buildActivationModel(input: Input): ActivationModel {
   const outcomeLogged = activeApps.some((app) => Boolean(app.last_outcome_status || app.outcome_status || app.outcome_at));
   const interviewStepEnabled = hasInterviewPack(insights);
 
-  if (!hasApps) {
-    steps.push(buildStep("add_application", "Add your first application", "Add application", "/app/applications/new", { isDone: false }));
-  } else {
+  const appUnavailableHint = hasApps ? null : "Add an application to unlock this step.";
+  const outreachHref = primaryApp ? `/app/applications/${primaryApp.id}?tab=activity#outreach` : "/app/applications";
+  const followupHref = primaryApp ? `/app/applications/${primaryApp.id}?tab=activity#outreach` : "/app/applications";
+  const outcomeHref = primaryApp ? `/app/applications/${primaryApp.id}?tab=overview#outcome` : "/app/applications";
+  const interviewHref = primaryApp ? `/app/applications/${primaryApp.id}?tab=interview#interview-focus` : "/app/interview";
+
+  steps.push(
+    buildStep("add_application", "Add your first application", "Add application", "/app/applications/new", {
+      isDone: hasApps,
+      description: "Create an application so we can guide outreach and outcomes.",
+    })
+  );
+
+  steps.push(
+    buildStep("first_outreach", "Send your first outreach", "Open outreach", outreachHref, {
+      isDone: outreachDone,
+      description: "Reach out to the hiring contact with your best template.",
+      isAvailable: hasApps,
+      reasonIfLocked: appUnavailableHint,
+    })
+  );
+
+  steps.push(
+    buildStep("schedule_followup", "Schedule a follow-up", "Schedule", followupHref, {
+      isDone: followupScheduled,
+      description: "Set a date so you stay on track.",
+      isAvailable: hasApps,
+      reasonIfLocked: appUnavailableHint,
+    })
+  );
+
+  steps.push(
+    buildStep("log_outcome", "Log an outcome", "Log outcome", outcomeHref, {
+      isDone: outcomeLogged,
+      description: "Track interview invites or responses to keep insights fresh.",
+      isAvailable: hasApps,
+      reasonIfLocked: appUnavailableHint,
+    })
+  );
+
+  if (interviewStepEnabled) {
     steps.push(
-      buildStep(
-        "add_application",
-        "Add your first application",
-        "Add application",
-        "/app/applications/new",
-        { isDone: true }
-      )
-    );
-    steps.push(
-      buildStep(
-        "first_outreach",
-        "Send your first outreach",
-        "Open outreach",
-        `/app/applications/${firstApp.id}?tab=activity#outreach`,
-        {
-          isDone: outreachDone,
-          description: "Reach out to the hiring contact with your best template.",
-        }
-      )
-    );
-    steps.push(
-      buildStep(
-        "schedule_followup",
-        "Schedule a follow-up",
-        "Schedule",
-        `/app/applications/${firstApp.id}?tab=activity#outreach`,
-        {
-          isDone: followupScheduled,
-          description: "Set a date so you stay on track.",
-        }
-      )
-    );
-    steps.push(
-      buildStep(
-        "log_outcome",
-        "Log an outcome",
-        "Log outcome",
-        `/app/applications/${firstApp.id}?tab=overview#outcome`,
-        {
-          isDone: outcomeLogged,
-          description: "Track interview invites or responses to keep insights fresh.",
-        }
-      )
-    );
-    if (interviewStepEnabled) {
-      steps.push(
-        buildStep(
-          "interview_focus",
-          "Run Interview Focus",
-          "Open Interview",
-          firstApp ? `/app/applications/${firstApp.id}?tab=interview` : "/app/interview",
-          {
-            isDone: false,
-          description: "15-minute prep to land the interview.",
-        }
-      )
+      buildStep("interview_focus", "Run Interview Focus", "Open Interview", interviewHref, {
+        isDone: false,
+        description: "15-minute prep to land the interview.",
+        isAvailable: hasApps,
+        reasonIfLocked: appUnavailableHint,
+      })
     );
   }
 
   const allDone = steps.length > 0 && steps.every((step) => step.isDone);
   if (allDone) {
     steps.push(
-      buildStep(
-        "keep_momentum",
-        "Keep momentum",
-        "Review pipeline",
-        "/app/applications",
-        {
-          isDone: false,
-          description: "Scan your pipeline and queue the next outreach.",
-        }
-      )
+      buildStep("keep_momentum", "Keep momentum", "Review pipeline", "/app/applications", {
+        isDone: false,
+        description: "Scan your pipeline and queue the next outreach.",
+      })
     );
-  }
   }
 
   const totalCount = steps.length || 1;
@@ -159,6 +146,14 @@ export function buildActivationModel(input: Input): ActivationModel {
     progress: { doneCount, totalCount, percent },
     nextBest,
     celebration,
-    primaryApplicationId: firstApp?.id ?? null,
+    primaryApplicationId: primaryApp?.id ?? null,
   };
+}
+
+export function activationCoreProgress(steps: ActivationStep[]) {
+  const coreIds = ["add_application", "first_outreach", "schedule_followup", "log_outcome"];
+  const coreSteps = steps.filter((s) => coreIds.includes(s.id));
+  const doneCount = coreSteps.filter((s) => s.isDone).length;
+  const totalCount = coreSteps.length || 4;
+  return { doneCount, totalCount };
 }

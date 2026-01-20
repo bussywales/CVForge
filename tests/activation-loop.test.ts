@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildActivationModel } from "@/lib/activation-loop";
+import { buildActivationModel, activationCoreProgress } from "@/lib/activation-loop";
 
 const baseApp = {
   id: "app1",
@@ -108,6 +108,13 @@ describe("activation loop helper", () => {
     const first = buildActivationModel(input);
     const second = buildActivationModel(input);
     expect(first.steps.map((s) => s.id)).toEqual(second.steps.map((s) => s.id));
+  });
+
+  it("returns core progress counts", () => {
+    const model = buildActivationModel({ applications: [baseApp as any] });
+    const progress = activationCoreProgress(model.steps);
+    expect(progress.totalCount).toBe(4);
+    expect(progress.doneCount).toBe(1); // add_application marked done when an app exists
   });
 
   it("ignores archived apps for completion detection", () => {

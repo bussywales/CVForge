@@ -10,6 +10,11 @@
 - Activation loop hardening: completion detection uses persisted facts (non-archived apps), activation milestones logged on outreach/follow-up/outcome creation, and activation completed/skip/week logging added.
 - Dashboard Activation card gains skip-for-week, CTA logging, and primary application context for metrics; ops quick link added.
 
+## v0.8.07
+- Activation card polish: stable CTA routing with fallbacks/hints, skip-for-week and completion events deduped, and metadata hardened with navigation-only logging.
+- Dashboard actions deduped/ranked deterministically (activation-first, then high-impact items) to avoid duplicate cards; progress copy aligned with activation core steps.
+- Activation helper uses persisted facts only, excludes archived apps, and exports core progress; new tests for dedupe, progress, telemetry meta, and activation routing logic.
+
 ## v0.8.04
 - Portal route hardened: always sets x-request-id + no-store, redirects on errors with portal_error=1&mode=navigation, logs portal events without URLs, JSON errors only when requested.
 - Billing portal error banner gains Try again link; portal links stay navigation-only; logging includes mode/destination.
