@@ -23,21 +23,25 @@ export default function ActivationCard({ model, error }: Props) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem("activation-skip-until");
+    const skipKey = "activation-skip-until";
+    const stored = window.localStorage.getItem(skipKey);
     if (stored) {
       const until = Number(stored);
       if (Number.isFinite(until) && Date.now() < until) {
         setDismissed(true);
+        return;
       }
+      window.localStorage.removeItem(skipKey);
     }
   }, []);
 
   useEffect(() => {
+    if (dismissed || !model) return;
     if (model && !viewLogged.current) {
       viewLogged.current = true;
       logMonetisationClientEvent("activation_view", primaryApplicationId, "activation", buildActivationMeta({ appId: primaryApplicationId }));
     }
-  }, [model, primaryApplicationId]);
+  }, [model, primaryApplicationId, dismissed]);
 
   useEffect(() => {
     if (error) {

@@ -1,4 +1,5 @@
 import { logMonetisationEvent } from "@/lib/monetisation";
+import { sanitizeMonetisationMeta, shouldDedupMonetisationEvent } from "@/lib/monetisation-guardrails";
 
 const ALLOWED = [
   "gate_shown",
@@ -311,11 +312,13 @@ export function logMonetisationClientEvent(
   meta?: Record<string, any>
 ) {
   if (typeof window === "undefined") return;
+  const metaPayload = sanitizeMonetisationMeta(meta);
+  if (shouldDedupMonetisationEvent(event, window.localStorage)) return;
   try {
     fetch("/api/monetisation/log", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ event, applicationId, surface, meta }),
+      body: JSON.stringify({ event, applicationId, surface, meta: metaPayload }),
       credentials: "include",
     }).catch(() => undefined);
   } catch {

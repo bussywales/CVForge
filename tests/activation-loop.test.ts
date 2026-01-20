@@ -125,4 +125,26 @@ describe("activation loop helper", () => {
     expect(firstStep.id).toBe("add_application");
     expect(firstStep.isDone).toBe(false);
   });
+
+  it("targets the newest active application for activation CTAs", () => {
+    const model = buildActivationModel({
+      applications: [
+        { ...baseApp, id: "archived", status: "archived", last_activity_at: "2024-04-01T00:00:00.000Z" } as any,
+        { ...baseApp, id: "older", status: "active", last_activity_at: "2024-02-01T00:00:00.000Z" } as any,
+        { ...baseApp, id: "newest", status: "active", last_activity_at: "2024-03-01T00:00:00.000Z" } as any,
+      ],
+    });
+
+    expect(model.primaryApplicationId).toBe("newest");
+    const next = model.steps.find((s) => s.id === model.nextBest.id);
+    expect(next?.href).toContain("newest");
+  });
+
+  it("falls back to creation CTA when no applications exist", () => {
+    const model = buildActivationModel({ applications: [] });
+    const addApplication = model.steps.find((s) => s.id === "add_application");
+    expect(addApplication?.href).toBe("/app/applications/new");
+    const next = model.steps.find((s) => s.id === model.nextBest.id);
+    expect(next?.href).toBe("/app/applications/new");
+  });
 });

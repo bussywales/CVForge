@@ -105,11 +105,11 @@ A public landing page explains the 20-minute flow (job advert → evidence → S
 Signed-in users land on the Activation Command Centre: greeting with credits, top next-best actions, a compact active applications list with deep links into tabs/anchors, a coach nudge, and a funnel snapshot with response rate and a shortcut to Insights.
 
 ## Activation guidance
-A compact Activation card on the dashboard shows deterministic first-value steps (add app, outreach, follow-up, outcome, interview/keep momentum) with progress, deduped next-best CTA, non-blocking logging, and ErrorBanner fallback; dashboard actions are ranked and deduped with activation steps first.
+A compact Activation card on the dashboard shows deterministic first-value steps (add app, outreach, follow-up, outcome, interview/keep momentum) with progress, deduped next-best CTA, non-blocking logging, and ErrorBanner fallback; CTAs always target the newest active application with create-first-app fallback when none exist, and logging meta is sanitised/deduped. Dashboard actions are ranked and deduped with activation steps first.
 Ops can view aggregated activation funnel metrics (views, clicks, completion, milestones) at `/app/ops/activation`, masked and read-only.
 
 ## Keep Momentum
-A weekly Keep Momentum card surfaces one deterministic move (follow-up, outcome, interview prep, evidence, or pipeline review) with skip-for-week, secondary fallback, and masked logging; ops activation funnel shows aggregated keep-momentum signals.
+A weekly Keep Momentum card surfaces one deterministic move (follow-up, outcome, interview prep, evidence, or pipeline review) with skip-for-week, secondary fallback, empty-state create-application CTA when no apps exist, and a fallback deep-link to the newest active app overview. Logging is masked/sanitised, deduped per week, and never blocks the CTA; ops activation funnel shows aggregated keep-momentum signals.
 
 ## Paywalls and resume
 Credit gating is consistent across Autopacks, Interview Pack exports, Application Kit downloads, and Answer Pack generation. If credits are 0 you’re routed to billing with a saved return link; returning with `resume=1` shows a Resume Accelerator banner with a short countdown that auto-resumes the blocked action on the right tab/anchor (never auto-spends).

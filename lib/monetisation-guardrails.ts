@@ -1,0 +1,97 @@
+export type BasicStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+
+const DEDUPE_PERIODS: Record<string, "day" | "week"> = {
+  activation_view: "day",
+  activation_cta_click: "day",
+  activation_step_click: "day",
+  activation_primary_cta_click: "day",
+  keep_momentum_view: "week",
+  keep_momentum_cta_click: "week",
+  keep_momentum_secondary_click: "week",
+};
+
+const DEDUPE_STORAGE_KEY = "cvf-monetisation-dedupe";
+const MAX_STORE_ENTRIES = 50;
+const URL_PATTERN = /https?:\/\/\S+/i;
+const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i;
+const MAX_VALUE_LENGTH = 120;
+
+function getPeriodKey(period: "day" | "week", now: number) {
+  const date = new Date(now);
+  const utcDate = Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
+  if (period === "day") {
+    return new Date(utcDate).toISOString().slice(0, 10);
+  }
+  const weekStart = new Date(utcDate);
+  const weekday = weekStart.getUTCDay(); // 0 (Sun) - 6 (Sat)
+  const daysFromMonday = (weekday + 6) % 7;
+  weekStart.setUTCDate(weekStart.getUTCDate() - daysFromMonday);
+  return weekStart.toISOString().slice(0, 10);
+}
+
+export function shouldDedupMonetisationEvent(event: string, storage?: BasicStorage | null, now = Date.now()) {
+  const period = DEDUPE_PERIODS[event];
+  if (!period || !storage) return false;
+
+  try {
+    const raw = storage.getItem(DEDUPE_STORAGE_KEY);
+    const parsed = raw ? (JSON.parse(raw) as Record<string, number>) : {};
+    const key = `${event}:${getPeriodKey(period, now)}`;
+    if (parsed[key]) return true;
+
+    parsed[key] = now;
+    const entries = Object.entries(parsed).sort(([, a], [, b]) => b - a).slice(0, MAX_STORE_ENTRIES);
+    const pruned: Record<string, number> = {};
+    for (const [k, v] of entries) {
+      pruned[k] = v;
+    }
+    storage.setItem(DEDUPE_STORAGE_KEY, JSON.stringify(pruned));
+  } catch {
+    return false;
+  }
+
+  return false;
+}
+
+export function sanitizeMonetisationMeta(meta?: Record<string, any>) {
+  if (!meta || typeof meta !== "object") return {};
+  const safe: Record<string, any> = {};
+
+  for (const [key, value] of Object.entries(meta)) {
+    if (value === undefined) continue;
+    if (value === null) {
+      safe[key] = null;
+      continue;
+    }
+
+    if (typeof value === "string") {
+      if (EMAIL_PATTERN.test(value)) {
+        safe[key] = "[email-redacted]";
+        continue;
+      }
+      if (URL_PATTERN.test(value)) {
+        safe[key] = "[url-redacted]";
+        continue;
+      }
+      const trimmed = value.length > MAX_VALUE_LENGTH ? `${value.slice(0, MAX_VALUE_LENGTH)}...` : value;
+      safe[key] = trimmed;
+      continue;
+    }
+
+    if (typeof value === "number" || typeof value === "boolean") {
+      safe[key] = value;
+      continue;
+    }
+
+    const summary = (() => {
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return "";
+      }
+    })();
+    safe[key] = summary && summary.length <= MAX_VALUE_LENGTH ? summary : "[omitted]";
+  }
+
+  return safe;
+}

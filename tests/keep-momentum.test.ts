@@ -47,6 +47,7 @@ describe("keep momentum model", () => {
     const model = buildKeepMomentumModel({ applications: [app as any] });
     expect(model.primary?.ruleId).toBe("fallback_pipeline");
     expect(model.status).toBe("complete");
+    expect(model.ctaHref).toContain(app.id);
   });
 
   it("is deterministic for same input", () => {
@@ -54,5 +55,25 @@ describe("keep momentum model", () => {
     const first = buildKeepMomentumModel(input);
     const second = buildKeepMomentumModel(input);
     expect(first.primary?.ruleId).toBe(second.primary?.ruleId);
+  });
+
+  it("targets newest active application and ignores archived apps", () => {
+    const model = buildKeepMomentumModel({
+      applications: [
+        { ...baseApp, id: "archived", status: "archived", last_activity_at: "2024-04-01T00:00:00.000Z" } as any,
+        { ...baseApp, id: "older", status: "active", last_activity_at: "2024-02-01T00:00:00.000Z" } as any,
+        { ...baseApp, id: "newer", status: "active", last_activity_at: "2024-03-01T00:00:00.000Z" } as any,
+      ],
+    });
+
+    expect(model.primary?.applicationId).toBe("newer");
+    expect(model.meta.targetAppId).toBe("newer");
+    expect(model.ctaHref).toContain("newer");
+  });
+
+  it("provides a creation CTA when no applications exist", () => {
+    const model = buildKeepMomentumModel({ applications: [] });
+    expect(model.status).toBe("not_ready");
+    expect(model.ctaHref).toBe("/app/applications/new");
   });
 });

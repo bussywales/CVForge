@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.09
+- Activation + Keep Momentum hardening: CTAs always target the newest active application, fall back to creation when none exist, and use overview anchors when a specific section isn’t available; skip-for-week persistence cleans up expired state.
+- Keep Momentum empty state now surfaces a create-application CTA; fallback pipeline deep-link points at the newest app overview instead of a generic list.
+- Monetisation logging now sanitises meta (no URLs/emails/blobs), dedupes activation views/CTAs daily and keep-momentum weekly, and stays non-blocking; new unit tests cover CTA selection and logging guardrails.
+
 ## v0.8.05
 - Activation loop v1: deterministic helper outputs add app → outreach → follow-up → outcome (+ interview/keep-momentum) with progress, next-best recommendation, and celebration copy.
 - Dashboard shows Activation card with progress bar, step list, next-best CTA, and ErrorBanner fallback; activation events are allowlisted and logged best-effort.

@@ -20,6 +20,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - If activation is incomplete, Keep Momentum still renders without stealing focus.
 - Ops Activation Funnel reflects keep-momentum aggregates (views/clicks/skips) after interactions.
 
+## Quick prod checks (v0.8.09)
+- With one archived and one active application, Activation and Keep Momentum CTAs deep-link to the newest active app (outreach/overview anchors) without dead links.
+- With zero applications, both cards surface a create-application CTA instead of empty/null states.
+- Activation/Keep Momentum view and CTA logging is fire-and-forget, deduped (day/week), and never blocks navigation even when the log API fails.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

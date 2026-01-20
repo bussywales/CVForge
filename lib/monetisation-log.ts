@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { logMonetisationEvent, type MonetisationEventName } from "@/lib/monetisation";
 import { captureServerError } from "@/lib/observability/sentry";
+import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
 
 export async function processMonetisationLog({
   supabase,
@@ -19,7 +20,7 @@ export async function processMonetisationLog({
     await logMonetisationEvent(supabase, userId, parsed.event, {
       surface: parsed.surface ?? null,
       applicationId: parsed.applicationId ?? null,
-      meta: parsed.meta ?? {},
+      meta: sanitizeMonetisationMeta(parsed.meta),
     });
     return NextResponse.json({ ok: true }, { headers });
   } catch (error) {

@@ -66,11 +66,13 @@ export function selectActiveApplications(
   applications: ApplicationRecord[],
   limit = 5
 ): DashboardApplication[] {
-  const sorted = [...applications].sort((a, b) => {
-    const aDate = a.last_activity_at ?? a.updated_at ?? a.created_at;
-    const bDate = b.last_activity_at ?? b.updated_at ?? b.created_at;
-    return (bDate ?? "").localeCompare(aDate ?? "");
-  });
+  const sorted = applications
+    .filter((app) => (app.status ?? "").toString().toLowerCase() !== "archived")
+    .sort((a, b) => {
+      const aDate = a.last_activity_at ?? a.updated_at ?? a.created_at;
+      const bDate = b.last_activity_at ?? b.updated_at ?? b.created_at;
+      return (bDate ?? "").localeCompare(aDate ?? "");
+    });
 
   return sorted.slice(0, limit).map((app) => ({
     id: app.id,

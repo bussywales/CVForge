@@ -18,17 +18,21 @@ export default function KeepMomentumCard({ model, error }: Props) {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored = window.localStorage.getItem("keep-momentum-skip-until");
+    const skipKey = "keep-momentum-skip-until";
+    const stored = window.localStorage.getItem(skipKey);
     if (stored) {
       const until = Number(stored);
       if (Number.isFinite(until) && Date.now() < until) {
         setDismissed(true);
+        return;
       }
+      window.localStorage.removeItem(skipKey);
     }
   }, []);
 
   useEffect(() => {
-    if (model && model.primary && !dismissed && !viewLogged.current) {
+    if (dismissed || !model || !model.primary) return;
+    if (model && model.primary && !viewLogged.current) {
       viewLogged.current = true;
       logMonetisationClientEvent(
         "keep_momentum_view",
@@ -65,7 +69,25 @@ export default function KeepMomentumCard({ model, error }: Props) {
   }
 
   if (!model || model.status === "not_ready" || model.status === "skipped" || !model.primary) {
-    return null;
+    return (
+      <div className="rounded-2xl border border-dashed border-black/10 bg-gradient-to-br from-white via-white to-amber-50 p-4 shadow-sm">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Keep momentum this week</p>
+            <p className="text-sm font-semibold text-[rgb(var(--ink))]">Create your first application</p>
+            <p className="text-xs text-[rgb(var(--muted))]">
+              Unlock weekly momentum nudges by adding an active application.
+            </p>
+          </div>
+          <Link
+            href={model?.ctaHref ?? "/app/applications/new"}
+            className="rounded-full border border-black/10 bg-[rgb(var(--accent))] px-3 py-2 text-xs font-semibold text-white hover:bg-[rgb(var(--accent-strong))]"
+          >
+            Create application
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const onSkip = () => {
@@ -124,7 +146,7 @@ export default function KeepMomentumCard({ model, error }: Props) {
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-3">
         <Link
-          href={model.primary.href}
+          href={model.ctaHref}
           className="rounded-full bg-[rgb(var(--accent))] px-3 py-2 text-xs font-semibold text-white hover:bg-[rgb(var(--accent-strong))]"
           onClick={() => logClick("keep_momentum_cta_click", model.primary?.ruleId ?? "primary")}
         >

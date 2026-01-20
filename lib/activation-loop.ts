@@ -71,10 +71,10 @@ export function buildActivationModel(input: Input): ActivationModel {
   const interviewStepEnabled = hasInterviewPack(insights);
 
   const appUnavailableHint = hasApps ? null : "Add an application to unlock this step.";
-  const outreachHref = primaryApp ? `/app/applications/${primaryApp.id}?tab=activity#outreach` : "/app/applications";
-  const followupHref = primaryApp ? `/app/applications/${primaryApp.id}?tab=activity#outreach` : "/app/applications";
-  const outcomeHref = primaryApp ? `/app/applications/${primaryApp.id}?tab=overview#outcome` : "/app/applications";
-  const interviewHref = primaryApp ? `/app/applications/${primaryApp.id}?tab=interview#interview-focus` : "/app/interview";
+  const outreachHref = primaryApp ? `/app/applications/${primaryApp.id}?tab=activity#outreach` : "/app/applications/new";
+  const followupHref = primaryApp ? `/app/applications/${primaryApp.id}?tab=activity#outreach` : "/app/applications/new";
+  const outcomeHref = primaryApp ? `/app/applications/${primaryApp.id}?tab=overview#outcome` : "/app/applications/new";
+  const interviewHref = primaryApp ? `/app/applications/${primaryApp.id}?tab=interview#interview-focus` : "/app/applications/new";
 
   steps.push(
     buildStep("add_application", "Add your first application", "Add application", "/app/applications/new", {

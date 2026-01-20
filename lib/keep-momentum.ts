@@ -15,6 +15,7 @@ export type KeepMomentumModel = {
   status: "ready" | "not_ready" | "complete" | "skipped";
   primary: KeepMomentumAction | null;
   secondary?: KeepMomentumAction | null;
+  ctaHref: string;
   meta: {
     chosenRule: string | null;
     signals: Record<string, any>;
@@ -77,11 +78,17 @@ function hasEvidence(app: ApplicationRecord) {
 
 export function buildKeepMomentumModel(input: Input): KeepMomentumModel {
   if (input.skip) {
-    return { status: "skipped", primary: null, meta: { chosenRule: null, signals: {} } };
+    return { status: "skipped", primary: null, ctaHref: "/app/applications", meta: { chosenRule: null, signals: {} } };
   }
 
   const today = new Date();
-  const activeApps = input.applications.filter((app) => !isArchived(app));
+  const activeApps = input.applications
+    .filter((app) => !isArchived(app))
+    .sort((a, b) => {
+      const aDate = a.last_activity_at ?? a.updated_at ?? a.created_at;
+      const bDate = b.last_activity_at ?? b.updated_at ?? b.created_at;
+      return (bDate ?? "").localeCompare(aDate ?? "");
+    });
   const newest = pickNewest(activeApps);
 
   const signals = {
@@ -96,6 +103,7 @@ export function buildKeepMomentumModel(input: Input): KeepMomentumModel {
     return {
       status: "not_ready",
       primary: null,
+      ctaHref: "/app/applications/new",
       meta: { chosenRule: null, signals, targetAppId: null },
     };
   }
@@ -175,6 +183,7 @@ export function buildKeepMomentumModel(input: Input): KeepMomentumModel {
       status: "ready",
       primary,
       secondary,
+      ctaHref: primary.href,
       meta: { chosenRule: matched.id, signals, targetAppId: primary.applicationId ?? null },
     };
   }
@@ -183,7 +192,7 @@ export function buildKeepMomentumModel(input: Input): KeepMomentumModel {
     title: "Review active applications",
     reason: "Small steps compound.",
     ctaLabel: "Open pipeline",
-    href: "/app/applications",
+    href: `/app/applications/${newest.id}?tab=overview#overview`,
     kind: "pipeline",
     ruleId: "fallback_pipeline",
   };
@@ -191,6 +200,7 @@ export function buildKeepMomentumModel(input: Input): KeepMomentumModel {
   return {
     status: "complete",
     primary: fallback,
+    ctaHref: fallback.href,
     meta: { chosenRule: "fallback_pipeline", signals, targetAppId: newest.id },
   };
 }
