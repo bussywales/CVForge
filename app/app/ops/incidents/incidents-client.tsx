@@ -17,6 +17,7 @@ import { buildSupportBundleFromIncident } from "@/lib/ops/support-bundle";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { detectPortalSpike } from "@/lib/ops/portal-spike";
 import { buildIncidentPlaybook, type IncidentPlaybook } from "@/lib/ops/ops-incident-playbooks";
+import { buildOpsBillingHealth } from "@/lib/ops/ops-billing-health";
 
 type Props = {
   incidents: IncidentRecord[];
@@ -82,12 +83,27 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
   );
   const related = selected ? correlateIncidents(selected, incidents) : [];
   const portalSpike = useMemo(() => detectPortalSpike(filtered), [filtered]);
+  const billingHealth = useMemo(() => buildOpsBillingHealth(incidents), [incidents]);
+  const hasBillingHealth =
+    billingHealth.topCodes.length > 0 ||
+    billingHealth.window24h.portalErrors > 0 ||
+    billingHealth.window24h.checkoutErrors > 0 ||
+    billingHealth.window24h.webhookErrors > 0 ||
+    billingHealth.window7d.portalErrors > 0 ||
+    billingHealth.window7d.checkoutErrors > 0 ||
+    billingHealth.window7d.webhookErrors > 0;
 
   useEffect(() => {
     if (filters.requestId) {
       logMonetisationClientEvent("ops_incidents_requestid_filter_applied", null, "ops");
     }
   }, [filters.requestId]);
+
+  useEffect(() => {
+    if (hasBillingHealth) {
+      logMonetisationClientEvent("ops_billing_health_view", null, "ops");
+    }
+  }, [hasBillingHealth]);
 
   useEffect(() => {
     if (!expandedGroup) return;
@@ -223,6 +239,68 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
 
   return (
     <div className="space-y-4">
+      {hasBillingHealth ? (
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-900">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">Billing health</p>
+              <p className="text-[11px] text-[rgb(var(--muted))]">
+                Last 24h: portal {billingHealth.window24h.portalErrors}, checkout {billingHealth.window24h.checkoutErrors}, webhook{" "}
+                {billingHealth.window24h.webhookErrors}. Last 7d: portal {billingHealth.window7d.portalErrors}, checkout{" "}
+                {billingHealth.window7d.checkoutErrors}, webhook {billingHealth.window7d.webhookErrors}.
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="rounded-full border border-indigo-200 bg-white px-3 py-1 font-semibold text-indigo-800"
+                onClick={() => {
+                  setFilters((f) => ({ ...f, surface: "portal", time: "24" }));
+                  logMonetisationClientEvent("ops_billing_health_chip_click", null, "ops", { kind: "portal_error", window: "24h" });
+                }}
+              >
+                Portal (24h)
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-indigo-200 bg-white px-3 py-1 font-semibold text-indigo-800"
+                onClick={() => {
+                  setFilters((f) => ({ ...f, surface: "checkout", time: "24" }));
+                  logMonetisationClientEvent("ops_billing_health_chip_click", null, "ops", { kind: "checkout_error", window: "24h" });
+                }}
+              >
+                Checkout (24h)
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-indigo-200 bg-white px-3 py-1 font-semibold text-indigo-800"
+                onClick={() => {
+                  setFilters((f) => ({ ...f, surface: "billing", time: "24", code: "webhook" }));
+                  logMonetisationClientEvent("ops_billing_health_chip_click", null, "ops", { kind: "webhook_error", window: "24h" });
+                }}
+              >
+                Webhook (24h)
+              </button>
+              {billingHealth.topCodes.map((entry) => (
+                <button
+                  key={entry.code}
+                  type="button"
+                  className="rounded-full border border-indigo-200 bg-white px-3 py-1 font-semibold text-indigo-800"
+                  onClick={() => {
+                    setFilters((f) => ({ ...f, code: entry.code, surface: "billing", time: "24" }));
+                    logMonetisationClientEvent("ops_billing_health_chip_click", null, "ops", {
+                      kind: "code",
+                      code: entry.code,
+                    });
+                  }}
+                >
+                  Top code: {entry.code} ({entry.count})
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-black/10 bg-white/80 p-3 text-xs">
         <div className="flex items-center gap-2">
           <label>

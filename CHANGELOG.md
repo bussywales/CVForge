@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.10
+- Billing guardrails v1: new status strip on /app/billing shows subscription state, credits, last action, and ops-support flags with support snippet modal and sanitized logging.
+- Portal return guardrails: premium banner for `portal_error` with retry link, dismiss, and support snippet logging; billing allowlist expanded with non-blocking events.
+- Reconciliation hint surfaces when checkout success lacks recent credits; ops Incident Console shows billing health mini-summary with filters/chips; deterministic helpers + tests added for billing status, portal banner, reconciliation, and ops health.
+
 ## v0.8.09
 - Activation + Keep Momentum hardening: CTAs always target the newest active application, fall back to creation when none exist, and use overview anchors when a specific section isn’t available; skip-for-week persistence cleans up expired state.
 - Keep Momentum empty state now surfaces a create-application CTA; fallback pipeline deep-link points at the newest app overview instead of a generic list.

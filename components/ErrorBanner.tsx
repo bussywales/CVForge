@@ -12,9 +12,10 @@ type Props = {
   onRetry?: () => void;
   onDismiss?: () => void;
   onHelp?: () => void;
+  onSupportCopy?: () => void;
 };
 
-export default function ErrorBanner({ title, message, hint, requestId, supportSnippet, onRetry, onDismiss, onHelp }: Props) {
+export default function ErrorBanner({ title, message, hint, requestId, supportSnippet, onRetry, onDismiss, onHelp, onSupportCopy }: Props) {
   return (
     <div className="flex flex-wrap items-start justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
       <div className="space-y-1">
@@ -32,7 +33,7 @@ export default function ErrorBanner({ title, message, hint, requestId, supportSn
         {supportSnippet ? (
           <div className="flex items-center gap-2 text-[11px] text-rose-700">
             <span>{ERROR_COPY.supportSnippetLabel}</span>
-            <CopyIconButton text={supportSnippet} label={ERROR_COPY.supportSnippetLabel} />
+            <CopyIconButton text={supportSnippet} label={ERROR_COPY.supportSnippetLabel} onCopy={onSupportCopy} />
           </div>
         ) : null}
       </div>

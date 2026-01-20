@@ -16,8 +16,8 @@ export function parsePortalError(searchParams?: Record<string, string | string[]
   const from = typeof (searchParams as any)?.from === "string" ? ((searchParams as any).from as string) : null;
   const support = typeof (searchParams as any)?.support === "string" ? ((searchParams as any).support as string) : null;
   const plan = typeof (searchParams as any)?.plan === "string" ? ((searchParams as any).plan as string) : null;
-  const retryHref = buildPortalLink({ flow, from, support, plan, returnTo: "/app/billing" });
+  const mode = typeof (searchParams as any)?.mode === "string" ? ((searchParams as any).mode as string) : "navigation";
+  const retryHref = buildPortalLink({ flow, from, support, plan, mode, returnTo: "/app/billing" });
   if (!show) return { show: false, requestId: null, code: null, retryHref };
   return { show: true, requestId, code, retryHref };
 }
-

@@ -38,6 +38,10 @@ import nextDynamic from "next/dynamic";
 import { parsePortalError } from "@/lib/billing/portal-error";
 import { buildSupportSnippet } from "@/lib/observability/support-snippet";
 import PortalErrorBanner from "./portal-error-banner";
+import { buildBillingStatus } from "@/lib/billing/billing-status";
+import BillingStatusStrip from "./billing-status-strip";
+import { buildBillingReconcileHint } from "@/lib/billing/billing-reconcile-hint";
+import BillingReconcileCard from "./billing-reconcile-card";
 const BillingDeepLinkClient = nextDynamic(() => import("./billing-deeplink-client"), { ssr: false });
 
 export const dynamic = "force-dynamic";
@@ -72,15 +76,14 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   }
 
   const portalError = parsePortalError(searchParams ?? undefined);
-  const portalSupportSnippet =
-    portalError.requestId != null
-      ? buildSupportSnippet({
-          action: "Open Stripe portal",
-          path: "/app/billing",
-          requestId: portalError.requestId,
-          code: portalError.code ?? undefined,
-        })
-      : null;
+  const portalSupportSnippet = portalError.show
+    ? buildSupportSnippet({
+        action: "Open Stripe portal",
+        path: "/app/billing",
+        requestId: portalError.requestId ?? undefined,
+        code: portalError.code ?? undefined,
+      })
+    : null;
 
   const credits = await getUserCredits(supabase, user.id);
   const activity = await listCreditActivity(supabase, user.id, 20);
@@ -231,6 +234,22 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     subscriptionAvailable: Boolean(planAvailability.monthly_30 || planAvailability.monthly_80),
     packAvailability,
   });
+  const billingStatus = buildBillingStatus({
+    settings,
+    credits,
+    activity: activitySignals,
+    searchParams,
+  });
+  const statusSupportSnippet = buildSupportSnippet({
+    action: "Billing page",
+    path: "/app/billing",
+    requestId: billingStatus.lastBillingEvent?.requestId ?? portalError.requestId ?? undefined,
+    code: billingStatus.lastBillingEvent?.kind ?? portalError.code ?? null,
+  });
+  const reconcileHint = buildBillingReconcileHint({
+    lastBillingEvent: billingStatus.lastBillingEvent,
+    activity: activitySignals,
+  });
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -282,14 +301,16 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   return (
     <div className="space-y-6" id="billing-root">
       <BillingDeepLinkClient />
+      <BillingStatusStrip status={billingStatus} supportSnippet={statusSupportSnippet} />
       {portalError.show ? (
-        <PortalErrorBanner requestId={portalError.requestId} supportSnippet={portalSupportSnippet} retryHref={portalError.retryHref} />
+        <PortalErrorBanner requestId={portalError.requestId} supportSnippet={portalSupportSnippet} retryHref={portalError.retryHref} code={portalError.code} />
       ) : null}
       <PostPurchaseSuccessBanner
         show={Boolean(searchParams?.success)}
         applicationId={latestApplicationId ?? undefined}
         subscriptionStatus={settings?.subscription_status ?? null}
       />
+      <BillingReconcileCard show={reconcileHint.show} message={reconcileHint.message} supportSnippet={statusSupportSnippet} />
       {fromStreakSaver ? (
         <StreakSaverBanner planKey={streakPlanParam} status={streakStatus} isActive={hasSubscription} />
       ) : null}

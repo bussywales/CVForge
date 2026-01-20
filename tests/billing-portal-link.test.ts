@@ -15,4 +15,9 @@ describe("portal link", () => {
     expect(href).toContain("from=ops_support");
     expect(href).toContain("support=1");
   });
+
+  it("passes through mode when provided", () => {
+    const href = buildPortalLink({ flow: "manage", returnTo: "/app/billing", mode: "navigation" });
+    expect(href).toContain("mode=navigation");
+  });
 });

@@ -96,6 +96,14 @@ const allowedEvents = [
   "billing_portal_click",
   "billing_portal_redirected",
   "billing_portal_error",
+  "billing_status_view",
+  "billing_portal_error_banner_view",
+  "billing_portal_error_banner_dismiss",
+  "billing_portal_error_retry_click",
+  "billing_support_snippet_copy",
+  "billing_reconcile_hint_view",
+  "billing_reconcile_hint_refresh_click",
+  "billing_reconcile_hint_support_click",
   "ops_support_portal_open_click",
   "activation_cta_click",
   "activation_view",
@@ -291,6 +299,8 @@ const allowedEvents = [
   "ops_entry_click",
   "ops_access_denied_view",
   "ops_access_denied_copy_snippet",
+  "ops_billing_health_view",
+  "ops_billing_health_chip_click",
 ] as const;
 
 const bodySchema = z.object({

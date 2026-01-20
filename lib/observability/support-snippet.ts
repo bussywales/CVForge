@@ -4,16 +4,15 @@ export function buildSupportSnippet({
   path,
   code,
 }: {
-  requestId: string;
+  requestId?: string | null;
   action: string;
   path: string;
   code?: string | null;
 }) {
-  return [
-    "CVForge support request",
-    `Action: ${action}`,
-    `Page: ${path}`,
-    `Reference: ${requestId}`,
-    `Code: ${code ?? "unknown"}`,
-  ].join("\n");
+  const lines = ["CVForge support request", `Action: ${action}`, `Page: ${path}`];
+  if (requestId) {
+    lines.push(`Reference: ${requestId}`);
+  }
+  lines.push(`Code: ${code ?? "unknown"}`);
+  return lines.join("\n");
 }

@@ -93,6 +93,8 @@ Stripe Checkout is used for credit purchases, with a credit ledger and webhook-b
 Top-up vs Subscription comparison cards highlight the recommended option with deterministic reasons across Billing and soft gates, using the same resume-aware checkout.
 Stripe portal links use a dedicated /api/billing/portal endpoint with requestId-aware errors and masked logging so portal failures are observable to ops.
 Portal failures surface banner retry links for users and trigger Ops Incident callouts for portal spikes; ops support actions include navigation-only portal open/retry links.
+Billing guardrails: /app/billing shows a persistent status strip (subscription state, credits, last billing action, ops-support flag) with a copyable support snippet; portal_error query renders a premium banner with retry/dismiss + support snippet logging; reconciliation hint surfaces when checkout success hasn’t yet granted credits. Logging is non-blocking and sanitised.
+Ops Incident Console shows a billing health mini-summary (portal/checkout/webhook counts across 24h/7d plus top codes) with filter chips; exports stay masked and no raw URLs are shown.
 
 ## Monetisation analytics
 Credit gates, checkout starts/successes, resume clicks, and autopack completions are logged deterministically. Insights shows a revenue funnel (7d/30d) plus top surfaces for gates and billing clicks to spot leaks quickly.

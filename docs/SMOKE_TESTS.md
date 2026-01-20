@@ -25,6 +25,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - With zero applications, both cards surface a create-application CTA instead of empty/null states.
 - Activation/Keep Momentum view and CTA logging is fire-and-forget, deduped (day/week), and never blocks navigation even when the log API fails.
 
+## Quick prod checks (v0.8.10)
+- Visit `/app/billing?portal_error=1&req=req_test&code=STRIPE_PORTAL` → premium portal error banner shows with retry link to /api/billing/portal?mode=navigation; dismiss works.
+- Visit `/app/billing` normally → Billing status strip is present (subscription, credits, last action) with support snippet modal.
+- Ops Incident Console → billing health callout appears; chips apply filters (portal/checkout/webhook or top code) without exposing URLs.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.
