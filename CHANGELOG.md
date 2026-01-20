@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.12
+- Billing timeline + credit delay: /app/billing shows recent billing activity with request refs, support snippet copy, and a credit delay detector card with refresh and snippet logging.
+- Added deterministic helpers for billing timeline/credit delay; ops incidents gain webhook/credit trace ratios with filter chips; monetisation allowlist extended for timeline/delay/trace logging.
+- Billing docs/smoke updated; no mutations or auto-fixes included.
+
 ## v0.8.11
 - Ops billing triage v1: new ops-only Stripe snapshot endpoint with masked customer/subscription signals, local billing status, and deterministic next-step helper.
 - Ops user dossier adds Billing triage card with refreshable snapshot, next-step hints, focused billing/portal links, and optional Stripe dashboard shortcuts; incidents console links directly to triage for billing-related groups.

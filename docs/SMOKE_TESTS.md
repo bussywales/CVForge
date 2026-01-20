@@ -35,6 +35,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Billing triage next-step hints suggest focused billing link (with from=ops_support flags) and portal navigation; external Stripe links only appear when IDs exist.
 - Ops Incident Console billing-related group shows “Open user billing triage” shortcut that deep-links to the dossier card.
 
+## Quick prod checks (v0.8.12)
+- Open `/app/billing` → status strip visible; Recent billing activity timeline renders with support snippet copy buttons.
+- Add `?portal_error=1&req=req_test&code=STRIPE_PORTAL` → portal banner still shows with retry; credit delay card appears in “watching” state after checkout success logs in dev.
+- Ops Incident Console → webhook/credit trace card shows ratios/counts; chips filter incidents without exposing URLs.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

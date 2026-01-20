@@ -42,6 +42,10 @@ import { buildBillingStatus } from "@/lib/billing/billing-status";
 import BillingStatusStrip from "./billing-status-strip";
 import { buildBillingReconcileHint } from "@/lib/billing/billing-reconcile-hint";
 import BillingReconcileCard from "./billing-reconcile-card";
+import { buildBillingTimeline } from "@/lib/billing/billing-timeline";
+import BillingTimeline from "./billing-timeline";
+import { detectCreditDelay } from "@/lib/billing/billing-credit-delay";
+import CreditDelayCard from "./credit-delay-card";
 const BillingDeepLinkClient = nextDynamic(() => import("./billing-deeplink-client"), { ssr: false });
 
 export const dynamic = "force-dynamic";
@@ -88,6 +92,14 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
   const credits = await getUserCredits(supabase, user.id);
   const activity = await listCreditActivity(supabase, user.id, 20);
   const activitySignals = await listCreditActivity(supabase, user.id, 200);
+  const monetisationEventsRes = await supabase
+    .from("application_activities")
+    .select("type, occurred_at, body")
+    .eq("user_id", user.id)
+    .ilike("type", "monetisation.%")
+    .order("occurred_at", { ascending: false })
+    .limit(50);
+  const monetisationEvents = monetisationEventsRes.data ?? [];
   const insightsSummary = await getInsightsSummary(supabase, user.id);
   const settings = await fetchBillingSettings(supabase, user.id);
   const referral = await ensureReferralCode(supabase, user.id);
@@ -250,6 +262,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     lastBillingEvent: billingStatus.lastBillingEvent,
     activity: activitySignals,
   });
+  const billingTimeline = buildBillingTimeline({ events: monetisationEvents as any, ledger: activitySignals });
+  const creditDelay = detectCreditDelay({ timeline: billingTimeline });
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -305,12 +319,16 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       {portalError.show ? (
         <PortalErrorBanner requestId={portalError.requestId} supportSnippet={portalSupportSnippet} retryHref={portalError.retryHref} code={portalError.code} />
       ) : null}
+      <div className="space-y-2">
+        <BillingTimeline timeline={billingTimeline} supportPath="/app/billing" />
+        <BillingReconcileCard show={reconcileHint.show} message={reconcileHint.message} supportSnippet={statusSupportSnippet} />
+        <CreditDelayCard delay={creditDelay} supportPath="/app/billing" />
+      </div>
       <PostPurchaseSuccessBanner
         show={Boolean(searchParams?.success)}
         applicationId={latestApplicationId ?? undefined}
         subscriptionStatus={settings?.subscription_status ?? null}
       />
-      <BillingReconcileCard show={reconcileHint.show} message={reconcileHint.message} supportSnippet={statusSupportSnippet} />
       {fromStreakSaver ? (
         <StreakSaverBanner planKey={streakPlanParam} status={streakStatus} isActive={hasSubscription} />
       ) : null}

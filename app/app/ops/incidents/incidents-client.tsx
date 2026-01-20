@@ -18,6 +18,7 @@ import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { detectPortalSpike } from "@/lib/ops/portal-spike";
 import { buildIncidentPlaybook, type IncidentPlaybook } from "@/lib/ops/ops-incident-playbooks";
 import { buildOpsBillingHealth } from "@/lib/ops/ops-billing-health";
+import { buildBillingTraceSummary } from "@/lib/ops/ops-billing-trace";
 
 type Props = {
   incidents: IncidentRecord[];
@@ -92,6 +93,7 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
     billingHealth.window7d.portalErrors > 0 ||
     billingHealth.window7d.checkoutErrors > 0 ||
     billingHealth.window7d.webhookErrors > 0;
+  const billingTrace = useMemo(() => buildBillingTraceSummary(incidents), [incidents]);
 
   useEffect(() => {
     if (filters.requestId) {
@@ -104,6 +106,12 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
       logMonetisationClientEvent("ops_billing_health_view", null, "ops");
     }
   }, [hasBillingHealth]);
+
+  useEffect(() => {
+    if (incidents.length > 0) {
+      logMonetisationClientEvent("ops_billing_trace_view", null, "ops");
+    }
+  }, [incidents.length]);
 
   useEffect(() => {
     if (!expandedGroup) return;
@@ -301,6 +309,51 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
           </div>
         </div>
       ) : null}
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-[rgb(var(--ink))]">Webhook & credits trace</p>
+            <p className="text-[11px] text-[rgb(var(--muted))]">
+              {billingTrace.coverage.label} · 24h checkout success {billingTrace.window24h.checkoutSuccess}, webhook {billingTrace.window24h.webhookReceived}, errors {billingTrace.window24h.webhookError}, delays {billingTrace.window24h.delayedCredit}.
+            </p>
+            <p className="text-[11px] text-[rgb(var(--muted))]">
+              7d: checkout {billingTrace.window7d.checkoutSuccess}, webhook {billingTrace.window7d.webhookReceived}, errors {billingTrace.window7d.webhookError}, delays {billingTrace.window7d.delayedCredit}.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className="rounded-full border border-emerald-200 bg-white px-3 py-1 font-semibold text-emerald-800"
+              onClick={() => {
+                setFilters((f) => ({ ...f, time: "24", surface: "checkout" }));
+                logMonetisationClientEvent("ops_billing_trace_chip_click", null, "ops", { kind: "checkout", window: "24h" });
+              }}
+            >
+              Checkout (24h)
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-emerald-200 bg-white px-3 py-1 font-semibold text-emerald-800"
+              onClick={() => {
+                setFilters((f) => ({ ...f, time: "24", surface: "billing", code: "webhook" }));
+                logMonetisationClientEvent("ops_billing_trace_chip_click", null, "ops", { kind: "webhook", window: "24h" });
+              }}
+            >
+              Webhook (24h)
+            </button>
+            <button
+              type="button"
+              className="rounded-full border border-emerald-200 bg-white px-3 py-1 font-semibold text-emerald-800"
+              onClick={() => {
+                setFilters((f) => ({ ...f, time: "168", surface: "billing" }));
+                logMonetisationClientEvent("ops_billing_trace_chip_click", null, "ops", { kind: "delayed", window: "7d" });
+              }}
+            >
+              7d view
+            </button>
+          </div>
+        </div>
+      </div>
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-black/10 bg-white/80 p-3 text-xs">
         <div className="flex items-center gap-2">
           <label>
