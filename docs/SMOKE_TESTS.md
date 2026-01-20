@@ -30,6 +30,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Visit `/app/billing` normally → Billing status strip is present (subscription, credits, last action) with support snippet modal.
 - Ops Incident Console → billing health callout appears; chips apply filters (portal/checkout/webhook or top code) without exposing URLs.
 
+## Quick prod checks (v0.8.11)
+- Ops user dossier `/app/ops/users/:id` → Billing triage card appears below Support actions; Refresh snapshot succeeds and shows Stripe/local status side-by-side.
+- Billing triage next-step hints suggest focused billing link (with from=ops_support flags) and portal navigation; external Stripe links only appear when IDs exist.
+- Ops Incident Console billing-related group shows “Open user billing triage” shortcut that deep-links to the dossier card.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

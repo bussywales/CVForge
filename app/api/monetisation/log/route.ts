@@ -301,6 +301,13 @@ const allowedEvents = [
   "ops_access_denied_copy_snippet",
   "ops_billing_health_view",
   "ops_billing_health_chip_click",
+  "ops_billing_snapshot_view",
+  "ops_billing_snapshot_refresh_click",
+  "ops_billing_snapshot_refresh_ok",
+  "ops_billing_snapshot_refresh_error",
+  "ops_billing_triage_open_billing_click",
+  "ops_billing_triage_open_portal_click",
+  "ops_billing_triage_open_dashboard_click",
 ] as const;
 
 const bodySchema = z.object({

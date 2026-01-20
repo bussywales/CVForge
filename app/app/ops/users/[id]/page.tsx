@@ -12,6 +12,8 @@ import RoleEditor from "./role-editor";
 import SupportActions from "./support-actions";
 import AccessDenied from "@/components/AccessDenied";
 import { makeRequestId } from "@/lib/observability/request-id";
+import BillingTriageCard from "./billing-triage-card";
+import { fetchBillingSettings } from "@/lib/data/billing";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +37,7 @@ export default async function OpsUserPage({ params }: { params: { id: string } }
   const credits = await getUserCredits(admin as any, params.id);
   const ledger = await listCreditActivity(admin as any, params.id, 5);
   const subscription = await getSubscriptionStatus(admin as any, params.id);
+  const billingSettings = await fetchBillingSettings(admin as any, params.id);
   const applications = (await listApplications(admin as any, params.id)).slice(0, 10);
   const lastOutcomes = await admin
     .from("outcomes")
@@ -190,6 +193,11 @@ export default async function OpsUserPage({ params }: { params: { id: string } }
           createdAt: row.created_at,
           meta: (row.meta as Record<string, any>) ?? {},
         }))}
+      />
+      <BillingTriageCard
+        userId={params.id}
+        stripeCustomerId={billingSettings?.stripe_customer_id ?? null}
+        stripeSubscriptionId={billingSettings?.stripe_subscription_id ?? null}
       />
       {canEdit ? (
         <RoleEditor

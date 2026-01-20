@@ -491,11 +491,20 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
         ) : (
           groups.map((group) => {
             const expanded = expandedGroup === group.key;
-                  return (
-                    <div key={group.key} className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="text-xs text-[rgb(var(--muted))]">
+            const groupUserId = group.incidents.find((inc) => inc.userId)?.userId ?? null;
+            const isBillingGroup =
+              group.surface === "billing" ||
+              group.surface === "portal" ||
+              group.surface === "checkout" ||
+              (group.code ?? "").toLowerCase().includes("portal") ||
+              (group.code ?? "").toLowerCase().includes("checkout") ||
+              (group.flow ?? "").toLowerCase().includes("portal") ||
+              (group.flow ?? "").toLowerCase().includes("billing");
+            return (
+              <div key={group.key} className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs text-[rgb(var(--muted))]">
                             {group.surface} • {group.code ?? "No code"} • {group.flow ?? "—"}
                           </p>
                           <p className="text-sm font-semibold text-[rgb(var(--ink))]">{group.message ?? "No message"}</p>
@@ -512,6 +521,14 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
                     >
                       {expanded ? "Hide" : "Expand"}
                     </button>
+                    {isBillingGroup && groupUserId ? (
+                      <Link
+                        href={`/app/ops/users/${groupUserId}#billing-triage`}
+                        className="text-xs font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                      >
+                        Open user billing triage
+                      </Link>
+                    ) : null}
                   </div>
                 </div>
                 {expanded ? (

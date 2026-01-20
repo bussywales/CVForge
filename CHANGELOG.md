@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.11
+- Ops billing triage v1: new ops-only Stripe snapshot endpoint with masked customer/subscription signals, local billing status, and deterministic next-step helper.
+- Ops user dossier adds Billing triage card with refreshable snapshot, next-step hints, focused billing/portal links, and optional Stripe dashboard shortcuts; incidents console links directly to triage for billing-related groups.
+- Helpers added for Stripe price mapping and triage logic; monetisation allowlist expanded with new ops billing events; docs/smoke updated.
+
 ## v0.8.10
 - Billing guardrails v1: new status strip on /app/billing shows subscription state, credits, last action, and ops-support flags with support snippet modal and sanitized logging.
 - Portal return guardrails: premium banner for `portal_error` with retry link, dismiss, and support snippet logging; billing allowlist expanded with non-blocking events.
