@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ActivationModel } from "@/lib/activation-loop";
 import { ACTIVATION_COPY } from "@/lib/microcopy/activation";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
@@ -13,19 +13,47 @@ type Props = {
 };
 
 export default function ActivationCard({ model, error }: Props) {
+  const [dismissed, setDismissed] = useState(false);
+  const primaryApplicationId = model?.primaryApplicationId ?? null;
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const stored = window.localStorage.getItem("activation-skip-until");
+    if (stored) {
+      const until = Number(stored);
+      if (Number.isFinite(until) && Date.now() < until) {
+        setDismissed(true);
+      }
+    }
+  }, []);
+
   useEffect(() => {
     if (model) {
-      logMonetisationClientEvent("activation_view", null, "activation");
+      logMonetisationClientEvent("activation_view", primaryApplicationId, "activation");
     }
-  }, [model]);
+  }, [model, primaryApplicationId]);
 
   useEffect(() => {
     if (error) {
-      logMonetisationClientEvent("activation_model_error", null, "activation", {
+      logMonetisationClientEvent("activation_model_error", primaryApplicationId, "activation", {
         code: error.code ?? "unknown",
       });
     }
-  }, [error]);
+  }, [error, primaryApplicationId]);
+
+  const coreComplete = useMemo(() => {
+    if (!model) return false;
+    const coreIds = ["add_application", "first_outreach", "schedule_followup", "log_outcome"];
+    return coreIds.every((id) => model.steps.find((s) => s.id === id)?.isDone);
+  }, [model]);
+
+  useEffect(() => {
+    if (coreComplete) {
+      logMonetisationClientEvent("activation_completed", primaryApplicationId, "activation");
+    }
+  }, [coreComplete, primaryApplicationId]);
+
+  if (dismissed) return null;
 
   if (error) {
     return (
@@ -41,6 +69,20 @@ export default function ActivationCard({ model, error }: Props) {
   if (!model) return null;
 
   const nextStep = model.steps.find((s) => s.id === model.nextBest.id) ?? model.steps.find((s) => !s.isDone);
+  const handleSkip = () => {
+    if (typeof window !== "undefined") {
+      const weekMs = 7 * 24 * 60 * 60 * 1000;
+      window.localStorage.setItem("activation-skip-until", String(Date.now() + weekMs));
+    }
+    setDismissed(true);
+    logMonetisationClientEvent("activation_skip_week", primaryApplicationId, "activation");
+  };
+  const logCtaClick = (stepId: string, ctaId: string) => {
+    logMonetisationClientEvent("activation_cta_click", primaryApplicationId, "activation", {
+      stepId,
+      ctaId,
+    });
+  };
 
   return (
     <div className="rounded-2xl border border-black/10 bg-white/80 p-4 shadow-sm">
@@ -49,7 +91,14 @@ export default function ActivationCard({ model, error }: Props) {
           <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">{ACTIVATION_COPY.title}</p>
           <p className="text-sm font-semibold text-[rgb(var(--ink))]">{ACTIVATION_COPY.subtitle}</p>
         </div>
-        <div className="text-right text-xs text-[rgb(var(--muted))]">
+        <div className="flex items-center gap-3 text-xs text-[rgb(var(--muted))]">
+          <button
+            type="button"
+            onClick={handleSkip}
+            className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:border-black/20"
+          >
+            Skip for now
+          </button>
           <div className="h-2 w-32 overflow-hidden rounded-full border border-black/10 bg-white">
             <div
               className="h-2 bg-[rgb(var(--accent))]"
@@ -85,10 +134,13 @@ export default function ActivationCard({ model, error }: Props) {
                   href={step.href}
                   className="text-[11px] font-semibold text-[rgb(var(--accent))] underline-offset-2 hover:underline"
                   onClick={() =>
-                    logMonetisationClientEvent("activation_step_click", null, "activation", {
-                      stepId: step.id,
-                      hrefType: "link",
-                    })
+                    {
+                      logMonetisationClientEvent("activation_step_click", primaryApplicationId, "activation", {
+                        stepId: step.id,
+                        hrefType: "link",
+                      });
+                      logCtaClick(step.id, "step_link");
+                    }
                   }
                 >
                   {step.ctaLabel}
@@ -108,10 +160,13 @@ export default function ActivationCard({ model, error }: Props) {
             href={nextStep.href}
             className="rounded-full bg-[rgb(var(--accent))] px-3 py-1 text-[11px] font-semibold text-white hover:bg-[rgb(var(--accent-strong))]"
             onClick={() =>
-              logMonetisationClientEvent("activation_primary_cta_click", null, "activation", {
-                stepId: nextStep.id,
-                hrefType: "link",
-              })
+              {
+                logMonetisationClientEvent("activation_primary_cta_click", primaryApplicationId, "activation", {
+                  stepId: nextStep.id,
+                  hrefType: "link",
+                });
+                logCtaClick(nextStep.id, "primary");
+              }
             }
           >
             Do next

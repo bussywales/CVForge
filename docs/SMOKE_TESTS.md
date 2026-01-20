@@ -11,6 +11,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - After creating an application, refresh /app and the next step becomes Outreach with the correct anchor deep link.
 - Clicking the CTA navigates to the linked tab/anchor without errors; if logging is blocked the UI still works.
 - Progress counts update as steps are completed; “Try again” reload works if the model fails to load.
+- Skip for now hides the card for the week and emits activation_skip_week; Do next/step links emit activation_cta_click/activation_step_click.
 
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
@@ -31,6 +32,7 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Billing portal: “Manage in Stripe” / “Continue to Stripe” open Stripe portal via /api/billing/portal; if portal fails, it redirects back with portal_error=1&req=<id>&mode=navigation and Billing shows ErrorBanner with requestId + Try again link; portal attempts log billing_portal_* events.
 - Ops Incidents: when multiple portal errors occur in window, Stripe portal failures callout appears; View audits link works.
 - Non-ops access: /app/ops shows AccessDenied; /api/ops/users/search returns 403 JSON with requestId.
+- Ops Activation Funnel: open /app/ops/activation as ops, toggle 7d/24h ranges, see counts for activation events after interacting with the Activation card; non-ops are blocked.
 - Open generated support link with pack=starter → Billing scrolls to Packs section and highlights it.
 - Open generated support link with plan=monthly_80 → Billing scrolls to Subscription section and highlights it.
 - Support link with portal=1&flow=cancel... → Billing scrolls to portal-return (or subscription fallback) and highlights banner.

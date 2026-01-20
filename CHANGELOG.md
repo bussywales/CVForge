@@ -5,6 +5,11 @@
 - Dashboard shows Activation card with progress bar, step list, next-best CTA, and ErrorBanner fallback; activation events are allowlisted and logged best-effort.
 - Helper + microcopy + tests cover deterministic ordering and mature-user keep-momentum guidance; no schema changes.
 
+## v0.8.06
+- Activation funnel (ops): new /api/ops/activation-funnel route and ops page with aggregated activation events, step/CTA breakdown, and time-to-first-value proxies (masked counts only).
+- Activation loop hardening: completion detection uses persisted facts (non-archived apps), activation milestones logged on outreach/follow-up/outcome creation, and activation completed/skip/week logging added.
+- Dashboard Activation card gains skip-for-week, CTA logging, and primary application context for metrics; ops quick link added.
+
 ## v0.8.04
 - Portal route hardened: always sets x-request-id + no-store, redirects on errors with portal_error=1&mode=navigation, logs portal events without URLs, JSON errors only when requested.
 - Billing portal error banner gains Try again link; portal links stay navigation-only; logging includes mode/destination.

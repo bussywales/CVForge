@@ -25,6 +25,24 @@ import { outreachLogSchema } from "@/lib/validators/outreach";
 import { getFieldErrors } from "@/lib/validators/utils";
 import type { ApplicationStatusValue } from "@/lib/application-status";
 import { getNextOutreachStep, getOutreachSteps } from "@/lib/outreach-templates";
+import { logMonetisationEvent } from "@/lib/monetisation";
+
+async function logActivationMilestone(
+  supabase: any,
+  userId: string,
+  applicationId: string,
+  event:
+    | "activation_first_application"
+    | "activation_first_outreach"
+    | "activation_first_followup"
+    | "activation_first_outcome"
+) {
+  try {
+    await logMonetisationEvent(supabase, userId, event, { applicationId });
+  } catch (error) {
+    console.error(`[activation-milestone:${event}]`, error);
+  }
+}
 export async function createApplicationAction(
   formData: FormData
 ): Promise<ActionState> {
@@ -75,6 +93,7 @@ export async function createApplicationAction(
       contact_email: toNullable(parsed.data.contact_email ?? ""),
       contact_linkedin: toNullable(parsed.data.contact_linkedin ?? ""),
     });
+    await logActivationMilestone(supabase, user.id, created.id, "activation_first_application");
 
     revalidatePath("/app/applications");
     revalidatePath("/app/pipeline");
@@ -514,6 +533,8 @@ export async function logFollowupAction(
     revalidatePath(`/app/applications/${applicationId}`);
     revalidatePath("/app/pipeline");
 
+    await logActivationMilestone(supabase, user.id, applicationId, "activation_first_followup");
+
     return { status: "success", message: "Follow-up logged." };
   } catch (error) {
     console.error("[logFollowupAction]", error);
@@ -571,6 +592,8 @@ export async function logFollowupCadenceAction(
 
     revalidatePath(`/app/applications/${applicationId}`);
     revalidatePath("/app/pipeline");
+
+    await logActivationMilestone(supabase, user.id, applicationId, "activation_first_followup");
 
     return { status: "success", message: "Follow-up logged." };
   } catch (error) {
@@ -882,6 +905,8 @@ export async function logOutreachStepAction(
 
     revalidatePath(`/app/applications/${parsed.data.application_id}`);
     revalidatePath("/app/pipeline");
+
+    await logActivationMilestone(supabase, user.id, parsed.data.application_id, "activation_first_outreach");
 
     return {
       status: "success",
@@ -1210,6 +1235,8 @@ export async function scheduleFollowupAction(
     revalidatePath(`/app/applications/${applicationId}`);
     revalidatePath("/app/pipeline");
 
+    await logActivationMilestone(supabase, user.id, applicationId, "activation_first_followup");
+
     return { status: "success", message: "Follow-up scheduled." };
   } catch (error) {
     console.error("[scheduleFollowupAction]", error);
@@ -1260,6 +1287,10 @@ export async function setOutcomeAction(
 
     revalidatePath(`/app/applications/${applicationId}`);
     revalidatePath("/app/pipeline");
+
+    if (outcomeStatus) {
+      await logActivationMilestone(supabase, user.id, applicationId, "activation_first_outcome");
+    }
 
     return { status: "success", message: "Outcome saved." };
   } catch (error) {

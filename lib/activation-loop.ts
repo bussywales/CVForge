@@ -18,6 +18,7 @@ export type ActivationModel = {
   progress: { doneCount: number; totalCount: number; percent: number };
   nextBest: { id: string; why: string };
   celebration?: string | null;
+  primaryApplicationId?: string | null;
 };
 
 type Input = {
@@ -53,11 +54,14 @@ function buildStep(
 export function buildActivationModel(input: Input): ActivationModel {
   const { applications, insights } = input;
   const steps: ActivationStep[] = [];
-  const hasApps = applications.length > 0;
-  const firstApp = applications[0];
-  const outreachDone = applications.some((app) => Boolean(app.outreach_last_sent_at || app.outreach_stage));
-  const followupScheduled = applications.some((app) => Boolean(app.outreach_next_due_at || app.next_action_due));
-  const outcomeLogged = applications.some((app) => Boolean(app.last_outcome_status || app.outcome_status));
+  const activeApps = applications.filter((app) => (app.status ?? "").toString().toLowerCase() !== "archived");
+  const hasApps = activeApps.length > 0;
+  const firstApp = activeApps[0];
+  const outreachDone = activeApps.some((app) => Boolean(app.outreach_last_sent_at || app.outreach_stage));
+  const followupScheduled = activeApps.some((app) =>
+    Boolean(app.outreach_next_due_at || app.next_action_due || app.next_followup_at)
+  );
+  const outcomeLogged = activeApps.some((app) => Boolean(app.last_outcome_status || app.outcome_status || app.outcome_at));
   const interviewStepEnabled = hasInterviewPack(insights);
 
   if (!hasApps) {
@@ -155,5 +159,6 @@ export function buildActivationModel(input: Input): ActivationModel {
     progress: { doneCount, totalCount, percent },
     nextBest,
     celebration,
+    primaryApplicationId: firstApp?.id ?? null,
   };
 }

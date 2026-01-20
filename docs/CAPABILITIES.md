@@ -106,6 +106,7 @@ Signed-in users land on the Activation Command Centre: greeting with credits, to
 
 ## Activation guidance
 A compact Activation card on the dashboard shows deterministic first-value steps (add app, outreach, follow-up, outcome, interview/keep momentum) with progress, next-best CTA, non-blocking logging, and ErrorBanner fallback.
+Ops can view aggregated activation funnel metrics (views, clicks, completion, milestones) at `/app/ops/activation`, masked and read-only.
 
 ## Paywalls and resume
 Credit gating is consistent across Autopacks, Interview Pack exports, Application Kit downloads, and Answer Pack generation. If credits are 0 you’re routed to billing with a saved return link; returning with `resume=1` shows a Resume Accelerator banner with a short countdown that auto-resumes the blocked action on the right tab/anchor (never auto-spends).

@@ -259,9 +259,18 @@ export type MonetisationEventName =
   | "ops_playbook_action_click"
   | "ops_support_link_from_playbook"
   | "activation_view"
+  | "activation_cta_click"
   | "activation_step_click"
   | "activation_primary_cta_click"
   | "activation_model_error"
+  | "activation_completed"
+  | "activation_skip_week"
+  | "activation_funnel_view"
+  | "activation_funnel_export"
+  | "activation_first_application"
+  | "activation_first_outreach"
+  | "activation_first_followup"
+  | "activation_first_outcome"
   | "ops_entry_click"
   | "ops_access_denied_view"
   | "ops_access_denied_copy_snippet"
@@ -301,8 +310,8 @@ export async function logMonetisationEvent(
     meta?: Record<string, any>;
   }
 ) {
-  const applicationId = opts?.applicationId;
-  if (!applicationId) return; // require application context for now
+  const applicationId = opts?.applicationId ?? (event.startsWith("activation_") ? userId : null);
+  if (!applicationId) return; // require context for now
   const meta = {
     surface: opts?.surface ?? null,
     ...((opts?.meta as Record<string, any>) ?? {}),

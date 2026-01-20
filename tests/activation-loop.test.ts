@@ -109,4 +109,13 @@ describe("activation loop helper", () => {
     const second = buildActivationModel(input);
     expect(first.steps.map((s) => s.id)).toEqual(second.steps.map((s) => s.id));
   });
+
+  it("ignores archived apps for completion detection", () => {
+    const model = buildActivationModel({
+      applications: [{ ...baseApp, status: "archived", outreach_last_sent_at: new Date().toISOString() } as any],
+    });
+    const firstStep = model.steps[0];
+    expect(firstStep.id).toBe("add_application");
+    expect(firstStep.isDone).toBe(false);
+  });
 });
