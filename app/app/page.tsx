@@ -11,6 +11,8 @@ import TelemetryBanner from "./telemetry-banner";
 import CreditsIdleNudge from "@/components/CreditsIdleNudge";
 import { buildFollowupItems } from "@/lib/outreach-autopilot";
 import FollowupsDueStrip from "@/components/followups-due-strip";
+import { buildActivationModel, type ActivationModel } from "@/lib/activation-loop";
+import ActivationCard from "./activation-card";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +117,17 @@ export default async function AppPage() {
   const primaryCta =
     activeApps[0]?.href ?? "/app/applications/new";
   const followupsDue = buildFollowupItems(applications as any);
+  let activation: ActivationModel | null = null;
+  let activationError: { requestId?: string | null; message?: string | null; code?: string | null } | null = null;
+  try {
+    activation = buildActivationModel({ applications: applications as any, insights });
+  } catch (error) {
+    activationError = {
+      requestId: null,
+      message: (error as Error)?.message ?? "Unable to load activation steps",
+      code: "build_failed",
+    };
+  }
 
   return (
     <div className="space-y-6">
@@ -127,6 +140,7 @@ export default async function AppPage() {
           surface="dashboard"
         />
       ) : null}
+      <ActivationCard model={activation} error={activationError} />
 
       <Section
         title={`Welcome back${user?.email ? `, ${user.email}` : ""}.`}

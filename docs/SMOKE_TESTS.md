@@ -6,6 +6,12 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Request a magic link from /login.
 - Confirm redirect to /app after /auth/callback.
 
+## Activation loop
+- Signed-in user on /app sees Activation card; new user shows “Add your first application” as the first step.
+- After creating an application, refresh /app and the next step becomes Outreach with the correct anchor deep link.
+- Clicking the CTA navigates to the linked tab/anchor without errors; if logging is blocked the UI still works.
+- Progress counts update as steps are completed; “Try again” reload works if the model fails to load.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

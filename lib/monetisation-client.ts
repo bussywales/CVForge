@@ -282,6 +282,10 @@ const ALLOWED = [
   "billing_portal_redirected",
   "billing_portal_error",
   "ops_support_portal_open_click",
+  "activation_view",
+  "activation_step_click",
+  "activation_primary_cta_click",
+  "activation_model_error",
 ] as const;
 
 export type MonetisationClientEvent = (typeof ALLOWED)[number];
