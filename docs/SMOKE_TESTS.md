@@ -71,6 +71,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Ops dossier Billing triage: Resolution section shows recent outcomes list even if Stripe snapshot fails.
 - Non-ops hitting POST /api/ops/resolution-outcome gets JSON 403 with requestId; logging remains best-effort and sanitised.
 
+## Quick prod checks (v0.8.18)
+- /app/ops/resolutions shows masked summary for last 24h; filters (7d/outcome/userId) update totals; exports download masked JSON/CSV.
+- From ResolutionCard delay outcome, Add to watchlist succeeds; Incidents callout shows active watch item expiring soon.
+- Billing incident playbook after recent resolution shows suppressed card (“Resolved recently”) instead of full playbook.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

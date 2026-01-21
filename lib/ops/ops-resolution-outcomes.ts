@@ -104,7 +104,7 @@ export async function listRecentOutcomes({
         code: meta.code as ResolutionOutcomeCode,
         note,
         createdAt: row.occurred_at ?? row.created_at ?? now.toISOString(),
-        actor: meta.actor ?? null,
+        actor: meta.actor ?? maskEmail(meta.actorEmail) ?? null,
         requestId: meta.requestId ?? null,
         userId: meta.userId ?? null,
       } as ResolutionOutcome;
@@ -112,4 +112,76 @@ export async function listRecentOutcomes({
     .filter((o) => Boolean(o.code))
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, limit);
+}
+
+export async function summariseResolutionOutcomes({
+  windowHours = 24,
+  userId,
+  outcomeCode,
+  now = new Date(),
+  client,
+}: {
+  windowHours?: number;
+  userId?: string | null;
+  outcomeCode?: ResolutionOutcomeCode | null;
+  now?: Date;
+  client?: ReturnType<typeof createServiceRoleClient>;
+}) {
+  const admin = client ?? createServiceRoleClient();
+  const since = new Date(now.getTime() - windowHours * 60 * 60 * 1000);
+  let query = admin
+    .from("application_activities")
+    .select("body,occurred_at,created_at")
+    .eq("type", "monetisation.ops_resolution_outcome_set")
+    .gte("occurred_at", since.toISOString())
+    .order("occurred_at", { ascending: false });
+  if (userId) query = query.like("body", `%${userId}%`);
+  if (outcomeCode) query = query.like("body", `%${outcomeCode}%`);
+  const { data, error } = await query;
+  if (error || !data) {
+    return { totals: { count: 0, uniqueUsers: 0, uniqueRequestIds: 0 }, topOutcomes: [], topActors: [], bySurface: [], recent: [] };
+  }
+  const outcomes = data.map((row: any) => {
+    let meta: any = {};
+    try {
+      meta = JSON.parse(row.body ?? "{}");
+    } catch {
+      meta = {};
+    }
+    const noteRaw = typeof meta.note === "string" ? meta.note : "";
+    return {
+      code: meta.code as ResolutionOutcomeCode,
+      noteMasked: noteRaw ? noteRaw.slice(0, 60) : null,
+      at: row.occurred_at ?? row.created_at ?? now.toISOString(),
+      requestId: meta.requestId ?? null,
+      userIdMasked: meta.userId ? `[user:${String(meta.userId).slice(0, 6)}…]` : null,
+      actorMasked: meta.actor ?? maskEmail(meta.actorEmail) ?? null,
+      surface: meta.surface ?? meta.contextSurface ?? null,
+    };
+  });
+  const totals = {
+    count: outcomes.length,
+    uniqueUsers: new Set(outcomes.map((o) => o.userIdMasked).filter(Boolean)).size,
+    uniqueRequestIds: new Set(outcomes.map((o) => o.requestId).filter(Boolean)).size,
+  };
+  const topOutcomes = Array.from(
+    outcomes.reduce((map, o) => map.set(o.code, (map.get(o.code) ?? 0) + 1), new Map<string, number>())
+  )
+    .sort((a, b) => b[1] - a[1])
+    .map(([code, count]) => ({ code, count }));
+  const topActors = Array.from(
+    outcomes.reduce((map, o) => map.set(o.actorMasked ?? "unknown", (map.get(o.actorMasked ?? "unknown") ?? 0) + 1), new Map<string, number>())
+  )
+    .sort((a, b) => b[1] - a[1])
+    .map(([actorMasked, count]) => ({ actorMasked, count }));
+  const bySurface = Array.from(
+    outcomes.reduce((map, o) => {
+      if (!o.surface) return map;
+      return map.set(o.surface, (map.get(o.surface) ?? 0) + 1);
+    }, new Map<string, number>())
+  )
+    .sort((a, b) => b[1] - a[1])
+    .map(([surface, count]) => ({ surface, count }));
+  const recent = outcomes.slice(0, 20);
+  return { totals, topOutcomes, topActors, bySurface, recent };
 }

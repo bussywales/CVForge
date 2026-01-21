@@ -15,6 +15,7 @@ import { buildBillingTraceSnippet } from "@/lib/billing/billing-trace-snippet";
 import { buildRelatedIncidentsLink, buildRelatedAuditsLink } from "@/lib/billing/billing-related-links";
 import { ResolutionCard } from "@/app/app/ops/incidents/resolution-card";
 import type { ResolutionOutcome } from "@/lib/ops/ops-resolution-outcomes";
+import type { WatchRecord } from "@/lib/ops/ops-watch";
 
 type SnapshotResponse =
   | {
@@ -47,9 +48,10 @@ type Props = {
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
   initialOutcomes?: ResolutionOutcome[];
+  initialWatch?: WatchRecord[];
 };
 
-export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubscriptionId, initialOutcomes = [] }: Props) {
+export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubscriptionId, initialOutcomes = [], initialWatch = [] }: Props) {
   const [snapshot, setSnapshot] = useState<SnapshotResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -310,6 +312,24 @@ export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubs
           defaultLabel={resolutionDefaultLabel}
           initialOutcomes={initialOutcomes}
         />
+        <div className="mt-2">
+          <Link href="/app/ops/resolutions" className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline">
+            View all resolutions
+          </Link>
+        </div>
+        {initialWatch.length > 0 ? (
+          <div className="mt-2 rounded-xl border border-indigo-100 bg-indigo-50 px-3 py-2">
+            <p className="text-xs font-semibold text-[rgb(var(--ink))]">Active watchlist</p>
+            <ul className="mt-1 space-y-1 text-[11px] text-[rgb(var(--muted))]">
+              {initialWatch.map((w) => (
+                <li key={`${w.requestId}-${w.expiresAt}`} className="rounded-lg border border-indigo-100 bg-white px-2 py-1">
+                  <span className="font-semibold text-[rgb(var(--ink))]">{w.reasonCode}</span> · {w.requestId} · exp {new Date(w.expiresAt).toLocaleString()}
+                  {w.note ? <div>{w.note}</div> : null}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
     </div>
   );

@@ -15,6 +15,7 @@ import { makeRequestId } from "@/lib/observability/request-id";
 import BillingTriageCard from "./billing-triage-card";
 import { fetchBillingSettings } from "@/lib/data/billing";
 import { listRecentOutcomes } from "@/lib/ops/ops-resolution-outcomes";
+import { listWatch } from "@/lib/ops/ops-watch";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +42,7 @@ export default async function OpsUserPage({ params }: { params: { id: string } }
   const billingSettings = await fetchBillingSettings(admin as any, params.id);
   const applications = (await listApplications(admin as any, params.id)).slice(0, 10);
   const resolutionOutcomes = await listRecentOutcomes({ userId: params.id, limit: 3 });
+  const watchRecords = await listWatch({ userId: params.id, windowHours: 168, activeOnly: true });
   const lastOutcomes = await admin
     .from("outcomes")
     .select("id,status,reason,happened_at")
@@ -201,6 +203,7 @@ export default async function OpsUserPage({ params }: { params: { id: string } }
         stripeCustomerId={billingSettings?.stripe_customer_id ?? null}
         stripeSubscriptionId={billingSettings?.stripe_subscription_id ?? null}
         initialOutcomes={resolutionOutcomes}
+        initialWatch={watchRecords}
       />
       {canEdit ? (
         <RoleEditor

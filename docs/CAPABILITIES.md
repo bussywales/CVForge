@@ -103,6 +103,7 @@ Recheck throttling + delay playbooks: /api/billing/recheck is rate-limited per u
 Billing help prompt: /app/billing shows a dismissible “Did this help?” prompt with Yes/No flows, support snippet copy, and portal retry link to reduce support load; logging remains non-blocking and sanitised.
 Ops Resolution card: Incident Console and user dossier Billing triage surface an Ops Resolution card for billing/requestId contexts with outcome select, deterministic customer reply copy/regenerate, support snippet copy, and masked ops links; logging is best-effort and sanitised.
 Resolution outcomes loop: Ops can save structured billing resolution outcomes (enum codes + optional note) tied to requestId/userId via ops API; Incidents and dossier show recent outcomes inline to reduce repeat triage; logging/allowlists remain masked and non-blocking.
+Resolution analytics & watchlist: /app/ops/resolutions provides masked outcome analytics with filters/exports; watchlist API + UI tracks delayed/webhook cases (ResolutionCard, Incidents, dossier); playbooks suppress when a recent resolution exists.
 
 ## Monetisation analytics
 Credit gates, checkout starts/successes, resume clicks, and autopack completions are logged deterministically. Insights shows a revenue funnel (7d/30d) plus top surfaces for gates and billing clicks to spot leaks quickly.

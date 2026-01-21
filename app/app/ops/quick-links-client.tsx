@@ -44,6 +44,13 @@ export default function QuickLinksClient() {
         Activation funnel
         <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">Aggregated activation signals (ops-only)</p>
       </Link>
+      <Link
+        href="/app/ops/resolutions"
+        className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
+      >
+        Resolutions
+        <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">Outcome analytics & watchlist</p>
+      </Link>
     </div>
   );
 }

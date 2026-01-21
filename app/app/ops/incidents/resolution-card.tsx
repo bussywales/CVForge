@@ -53,6 +53,8 @@ export function ResolutionCard({
   const [error, setError] = useState<string | null>(null);
   const [outcomes, setOutcomes] = useState<ResolutionOutcome[]>(initialOutcomes);
   const [showOutcomes, setShowOutcomes] = useState(false);
+  const [watchSaving, setWatchSaving] = useState(false);
+  const [watchSaved, setWatchSaved] = useState(false);
   const reply = useMemo(
     () => buildBillingReply({ label, requestId: incidentRequestId, supportPath: supportLink ?? undefined }),
     [label, incidentRequestId, supportLink]
@@ -62,6 +64,7 @@ export function ResolutionCard({
     : null;
   const [viewLogged, setViewLogged] = useState(false);
   const latestOutcome = outcomes[0];
+  const showWatchCta = outcomeCode === "WEBHOOK_DELAY_WAITED" || outcomeCode === "CREDITS_RECONCILED_SUPPORT";
 
   useEffect(() => {
     if (viewLogged) return;
@@ -113,6 +116,41 @@ export function ResolutionCard({
       setError("Unable to save outcome");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const addWatch = async () => {
+    if (watchSaving || (!incidentRequestId && !userId)) return;
+    setWatchSaving(true);
+    setWatchSaved(false);
+    setError(null);
+    logMonetisationClientEvent("ops_watch_add_click", null, "ops", { code: outcomeCode });
+    try {
+      const res = await fetch("/api/ops/watch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requestId: incidentRequestId,
+          userId,
+          reasonCode: outcomeCode,
+          ttlHours: 24,
+          note: note ? note.slice(0, 120) : undefined,
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body?.ok) {
+        const reqId = res.headers.get("x-request-id") ?? body?.error?.requestId ?? null;
+        logMonetisationClientEvent("ops_watch_add_error", null, "ops", { requestId: reqId });
+        setError(body?.error?.message ?? "Unable to add watch");
+        return;
+      }
+      logMonetisationClientEvent("ops_watch_add_success", null, "ops", { reasonCode: outcomeCode });
+      setWatchSaved(true);
+    } catch {
+      logMonetisationClientEvent("ops_watch_add_error", null, "ops", { code: outcomeCode });
+      setError("Unable to add watch");
+    } finally {
+      setWatchSaving(false);
     }
   };
 
@@ -235,6 +273,16 @@ export function ResolutionCard({
             >
               {saving ? "Saving..." : "Save outcome"}
             </button>
+            {showWatchCta ? (
+              <button
+                type="button"
+                className="rounded-full border border-indigo-200 bg-white px-3 py-1 text-[11px] font-semibold text-indigo-800 hover:bg-indigo-50 disabled:opacity-50"
+                onClick={addWatch}
+                disabled={watchSaving || (!incidentRequestId && !userId)}
+              >
+                {watchSaving ? "Adding..." : watchSaved ? "Watch added" : "Add to watchlist"}
+              </button>
+            ) : null}
             <button
               type="button"
               className="rounded-full border border-indigo-200 bg-white px-3 py-1 text-[11px] font-semibold text-indigo-800 hover:bg-indigo-50"

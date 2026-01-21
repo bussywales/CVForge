@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.18
+- Ops resolution analytics: ops-only summary API + /app/ops/resolutions page with filters (24h/7d, code, user), masked exports, top outcomes/actors, and recent list linking to incidents/dossier.
+- Watchlist: ops watch API + UI (ResolutionCard delay outcomes, Incidents callout, dossier) to track webhook/delay cases; logging wired for add/view.
+- Playbook suppression: billing playbooks suppressed when a recent resolution exists (request/user within 24h) with muted “Resolved recently” card and telemetry.
+
 ## v0.8.13
 - Billing webhook health + trace: /app/billing shows a webhook status badge and anchorable Billing timeline panel with Re-check status (no navigation), masked trace snippet copy, and refreshed timeline/delay/webhook health model.
 - Webhook health helper + recheck API expose masked counts/status/lag; credit delay + timeline reuse deterministic helpers with non-blocking logging/allowlists.

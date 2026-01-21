@@ -6,6 +6,7 @@ import { requireOpsAccess } from "@/lib/rbac";
 import AccessDenied from "@/components/AccessDenied";
 import { makeRequestId } from "@/lib/observability/request-id";
 import { listRecentOutcomes } from "@/lib/ops/ops-resolution-outcomes";
+import { listWatch } from "@/lib/ops/ops-watch";
 
 export const dynamic = "force-dynamic";
 
@@ -23,6 +24,7 @@ export default async function IncidentConsole({ searchParams }: { searchParams?:
   const recent = await getRecentIncidentEvents({ limit: 200, sinceDays: Number.isFinite(days) ? days : 7 });
   const detail = lookupId ? await getIncidentByRequestId(lookupId) : null;
   const outcomes = await listRecentOutcomes({ requestId: lookupId || detail?.requestId || null, limit: 3 });
+  const watch = await listWatch({ activeOnly: true, windowHours: 24 });
 
-  return <IncidentsClient incidents={recent} initialLookup={detail} initialRequestId={lookupId || null} initialOutcomes={outcomes} />;
+  return <IncidentsClient incidents={recent} initialLookup={detail} initialRequestId={lookupId || null} initialOutcomes={outcomes} initialWatch={watch} />;
 }

@@ -21,6 +21,7 @@ describe("ResolutionCard outcome flow", () => {
     (global.navigator as any).clipboard = {
       writeText: vi.fn().mockResolvedValue(undefined),
     };
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, headers: new Headers(), json: async () => ({ ok: true }) }));
   });
 
   afterEach(() => {
@@ -53,5 +54,17 @@ describe("ResolutionCard outcome flow", () => {
     await act(async () => saveBtn.click());
     expect(logMock).toHaveBeenCalledWith("ops_resolution_outcome_set_error", null, "ops", { requestId: "req_fail" });
     expect(container.textContent).toContain("Unable to save outcome");
+  });
+
+  it("adds to watchlist when delay outcome", async () => {
+    const { container } = renderCard();
+    const select = container.querySelector("select:last-of-type") as HTMLSelectElement;
+    act(() => {
+      select.value = "WEBHOOK_DELAY_WAITED";
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    const watchBtn = Array.from(container.querySelectorAll("button")).find((el) => el.textContent?.includes("Add to watchlist")) as HTMLButtonElement;
+    await act(async () => watchBtn.click());
+    expect(logMock).toHaveBeenCalledWith("ops_watch_add_click", null, "ops", { code: "WEBHOOK_DELAY_WAITED" });
   });
 });

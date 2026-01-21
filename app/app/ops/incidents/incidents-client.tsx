@@ -23,13 +23,16 @@ import { buildBillingTraceSummary } from "@/lib/ops/ops-billing-trace";
 import { buildBillingDelayBuckets } from "@/lib/ops/ops-billing-delay-buckets";
 import { ResolutionCard } from "./resolution-card";
 import { buildOpsWebhookHealth } from "@/lib/ops/ops-webhook-health";
+import { shouldSuppressPlaybook } from "@/lib/ops/playbook-suppression";
 import type { ResolutionOutcome } from "@/lib/ops/ops-resolution-outcomes";
+import type { WatchRecord } from "@/lib/ops/ops-watch";
 
 type Props = {
   incidents: IncidentRecord[];
   initialLookup?: IncidentRecord | null;
   initialRequestId?: string | null;
   initialOutcomes?: ResolutionOutcome[];
+  initialWatch?: WatchRecord[];
 };
 
 type TimeFilter = "1" | "24" | "168";
@@ -57,7 +60,7 @@ function exportCsv(groups: IncidentGroup[]) {
   return [header, ...rows].join("\n");
 }
 
-export default function IncidentsClient({ incidents, initialLookup, initialRequestId, initialOutcomes }: Props) {
+export default function IncidentsClient({ incidents, initialLookup, initialRequestId, initialOutcomes, initialWatch }: Props) {
   const [filters, setFilters] = useState({
     time: "24" as TimeFilter,
     surface: "all",
@@ -74,6 +77,8 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
   const [playbookLoadingKey, setPlaybookLoadingKey] = useState<string | null>(null);
   const [playbookViewed, setPlaybookViewed] = useState<Record<string, boolean>>({});
   const billingSurfaces = useMemo(() => ["billing", "portal", "checkout", "diagnostics"], []);
+  const [outcomes] = useState<ResolutionOutcome[]>(initialOutcomes ?? []);
+  const [watchRecords] = useState<WatchRecord[]>(initialWatch ?? []);
 
   const filtered = useMemo(() => filterIncidents(incidents, filters), [incidents, filters]);
   const groups = useMemo(() => groupIncidents(filtered), [filtered]);
@@ -169,6 +174,12 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
       });
     }
   }, [hasDelayBuckets, delayBuckets.window24h.waiting_webhook, delayBuckets.window24h.waiting_ledger, delayBuckets.window24h.ui_stale, delayBuckets.window24h.unknown]);
+
+  useEffect(() => {
+    if (watchRecords.length > 0) {
+      logMonetisationClientEvent("ops_watchlist_view", null, "ops", { count: watchRecords.length });
+    }
+  }, [watchRecords.length]);
 
   useEffect(() => {
     if (!expandedGroup) return;
@@ -440,6 +451,29 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
               ))}
             </div>
           </div>
+        </div>
+      ) : null}
+      {watchRecords.length > 0 ? (
+        <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-900">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-[rgb(var(--ink))]">Watchlist</p>
+            <span className="text-[10px] text-[rgb(var(--muted))]">{watchRecords.length} active</span>
+          </div>
+          <ul className="mt-2 space-y-1">
+            {watchRecords
+              .slice()
+              .sort((a, b) => new Date(a.expiresAt).getTime() - new Date(b.expiresAt).getTime())
+              .slice(0, 10)
+              .map((w) => (
+                <li key={`${w.requestId}-${w.expiresAt}`} className="rounded-lg border border-indigo-100 bg-white px-2 py-1">
+                  <p className="font-semibold text-[rgb(var(--ink))]">
+                    {w.reasonCode} · {w.requestId}
+                  </p>
+                  <p className="text-[10px] text-[rgb(var(--muted))]">Expires {new Date(w.expiresAt).toLocaleString()}</p>
+                  {w.note ? <p className="text-[11px] text-[rgb(var(--muted))]">{w.note}</p> : null}
+                </li>
+              ))}
+          </ul>
         </div>
       ) : null}
       {showResolutionCard ? (
@@ -748,8 +782,19 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
                     ) : null}
                     {(() => {
                       const playbook = buildIncidentPlaybook(group);
+                      const suppression = shouldSuppressPlaybook({ group, outcomes });
                       const linkState = playbookLinks[group.key];
                       const errorState = playbookErrors[group.key];
+                      if (suppression.suppressed) {
+                        logMonetisationClientEvent("ops_playbook_suppressed_view", null, "ops", {
+                          requestId: group.sampleRequestIds[0] ?? null,
+                        });
+                        return (
+                          <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] text-[rgb(var(--muted))]">
+                            Resolved recently: {suppression.outcome?.code ?? "outcome"} at {suppression.outcome?.createdAt}
+                          </div>
+                        );
+                      }
                       if (!playbook) {
                         return (
                           <div className="rounded-lg border border-black/5 bg-white px-3 py-2 text-[11px] text-[rgb(var(--muted))]">
