@@ -3,6 +3,8 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
 
+export type EffectivenessState = "unknown" | "success" | "fail";
+
 export type ResolutionOutcomeCode =
   | "PORTAL_RETRY_SUCCESS"
   | "WEBHOOK_DELAY_WAITED"
@@ -13,12 +15,20 @@ export type ResolutionOutcomeCode =
   | "OTHER";
 
 export type ResolutionOutcome = {
+  id?: string;
   code: ResolutionOutcomeCode;
   note?: string | null;
   createdAt: string;
   actor: string | null;
   requestId?: string | null;
   userId?: string | null;
+  surface?: string | null;
+  effectivenessState?: EffectivenessState;
+  effectivenessReason?: string | null;
+  effectivenessNote?: string | null;
+  effectivenessSource?: string | null;
+  effectivenessUpdatedAt?: string | null;
+  effectivenessDeferredUntil?: string | null;
 };
 
 type OutcomeInput = {
@@ -45,6 +55,7 @@ function maskEmail(email?: string | null) {
 export function buildOutcomeEvent(input: OutcomeInput) {
   const trimmedNote =
     typeof input.note === "string" && input.note.length > 0 ? input.note.slice(0, 200) : undefined;
+  const nowIso = new Date().toISOString();
   const meta = sanitizeMonetisationMeta({
     code: input.code,
     note: trimmedNote,
@@ -53,8 +64,92 @@ export function buildOutcomeEvent(input: OutcomeInput) {
     actorId: input.actorId ?? null,
     actor: maskEmail(input.actorEmail) ?? null,
     hasNote: Boolean(trimmedNote),
+    effectivenessState: "unknown" as EffectivenessState,
+    effectivenessUpdatedAt: nowIso,
+    effectivenessDeferredUntil: null,
+    effectivenessSource: "ops_resolution_outcome",
   });
   return { surface: "ops", meta };
+}
+
+function sanitizeEffectiveness(meta: Record<string, any>) {
+  const cleaned = sanitizeMonetisationMeta({
+    effectivenessState: meta.effectivenessState ?? meta.state ?? "unknown",
+    effectivenessReason: meta.effectivenessReason ?? meta.reason ?? null,
+    effectivenessNote: meta.effectivenessNote ?? meta.effectiveNote ?? null,
+    effectivenessSource: meta.effectivenessSource ?? meta.source ?? null,
+    effectivenessUpdatedAt: meta.effectivenessUpdatedAt ?? meta.updatedAt ?? null,
+    effectivenessDeferredUntil: meta.effectivenessDeferredUntil ?? meta.deferredUntil ?? null,
+  });
+  const stateRaw = cleaned.effectivenessState ?? meta.effectivenessState ?? "unknown";
+  const state: EffectivenessState = stateRaw === "success" || stateRaw === "fail" ? stateRaw : "unknown";
+  return {
+    effectivenessState: state,
+    effectivenessReason: typeof cleaned.effectivenessReason === "string" ? cleaned.effectivenessReason : null,
+    effectivenessNote: typeof cleaned.effectivenessNote === "string" ? cleaned.effectivenessNote : null,
+    effectivenessSource: typeof cleaned.effectivenessSource === "string" ? cleaned.effectivenessSource : null,
+    effectivenessUpdatedAt:
+      typeof cleaned.effectivenessUpdatedAt === "string"
+        ? cleaned.effectivenessUpdatedAt
+        : typeof meta.effectivenessUpdatedAt === "string"
+          ? meta.effectivenessUpdatedAt
+          : null,
+    effectivenessDeferredUntil:
+      typeof cleaned.effectivenessDeferredUntil === "string"
+        ? cleaned.effectivenessDeferredUntil
+        : typeof meta.effectivenessDeferredUntil === "string"
+          ? meta.effectivenessDeferredUntil
+          : null,
+  };
+}
+
+function parseOutcomeRow(row: any, now: Date): ResolutionOutcome | null {
+  let meta: any = {};
+  try {
+    meta = JSON.parse(row.body ?? "{}");
+  } catch {
+    meta = {};
+  }
+  const note = typeof meta.note === "string" ? meta.note.slice(0, 200) : undefined;
+  const createdAt = row.occurred_at ?? row.created_at ?? now.toISOString();
+  const effectiveness = sanitizeEffectiveness(meta);
+  return {
+    id: row.id ?? undefined,
+    code: meta.code as ResolutionOutcomeCode,
+    note,
+    createdAt,
+    actor: meta.actor ?? maskEmail(meta.actorEmail) ?? null,
+    requestId: meta.requestId ?? null,
+    userId: meta.userId ?? null,
+    surface: meta.surface ?? meta.contextSurface ?? null,
+    ...effectiveness,
+  };
+}
+
+export function mapOutcomeRows(rows: any[], now = new Date()): ResolutionOutcome[] {
+  return rows
+    .map((row) => parseOutcomeRow(row, now))
+    .filter((o): o is ResolutionOutcome => Boolean(o && o.code))
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+}
+
+export function maskResolutionOutcome(outcome: ResolutionOutcome) {
+  return {
+    id: outcome.id ?? null,
+    code: outcome.code,
+    createdAt: outcome.createdAt,
+    requestId: outcome.requestId ?? null,
+    userId: outcome.userId ?? null,
+    userIdMasked: outcome.userId ? `[user:${String(outcome.userId).slice(0, 6)}…]` : null,
+    actorMasked: outcome.actor ?? null,
+    noteMasked: outcome.note ? outcome.note.slice(0, 120) : null,
+    effectivenessState: outcome.effectivenessState ?? "unknown",
+    effectivenessReason: outcome.effectivenessReason ?? null,
+    effectivenessNote: outcome.effectivenessNote ?? null,
+    effectivenessSource: outcome.effectivenessSource ?? null,
+    effectivenessUpdatedAt: outcome.effectivenessUpdatedAt ?? null,
+    effectivenessDeferredUntil: outcome.effectivenessDeferredUntil ?? null,
+  };
 }
 
 export async function listRecentOutcomes({
@@ -75,7 +170,7 @@ export async function listRecentOutcomes({
   since.setMonth(since.getMonth() - 3);
   let query = admin
     .from("application_activities")
-    .select("type,body,occurred_at,created_at")
+    .select("id,type,body,occurred_at,created_at")
     .eq("type", "monetisation.ops_resolution_outcome_set")
     .gte("occurred_at", since.toISOString())
     .order("occurred_at", { ascending: false })
@@ -91,27 +186,7 @@ export async function listRecentOutcomes({
   if (error || !data) return [];
 
   const rows = data.slice(0, limit);
-  return rows
-    .map((row: any) => {
-      let meta: any = {};
-      try {
-        meta = JSON.parse(row.body ?? "{}");
-      } catch {
-        meta = {};
-      }
-      const note = typeof meta.note === "string" ? meta.note.slice(0, 200) : undefined;
-      return {
-        code: meta.code as ResolutionOutcomeCode,
-        note,
-        createdAt: row.occurred_at ?? row.created_at ?? now.toISOString(),
-        actor: meta.actor ?? maskEmail(meta.actorEmail) ?? null,
-        requestId: meta.requestId ?? null,
-        userId: meta.userId ?? null,
-      } as ResolutionOutcome;
-    })
-    .filter((o) => Boolean(o.code))
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, limit);
+  return mapOutcomeRows(rows, now).slice(0, limit);
 }
 
 export async function summariseResolutionOutcomes({
@@ -131,7 +206,7 @@ export async function summariseResolutionOutcomes({
   const since = new Date(now.getTime() - windowHours * 60 * 60 * 1000);
   let query = admin
     .from("application_activities")
-    .select("body,occurred_at,created_at")
+    .select("id,body,occurred_at,created_at")
     .eq("type", "monetisation.ops_resolution_outcome_set")
     .gte("occurred_at", since.toISOString())
     .order("occurred_at", { ascending: false });
@@ -141,27 +216,10 @@ export async function summariseResolutionOutcomes({
   if (error || !data) {
     return { totals: { count: 0, uniqueUsers: 0, uniqueRequestIds: 0 }, topOutcomes: [], topActors: [], bySurface: [], recent: [] };
   }
-  const outcomes = data.map((row: any) => {
-    let meta: any = {};
-    try {
-      meta = JSON.parse(row.body ?? "{}");
-    } catch {
-      meta = {};
-    }
-    const noteRaw = typeof meta.note === "string" ? meta.note : "";
-    return {
-      code: meta.code as ResolutionOutcomeCode,
-      noteMasked: noteRaw ? noteRaw.slice(0, 60) : null,
-      at: row.occurred_at ?? row.created_at ?? now.toISOString(),
-      requestId: meta.requestId ?? null,
-      userIdMasked: meta.userId ? `[user:${String(meta.userId).slice(0, 6)}…]` : null,
-      actorMasked: meta.actor ?? maskEmail(meta.actorEmail) ?? null,
-      surface: meta.surface ?? meta.contextSurface ?? null,
-    };
-  });
+  const outcomes = mapOutcomeRows(data, now);
   const totals = {
     count: outcomes.length,
-    uniqueUsers: new Set(outcomes.map((o) => o.userIdMasked).filter(Boolean)).size,
+    uniqueUsers: new Set(outcomes.map((o) => o.userId).filter(Boolean)).size,
     uniqueRequestIds: new Set(outcomes.map((o) => o.requestId).filter(Boolean)).size,
   };
   const topOutcomes = Array.from(
@@ -170,7 +228,7 @@ export async function summariseResolutionOutcomes({
     .sort((a, b) => b[1] - a[1])
     .map(([code, count]) => ({ code, count }));
   const topActors = Array.from(
-    outcomes.reduce((map, o) => map.set(o.actorMasked ?? "unknown", (map.get(o.actorMasked ?? "unknown") ?? 0) + 1), new Map<string, number>())
+    outcomes.reduce((map, o) => map.set(o.actor ?? "unknown", (map.get(o.actor ?? "unknown") ?? 0) + 1), new Map<string, number>())
   )
     .sort((a, b) => b[1] - a[1])
     .map(([actorMasked, count]) => ({ actorMasked, count }));
@@ -182,6 +240,13 @@ export async function summariseResolutionOutcomes({
   )
     .sort((a, b) => b[1] - a[1])
     .map(([surface, count]) => ({ surface, count }));
-  const recent = outcomes.slice(0, 20);
+  const recent = outcomes.slice(0, 20).map((o) => ({
+    at: o.createdAt,
+    code: o.code,
+    requestId: o.requestId ?? null,
+    userIdMasked: o.userId ? `[user:${String(o.userId).slice(0, 6)}…]` : null,
+    actorMasked: o.actor ?? null,
+    noteMasked: o.note ? o.note.slice(0, 60) : null,
+  }));
   return { totals, topOutcomes, topActors, bySurface, recent };
 }

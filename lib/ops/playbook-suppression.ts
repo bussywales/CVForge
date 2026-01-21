@@ -1,7 +1,7 @@
 import type { IncidentGroup } from "@/lib/ops/incidents-shared";
 import type { ResolutionOutcome } from "@/lib/ops/ops-resolution-outcomes";
 
-type SuppressionResult = { suppressed: boolean; outcome?: ResolutionOutcome };
+type SuppressionResult = { suppressed: boolean; outcome?: ResolutionOutcome; failed?: boolean };
 
 function outcomeFamily(code?: string | null) {
   if (!code) return "unknown";
@@ -28,6 +28,8 @@ export function shouldSuppressPlaybook({
     webhook: true,
     delay: true,
   };
+  let bestSuccess: ResolutionOutcome | null = null;
+  let bestFail: ResolutionOutcome | null = null;
   for (const outcome of outcomes) {
     const created = new Date(outcome.createdAt).getTime();
     if (Number.isNaN(created)) continue;
@@ -37,8 +39,24 @@ export function shouldSuppressPlaybook({
     const sameRequest = outcome.requestId && primaryRequestId && outcome.requestId === primaryRequestId;
     const sameUser = outcome.userId && groupUserId && outcome.userId === groupUserId;
     if (sameRequest || sameUser) {
-      return { suppressed: true, outcome };
+      if (outcome.effectivenessState === "fail") {
+        if (!bestFail || new Date(bestFail.createdAt).getTime() < created) {
+          bestFail = outcome;
+        }
+        continue;
+      }
+      if (outcome.effectivenessState === "success") {
+        if (!bestSuccess || new Date(bestSuccess.createdAt).getTime() < created) {
+          bestSuccess = outcome;
+        }
+      }
     }
+  }
+  if (bestSuccess) {
+    return { suppressed: true, outcome: bestSuccess, failed: false };
+  }
+  if (bestFail) {
+    return { suppressed: false, outcome: bestFail, failed: true };
   }
   return { suppressed: false };
 }

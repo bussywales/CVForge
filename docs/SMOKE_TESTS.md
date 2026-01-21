@@ -76,6 +76,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - From ResolutionCard delay outcome, Add to watchlist succeeds; Incidents callout shows active watch item expiring soon.
 - Billing incident playbook after recent resolution shows suppressed card (“Resolved recently”) instead of full playbook.
 
+## Quick prod checks (v0.8.19)
+- Mark a resolution outcome as No with a fail reason, refresh /app/ops/resolutions (7d) → Top failed outcomes/reasons reflect the change.
+- Open /app/ops/resolutions → Due reviews tab lists outcomes older than 2h with request + dossier links; Later snoozes the prompt for 24h and shows requestId on save.
+- Billing incident playbook: a recent success outcome suppresses the playbook card; a recent fail keeps the playbook visible with a “Previous attempt failed” hint.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

@@ -5,13 +5,14 @@ import { getUserRole, isOpsRole } from "@/lib/rbac";
 import { logMonetisationEvent } from "@/lib/monetisation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { captureServerError } from "@/lib/observability/sentry";
-import { buildOutcomeEvent, type ResolutionOutcomeCode } from "@/lib/ops/ops-resolution-outcomes";
+import { buildOutcomeEvent, mapOutcomeRows, type ResolutionOutcomeCode } from "@/lib/ops/ops-resolution-outcomes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   const { headers, requestId } = withRequestIdHeaders(request.headers);
+  headers.set("Cache-Control", "no-store");
   const { user } = await getSupabaseUser();
   if (!user) {
     return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
@@ -47,8 +48,9 @@ export async function POST(request: Request) {
       actorId: user.id,
       actorEmail: user.email,
     });
-    await logMonetisationEvent(admin, user.id, "ops_resolution_outcome_set", payload);
-    return NextResponse.json({ ok: true }, { headers });
+    const activity = await logMonetisationEvent(admin, user.id, "ops_resolution_outcome_set", payload);
+    const parsed = activity ? mapOutcomeRows([activity], new Date())[0] : null;
+    return NextResponse.json({ ok: true, item: parsed ?? null }, { headers });
   } catch (error) {
     captureServerError(error, { requestId, route: "/api/ops/resolution-outcome", userId: user.id, code: "OUTCOME_SET_FAIL" });
     return jsonError({ code: "OUTCOME_SET_FAIL", message: "Unable to save resolution outcome", requestId });

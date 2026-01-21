@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import CopyIconButton from "@/components/CopyIconButton";
 import { OPS_INCIDENTS_COPY } from "@/lib/ops/incidents.microcopy";
 import {
@@ -76,6 +76,7 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
   const [playbookErrors, setPlaybookErrors] = useState<Record<string, { message?: string | null; requestId?: string | null } | null>>({});
   const [playbookLoadingKey, setPlaybookLoadingKey] = useState<string | null>(null);
   const [playbookViewed, setPlaybookViewed] = useState<Record<string, boolean>>({});
+  const suppressionLogged = useRef<Record<string, boolean>>({});
   const billingSurfaces = useMemo(() => ["billing", "portal", "checkout", "diagnostics"], []);
   const [outcomes] = useState<ResolutionOutcome[]>(initialOutcomes ?? []);
   const [watchRecords] = useState<WatchRecord[]>(initialWatch ?? []);
@@ -785,10 +786,20 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
                       const suppression = shouldSuppressPlaybook({ group, outcomes });
                       const linkState = playbookLinks[group.key];
                       const errorState = playbookErrors[group.key];
+                      const requestIdForLog = group.sampleRequestIds[0] ?? null;
                       if (suppression.suppressed) {
-                        logMonetisationClientEvent("ops_playbook_suppressed_view", null, "ops", {
-                          requestId: group.sampleRequestIds[0] ?? null,
-                        });
+                        const logKey = `${group.key}-suppressed`;
+                        if (!suppressionLogged.current[logKey]) {
+                          logMonetisationClientEvent("ops_playbook_suppressed_view", null, "ops", {
+                            requestId: requestIdForLog,
+                          });
+                          logMonetisationClientEvent("ops_billing_playbook_suppressed_success", null, "ops", {
+                            requestId: requestIdForLog,
+                            outcomeCode: suppression.outcome?.code ?? null,
+                            state: suppression.outcome?.effectivenessState ?? null,
+                          });
+                          suppressionLogged.current[logKey] = true;
+                        }
                         return (
                           <div className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-[11px] text-[rgb(var(--muted))]">
                             Resolved recently: {suppression.outcome?.code ?? "outcome"} at {suppression.outcome?.createdAt}
@@ -802,8 +813,25 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
                           </div>
                         );
                       }
+                      const showFailedHint = Boolean(suppression.failed && suppression.outcome);
+                      if (showFailedHint) {
+                        const logKey = `${group.key}-failed`;
+                        if (!suppressionLogged.current[logKey]) {
+                          logMonetisationClientEvent("ops_billing_playbook_unsuppressed_failed", null, "ops", {
+                            requestId: requestIdForLog,
+                            outcomeCode: suppression.outcome?.code ?? null,
+                            state: suppression.outcome?.effectivenessState ?? null,
+                          });
+                          suppressionLogged.current[logKey] = true;
+                        }
+                      }
                       return (
                         <div className="space-y-2 rounded-xl border border-emerald-100 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-900">
+                          {showFailedHint && suppression.outcome ? (
+                            <div className="rounded-lg border border-amber-100 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-800">
+                              Previous attempt failed ({suppression.outcome.code}). Try again with the playbook.
+                            </div>
+                          ) : null}
                           <div className="flex flex-wrap items-center justify-between gap-2">
                             <div>
                               <p className="text-[10px] uppercase tracking-[0.2em] text-emerald-700">{playbook.severityHint.toUpperCase()} impact</p>

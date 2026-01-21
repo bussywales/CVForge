@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.19
+- Resolution effectiveness v1: deterministic helper + ops API to track whether outcomes worked (yes/no/later with snooze), masked insights, and due-review surfacing.
+- Ops UI: ResolutionCard follow-up prompt with reason/note + save, /app/ops/resolutions gains Due reviews tab, request/dossier links, and compact failure insights.
+- Billing playbooks: suppress only when a successful outcome exists in 24h; failed attempts keep playbooks visible with a hint; new logs/allowlists added.
+
 ## v0.8.18
 - Ops resolution analytics: ops-only summary API + /app/ops/resolutions page with filters (24h/7d, code, user), masked exports, top outcomes/actors, and recent list linking to incidents/dossier.
 - Watchlist: ops watch API + UI (ResolutionCard delay outcomes, Incidents callout, dossier) to track webhook/delay cases; logging wired for add/view.

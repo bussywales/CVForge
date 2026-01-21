@@ -20,7 +20,14 @@ const baseGroup: IncidentGroup = {
 describe("playbook suppression", () => {
   it("suppresses when outcome matches requestId within window", () => {
     const outcomes: ResolutionOutcome[] = [
-      { code: "WEBHOOK_DELAY_WAITED", createdAt: new Date().toISOString(), actor: null, requestId: "req_match", userId: "user_1" },
+      {
+        code: "WEBHOOK_DELAY_WAITED",
+        createdAt: new Date().toISOString(),
+        actor: null,
+        requestId: "req_match",
+        userId: "user_1",
+        effectivenessState: "success",
+      },
     ];
     const res = shouldSuppressPlaybook({ group: baseGroup, outcomes, now: new Date() });
     expect(res.suppressed).toBe(true);

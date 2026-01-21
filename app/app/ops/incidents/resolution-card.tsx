@@ -5,7 +5,8 @@ import Link from "next/link";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { buildBillingReply, type BillingResolutionLabel } from "@/lib/ops/ops-billing-reply";
 import { buildSupportSnippet } from "@/lib/observability/support-snippet";
-import type { ResolutionOutcome, ResolutionOutcomeCode } from "@/lib/ops/ops-resolution-outcomes";
+import type { EffectivenessState, ResolutionOutcome, ResolutionOutcomeCode } from "@/lib/ops/ops-resolution-outcomes";
+import { isOutcomeDue, LATER_WINDOW_MS } from "@/lib/ops/resolution-effectiveness";
 
 type Props = {
   incidentRequestId?: string | null;
@@ -37,6 +38,20 @@ const OUTCOME_OPTIONS: { code: ResolutionOutcomeCode; label: string }[] = [
   { code: "OTHER", label: "Other" },
 ];
 
+const EFFECTIVENESS_REASONS: Record<Exclude<EffectivenessState, "unknown">, { value: string; label: string }[]> = {
+  success: [
+    { value: "unblocked", label: "Customer unblocked" },
+    { value: "self_serve_follow_through", label: "User followed playbook" },
+    { value: "manual_fix", label: "Manual fix worked" },
+  ],
+  fail: [
+    { value: "still_blocked", label: "Still blocked" },
+    { value: "could_not_reach", label: "Could not reach user" },
+    { value: "wrong_playbook", label: "Wrong playbook" },
+    { value: "other", label: "Other" },
+  ],
+};
+
 export function ResolutionCard({
   incidentRequestId,
   userId,
@@ -55,6 +70,13 @@ export function ResolutionCard({
   const [showOutcomes, setShowOutcomes] = useState(false);
   const [watchSaving, setWatchSaving] = useState(false);
   const [watchSaved, setWatchSaved] = useState(false);
+  const [effectivenessSelection, setEffectivenessSelection] = useState<EffectivenessState | null>(null);
+  const [effectivenessReason, setEffectivenessReason] = useState("");
+  const [effectivenessNote, setEffectivenessNote] = useState("");
+  const [effectivenessSaving, setEffectivenessSaving] = useState(false);
+  const [effectivenessError, setEffectivenessError] = useState<string | null>(null);
+  const [effectivenessMessage, setEffectivenessMessage] = useState<string | null>(null);
+  const [effectivenessViewLogged, setEffectivenessViewLogged] = useState(false);
   const reply = useMemo(
     () => buildBillingReply({ label, requestId: incidentRequestId, supportPath: supportLink ?? undefined }),
     [label, incidentRequestId, supportLink]
@@ -64,6 +86,8 @@ export function ResolutionCard({
     : null;
   const [viewLogged, setViewLogged] = useState(false);
   const latestOutcome = outcomes[0];
+  const effectivenessRequestId = incidentRequestId ?? latestOutcome?.requestId ?? null;
+  const canReviewEffectiveness = Boolean(latestOutcome?.id && isOutcomeDue(latestOutcome));
   const showWatchCta = outcomeCode === "WEBHOOK_DELAY_WAITED" || outcomeCode === "CREDITS_RECONCILED_SUPPORT";
 
   useEffect(() => {
@@ -71,6 +95,24 @@ export function ResolutionCard({
     setViewLogged(true);
     logMonetisationClientEvent("ops_resolution_view", null, "ops", { label, requestId: incidentRequestId ?? null });
   }, [viewLogged, label, incidentRequestId]);
+
+  useEffect(() => {
+    if (!latestOutcome || !canReviewEffectiveness || effectivenessViewLogged) return;
+    logMonetisationClientEvent("ops_resolution_effectiveness_view", null, "ops", {
+      requestId: effectivenessRequestId,
+      outcomeCode: latestOutcome.code,
+    });
+    setEffectivenessViewLogged(true);
+  }, [canReviewEffectiveness, effectivenessRequestId, effectivenessViewLogged, latestOutcome]);
+
+  useEffect(() => {
+    setEffectivenessSelection(null);
+    setEffectivenessReason("");
+    setEffectivenessNote("");
+    setEffectivenessMessage(null);
+    setEffectivenessError(null);
+    setEffectivenessViewLogged(false);
+  }, [latestOutcome?.id]);
 
   const handleLinkClick = (target: "billing" | "incidents" | "audits") => {
     logMonetisationClientEvent("ops_resolution_link_click", null, "ops", { target, requestId: incidentRequestId ?? null, userId: userId ?? null });
@@ -100,13 +142,20 @@ export function ResolutionCard({
         return;
       }
       const createdAt = new Date().toISOString();
+      const saved = body?.item as any;
       const newOutcome: ResolutionOutcome = {
-        code: outcomeCode,
+        id: saved?.id ?? undefined,
+        code: (saved?.code as ResolutionOutcomeCode) ?? outcomeCode,
         note: note ? note.slice(0, 200) : undefined,
-        createdAt,
-        actor: null,
-        requestId: incidentRequestId ?? null,
-        userId: userId ?? null,
+        createdAt: saved?.createdAt ?? createdAt,
+        actor: saved?.actorMasked ?? null,
+        requestId: saved?.requestId ?? incidentRequestId ?? null,
+        userId: saved?.userId ?? userId ?? null,
+        effectivenessState: saved?.effectivenessState ?? "unknown",
+        effectivenessReason: saved?.effectivenessReason ?? null,
+        effectivenessNote: saved?.effectivenessNote ?? null,
+        effectivenessUpdatedAt: saved?.effectivenessUpdatedAt ?? createdAt,
+        effectivenessDeferredUntil: saved?.effectivenessDeferredUntil ?? null,
       };
       setOutcomes((prev) => [newOutcome, ...prev].slice(0, 3));
       logMonetisationClientEvent("ops_resolution_outcome_set_success", null, "ops", { code: outcomeCode });
@@ -152,6 +201,98 @@ export function ResolutionCard({
     } finally {
       setWatchSaving(false);
     }
+  };
+
+  const saveEffectiveness = async (stateOverride?: EffectivenessState, reasonOverride?: string | null) => {
+    if (effectivenessSaving) return;
+    const target = stateOverride ?? effectivenessSelection;
+    const targetOutcome = outcomes[0];
+    if (!target || !targetOutcome?.id) return;
+    setEffectivenessSaving(true);
+    setEffectivenessError(null);
+    setEffectivenessMessage(null);
+    const reason = reasonOverride ?? (effectivenessReason || undefined);
+    const notePayload = target === "unknown" ? undefined : effectivenessNote ? effectivenessNote.slice(0, 200) : undefined;
+    try {
+      const res = await fetch("/api/ops/resolution-effectiveness", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resolutionOutcomeId: targetOutcome.id,
+          state: target,
+          reason,
+          note: notePayload,
+          source: "resolution_card",
+        }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || !body?.ok) {
+        const reqId = res.headers.get("x-request-id") ?? body?.error?.requestId ?? null;
+        setEffectivenessError(body?.error?.message ?? "Unable to save follow-up");
+        logMonetisationClientEvent("ops_resolution_effectiveness_save_error", null, "ops", {
+          requestId: reqId,
+          outcomeCode: targetOutcome.code,
+          state: target,
+        });
+        return;
+      }
+      const updated: ResolutionOutcome = {
+        ...targetOutcome,
+        effectivenessState: target,
+        effectivenessReason: reason ?? null,
+        effectivenessNote: notePayload ?? null,
+        effectivenessSource: "resolution_card",
+        effectivenessUpdatedAt: body?.item?.effectivenessUpdatedAt ?? new Date().toISOString(),
+        effectivenessDeferredUntil:
+          target === "unknown" && reasonOverride === "later"
+            ? new Date(Date.now() + LATER_WINDOW_MS).toISOString()
+            : body?.item?.effectivenessDeferredUntil ?? targetOutcome.effectivenessDeferredUntil ?? null,
+      };
+      setOutcomes((prev) => prev.map((o, idx) => (idx === 0 || o.id === updated.id ? { ...o, ...updated } : o)));
+      const responseRequestId = body?.requestId ?? res.headers.get("x-request-id") ?? null;
+      const successMessage = target === "unknown" && reasonOverride === "later" ? "Snoozed for 24h." : "Saved follow-up.";
+      setEffectivenessMessage(responseRequestId ? `${successMessage} (req ${responseRequestId})` : successMessage);
+      setEffectivenessSelection(null);
+      setEffectivenessReason("");
+      setEffectivenessNote("");
+      logMonetisationClientEvent("ops_resolution_effectiveness_save_success", null, "ops", {
+        requestId: effectivenessRequestId,
+        outcomeCode: targetOutcome.code,
+        state: target,
+        reason: reason ?? null,
+      });
+    } catch {
+      setEffectivenessError("Unable to save follow-up");
+      logMonetisationClientEvent("ops_resolution_effectiveness_save_error", null, "ops", {
+        outcomeCode: targetOutcome?.code ?? null,
+        state: target,
+      });
+    } finally {
+      setEffectivenessSaving(false);
+    }
+  };
+
+  const handleEffectivenessChoice = (state: EffectivenessState) => {
+    if (!latestOutcome?.id) return;
+    setEffectivenessMessage(null);
+    setEffectivenessError(null);
+    const event =
+      state === "success"
+        ? "ops_resolution_effectiveness_yes_click"
+        : state === "fail"
+          ? "ops_resolution_effectiveness_no_click"
+          : "ops_resolution_effectiveness_later_click";
+    logMonetisationClientEvent(event, null, "ops", {
+      requestId: effectivenessRequestId,
+      outcomeCode: latestOutcome.code,
+    });
+    if (state === "unknown") {
+      void saveEffectiveness("unknown", "later");
+      return;
+    }
+    setEffectivenessReason("");
+    setEffectivenessNote("");
+    setEffectivenessSelection(state);
   };
 
   return (
@@ -315,6 +456,88 @@ export function ResolutionCard({
             </ul>
           ) : null}
         </div>
+        {canReviewEffectiveness ? (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-[11px] font-semibold text-amber-900">Did it work?</p>
+              <span className="text-[10px] text-amber-800">{latestOutcome?.code}</span>
+            </div>
+            {effectivenessMessage ? <p className="text-[11px] text-emerald-700">{effectivenessMessage}</p> : null}
+            {effectivenessError ? <p className="text-[11px] text-rose-700">Error: {effectivenessError}</p> : null}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className="rounded-full border border-amber-200 bg-white px-3 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                onClick={() => handleEffectivenessChoice("success")}
+                disabled={effectivenessSaving}
+              >
+                Yes
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-amber-200 bg-white px-3 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                onClick={() => handleEffectivenessChoice("fail")}
+                disabled={effectivenessSaving}
+              >
+                No
+              </button>
+              <button
+                type="button"
+                className="rounded-full border border-amber-200 bg-white px-3 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                onClick={() => handleEffectivenessChoice("unknown")}
+                disabled={effectivenessSaving}
+              >
+                Later
+              </button>
+              <span className="text-[10px] text-[rgb(var(--muted))]">Later hides for 24h.</span>
+            </div>
+            {effectivenessSelection && effectivenessSelection !== "unknown" ? (
+              <div className="mt-2 space-y-2">
+                <select
+                  className="w-full rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+                  value={effectivenessReason}
+                  onChange={(e) => setEffectivenessReason(e.target.value)}
+                >
+                  <option value="">Reason (optional)</option>
+                  {EFFECTIVENESS_REASONS[effectivenessSelection].map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+                <textarea
+                  value={effectivenessNote}
+                  onChange={(e) => setEffectivenessNote(e.target.value.slice(0, 200))}
+                  maxLength={200}
+                  rows={3}
+                  placeholder="Optional note"
+                  className="w-full rounded-lg border border-amber-200 bg-white px-2 py-1 text-[11px] text-[rgb(var(--ink))]"
+                />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    className="rounded-full border border-amber-200 bg-amber-800 px-3 py-1 text-[11px] font-semibold text-white hover:bg-amber-700 disabled:opacity-50"
+                    onClick={() => saveEffectiveness()}
+                    disabled={effectivenessSaving}
+                  >
+                    {effectivenessSaving ? "Saving..." : "Save"}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border border-amber-200 bg-white px-3 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
+                    onClick={() => {
+                      setEffectivenessSelection(null);
+                      setEffectivenessReason("");
+                      setEffectivenessNote("");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
           {supportLink ? (
             <Link

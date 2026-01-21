@@ -15,6 +15,8 @@ const DEDUPE_PERIODS: Record<string, "day" | "week"> = {
   ops_billing_resolution_mark_resolved: "day",
   ops_resolution_outcome_set: "day",
   ops_playbook_suppressed_view: "day",
+  ops_resolution_effectiveness_view: "day",
+  ops_resolutions_due_view: "day",
   billing_help_prompt_view: "day",
 };
 
