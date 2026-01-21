@@ -333,6 +333,7 @@ const allowedEvents = [
   "ops_billing_related_incidents_click",
   "ops_billing_related_audits_click",
   "ops_resolution_view",
+  "ops_resolution_link_click",
   "ops_resolution_copy_reply",
   "ops_resolution_regenerate",
   "ops_resolution_mark_used",

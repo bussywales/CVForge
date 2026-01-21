@@ -70,6 +70,17 @@ export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubs
       delay: snapshot.delayState,
     });
   }, [snapshot]);
+  const resolutionRequestId = snapshot?.ok
+    ? snapshot.timeline?.[0]?.requestId ?? snapshot.local.lastBillingEvent?.requestId ?? null
+    : null;
+  const resolutionDefaultLabel =
+    snapshot?.ok && snapshot.local.lastBillingEvent?.kind?.includes("portal")
+      ? "resolved_portal"
+      : snapshot?.ok && snapshot.local.lastBillingEvent?.kind?.includes("checkout")
+        ? "resolved_checkout"
+        : snapshot?.ok && snapshot.local.lastBillingEvent?.kind?.includes("webhook")
+          ? "resolved_webhook"
+          : "unknown";
 
   const fetchSnapshot = async (source: "view" | "refresh") => {
     if (loading) return;
@@ -280,6 +291,23 @@ export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubs
       ) : snapshot ? null : (
         <p className="mt-3 text-xs text-[rgb(var(--muted))]">{OPS_BILLING_COPY.missing}</p>
       )}
+      <div className="mt-3">
+        <ResolutionCard
+          incidentRequestId={resolutionRequestId ?? undefined}
+          userId={userId}
+          supportLink={supportPath}
+          incidentsLink={
+            buildRelatedIncidentsLink({
+              userId,
+              requestId: resolutionRequestId,
+              isOps: true,
+              fromSupportParams: null,
+            }) ?? "/app/ops/incidents?surface=billing&range=24h"
+          }
+          auditsLink={resolutionRequestId ? buildRelatedAuditsLink({ requestId: resolutionRequestId, isOps: true }) : null}
+          defaultLabel={resolutionDefaultLabel}
+        />
+      </div>
     </div>
   );
 }

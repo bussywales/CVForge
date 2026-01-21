@@ -274,6 +274,7 @@ const ALLOWED = [
   "ops_resolution_regenerate",
   "ops_resolution_mark_used",
   "ops_resolution_copy_snippet",
+  "ops_resolution_link_click",
   "ops_billing_resolution_view",
   "ops_billing_resolution_recheck_click",
   "ops_billing_resolution_rate_limited",

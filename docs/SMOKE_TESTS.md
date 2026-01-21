@@ -61,6 +61,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Open /app/billing: help prompt shows; Yes hides it; No reveals Copy support snippet + Try portal again link; dismiss (X) persists across reload for 7 days.
 - Copy support snippet from prompt logs; portal retry link navigates via /api/billing/portal navigation.
 
+## Quick prod checks (v0.8.16b)
+- Ops Incident Console: open a billing/requestId-filtered group → Resolution card appears with outcome select, reply copy, snippet copy, and safe ops links.
+- Ops dossier Billing triage: Resolution section appears under triage even if Stripe snapshot is unavailable.
+- Reply copy/regenerate/mark-used buttons log best-effort; links avoid raw URLs/emails.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

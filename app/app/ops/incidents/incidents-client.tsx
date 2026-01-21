@@ -10,6 +10,7 @@ import {
   groupIncidents,
   correlateIncidents,
   buildAuditsLink,
+  buildIncidentsLink,
 } from "@/lib/ops/incidents-shared";
 import { buildSupportSnippet } from "@/lib/observability/support-snippet";
 import { filterIncidents } from "@/lib/ops/incidents-filters";
@@ -70,6 +71,7 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
   const [playbookErrors, setPlaybookErrors] = useState<Record<string, { message?: string | null; requestId?: string | null } | null>>({});
   const [playbookLoadingKey, setPlaybookLoadingKey] = useState<string | null>(null);
   const [playbookViewed, setPlaybookViewed] = useState<Record<string, boolean>>({});
+  const billingSurfaces = useMemo(() => ["billing", "portal", "checkout", "diagnostics"], []);
 
   const filtered = useMemo(() => filterIncidents(incidents, filters), [incidents, filters]);
   const groups = useMemo(() => groupIncidents(filtered), [filtered]);
@@ -104,6 +106,32 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
   const hasDelayBuckets =
     delayBuckets.window24h.waiting_ledger + delayBuckets.window24h.waiting_webhook + delayBuckets.window24h.ui_stale + delayBuckets.window24h.unknown > 0 ||
     delayBuckets.window7d.waiting_ledger + delayBuckets.window7d.waiting_webhook + delayBuckets.window7d.ui_stale + delayBuckets.window7d.unknown > 0;
+  const billingIncidents = useMemo(
+    () => filtered.filter((i) => billingSurfaces.includes(i.surface) || (i.code ?? "").includes("billing") || (i.code ?? "").includes("checkout")),
+    [billingSurfaces, filtered]
+  );
+  const primaryBillingIncident = useMemo(() => {
+    if (filters.requestId) {
+      const match = filtered.find((i) => i.requestId === filters.requestId);
+      if (match) return match;
+    }
+    if (selected && (billingSurfaces.includes(selected.surface) || (selected.code ?? "").includes("billing") || (selected.code ?? "").includes("checkout"))) return selected;
+    return billingIncidents[0] ?? null;
+  }, [billingIncidents, billingSurfaces, filtered, filters.requestId, selected]);
+  const showResolutionCard = Boolean(filters.requestId || primaryBillingIncident);
+  const resolutionRequestId = filters.requestId || primaryBillingIncident?.requestId || null;
+  const resolutionUserId = primaryBillingIncident?.userId ?? null;
+  const resolutionSupportLink = "/app/billing?from=ops_support&support=1&focus=billing_trace";
+  const resolutionIncidentsLink = resolutionRequestId ? buildIncidentsLink(resolutionRequestId) : "/app/ops/incidents?surface=billing&range=24h";
+  const resolutionAuditsLink = resolutionRequestId ? buildAuditsLink(resolutionRequestId) : null;
+  const resolutionDefaultLabel = useMemo(() => {
+    const surface = primaryBillingIncident?.surface;
+    if (surface === "portal") return "resolved_portal";
+    if (surface === "checkout") return "resolved_checkout";
+    if ((primaryBillingIncident?.code ?? "").includes("webhook")) return "resolved_webhook";
+    if (surface === "billing") return "resolved_credits_delay";
+    return "unknown";
+  }, [primaryBillingIncident]);
 
   useEffect(() => {
     if (filters.requestId) {
@@ -412,14 +440,14 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
           </div>
         </div>
       ) : null}
-      {incidents.length > 0 ? (
+      {showResolutionCard ? (
         <ResolutionCard
-          incidentRequestId={incidents[0]?.requestId}
-          userId={incidents[0]?.userId}
-          supportLink="/app/billing?from=ops_support&support=1&focus=billing_trace"
-          incidentsLink="/app/ops/incidents?surface=billing&range=24h"
-          auditsLink={incidents[0]?.requestId ? `/app/ops/audits?requestId=${incidents[0]?.requestId}&range=24h` : null}
-          defaultLabel="unknown"
+          incidentRequestId={resolutionRequestId ?? undefined}
+          userId={resolutionUserId ?? undefined}
+          supportLink={resolutionSupportLink}
+          incidentsLink={resolutionIncidentsLink}
+          auditsLink={resolutionAuditsLink}
+          defaultLabel={resolutionDefaultLabel}
         />
       ) : null}
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">

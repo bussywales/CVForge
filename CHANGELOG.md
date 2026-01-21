@@ -15,6 +15,10 @@
 - Delay playbooks: Billing Trace shows guidance for delay buckets with copyable support snippet CTA; events are sanitised and logged.
 - Ops deep-links: Billing/ops views add “Open related incidents” (+ audits from dossier) with masked params; allowlists extended; tests for rate-limit, playbooks, links added; docs updated.
 
+## v0.8.16b
+- Ops Resolution card v1: Incident Console shows an Ops Resolution card for billing/requestId contexts with outcome select, customer reply copy/regenerate, support snippet, and safe ops links; User Dossier Billing triage now includes the same card (works even without Stripe snapshot).
+- Logging wired for resolution view/actions/link clicks with sanitised meta; integration tests cover incidents and dossier placement plus component actions.
+
 ## v0.8.16a
 - Billing help prompt v1: /app/billing now surfaces a dismissible “Did this help?” prompt with Yes/No flows, support snippet copy, and portal retry link; dismiss persists 7 days.
 - Telemetry wired for prompt view/yes/no/dismiss/copy/retry with sanitised meta; deterministic tests added for prompt behaviour.

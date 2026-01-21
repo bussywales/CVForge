@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { buildBillingReply, type BillingResolutionLabel } from "@/lib/ops/ops-billing-reply";
@@ -31,9 +31,20 @@ export function ResolutionCard({ incidentRequestId, userId, supportLink, auditsL
   const supportSnippet = incidentRequestId
     ? buildSupportSnippet({ action: "Billing resolution", path: "/app/billing", requestId: incidentRequestId, code: label })
     : null;
+  const [viewLogged, setViewLogged] = useState(false);
+
+  useEffect(() => {
+    if (viewLogged) return;
+    setViewLogged(true);
+    logMonetisationClientEvent("ops_resolution_view", null, "ops", { label, requestId: incidentRequestId ?? null });
+  }, [viewLogged, label, incidentRequestId]);
+
+  const handleLinkClick = (target: "billing" | "incidents" | "audits") => {
+    logMonetisationClientEvent("ops_resolution_link_click", null, "ops", { target, requestId: incidentRequestId ?? null, userId: userId ?? null });
+  };
 
   return (
-    <div className="rounded-2xl border border-indigo-200 bg-white p-3 text-xs shadow-sm">
+    <div className="rounded-2xl border border-indigo-200 bg-white p-3 text-xs shadow-sm" data-testid="resolution-card">
       <div className="flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-[rgb(var(--ink))]">Ops Resolution</p>
@@ -45,7 +56,6 @@ export function ResolutionCard({ incidentRequestId, userId, supportLink, auditsL
           onChange={(e) => {
             const next = e.target.value as BillingResolutionLabel;
             setLabel(next);
-            logMonetisationClientEvent("ops_resolution_view", null, "ops", { label: next, requestId: incidentRequestId ?? null });
           }}
         >
           {LABELS.map((opt) => (
@@ -109,17 +119,29 @@ export function ResolutionCard({ incidentRequestId, userId, supportLink, auditsL
         </div>
         <div className="flex flex-wrap items-center gap-2 text-[11px]">
           {supportLink ? (
-            <Link href={supportLink} className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50">
+            <Link
+              href={supportLink}
+              className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+              onClick={() => handleLinkClick("billing")}
+            >
               Open Billing
             </Link>
           ) : null}
           {incidentsLink ? (
-            <Link href={incidentsLink} className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50">
+            <Link
+              href={incidentsLink}
+              className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+              onClick={() => handleLinkClick("incidents")}
+            >
               Open related incidents
             </Link>
           ) : null}
           {auditsLink ? (
-            <Link href={auditsLink} className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50">
+            <Link
+              href={auditsLink}
+              className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+              onClick={() => handleLinkClick("audits")}
+            >
               Open audits
             </Link>
           ) : null}
