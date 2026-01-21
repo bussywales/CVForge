@@ -20,6 +20,7 @@ import { buildIncidentPlaybook, type IncidentPlaybook } from "@/lib/ops/ops-inci
 import { buildOpsBillingHealth } from "@/lib/ops/ops-billing-health";
 import { buildBillingTraceSummary } from "@/lib/ops/ops-billing-trace";
 import { buildBillingDelayBuckets } from "@/lib/ops/ops-billing-delay-buckets";
+import { ResolutionCard } from "./resolution-card";
 import { buildOpsWebhookHealth } from "@/lib/ops/ops-webhook-health";
 
 type Props = {
@@ -410,6 +411,16 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
             </div>
           </div>
         </div>
+      ) : null}
+      {incidents.length > 0 ? (
+        <ResolutionCard
+          incidentRequestId={incidents[0]?.requestId}
+          userId={incidents[0]?.userId}
+          supportLink="/app/billing?from=ops_support&support=1&focus=billing_trace"
+          incidentsLink="/app/ops/incidents?surface=billing&range=24h"
+          auditsLink={incidents[0]?.requestId ? `/app/ops/audits?requestId=${incidents[0]?.requestId}&range=24h` : null}
+          defaultLabel="unknown"
+        />
       ) : null}
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">
         <div className="flex flex-wrap items-center justify-between gap-2">

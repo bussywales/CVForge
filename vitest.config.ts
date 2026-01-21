@@ -13,6 +13,7 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    environmentMatchGlobs: [["**/*.test.tsx", "jsdom"]],
     include: ["lib/**/*.test.ts", "tests/**/*.test.ts"],
   },
 });

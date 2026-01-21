@@ -57,6 +57,10 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - From ops support billing link → “Open related incidents” deep-link applies filters without exposing URLs/emails.
 - Ops dossier billing triage → “Open audits for request” works when requestId present.
 
+## Quick prod checks (v0.8.16a)
+- Open /app/billing: help prompt shows; Yes hides it; No reveals Copy support snippet + Try portal again link; dismiss (X) persists across reload for 7 days.
+- Copy support snippet from prompt logs; portal retry link navigates via /api/billing/portal navigation.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

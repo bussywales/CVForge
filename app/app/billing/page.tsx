@@ -49,6 +49,7 @@ import BillingTracePanel from "./billing-trace-panel";
 import { buildRelatedIncidentsLink } from "@/lib/billing/billing-related-links";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
 import type { UserRole } from "@/lib/rbac";
+import BillingHelpPrompt from "./billing-help-prompt";
 const BillingDeepLinkClient = nextDynamic(() => import("./billing-deeplink-client"), { ssr: false });
 
 export const dynamic = "force-dynamic";
@@ -356,6 +357,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
       ) : null}
       <div className="space-y-2">
         <BillingReconcileCard show={reconcileHint.show} message={reconcileHint.message} supportSnippet={statusSupportSnippet} />
+        <BillingHelpPrompt
+          supportSnippet={statusSupportSnippet ?? portalSupportSnippet ?? null}
+          portalHref="/api/billing/portal?mode=navigation"
+          requestId={billingStatus.lastBillingEvent?.requestId ?? portalError.requestId ?? null}
+        />
         <BillingTracePanel
           initialTimeline={billingTimeline}
           initialDelay={creditDelay}

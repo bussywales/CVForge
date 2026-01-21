@@ -13,6 +13,7 @@ import type { WebhookHealth } from "@/lib/webhook-health";
 import type { CreditDelayResult } from "@/lib/billing/billing-credit-delay";
 import { buildBillingTraceSnippet } from "@/lib/billing/billing-trace-snippet";
 import { buildRelatedIncidentsLink, buildRelatedAuditsLink } from "@/lib/billing/billing-related-links";
+import { ResolutionCard } from "@/app/app/ops/incidents/resolution-card";
 
 type SnapshotResponse =
   | {
@@ -137,9 +138,9 @@ export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubs
           <ErrorBanner title="Unable to load snapshot" message={snapshot.error.message} requestId={snapshot.error.requestId} />
         </div>
       ) : null}
-      {snapshot && snapshot.ok ? (
-        <div className="mt-3 space-y-3">
-          <div className="grid gap-3 md:grid-cols-2">
+          {snapshot && snapshot.ok ? (
+            <div className="mt-3 space-y-3">
+              <div className="grid gap-3 md:grid-cols-2">
             <div className="rounded-xl border border-black/10 bg-white px-3 py-2">
               <p className="text-xs font-semibold text-[rgb(var(--ink))]">{OPS_BILLING_COPY.localTitle}</p>
               <ul className="mt-1 space-y-1 text-[11px] text-[rgb(var(--muted))]">
