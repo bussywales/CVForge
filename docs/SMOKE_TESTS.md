@@ -45,6 +45,12 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Copy billing trace snippet → masked snippet includes health + recent events without URLs; portal_error banner still works with requestId support snippet.
 - Ops Incident Console shows webhook health callout (24h/7d counts + code chips) that filters incidents; Ops dossier Billing triage card shows recent billing timeline + “Open billing trace” deep link for support.
 
+## Quick prod checks (v0.8.14)
+- Simulate delayed credits (checkout success without webhook/ledger) and see delay bucket appear in Billing Trace correlation row with appropriate message.
+- Click Re-check status → correlation row updates without navigation; unknown state offers support snippet copy.
+- /app/billing still shows #billing-trace anchor + timeline; portal_error banner still works.
+- Ops Incident Console shows delay bucket callout; chips filter incidents by bucket safely.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

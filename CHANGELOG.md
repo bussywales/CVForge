@@ -5,6 +5,11 @@
 - Webhook health helper + recheck API expose masked counts/status/lag; credit delay + timeline reuse deterministic helpers with non-blocking logging/allowlists.
 - Ops: Incident Console gains webhook health callout with filter chips; dossier billing triage card now shows billing timeline + trace link/snippet; monetisation logging allowlists expanded for new events.
 
+## v0.8.14
+- Billing correlation v2: deterministic helper classifies checkout→webhook→ledger states into delay buckets (waiting_webhook/ledger/ui_stale/unknown) with masked evidence.
+- Billing Trace panel adds correlation row, delay classification CTA, and recheck integration; /api/billing/recheck returns correlationV2 and delayV2 with requestId + no-store.
+- Ops Incident Console adds delay bucket callout with filter chips; logging allowlists expanded; new tests for correlation, delay buckets, webhook health/regressions; docs/smoke updated.
+
 ## v0.8.12
 - Billing timeline + credit delay: /app/billing shows recent billing activity with request refs, support snippet copy, and a credit delay detector card with refresh and snippet logging.
 - Added deterministic helpers for billing timeline/credit delay; ops incidents gain webhook/credit trace ratios with filter chips; monetisation allowlist extended for timeline/delay/trace logging.

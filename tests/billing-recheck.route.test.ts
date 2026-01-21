@@ -123,6 +123,8 @@ describe("billing recheck route", () => {
     expect(body.requestId).toBe("req_test");
     expect(body.model.timeline).toEqual(timelineMock);
     expect(body.model.webhookHealth.status).toBe("healthy");
+    expect(body.model.correlationV2).toBeDefined();
+    expect(JSON.stringify(body.model.correlationV2)).not.toContain("http");
   });
 
   it("returns unauthorized when no user", async () => {

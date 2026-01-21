@@ -7,6 +7,7 @@ import { buildBillingTimeline } from "@/lib/billing/billing-timeline";
 import { detectCreditDelay } from "@/lib/billing/billing-credit-delay";
 import { computeWebhookHealth } from "@/lib/webhook-health";
 import { fetchBillingSettings } from "@/lib/data/billing";
+import { createBillingCorrelation } from "@/lib/billing/billing-correlation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -42,12 +43,13 @@ export async function GET(request: Request) {
       new Date()
     );
     const delayState = detectCreditDelay({ timeline, now: new Date() });
+    const correlationV2 = createBillingCorrelation({ timeline, ledger: activity, creditsAvailable: credits, now: new Date() });
 
     return NextResponse.json(
       {
         ok: true,
         requestId,
-        model: { billingStatus, timeline, webhookHealth, delayState },
+        model: { billingStatus, timeline, webhookHealth, delayState, correlationV2, delayV2: correlationV2.delay },
       },
       { headers, status: 200 }
     );

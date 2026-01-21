@@ -19,6 +19,7 @@ import { detectPortalSpike } from "@/lib/ops/portal-spike";
 import { buildIncidentPlaybook, type IncidentPlaybook } from "@/lib/ops/ops-incident-playbooks";
 import { buildOpsBillingHealth } from "@/lib/ops/ops-billing-health";
 import { buildBillingTraceSummary } from "@/lib/ops/ops-billing-trace";
+import { buildBillingDelayBuckets } from "@/lib/ops/ops-billing-delay-buckets";
 import { buildOpsWebhookHealth } from "@/lib/ops/ops-webhook-health";
 
 type Props = {
@@ -98,6 +99,10 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
   const webhookHealth = useMemo(() => buildOpsWebhookHealth(incidents), [incidents]);
   const hasWebhookHealth =
     webhookHealth.topCodes.length > 0 || webhookHealth.counts24h.ok + webhookHealth.counts24h.error + webhookHealth.counts7d.ok + webhookHealth.counts7d.error > 0;
+  const delayBuckets = useMemo(() => buildBillingDelayBuckets(incidents), [incidents]);
+  const hasDelayBuckets =
+    delayBuckets.window24h.waiting_ledger + delayBuckets.window24h.waiting_webhook + delayBuckets.window24h.ui_stale + delayBuckets.window24h.unknown > 0 ||
+    delayBuckets.window7d.waiting_ledger + delayBuckets.window7d.waiting_webhook + delayBuckets.window7d.ui_stale + delayBuckets.window7d.unknown > 0;
 
   useEffect(() => {
     if (filters.requestId) {
@@ -122,6 +127,17 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
       logMonetisationClientEvent("ops_webhook_health_view", null, "ops", { status: webhookHealth.status });
     }
   }, [hasWebhookHealth, webhookHealth.status]);
+
+  useEffect(() => {
+    if (hasDelayBuckets) {
+      logMonetisationClientEvent("ops_billing_delay_bucket_view", null, "ops", {
+        waiting_webhook: delayBuckets.window24h.waiting_webhook,
+        waiting_ledger: delayBuckets.window24h.waiting_ledger,
+        ui_stale: delayBuckets.window24h.ui_stale,
+        unknown: delayBuckets.window24h.unknown,
+      });
+    }
+  }, [hasDelayBuckets, delayBuckets.window24h.waiting_webhook, delayBuckets.window24h.waiting_ledger, delayBuckets.window24h.ui_stale, delayBuckets.window24h.unknown]);
 
   useEffect(() => {
     if (!expandedGroup) return;
@@ -361,6 +377,34 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
                   }}
                 >
                   Code: {entry.code} ({entry.count})
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {hasDelayBuckets ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">Delay buckets (24h)</p>
+              <p className="text-[11px] text-[rgb(var(--muted))]">
+                waiting_webhook {delayBuckets.window24h.waiting_webhook} · waiting_ledger {delayBuckets.window24h.waiting_ledger} · ui_stale{" "}
+                {delayBuckets.window24h.ui_stale} · unknown {delayBuckets.window24h.unknown}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {Object.entries(delayBuckets.window24h).map(([key, val]) => (
+                <button
+                  key={key}
+                  type="button"
+                  className="rounded-full border border-amber-200 bg-white px-3 py-1 font-semibold text-amber-800"
+                  onClick={() => {
+                    setFilters((f) => ({ ...f, surface: "billing", code: key, time: "24" }));
+                    logMonetisationClientEvent("ops_billing_delay_chip_click", null, "ops", { bucket: key, window: "24h" });
+                  }}
+                >
+                  {key} ({val})
                 </button>
               ))}
             </div>
