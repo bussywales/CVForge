@@ -12,6 +12,7 @@ import type { BillingTimelineEntry } from "@/lib/billing/billing-timeline";
 import type { WebhookHealth } from "@/lib/webhook-health";
 import type { CreditDelayResult } from "@/lib/billing/billing-credit-delay";
 import { buildBillingTraceSnippet } from "@/lib/billing/billing-trace-snippet";
+import { buildRelatedIncidentsLink, buildRelatedAuditsLink } from "@/lib/billing/billing-related-links";
 
 type SnapshotResponse =
   | {
@@ -180,6 +181,36 @@ export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubs
             >
               {OPS_BILLING_COPY.openBilling}
             </Link>
+            {snapshot?.ok ? (
+              <Link
+                href={
+                  buildRelatedIncidentsLink({
+                    userId,
+                    requestId: snapshot.timeline?.[0]?.requestId ?? snapshot.local.lastBillingEvent?.requestId ?? null,
+                    isOps: true,
+                    fromSupportParams: null,
+                  }) ?? "/app/ops/incidents"
+                }
+                className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                onClick={() => logMonetisationClientEvent("ops_billing_related_incidents_click", null, "ops", { userId })}
+              >
+                Open related incidents
+              </Link>
+            ) : null}
+            {snapshot?.ok && (snapshot.timeline?.[0]?.requestId ?? snapshot.local.lastBillingEvent?.requestId) ? (
+              <Link
+                href={
+                  buildRelatedAuditsLink({
+                    requestId: snapshot.timeline?.[0]?.requestId ?? snapshot.local.lastBillingEvent?.requestId ?? null,
+                    isOps: true,
+                  }) ?? "/app/ops/audits"
+                }
+                className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                onClick={() => logMonetisationClientEvent("ops_billing_related_audits_click", null, "ops", { userId })}
+              >
+                Open audits for request
+              </Link>
+            ) : null}
             <Link
               href={`${supportPath}`}
               className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"

@@ -10,6 +10,11 @@
 - Billing Trace panel adds correlation row, delay classification CTA, and recheck integration; /api/billing/recheck returns correlationV2 and delayV2 with requestId + no-store.
 - Ops Incident Console adds delay bucket callout with filter chips; logging allowlists expanded; new tests for correlation, delay buckets, webhook health/regressions; docs/smoke updated.
 
+## v0.8.15
+- Recheck throttling: /api/billing/recheck limited per-user/IP with Retry-After; UI disables Re-check during cooldown; rate-limit logs added.
+- Delay playbooks: Billing Trace shows guidance for delay buckets with copyable support snippet CTA; events are sanitised and logged.
+- Ops deep-links: Billing/ops views add “Open related incidents” (+ audits from dossier) with masked params; allowlists extended; tests for rate-limit, playbooks, links added; docs updated.
+
 ## v0.8.12
 - Billing timeline + credit delay: /app/billing shows recent billing activity with request refs, support snippet copy, and a credit delay detector card with refresh and snippet logging.
 - Added deterministic helpers for billing timeline/credit delay; ops incidents gain webhook/credit trace ratios with filter chips; monetisation allowlist extended for timeline/delay/trace logging.

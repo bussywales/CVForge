@@ -51,6 +51,12 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - /app/billing still shows #billing-trace anchor + timeline; portal_error banner still works.
 - Ops Incident Console shows delay bucket callout; chips filter incidents by bucket safely.
 
+## Quick prod checks (v0.8.15)
+- Spam Re-check on /app/billing until rate-limited → 429 handled gracefully; Re-check button shows cooldown/countdown and page stays usable.
+- Force delayV2 scenario (or mock) → playbook card renders with premium guidance; copy support snippet works.
+- From ops support billing link → “Open related incidents” deep-link applies filters without exposing URLs/emails.
+- Ops dossier billing triage → “Open audits for request” works when requestId present.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

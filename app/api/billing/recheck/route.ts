@@ -8,6 +8,7 @@ import { detectCreditDelay } from "@/lib/billing/billing-credit-delay";
 import { computeWebhookHealth } from "@/lib/webhook-health";
 import { fetchBillingSettings } from "@/lib/data/billing";
 import { createBillingCorrelation } from "@/lib/billing/billing-correlation";
+import { checkRecheckThrottle } from "@/lib/billing/recheck-throttle";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,11 +16,22 @@ export const dynamic = "force-dynamic";
 export async function GET(request: Request) {
   const { headers, requestId } = withRequestIdHeaders(request.headers);
   headers.set("cache-control", "no-store");
+  const ip = (request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? "").split(",")[0]?.trim() || null;
   const supabase = createServerClient();
   const { data: userRes } = await supabase.auth.getUser();
   const user = userRes.user;
   if (!user) {
     const res = jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
+    res.headers.set("cache-control", "no-store");
+    return res;
+  }
+
+  const throttle = checkRecheckThrottle(user.id, ip);
+  if (!throttle.allowed) {
+    headers.set("retry-after", `${throttle.retryAfterSec}`);
+    headers.set("cache-control", "no-store");
+    const res = jsonError({ code: "RATE_LIMITED", message: "Too many refreshes. Please wait a moment.", requestId, status: 429 });
+    res.headers.set("retry-after", `${throttle.retryAfterSec}`);
     res.headers.set("cache-control", "no-store");
     return res;
   }

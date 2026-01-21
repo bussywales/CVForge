@@ -46,6 +46,9 @@ import { buildBillingTimeline } from "@/lib/billing/billing-timeline";
 import { detectCreditDelay } from "@/lib/billing/billing-credit-delay";
 import { computeWebhookHealth } from "@/lib/webhook-health";
 import BillingTracePanel from "./billing-trace-panel";
+import { buildRelatedIncidentsLink } from "@/lib/billing/billing-related-links";
+import { getUserRole, isOpsRole } from "@/lib/rbac";
+import type { UserRole } from "@/lib/rbac";
 const BillingDeepLinkClient = nextDynamic(() => import("./billing-deeplink-client"), { ssr: false });
 
 export const dynamic = "force-dynamic";
@@ -70,6 +73,7 @@ type BillingPageProps = {
 
 export default async function BillingPage({ searchParams }: BillingPageProps) {
   const { supabase, user } = await getSupabaseUser();
+  const roleInfo: { role: UserRole; hasRow: boolean } = user ? await getUserRole(user.id) : { role: "user", hasRow: false };
 
   if (!user) {
     return (
@@ -314,6 +318,12 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
   const supportLinkIntent =
     searchParams?.support === "1" || searchParams?.from === "ops_support" || searchParams?.portal || searchParams?.flow;
+  const relatedIncidentsLink = buildRelatedIncidentsLink({
+    userId: user.id,
+    requestId: billingStatus.lastBillingEvent?.requestId ?? portalError.requestId ?? billingTimeline[0]?.requestId ?? null,
+    isOps: isOpsRole(roleInfo.role),
+    fromSupportParams: searchParams ? new URLSearchParams(searchParams as any) : null,
+  });
   const wantsPortalPlaceholder = supportLinkIntent && !showPortalReturn && (searchParams?.portal || searchParams?.flow);
 
   return (
@@ -351,6 +361,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           initialDelay={creditDelay}
           initialWebhookHealth={webhookHealth}
           supportPath="/app/billing"
+          relatedIncidentsLink={relatedIncidentsLink}
         />
       </div>
       <PostPurchaseSuccessBanner

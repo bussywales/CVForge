@@ -9,6 +9,7 @@ const DEDUPE_PERIODS: Record<string, "day" | "week"> = {
   keep_momentum_cta_click: "week",
   keep_momentum_secondary_click: "week",
   billing_delay_classified: "day",
+  billing_recheck_rate_limited: "day",
 };
 
 const DEDUPE_STORAGE_KEY = "cvf-monetisation-dedupe";

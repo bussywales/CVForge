@@ -11,15 +11,17 @@ import type { CreditDelayResult } from "@/lib/billing/billing-credit-delay";
 import type { WebhookHealth } from "@/lib/webhook-health";
 import { buildBillingTraceSnippet } from "@/lib/billing/billing-trace-snippet";
 import { createBillingCorrelation, type BillingCorrelation } from "@/lib/billing/billing-correlation";
+import { buildDelayPlaybook } from "@/lib/billing/billing-delay-playbooks";
 
 type Props = {
   initialTimeline: BillingTimelineEntry[];
   initialDelay: CreditDelayResult;
   initialWebhookHealth: WebhookHealth;
   supportPath: string;
+  relatedIncidentsLink?: string | null;
 };
 
-export default function BillingTracePanel({ initialTimeline, initialDelay, initialWebhookHealth, supportPath }: Props) {
+export default function BillingTracePanel({ initialTimeline, initialDelay, initialWebhookHealth, supportPath, relatedIncidentsLink }: Props) {
   const router = useRouter();
   const [timeline, setTimeline] = useState<BillingTimelineEntry[]>(initialTimeline);
   const [delay, setDelay] = useState<CreditDelayResult>(initialDelay);
@@ -27,8 +29,15 @@ export default function BillingTracePanel({ initialTimeline, initialDelay, initi
   const [correlation, setCorrelation] = useState<BillingCorrelation | null>(
     createBillingCorrelation({ timeline: initialTimeline, ledger: [], now: new Date() })
   );
+  const [cooldownSec, setCooldownSec] = useState<number>(0);
   const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (cooldownSec <= 0) return;
+    const timer = window.setInterval(() => setCooldownSec((prev) => Math.max(0, prev - 1)), 1000);
+    return () => window.clearInterval(timer);
+  }, [cooldownSec]);
 
   useEffect(() => {
     logMonetisationClientEvent("billing_trace_view", null, "billing", { hasTimeline: timeline.length > 0 });
@@ -55,6 +64,13 @@ export default function BillingTracePanel({ initialTimeline, initialDelay, initi
     try {
       const res = await fetch("/api/billing/recheck", { method: "GET", cache: "no-store" });
       const body = await res.json();
+      if (res.status === 429 || body?.error?.code === "RATE_LIMITED") {
+        const retry = Number(res.headers.get("retry-after") ?? body?.retryAfter ?? 0);
+        const cd = Number.isFinite(retry) ? retry : 30;
+        setCooldownSec(cd);
+        logMonetisationClientEvent("billing_recheck_rate_limited", null, "billing", { cooldownSeconds: cd });
+        return;
+      }
       if (!body.ok) {
         setError({ message: body.error?.message ?? "Unable to refresh", requestId: body.error?.requestId });
         logMonetisationClientEvent("billing_recheck_result", null, "billing", { ok: false, requestId: body.error?.requestId ?? null });
@@ -78,6 +94,7 @@ export default function BillingTracePanel({ initialTimeline, initialDelay, initi
   const computedCorrelation =
     correlation ?? createBillingCorrelation({ timeline, ledger: [], now: new Date() });
   const traceSnippet = buildBillingTraceSnippet({ requestId: timeline[0]?.requestId ?? null, timeline, webhook: webhookHealth, delay });
+  const playbook = computedCorrelation ? buildDelayPlaybook({ correlation: computedCorrelation, supportPath, requestId: timeline[0]?.requestId ?? null }) : null;
   useEffect(() => {
     if (computedCorrelation) {
       logMonetisationClientEvent("billing_correlation_view", null, "billing", {
@@ -92,6 +109,14 @@ export default function BillingTracePanel({ initialTimeline, initialDelay, initi
       }
     }
   }, [computedCorrelation, computedCorrelation?.delay.state, computedCorrelation?.delay.confidence]);
+  useEffect(() => {
+    if (playbook) {
+      logMonetisationClientEvent("billing_delay_playbook_view", null, "billing", {
+        state: computedCorrelation?.delay.state,
+        severity: playbook.severity,
+      });
+    }
+  }, [playbook, computedCorrelation?.delay.state]);
 
   return (
     <div ref={panelRef} id="billing-trace" className="space-y-3">
@@ -103,10 +128,11 @@ export default function BillingTracePanel({ initialTimeline, initialDelay, initi
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+            className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50 disabled:opacity-50"
             onClick={handleRecheck}
+            disabled={cooldownSec > 0}
           >
-            Re-check status
+            {cooldownSec > 0 ? `Re-check in ${cooldownSec}s` : "Re-check status"}
           </button>
           <button
             type="button"
@@ -120,6 +146,15 @@ export default function BillingTracePanel({ initialTimeline, initialDelay, initi
           >
             Copy billing trace snippet
           </button>
+          {relatedIncidentsLink ? (
+            <a
+              href={relatedIncidentsLink}
+              className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+              onClick={() => logMonetisationClientEvent("ops_billing_related_incidents_click", null, "billing")}
+            >
+              Open related incidents
+            </a>
+          ) : null}
         </div>
       </div>
       {computedCorrelation ? (
@@ -185,6 +220,40 @@ export default function BillingTracePanel({ initialTimeline, initialDelay, initi
                 </div>
               </div>
             ) : null}
+          </div>
+        </div>
+      ) : null}
+      {playbook ? (
+        <div className="rounded-2xl border border-indigo-100 bg-indigo-50 p-3 text-xs text-indigo-900">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">{playbook.title}</p>
+              <p className="text-[11px] text-[rgb(var(--muted))]">{playbook.summary}</p>
+              <ul className="mt-1 list-disc space-y-1 pl-4 text-[11px]">
+                {playbook.nextSteps.map((step) => (
+                  <li key={step}>{step}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {playbook.ctas.map((cta) => (
+                <button
+                  key={cta.label}
+                  type="button"
+                  className="rounded-full border border-indigo-200 bg-white px-3 py-1 text-[11px] font-semibold text-indigo-800 hover:bg-indigo-100"
+                  onClick={() => {
+                    logMonetisationClientEvent("billing_delay_playbook_cta_click", null, "billing", { label: cta.label, kind: cta.kind });
+                    if (cta.kind === "recheck") {
+                      handleRecheck();
+                    } else if (cta.kind === "copy_snippet" && cta.snippet) {
+                      navigator.clipboard.writeText(cta.snippet).catch(() => undefined);
+                    }
+                  }}
+                >
+                  {cta.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
       ) : null}
