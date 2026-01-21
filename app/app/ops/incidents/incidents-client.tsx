@@ -110,6 +110,22 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
   const webhookHealth = useMemo(() => buildOpsWebhookHealth(incidents), [incidents]);
   const hasWebhookHealth =
     webhookHealth.topCodes.length > 0 || webhookHealth.counts24h.ok + webhookHealth.counts24h.error + webhookHealth.counts7d.ok + webhookHealth.counts7d.error > 0;
+  const webhookFailures = useMemo(
+    () =>
+      incidents.filter((i) => (i.code ?? "").toLowerCase().includes("webhook") || (i.eventName ?? "").includes("webhook_error")),
+    [incidents]
+  );
+  const webhookTopCodes = useMemo(() => {
+    const counts = webhookFailures.reduce((map, inc) => {
+      const code = inc.code ?? "unknown";
+      map.set(code, (map.get(code) ?? 0) + 1);
+      return map;
+    }, new Map<string, number>());
+    return Array.from(counts.entries())
+      .sort((a, b) => b[1] - a[1])
+      .map(([code, count]) => ({ code, count }))
+      .slice(0, 3);
+  }, [webhookFailures]);
   const delayBuckets = useMemo(() => buildBillingDelayBuckets(incidents), [incidents]);
   const hasDelayBuckets =
     delayBuckets.window24h.waiting_ledger + delayBuckets.window24h.waiting_webhook + delayBuckets.window24h.ui_stale + delayBuckets.window24h.unknown > 0 ||
@@ -316,6 +332,37 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
 
   return (
     <div className="space-y-4">
+      {webhookFailures.length > 0 ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">Webhook failures</p>
+              <p className="text-[11px] text-[rgb(var(--muted))]">
+                {webhookFailures.length} events in range • top codes:
+                {webhookTopCodes.map((c) => (
+                  <button
+                    key={c.code}
+                    className="ml-2 rounded-full border border-amber-200 bg-white px-2 py-0.5 text-[10px] font-semibold text-amber-800"
+                    onClick={() => {
+                      setFilters((prev) => ({ ...prev, code: c.code, time: "24" }));
+                      logMonetisationClientEvent("ops_webhook_health_chip_click", null, "ops", { code: c.code });
+                    }}
+                  >
+                    {c.code} ({c.count})
+                  </button>
+                ))}
+              </p>
+            </div>
+            <Link
+              href="/app/ops/webhooks?since=24h"
+              className="rounded-full border border-amber-200 bg-white px-3 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
+              onClick={() => logMonetisationClientEvent("ops_webhook_queue_view", null, "ops", { from: "incidents" })}
+            >
+              View webhook failures
+            </Link>
+          </div>
+        </div>
+      ) : null}
       {hasBillingHealth ? (
         <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-3 text-xs text-indigo-900">
           <div className="flex flex-wrap items-center justify-between gap-2">

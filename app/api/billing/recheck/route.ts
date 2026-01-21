@@ -9,6 +9,7 @@ import { computeWebhookHealth } from "@/lib/webhook-health";
 import { fetchBillingSettings } from "@/lib/data/billing";
 import { createBillingCorrelation } from "@/lib/billing/billing-correlation";
 import { checkRecheckThrottle } from "@/lib/billing/recheck-throttle";
+import { buildWebhookReceipt } from "@/lib/webhook-receipts";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -50,6 +51,7 @@ export async function GET(request: Request) {
     const monetisationEvents = monetisationEventsRes ?? [];
     const billingStatus = buildBillingStatus({ settings, credits, activity, searchParams: null });
     const timeline = buildBillingTimeline({ events: monetisationEvents as any, ledger: activity, limit: 12 });
+    const webhookReceipt = buildWebhookReceipt({ events: monetisationEvents as any, now: new Date() });
     const webhookHealth = computeWebhookHealth(
       timeline.map((item) => ({ kind: item.kind as any, at: item.at, code: item.code ?? null })),
       new Date()
@@ -61,7 +63,7 @@ export async function GET(request: Request) {
       {
         ok: true,
         requestId,
-        model: { billingStatus, timeline, webhookHealth, delayState, correlationV2, delayV2: correlationV2.delay },
+        model: { billingStatus, timeline, webhookHealth, webhookReceipt, webhookDedupe: webhookReceipt.dedupe, delayState, correlationV2, delayV2: correlationV2.delay },
       },
       { headers, status: 200 }
     );

@@ -45,6 +45,7 @@ import BillingReconcileCard from "./billing-reconcile-card";
 import { buildBillingTimeline } from "@/lib/billing/billing-timeline";
 import { detectCreditDelay } from "@/lib/billing/billing-credit-delay";
 import { computeWebhookHealth } from "@/lib/webhook-health";
+import { buildWebhookReceipt } from "@/lib/webhook-receipts";
 import BillingTracePanel from "./billing-trace-panel";
 import { buildRelatedIncidentsLink } from "@/lib/billing/billing-related-links";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
@@ -268,6 +269,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     activity: activitySignals,
   });
   const billingTimeline = buildBillingTimeline({ events: monetisationEvents as any, ledger: activitySignals });
+  const webhookReceipt = buildWebhookReceipt({ events: monetisationEvents as any, now: new Date() });
   const creditDelay = detectCreditDelay({ timeline: billingTimeline });
   const webhookHealth = computeWebhookHealth(
     billingTimeline.map((item) => ({ kind: item.kind as any, at: item.at, code: (item as any).code ?? null })),
@@ -352,6 +354,17 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           </span>
         ) : null}
       </div>
+      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-indigo-100 bg-indigo-50 p-3 text-xs text-indigo-900">
+        <span className="font-semibold text-[rgb(var(--ink))]">Webhook signal:</span>
+        <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-indigo-800">
+          {webhookReceipt.lastWebhookAt
+            ? `Seen ${Math.max(0, Math.floor((Date.now() - new Date(webhookReceipt.lastWebhookAt).getTime()) / 60000))} mins ago`
+            : "No webhook seen (24h)"}
+        </span>
+        <span className="text-[11px] text-indigo-800">
+          {webhookReceipt.dedupe.distinctCount24h} distinct · {webhookReceipt.dedupe.dupCount24h} duplicates (24h)
+        </span>
+      </div>
       {portalError.show ? (
         <PortalErrorBanner requestId={portalError.requestId} supportSnippet={portalSupportSnippet} retryHref={portalError.retryHref} code={portalError.code} />
       ) : null}
@@ -366,6 +379,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           initialTimeline={billingTimeline}
           initialDelay={creditDelay}
           initialWebhookHealth={webhookHealth}
+          initialWebhookReceipt={webhookReceipt}
           supportPath="/app/billing"
           relatedIncidentsLink={relatedIncidentsLink}
         />

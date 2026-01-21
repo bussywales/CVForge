@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.20
+- Webhook reliability signals: deterministic receipt ledger (last seen, dedupe hashes, error codes), surfaced in billing UI badge + trace row with missing-webhook hint and recheck response fields.
+- Billing recheck now returns webhookReceipt/dedupe; logging expanded for webhook signal/trace copy.
+- Ops webhook failures queue: new ops API + /app/ops/webhooks page with filters, masked exports, incidents/dossier links, and incidents callout shortcut.
+
 ## v0.8.19
 - Resolution effectiveness v1: deterministic helper + ops API to track whether outcomes worked (yes/no/later with snooze), masked insights, and due-review surfacing.
 - Ops UI: ResolutionCard follow-up prompt with reason/note + save, /app/ops/resolutions gains Due reviews tab, request/dossier links, and compact failure insights.

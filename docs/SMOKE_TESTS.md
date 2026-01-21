@@ -81,6 +81,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Open /app/ops/resolutions → Due reviews tab lists outcomes older than 2h with request + dossier links; Later snoozes the prompt for 24h and shows requestId on save.
 - Billing incident playbook: a recent success outcome suppresses the playbook card; a recent fail keeps the playbook visible with a “Previous attempt failed” hint.
 
+## Quick prod checks (v0.8.20)
+- Open /app/billing → Webhook signal badge shows last seen time/dedupe counts; Billing trace panel shows webhook receipt row + copy snippet and missing-webhook hint when relevant.
+- Call /api/billing/recheck → response includes `webhookReceipt` and `webhookDedupe`, still returns requestId + cache-control no-store.
+- Ops → /app/ops/webhooks loads masked list; filters apply; Open incidents by requestId works; Export JSON/CSV includes masked header note.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

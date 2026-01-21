@@ -12,20 +12,30 @@ import type { WebhookHealth } from "@/lib/webhook-health";
 import { buildBillingTraceSnippet } from "@/lib/billing/billing-trace-snippet";
 import { createBillingCorrelation, type BillingCorrelation } from "@/lib/billing/billing-correlation";
 import { buildDelayPlaybook } from "@/lib/billing/billing-delay-playbooks";
+import type { WebhookReceipt } from "@/lib/webhook-receipts";
 
 type Props = {
   initialTimeline: BillingTimelineEntry[];
   initialDelay: CreditDelayResult;
   initialWebhookHealth: WebhookHealth;
+  initialWebhookReceipt: WebhookReceipt;
   supportPath: string;
   relatedIncidentsLink?: string | null;
 };
 
-export default function BillingTracePanel({ initialTimeline, initialDelay, initialWebhookHealth, supportPath, relatedIncidentsLink }: Props) {
+export default function BillingTracePanel({
+  initialTimeline,
+  initialDelay,
+  initialWebhookHealth,
+  initialWebhookReceipt,
+  supportPath,
+  relatedIncidentsLink,
+}: Props) {
   const router = useRouter();
   const [timeline, setTimeline] = useState<BillingTimelineEntry[]>(initialTimeline);
   const [delay, setDelay] = useState<CreditDelayResult>(initialDelay);
   const [webhookHealth, setWebhookHealth] = useState<WebhookHealth>(initialWebhookHealth);
+  const [webhookReceipt, setWebhookReceipt] = useState<WebhookReceipt>(initialWebhookReceipt);
   const [correlation, setCorrelation] = useState<BillingCorrelation | null>(
     createBillingCorrelation({ timeline: initialTimeline, ledger: [], now: new Date() })
   );
@@ -45,7 +55,11 @@ export default function BillingTracePanel({ initialTimeline, initialDelay, initi
       status: webhookHealth.status,
       hasError: Boolean(webhookHealth.lastErrorAt),
     });
-  }, [timeline.length, webhookHealth.status, webhookHealth.lastErrorAt]);
+    logMonetisationClientEvent("billing_webhook_signal_view", null, "billing", {
+      hasWebhook: Boolean(webhookReceipt.lastWebhookAt),
+      dup24h: webhookReceipt.dedupe.dupCount24h,
+    });
+  }, [timeline.length, webhookHealth.status, webhookHealth.lastErrorAt, webhookReceipt.dedupe.dupCount24h, webhookReceipt.lastWebhookAt]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -79,7 +93,16 @@ export default function BillingTracePanel({ initialTimeline, initialDelay, initi
       setTimeline(body.model.timeline ?? []);
       setDelay(body.model.delayState);
       setWebhookHealth(body.model.webhookHealth);
+      if (body.model.webhookReceipt) {
+        setWebhookReceipt(body.model.webhookReceipt);
+      }
       setCorrelation(body.model.correlationV2 ?? createBillingCorrelation({ timeline: body.model.timeline ?? [], ledger: [], now: new Date() }));
+      if (body.model.webhookReceipt) {
+        logMonetisationClientEvent("billing_recheck_webhook_receipt_view", null, "billing", {
+          hasWebhook: Boolean(body.model.webhookReceipt.lastWebhookAt),
+          dup24h: body.model.webhookReceipt.dedupe?.dupCount24h ?? 0,
+        });
+      }
       logMonetisationClientEvent("billing_recheck_result", null, "billing", {
         ok: true,
         status: body.model.webhookHealth?.status,
@@ -95,6 +118,11 @@ export default function BillingTracePanel({ initialTimeline, initialDelay, initi
     correlation ?? createBillingCorrelation({ timeline, ledger: [], now: new Date() });
   const traceSnippet = buildBillingTraceSnippet({ requestId: timeline[0]?.requestId ?? null, timeline, webhook: webhookHealth, delay });
   const playbook = computedCorrelation ? buildDelayPlaybook({ correlation: computedCorrelation, supportPath, requestId: timeline[0]?.requestId ?? null }) : null;
+  const missingWebhook =
+    computedCorrelation?.correlation.checkout.ok && !computedCorrelation?.correlation.webhook.ok && computedCorrelation.delay.state !== "none";
+  const webhookReceiptSnippet = `Webhook receipt | ref ${webhookReceipt.lastWebhookRequestId ?? "unknown"} | last ${
+    webhookReceipt.lastWebhookAt ?? "unknown"
+  } | hash ${webhookReceipt.dedupe.lastEventIdHash ?? "n/a"}`;
   useEffect(() => {
     if (computedCorrelation) {
       logMonetisationClientEvent("billing_correlation_view", null, "billing", {
@@ -176,6 +204,30 @@ export default function BillingTracePanel({ initialTimeline, initialDelay, initi
                   {computedCorrelation.correlation.ledger.ok ? computedCorrelation.correlation.ledger.at : "missing"}
                 </span>
               </div>
+              <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
+                <span className="font-semibold text-[rgb(var(--ink))]">Webhook receipt</span>
+                <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold">
+                  {webhookReceipt.lastWebhookAt ? `Seen ${new Date(webhookReceipt.lastWebhookAt).toLocaleString()}` : "No webhook seen (24h)"}
+                </span>
+                {webhookReceipt.lastWebhookRequestId ? (
+                  <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold">
+                    ref {webhookReceipt.lastWebhookRequestId}
+                  </span>
+                ) : null}
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 bg-white px-3 py-1 text-[10px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                  onClick={() => {
+                    navigator.clipboard.writeText(webhookReceiptSnippet).catch(() => undefined);
+                    logMonetisationClientEvent("billing_webhook_trace_copy", null, "billing", {
+                      hasWebhook: Boolean(webhookReceipt.lastWebhookAt),
+                    });
+                  }}
+                >
+                  Copy support snippet
+                </button>
+              </div>
+              {missingWebhook ? <p className="text-[11px] text-amber-800">Likely missing webhook after checkout — investigate Stripe dashboard.</p> : null}
             </div>
             {computedCorrelation.delay.state !== "none" ? (
               <div className="flex flex-col items-end gap-1 text-right">
