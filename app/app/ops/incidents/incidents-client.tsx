@@ -23,11 +23,13 @@ import { buildBillingTraceSummary } from "@/lib/ops/ops-billing-trace";
 import { buildBillingDelayBuckets } from "@/lib/ops/ops-billing-delay-buckets";
 import { ResolutionCard } from "./resolution-card";
 import { buildOpsWebhookHealth } from "@/lib/ops/ops-webhook-health";
+import type { ResolutionOutcome } from "@/lib/ops/ops-resolution-outcomes";
 
 type Props = {
   incidents: IncidentRecord[];
   initialLookup?: IncidentRecord | null;
   initialRequestId?: string | null;
+  initialOutcomes?: ResolutionOutcome[];
 };
 
 type TimeFilter = "1" | "24" | "168";
@@ -55,7 +57,7 @@ function exportCsv(groups: IncidentGroup[]) {
   return [header, ...rows].join("\n");
 }
 
-export default function IncidentsClient({ incidents, initialLookup, initialRequestId }: Props) {
+export default function IncidentsClient({ incidents, initialLookup, initialRequestId, initialOutcomes }: Props) {
   const [filters, setFilters] = useState({
     time: "24" as TimeFilter,
     surface: "all",
@@ -448,6 +450,7 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
           incidentsLink={resolutionIncidentsLink}
           auditsLink={resolutionAuditsLink}
           defaultLabel={resolutionDefaultLabel}
+          initialOutcomes={initialOutcomes}
         />
       ) : null}
       <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-3 text-xs text-emerald-900">

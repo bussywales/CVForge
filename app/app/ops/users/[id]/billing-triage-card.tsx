@@ -14,6 +14,7 @@ import type { CreditDelayResult } from "@/lib/billing/billing-credit-delay";
 import { buildBillingTraceSnippet } from "@/lib/billing/billing-trace-snippet";
 import { buildRelatedIncidentsLink, buildRelatedAuditsLink } from "@/lib/billing/billing-related-links";
 import { ResolutionCard } from "@/app/app/ops/incidents/resolution-card";
+import type { ResolutionOutcome } from "@/lib/ops/ops-resolution-outcomes";
 
 type SnapshotResponse =
   | {
@@ -45,9 +46,10 @@ type Props = {
   userId: string;
   stripeCustomerId?: string | null;
   stripeSubscriptionId?: string | null;
+  initialOutcomes?: ResolutionOutcome[];
 };
 
-export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubscriptionId }: Props) {
+export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubscriptionId, initialOutcomes = [] }: Props) {
   const [snapshot, setSnapshot] = useState<SnapshotResponse | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -306,6 +308,7 @@ export default function BillingTriageCard({ userId, stripeCustomerId, stripeSubs
           }
           auditsLink={resolutionRequestId ? buildRelatedAuditsLink({ requestId: resolutionRequestId, isOps: true }) : null}
           defaultLabel={resolutionDefaultLabel}
+          initialOutcomes={initialOutcomes}
         />
       </div>
     </div>

@@ -102,6 +102,7 @@ Billing correlation v2: deterministic helper correlates checkout→webhook→led
 Recheck throttling + delay playbooks: /api/billing/recheck is rate-limited per user/IP with Retry-After; Billing Trace shows cooldown and delay playbook guidance with copyable snippets; ops/billing views include related incidents/audits deep-links for support with masked params.
 Billing help prompt: /app/billing shows a dismissible “Did this help?” prompt with Yes/No flows, support snippet copy, and portal retry link to reduce support load; logging remains non-blocking and sanitised.
 Ops Resolution card: Incident Console and user dossier Billing triage surface an Ops Resolution card for billing/requestId contexts with outcome select, deterministic customer reply copy/regenerate, support snippet copy, and masked ops links; logging is best-effort and sanitised.
+Resolution outcomes loop: Ops can save structured billing resolution outcomes (enum codes + optional note) tied to requestId/userId via ops API; Incidents and dossier show recent outcomes inline to reduce repeat triage; logging/allowlists remain masked and non-blocking.
 
 ## Monetisation analytics
 Credit gates, checkout starts/successes, resume clicks, and autopack completions are logged deterministically. Insights shows a revenue funnel (7d/30d) plus top surfaces for gates and billing clicks to spot leaks quickly.

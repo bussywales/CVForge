@@ -66,6 +66,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Ops dossier Billing triage: Resolution section appears under triage even if Stripe snapshot is unavailable.
 - Reply copy/regenerate/mark-used buttons log best-effort; links avoid raw URLs/emails.
 
+## Quick prod checks (v0.8.17)
+- Ops Incident Console with requestId: save a resolution outcome, refresh, and see “Last resolution” + recent outcomes inline; failure path shows ErrorBanner with requestId.
+- Ops dossier Billing triage: Resolution section shows recent outcomes list even if Stripe snapshot fails.
+- Non-ops hitting POST /api/ops/resolution-outcome gets JSON 403 with requestId; logging remains best-effort and sanitised.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.
