@@ -33,11 +33,14 @@ export function buildOpsWebhookHealth(incidents: IncidentRecord[], now = new Dat
       else counts24h.ok += 1;
     }
     if (within(inc.at, now, 24 * 7)) {
-      if (isError) counts7d.error += 1;
-      else counts7d.ok += 1;
-      if (inc.code) {
-        const key = inc.code.toLowerCase();
-        codeCounts.set(key, (codeCounts.get(key) ?? 0) + 1);
+      if (isError) {
+        counts7d.error += 1;
+        if (inc.code) {
+          const key = inc.code.toLowerCase();
+          codeCounts.set(key, (codeCounts.get(key) ?? 0) + 1);
+        }
+      } else {
+        counts7d.ok += 1;
       }
     }
     if (!isError && !lastOk) lastOk = inc.at;

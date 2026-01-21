@@ -23,7 +23,11 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    logMonetisationClientEvent("ops_webhook_queue_view", null, "ops", { since });
+    logMonetisationClientEvent("ops_webhooks_queue_view", null, "ops", { range: since });
+    if ((initialItems ?? []).length === 0) {
+      logMonetisationClientEvent("ops_webhooks_queue_empty_view", null, "ops", { range: since });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [since]);
 
   const fetchItems = async (append = false) => {
@@ -34,8 +38,8 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
     if (q) params.set("q", q);
     if (userId) params.set("userId", userId);
     if (append && cursor) params.set("cursor", cursor);
-    logMonetisationClientEvent(append ? "ops_webhook_queue_view" : "ops_webhook_queue_filter", null, "ops", {
-      since,
+    logMonetisationClientEvent(append ? "ops_webhooks_queue_view" : "ops_webhooks_queue_filter", null, "ops", {
+      range: since,
       hasCode: Boolean(code),
       hasQ: Boolean(q),
     });
@@ -49,13 +53,16 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
       setItems((prev) => [...prev, ...(body.items ?? [])]);
     } else {
       setItems(body.items ?? []);
+      if ((body.items ?? []).length === 0) {
+        logMonetisationClientEvent("ops_webhooks_queue_empty_view", null, "ops", { range: since });
+      }
     }
     setCursor(body.nextCursor ?? null);
     setLoading(false);
   };
 
   const exportJson = () => {
-    logMonetisationClientEvent("ops_webhook_queue_export", null, "ops", { format: "json" });
+    logMonetisationClientEvent("ops_webhooks_queue_export", null, "ops", { format: "json", range: since });
     const payload = { note: "No secrets / hashed identifiers", items };
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -67,7 +74,7 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
   };
 
   const exportCsv = () => {
-    logMonetisationClientEvent("ops_webhook_queue_export", null, "ops", { format: "csv" });
+    logMonetisationClientEvent("ops_webhooks_queue_export", null, "ops", { format: "csv", range: since });
     const header = ["requestId", "at", "code", "group", "userId", "eventIdHash"].join(",");
     const rows = items.map((item) =>
       [item.requestId ?? "", item.at, item.code ?? "", item.group ?? "", item.userId ?? "", item.eventIdHash ?? ""]
@@ -123,14 +130,14 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
             </thead>
             <tbody>
               {items.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="px-2 py-3 text-center text-[rgb(var(--muted))]">
-                    No failures in range.
-                  </td>
-                </tr>
-              ) : null}
-              {items.map((item) => (
-                <tr key={item.id} className="border-t">
+              <tr>
+                <td colSpan={7} className="px-2 py-3 text-center text-[rgb(var(--muted))]">
+                  No webhook failures in range.
+                </td>
+              </tr>
+            ) : null}
+            {items.map((item) => (
+              <tr key={item.id} className="border-t">
                   <td className="px-2 py-1">{item.requestId ?? "—"}</td>
                   <td className="px-2 py-1">{item.at}</td>
                   <td className="px-2 py-1">{item.code ?? "—"}</td>
@@ -139,15 +146,15 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
                   <td className="px-2 py-1">{item.eventIdHash ?? "—"}</td>
                   <td className="px-2 py-1 space-x-2">
                     {item.requestId ? (
-                      <Link
-                        href={`/app/ops/incidents?requestId=${encodeURIComponent(item.requestId)}&from=ops_webhooks`}
-                        className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
-                        onClick={() => logMonetisationClientEvent("ops_webhook_open_incidents_click", null, "ops")}
-                      >
-                        Open incidents
-                      </Link>
-                    ) : null}
-                    {item.userId ? (
+                    <Link
+                      href={`/app/ops/incidents?requestId=${encodeURIComponent(item.requestId)}&from=ops_webhooks`}
+                      className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                      onClick={() => logMonetisationClientEvent("ops_webhook_open_incidents_click", null, "ops")}
+                    >
+                      Open incidents
+                    </Link>
+                  ) : null}
+                  {item.userId ? (
                       <Link
                         href={`/app/ops/users/${item.userId}`}
                         className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
@@ -164,7 +171,7 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
                           item.eventIdHash ?? "n/a"
                         }`;
                         navigator.clipboard.writeText(snippet).catch(() => undefined);
-                        logMonetisationClientEvent("ops_webhook_queue_view", null, "ops", { action: "copy_snippet" });
+                        logMonetisationClientEvent("ops_webhooks_queue_view", null, "ops", { range: since, action: "copy_snippet" });
                       }}
                     >
                       Copy support snippet

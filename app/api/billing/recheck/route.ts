@@ -10,6 +10,7 @@ import { fetchBillingSettings } from "@/lib/data/billing";
 import { createBillingCorrelation } from "@/lib/billing/billing-correlation";
 import { checkRecheckThrottle } from "@/lib/billing/recheck-throttle";
 import { buildWebhookReceipt } from "@/lib/webhook-receipts";
+import { buildWebhookStatusV2 } from "@/lib/webhook-status-v2";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,7 @@ export async function GET(request: Request) {
   }
 
   try {
+    const now = new Date();
     const credits = await getUserCredits(supabase, user.id);
     const activity = await listCreditActivity(supabase, user.id, 50);
     const settings = await fetchBillingSettings(supabase, user.id);
@@ -51,19 +53,30 @@ export async function GET(request: Request) {
     const monetisationEvents = monetisationEventsRes ?? [];
     const billingStatus = buildBillingStatus({ settings, credits, activity, searchParams: null });
     const timeline = buildBillingTimeline({ events: monetisationEvents as any, ledger: activity, limit: 12 });
-    const webhookReceipt = buildWebhookReceipt({ events: monetisationEvents as any, now: new Date() });
+    const webhookReceipt = buildWebhookReceipt({ events: monetisationEvents as any, now });
     const webhookHealth = computeWebhookHealth(
       timeline.map((item) => ({ kind: item.kind as any, at: item.at, code: item.code ?? null })),
-      new Date()
+      now
     );
-    const delayState = detectCreditDelay({ timeline, now: new Date() });
-    const correlationV2 = createBillingCorrelation({ timeline, ledger: activity, creditsAvailable: credits, now: new Date() });
+    const delayState = detectCreditDelay({ timeline, now });
+    const correlationV2 = createBillingCorrelation({ timeline, ledger: activity, creditsAvailable: credits, now });
+    const webhookStatusV2 = buildWebhookStatusV2({ timeline: timeline as any, webhookReceipt, correlation: correlationV2, delay: delayState, now });
 
     return NextResponse.json(
       {
         ok: true,
         requestId,
-        model: { billingStatus, timeline, webhookHealth, webhookReceipt, webhookDedupe: webhookReceipt.dedupe, delayState, correlationV2, delayV2: correlationV2.delay },
+        model: {
+          billingStatus,
+          timeline,
+          webhookHealth,
+          webhookReceipt,
+          webhookDedupe: webhookReceipt.dedupe,
+          delayState,
+          correlationV2,
+          delayV2: correlationV2.delay,
+          webhookStatusV2,
+        },
       },
       { headers, status: 200 }
     );

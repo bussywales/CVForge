@@ -112,7 +112,11 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
     webhookHealth.topCodes.length > 0 || webhookHealth.counts24h.ok + webhookHealth.counts24h.error + webhookHealth.counts7d.ok + webhookHealth.counts7d.error > 0;
   const webhookFailures = useMemo(
     () =>
-      incidents.filter((i) => (i.code ?? "").toLowerCase().includes("webhook") || (i.eventName ?? "").includes("webhook_error")),
+      incidents.filter((i) => {
+        const code = (i.code ?? "").toLowerCase();
+        const eventName = (i.eventName ?? "").toLowerCase();
+        return code.includes("webhook_error") || code.includes("webhook_fail") || eventName.includes("webhook_error") || eventName.includes("webhook_fail");
+      }),
     [incidents]
   );
   const webhookTopCodes = useMemo(() => {
@@ -126,6 +130,7 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
       .map(([code, count]) => ({ code, count }))
       .slice(0, 3);
   }, [webhookFailures]);
+  const hasWebhookFailures = webhookFailures.length > 0;
   const delayBuckets = useMemo(() => buildBillingDelayBuckets(incidents), [incidents]);
   const hasDelayBuckets =
     delayBuckets.window24h.waiting_ledger + delayBuckets.window24h.waiting_webhook + delayBuckets.window24h.ui_stale + delayBuckets.window24h.unknown > 0 ||
@@ -332,13 +337,13 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
 
   return (
     <div className="space-y-4">
-      {webhookFailures.length > 0 ? (
+      {hasWebhookFailures ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <p className="text-sm font-semibold text-[rgb(var(--ink))]">Webhook failures</p>
               <p className="text-[11px] text-[rgb(var(--muted))]">
-                {webhookFailures.length} events in range • top codes:
+                {webhookFailures.length} failures in range • top codes:
                 {webhookTopCodes.map((c) => (
                   <button
                     key={c.code}
@@ -356,7 +361,7 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
             <Link
               href="/app/ops/webhooks?since=24h"
               className="rounded-full border border-amber-200 bg-white px-3 py-1 text-[11px] font-semibold text-amber-800 hover:bg-amber-100"
-              onClick={() => logMonetisationClientEvent("ops_webhook_queue_view", null, "ops", { from: "incidents" })}
+              onClick={() => logMonetisationClientEvent("ops_webhooks_queue_view", null, "ops", { from: "incidents", range: "24h" })}
             >
               View webhook failures
             </Link>

@@ -18,7 +18,10 @@ const DEDUPE_PERIODS: Record<string, "day" | "week"> = {
   ops_resolution_effectiveness_view: "day",
   ops_resolutions_due_view: "day",
   billing_webhook_signal_view: "day",
+  billing_webhook_badge_view: "day",
   ops_webhook_queue_view: "day",
+  ops_webhooks_queue_view: "day",
+  ops_webhooks_queue_empty_view: "day",
   billing_help_prompt_view: "day",
 };
 

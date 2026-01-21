@@ -1,5 +1,12 @@
 # Changelog
 
+# Changelog
+
+## v0.8.21
+- Webhook status v2: context-aware helper reduces false alarms (not expected vs watching/delayed/ok) across billing badge, trace, and recheck payload; badge offers delayed snippet copy only when needed.
+- Billing correlation row now labels missing upstream as unknown when credits exist; missing-webhook hints only show when truly delayed.
+- Ops webhook queue tightened to failures-only with clearer empty state; incidents webhook callout only triggers on failures; new logging/allowlists added.
+
 ## v0.8.20
 - Webhook reliability signals: deterministic receipt ledger (last seen, dedupe hashes, error codes), surfaced in billing UI badge + trace row with missing-webhook hint and recheck response fields.
 - Billing recheck now returns webhookReceipt/dedupe; logging expanded for webhook signal/trace copy.

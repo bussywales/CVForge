@@ -46,11 +46,14 @@ import { buildBillingTimeline } from "@/lib/billing/billing-timeline";
 import { detectCreditDelay } from "@/lib/billing/billing-credit-delay";
 import { computeWebhookHealth } from "@/lib/webhook-health";
 import { buildWebhookReceipt } from "@/lib/webhook-receipts";
+import { buildWebhookStatusV2 } from "@/lib/webhook-status-v2";
 import BillingTracePanel from "./billing-trace-panel";
 import { buildRelatedIncidentsLink } from "@/lib/billing/billing-related-links";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
 import type { UserRole } from "@/lib/rbac";
 import BillingHelpPrompt from "./billing-help-prompt";
+import { createBillingCorrelation } from "@/lib/billing/billing-correlation";
+import WebhookBadge from "./webhook-badge";
 const BillingDeepLinkClient = nextDynamic(() => import("./billing-deeplink-client"), { ssr: false });
 
 export const dynamic = "force-dynamic";
@@ -269,12 +272,21 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     activity: activitySignals,
   });
   const billingTimeline = buildBillingTimeline({ events: monetisationEvents as any, ledger: activitySignals });
-  const webhookReceipt = buildWebhookReceipt({ events: monetisationEvents as any, now: new Date() });
-  const creditDelay = detectCreditDelay({ timeline: billingTimeline });
+  const now = new Date();
+  const webhookReceipt = buildWebhookReceipt({ events: monetisationEvents as any, now });
+  const creditDelay = detectCreditDelay({ timeline: billingTimeline, now });
   const webhookHealth = computeWebhookHealth(
     billingTimeline.map((item) => ({ kind: item.kind as any, at: item.at, code: (item as any).code ?? null })),
-    new Date()
+    now
   );
+  const billingCorrelation = createBillingCorrelation({ timeline: billingTimeline as any, ledger: activity as any, now });
+  const webhookStatusV2 = buildWebhookStatusV2({
+    timeline: billingTimeline as any,
+    webhookReceipt,
+    correlation: billingCorrelation,
+    delay: creditDelay,
+    now,
+  });
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -333,27 +345,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     <div className="space-y-6" id="billing-root">
       <BillingDeepLinkClient />
       <BillingStatusStrip status={billingStatus} supportSnippet={statusSupportSnippet} />
-      <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-black/10 bg-white/70 p-3 text-xs">
-        <span className="font-semibold text-[rgb(var(--ink))]">Webhook status:</span>
-        <span
-          className={`rounded-full px-3 py-1 font-semibold ${
-            webhookHealth.status === "healthy"
-              ? "bg-emerald-100 text-emerald-800"
-              : webhookHealth.status === "unknown"
-                ? "bg-slate-100 text-[rgb(var(--ink))]"
-                : "bg-amber-100 text-amber-800"
-          }`}
-        >
-          {webhookHealth.status}
-        </span>
-        {webhookHealth.status !== "healthy" && webhookHealth.status !== "unknown" ? (
-          <span className="text-[11px] text-[rgb(var(--muted))]">
-            {webhookHealth.status === "delayed"
-              ? "Webhook taking longer than usual — refresh or copy a support snippet."
-              : "We saw webhook issues recently — retry later or share a reference."}
-          </span>
-        ) : null}
-      </div>
+      <WebhookBadge status={webhookStatusV2} supportSnippet={statusSupportSnippet ?? portalSupportSnippet ?? null} />
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-indigo-100 bg-indigo-50 p-3 text-xs text-indigo-900">
         <span className="font-semibold text-[rgb(var(--ink))]">Webhook signal:</span>
         <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-indigo-800">
@@ -380,6 +372,8 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           initialDelay={creditDelay}
           initialWebhookHealth={webhookHealth}
           initialWebhookReceipt={webhookReceipt}
+          initialWebhookStatus={webhookStatusV2}
+          initialCorrelation={billingCorrelation}
           supportPath="/app/billing"
           relatedIncidentsLink={relatedIncidentsLink}
         />

@@ -13,12 +13,15 @@ import { buildBillingTraceSnippet } from "@/lib/billing/billing-trace-snippet";
 import { createBillingCorrelation, type BillingCorrelation } from "@/lib/billing/billing-correlation";
 import { buildDelayPlaybook } from "@/lib/billing/billing-delay-playbooks";
 import type { WebhookReceipt } from "@/lib/webhook-receipts";
+import type { WebhookStatusV2 } from "@/lib/webhook-status-v2";
 
 type Props = {
   initialTimeline: BillingTimelineEntry[];
   initialDelay: CreditDelayResult;
   initialWebhookHealth: WebhookHealth;
   initialWebhookReceipt: WebhookReceipt;
+  initialWebhookStatus: WebhookStatusV2;
+  initialCorrelation?: BillingCorrelation | null;
   supportPath: string;
   relatedIncidentsLink?: string | null;
 };
@@ -28,6 +31,8 @@ export default function BillingTracePanel({
   initialDelay,
   initialWebhookHealth,
   initialWebhookReceipt,
+  initialWebhookStatus,
+  initialCorrelation,
   supportPath,
   relatedIncidentsLink,
 }: Props) {
@@ -36,8 +41,9 @@ export default function BillingTracePanel({
   const [delay, setDelay] = useState<CreditDelayResult>(initialDelay);
   const [webhookHealth, setWebhookHealth] = useState<WebhookHealth>(initialWebhookHealth);
   const [webhookReceipt, setWebhookReceipt] = useState<WebhookReceipt>(initialWebhookReceipt);
+  const [webhookStatus, setWebhookStatus] = useState<WebhookStatusV2>(initialWebhookStatus);
   const [correlation, setCorrelation] = useState<BillingCorrelation | null>(
-    createBillingCorrelation({ timeline: initialTimeline, ledger: [], now: new Date() })
+    initialCorrelation ?? createBillingCorrelation({ timeline: initialTimeline, ledger: [], now: new Date() })
   );
   const [cooldownSec, setCooldownSec] = useState<number>(0);
   const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(null);
@@ -96,6 +102,10 @@ export default function BillingTracePanel({
       if (body.model.webhookReceipt) {
         setWebhookReceipt(body.model.webhookReceipt);
       }
+      if (body.model.webhookStatusV2) {
+        setWebhookStatus(body.model.webhookStatusV2);
+        window.dispatchEvent(new CustomEvent("billing:webhookStatus", { detail: body.model.webhookStatusV2 }));
+      }
       setCorrelation(body.model.correlationV2 ?? createBillingCorrelation({ timeline: body.model.timeline ?? [], ledger: [], now: new Date() }));
       if (body.model.webhookReceipt) {
         logMonetisationClientEvent("billing_recheck_webhook_receipt_view", null, "billing", {
@@ -118,8 +128,7 @@ export default function BillingTracePanel({
     correlation ?? createBillingCorrelation({ timeline, ledger: [], now: new Date() });
   const traceSnippet = buildBillingTraceSnippet({ requestId: timeline[0]?.requestId ?? null, timeline, webhook: webhookHealth, delay });
   const playbook = computedCorrelation ? buildDelayPlaybook({ correlation: computedCorrelation, supportPath, requestId: timeline[0]?.requestId ?? null }) : null;
-  const missingWebhook =
-    computedCorrelation?.correlation.checkout.ok && !computedCorrelation?.correlation.webhook.ok && computedCorrelation.delay.state !== "none";
+  const missingWebhook = webhookStatus.state === "delayed";
   const webhookReceiptSnippet = `Webhook receipt | ref ${webhookReceipt.lastWebhookRequestId ?? "unknown"} | last ${
     webhookReceipt.lastWebhookAt ?? "unknown"
   } | hash ${webhookReceipt.dedupe.lastEventIdHash ?? "n/a"}`;
@@ -193,11 +202,19 @@ export default function BillingTracePanel({
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-[rgb(var(--muted))]">
                 <span className="font-semibold text-[rgb(var(--ink))]">Checkout</span>
                 <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold">
-                  {computedCorrelation.correlation.checkout.ok ? computedCorrelation.correlation.checkout.at : "missing"}
+                  {computedCorrelation.correlation.checkout.ok
+                    ? computedCorrelation.correlation.checkout.at
+                    : computedCorrelation.correlation.ledger.ok
+                      ? "unknown"
+                      : "missing"}
                 </span>
                 <span className="font-semibold text-[rgb(var(--ink))]">→ Webhook</span>
                 <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold">
-                  {computedCorrelation.correlation.webhook.ok ? computedCorrelation.correlation.webhook.at : "missing"}
+                  {computedCorrelation.correlation.webhook.ok
+                    ? computedCorrelation.correlation.webhook.at
+                    : computedCorrelation.correlation.ledger.ok
+                      ? "unknown"
+                      : "missing"}
                 </span>
                 <span className="font-semibold text-[rgb(var(--ink))]">→ Credits</span>
                 <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold">

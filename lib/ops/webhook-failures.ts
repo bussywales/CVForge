@@ -56,7 +56,7 @@ export async function listWebhookFailures({
   let query = admin
     .from("application_activities")
     .select("id,user_id,type,subject,body,occurred_at,created_at")
-    .ilike("type", "monetisation.webhook_%")
+    .or("type.ilike.monetisation.webhook_error%,type.ilike.monetisation.webhook_failure%")
     .gte("occurred_at", since)
     .order("occurred_at", { ascending: false })
     .limit(cappedLimit + 1);
