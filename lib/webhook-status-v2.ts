@@ -1,17 +1,16 @@
-import "server-only";
-
 import type { BillingTimelineEntry } from "@/lib/billing/billing-timeline";
 import type { BillingCorrelation } from "@/lib/billing/billing-correlation";
 import type { CreditDelayResult } from "@/lib/billing/billing-credit-delay";
 import type { WebhookReceipt } from "@/lib/webhook-receipts";
 
-export type WebhookStatusState = "ok" | "not_expected" | "watching" | "delayed";
+export type WebhookStatusState = "ok" | "not_expected" | "watching" | "delayed" | "failed";
 
 export type WebhookReasonCode =
   | "NO_RECENT_CHECKOUT"
   | "CREDIT_APPLIED"
   | "RECEIPT_SEEN"
   | "EXPECTED_WAITING"
+  | "WEBHOOK_FAILED"
   | "DELAY_BUCKET_WAITING_WEBHOOK"
   | "DELAY_BUCKET_WAITING_LEDGER"
   | "DELAY_BUCKET_UI_STALE"
@@ -23,6 +22,11 @@ export type WebhookStatusV2 = {
   reasonCode: WebhookReasonCode;
   message: string;
   facts: { hasRecentCheckout: boolean; lastReceiptAt?: string | null; lastCreditAt?: string | null; expectedWindowMins: number };
+};
+
+export type CorrelationConfidence = {
+  confidence: "unknown" | "healthy" | "delayed" | "failed";
+  reason: string;
 };
 
 type Input = {
@@ -91,6 +95,16 @@ export function buildWebhookStatusV2({
     };
   }
 
+  const webhookErrors = webhookReceipt?.errors24h?.webhook_error_count ?? 0;
+  if (webhookErrors > 0) {
+    return {
+      state: "failed",
+      reasonCode: "WEBHOOK_FAILED",
+      message: "Recent webhook failures detected.",
+      facts,
+    };
+  }
+
   const checkoutAt = lastCheckoutLike?.at ? new Date(lastCheckoutLike.at).getTime() : null;
   const minutesSinceCheckout = checkoutAt ? (now.getTime() - checkoutAt) / (1000 * 60) : null;
 
@@ -120,6 +134,48 @@ export function buildWebhookStatusV2({
     message: "Webhook taking longer than expected — share a support snippet.",
     facts,
   };
+}
+
+export function buildCorrelationConfidence({
+  timeline,
+  webhookReceipt,
+  delay,
+  now = new Date(),
+}: {
+  timeline: BillingTimelineEntry[];
+  webhookReceipt?: WebhookReceipt | null;
+  delay?: BillingCorrelation["delay"] | CreditDelayResult | null;
+  now?: Date;
+}): CorrelationConfidence {
+  const checkout = timeline.find((t) => t.kind === "checkout_success");
+  const webhook = timeline.find((t) => t.kind === "webhook_received");
+  const webhookError = timeline.find((t) => t.kind === "webhook_error");
+  const credits = timeline.find((t) => t.kind === "credits_applied");
+  const hasCredits = Boolean(credits);
+  const hasFailure = Boolean(webhookError || (webhookReceipt?.errors24h?.webhook_error_count ?? 0) > 0);
+  if (hasFailure) {
+    return { confidence: "failed", reason: "webhook_error" };
+  }
+  if (delay && "state" in delay && delay.state === "waiting_webhook") {
+    return { confidence: "delayed", reason: "waiting_webhook" };
+  }
+  if (delay && "state" in delay && delay.state === "waiting_ledger") {
+    return { confidence: "delayed", reason: "waiting_ledger" };
+  }
+  if (delay && "state" in delay && delay.state === "unknown" && checkout) {
+    return { confidence: "delayed", reason: "unknown_delay" };
+  }
+  if (hasCredits && (!checkout || !webhook)) {
+    return { confidence: "healthy", reason: "credits_applied" };
+  }
+  if (!hasCredits && !checkout && !webhook) {
+    return { confidence: "unknown", reason: "no_upstream" };
+  }
+  const withinWindow = checkout ? now.getTime() - new Date(checkout.at).getTime() <= 20 * 60 * 1000 : false;
+  if (withinWindow) {
+    return { confidence: "unknown", reason: "within_window" };
+  }
+  return { confidence: "healthy", reason: "signals_present" };
 }
 
 export type { WebhookReceipt } from "@/lib/webhook-receipts";

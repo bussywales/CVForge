@@ -96,6 +96,8 @@ describe("billing recheck webhook status v2", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(body.model.webhookStatusV2).toBeDefined();
     expect(body.model.webhookStatusV2.state).toBeDefined();
+    expect(body.model.correlationConfidence).toBeDefined();
+    expect(body.model.correlationConfidence.confidence).toBeTypeOf("string");
     vi.useRealTimers();
   });
 });

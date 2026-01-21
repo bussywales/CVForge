@@ -46,7 +46,7 @@ import { buildBillingTimeline } from "@/lib/billing/billing-timeline";
 import { detectCreditDelay } from "@/lib/billing/billing-credit-delay";
 import { computeWebhookHealth } from "@/lib/webhook-health";
 import { buildWebhookReceipt } from "@/lib/webhook-receipts";
-import { buildWebhookStatusV2 } from "@/lib/webhook-status-v2";
+import { buildWebhookStatusV2, buildCorrelationConfidence } from "@/lib/webhook-status-v2";
 import BillingTracePanel from "./billing-trace-panel";
 import { buildRelatedIncidentsLink } from "@/lib/billing/billing-related-links";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
@@ -287,6 +287,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     delay: creditDelay,
     now,
   });
+  const correlationConfidence = buildCorrelationConfidence({ timeline: billingTimeline as any, webhookReceipt, delay: billingCorrelation.delay, now });
 
   const formatUKDateTime = (value: string) => {
     const date = new Date(value);
@@ -345,17 +346,23 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     <div className="space-y-6" id="billing-root">
       <BillingDeepLinkClient />
       <BillingStatusStrip status={billingStatus} supportSnippet={statusSupportSnippet} />
-      <WebhookBadge status={webhookStatusV2} supportSnippet={statusSupportSnippet ?? portalSupportSnippet ?? null} />
+      <WebhookBadge
+        status={webhookStatusV2}
+        supportSnippet={statusSupportSnippet ?? portalSupportSnippet ?? null}
+        creditsAvailable={credits}
+        correlationConfidence={correlationConfidence}
+      />
       <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-indigo-100 bg-indigo-50 p-3 text-xs text-indigo-900">
         <span className="font-semibold text-[rgb(var(--ink))]">Webhook signal:</span>
         <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-indigo-800">
           {webhookReceipt.lastWebhookAt
             ? `Seen ${Math.max(0, Math.floor((Date.now() - new Date(webhookReceipt.lastWebhookAt).getTime()) / 60000))} mins ago`
-            : "No webhook seen (24h)"}
+            : "No recent webhook activity"}
         </span>
         <span className="text-[11px] text-indigo-800">
           {webhookReceipt.dedupe.distinctCount24h} distinct · {webhookReceipt.dedupe.dupCount24h} duplicates (24h)
         </span>
+        {!webhookReceipt.lastWebhookAt ? <span className="text-[11px] text-indigo-700">That’s normal unless you’ve just paid.</span> : null}
       </div>
       {portalError.show ? (
         <PortalErrorBanner requestId={portalError.requestId} supportSnippet={portalSupportSnippet} retryHref={portalError.retryHref} code={portalError.code} />
@@ -374,6 +381,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
           initialWebhookReceipt={webhookReceipt}
           initialWebhookStatus={webhookStatusV2}
           initialCorrelation={billingCorrelation}
+          initialCorrelationConfidence={correlationConfidence}
           supportPath="/app/billing"
           relatedIncidentsLink={relatedIncidentsLink}
         />

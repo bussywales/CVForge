@@ -11,7 +11,8 @@ type Props = {
   initialNextCursor: string | null;
 };
 
-type SinceFilter = "24h" | "7d";
+type SinceFilter = "1h" | "24h" | "7d";
+type ChipFilter = "none" | "repeating" | "last24";
 
 export default function WebhooksClient({ initialItems, initialNextCursor }: Props) {
   const [since, setSince] = useState<SinceFilter>("24h");
@@ -21,6 +22,8 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
   const [items, setItems] = useState<Failure[]>(initialItems);
   const [cursor, setCursor] = useState<string | null>(initialNextCursor);
   const [loading, setLoading] = useState(false);
+  const [chip, setChip] = useState<ChipFilter>("none");
+  const [watchStatus, setWatchStatus] = useState<Record<string, string>>({});
 
   useEffect(() => {
     logMonetisationClientEvent("ops_webhooks_queue_view", null, "ops", { range: since });
@@ -42,6 +45,7 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
       range: since,
       hasCode: Boolean(code),
       hasQ: Boolean(q),
+      chip,
     });
     const res = await fetch(`/api/ops/webhook-failures?${params.toString()}`, { method: "GET", cache: "no-store" });
     const body = await res.json().catch(() => null);
@@ -90,10 +94,17 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
     URL.revokeObjectURL(url);
   };
 
+  const filteredItems = items.filter((item) => {
+    if (chip === "repeating") return item.repeatCount >= 3;
+    if (chip === "last24") return new Date(item.at).getTime() >= Date.now() - 24 * 60 * 60 * 1000;
+    return true;
+  });
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <select value={since} onChange={(e) => setSince(e.target.value as SinceFilter)} className="rounded-md border px-2 py-1 text-sm">
+          <option value="1h">Last hour</option>
           <option value="24h">Last 24h</option>
           <option value="7d">Last 7d</option>
         </select>
@@ -109,6 +120,44 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
         <button className="rounded-full border border-black/10 bg-white px-3 py-1 text-sm font-semibold" onClick={exportCsv}>
           Export CSV
         </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${chip === "repeating" ? "border-amber-300 bg-amber-50 text-amber-800" : "border-black/10 bg-white text-[rgb(var(--ink))]"}`}
+            onClick={() => {
+              const next = chip === "repeating" ? "none" : "repeating";
+              setChip(next);
+              logMonetisationClientEvent("ops_webhooks_queue_filter_chip_click", null, "ops", { chip: "repeating", enabled: next === "repeating" });
+            }}
+          >
+            {"Repeating (>=3)"}
+          </button>
+          <button
+            type="button"
+            className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${since === "1h" ? "border-indigo-300 bg-indigo-50 text-indigo-800" : "border-black/10 bg-white text-[rgb(var(--ink))]"}`}
+            onClick={() => {
+              setSince("1h");
+              logMonetisationClientEvent("ops_webhooks_queue_filter_chip_click", null, "ops", { chip: "last_hour" });
+              fetchItems(false);
+            }}
+          >
+            Last hour
+          </button>
+          <button
+            type="button"
+            className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${chip === "last24" ? "border-indigo-300 bg-indigo-50 text-indigo-800" : "border-black/10 bg-white text-[rgb(var(--ink))]"}`}
+            onClick={() => {
+              const next = chip === "last24" ? "none" : "last24";
+              setChip(next);
+              if (since !== "7d") {
+                setSince("24h");
+              }
+              logMonetisationClientEvent("ops_webhooks_queue_filter_chip_click", null, "ops", { chip: "last24", enabled: next === "last24" });
+            }}
+          >
+            Last 24h
+          </button>
+        </div>
       </div>
       <div className="rounded-2xl border border-black/10 bg-white p-3">
         <div className="flex items-center justify-between">
@@ -125,36 +174,40 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
                 <th className="px-2 py-1">Group</th>
                 <th className="px-2 py-1">User</th>
                 <th className="px-2 py-1">Event hash</th>
+                <th className="px-2 py-1">Last seen</th>
+                <th className="px-2 py-1">Repeats</th>
                 <th className="px-2 py-1">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {items.length === 0 ? (
-              <tr>
-                <td colSpan={7} className="px-2 py-3 text-center text-[rgb(var(--muted))]">
-                  No webhook failures in range.
-                </td>
-              </tr>
-            ) : null}
-            {items.map((item) => (
-              <tr key={item.id} className="border-t">
+              {filteredItems.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-2 py-3 text-center text-[rgb(var(--muted))]">
+                    No webhook failures in range.
+                  </td>
+                </tr>
+              ) : null}
+              {filteredItems.map((item) => (
+                <tr key={item.id} className="border-t">
                   <td className="px-2 py-1">{item.requestId ?? "—"}</td>
                   <td className="px-2 py-1">{item.at}</td>
                   <td className="px-2 py-1">{item.code ?? "—"}</td>
                   <td className="px-2 py-1">{item.group ?? "—"}</td>
                   <td className="px-2 py-1">{item.userId ?? "—"}</td>
                   <td className="px-2 py-1">{item.eventIdHash ?? "—"}</td>
+                  <td className="px-2 py-1">{item.lastSeenAt ?? "—"}</td>
+                  <td className="px-2 py-1">{item.repeatCount ?? 1}</td>
                   <td className="px-2 py-1 space-x-2">
                     {item.requestId ? (
-                    <Link
-                      href={`/app/ops/incidents?requestId=${encodeURIComponent(item.requestId)}&from=ops_webhooks`}
-                      className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
-                      onClick={() => logMonetisationClientEvent("ops_webhook_open_incidents_click", null, "ops")}
-                    >
-                      Open incidents
-                    </Link>
-                  ) : null}
-                  {item.userId ? (
+                      <Link
+                        href={`/app/ops/incidents?requestId=${encodeURIComponent(item.requestId)}&from=ops_webhooks`}
+                        className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                        onClick={() => logMonetisationClientEvent("ops_webhook_open_incidents_click", null, "ops")}
+                      >
+                        Open incidents
+                      </Link>
+                    ) : null}
+                    {item.userId ? (
                       <Link
                         href={`/app/ops/users/${item.userId}`}
                         className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
@@ -175,6 +228,39 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
                       }}
                     >
                       Copy support snippet
+                    </button>
+                    <button
+                      type="button"
+                      className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                      onClick={async () => {
+                        logMonetisationClientEvent("ops_webhook_watch_create_click", null, "ops", { code: item.code ?? "unknown" });
+                        setWatchStatus((prev) => ({ ...prev, [item.id]: "Saving..." }));
+                        try {
+                          const res = await fetch("/api/ops/watch", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                              requestId: item.requestId ?? `webhook_${item.groupKeyHash ?? item.eventIdHash ?? item.id}`,
+                              reasonCode: "webhook_failure",
+                              note: `code ${item.code ?? "unknown"} | hash ${item.groupKeyHash ?? item.eventIdHash ?? "n/a"}`,
+                              ttlHours: 24,
+                            }),
+                          });
+                          const body = await res.json().catch(() => null);
+                          if (body?.ok) {
+                            setWatchStatus((prev) => ({ ...prev, [item.id]: "Watch created" }));
+                            logMonetisationClientEvent("ops_webhook_watch_created", null, "ops", { code: item.code ?? "unknown" });
+                          } else {
+                            setWatchStatus((prev) => ({ ...prev, [item.id]: "Watch failed" }));
+                            logMonetisationClientEvent("ops_webhook_watch_create_error", null, "ops", { code: item.code ?? "unknown" });
+                          }
+                        } catch {
+                          setWatchStatus((prev) => ({ ...prev, [item.id]: "Watch failed" }));
+                          logMonetisationClientEvent("ops_webhook_watch_create_error", null, "ops", { code: item.code ?? "unknown" });
+                        }
+                      }}
+                    >
+                      {watchStatus[item.id] ?? "Watch"}
                     </button>
                   </td>
                 </tr>

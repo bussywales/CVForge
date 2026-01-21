@@ -11,6 +11,7 @@ import { createBillingCorrelation } from "@/lib/billing/billing-correlation";
 import { checkRecheckThrottle } from "@/lib/billing/recheck-throttle";
 import { buildWebhookReceipt } from "@/lib/webhook-receipts";
 import { buildWebhookStatusV2 } from "@/lib/webhook-status-v2";
+import { buildCorrelationConfidence } from "@/lib/webhook-status-v2";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -61,6 +62,7 @@ export async function GET(request: Request) {
     const delayState = detectCreditDelay({ timeline, now });
     const correlationV2 = createBillingCorrelation({ timeline, ledger: activity, creditsAvailable: credits, now });
     const webhookStatusV2 = buildWebhookStatusV2({ timeline: timeline as any, webhookReceipt, correlation: correlationV2, delay: delayState, now });
+    const correlationConfidence = buildCorrelationConfidence({ timeline: timeline as any, webhookReceipt, delay: delayState, now });
 
     return NextResponse.json(
       {
@@ -76,6 +78,7 @@ export async function GET(request: Request) {
           correlationV2,
           delayV2: correlationV2.delay,
           webhookStatusV2,
+          correlationConfidence,
         },
       },
       { headers, status: 200 }

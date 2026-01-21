@@ -2,6 +2,11 @@
 
 # Changelog
 
+## v0.8.22
+- Billing truth source: webhook badge now context-aware (neutral copy when credits exist, warnings only on true delays/failures) with updated support CTA logging.
+- Correlation row gains confidence badges (healthy/unknown/delayed/failed) and recheck payload exposes correlationConfidence for consistent UI.
+- Ops webhook queue enriched with last seen/repeats, chips for repeating/last hour, and one-click Watch shortcut; request/allowlist logs expanded.
+
 ## v0.8.21
 - Webhook status v2: context-aware helper reduces false alarms (not expected vs watching/delayed/ok) across billing badge, trace, and recheck payload; badge offers delayed snippet copy only when needed.
 - Billing correlation row now labels missing upstream as unknown when credits exist; missing-webhook hints only show when truly delayed.

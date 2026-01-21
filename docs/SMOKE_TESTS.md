@@ -92,6 +92,12 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Credits applied without a receipt still show Webhook status “OK” with reason “Credit applied”.
 - /app/ops/webhooks with an empty range shows “No webhook failures in range” (not “missing receipts”).
 
+## Quick prod checks (v0.8.22)
+- /app/billing when credits are present and no recent webhooks → badge shows neutral “No recent webhook activity” and no support CTA.
+- Simulated delayed classification still shows “Delayed” with support snippet CTA.
+- Billing Trace shows correlation confidence pill (healthy/unknown/delayed/failed) and updates on recheck.
+- Ops Webhooks queue shows Last seen + Repeats columns, Repeating (>=3)/Last hour chips work, and Watch button creates a watch entry.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

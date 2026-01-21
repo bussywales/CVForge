@@ -13,7 +13,8 @@ import { buildBillingTraceSnippet } from "@/lib/billing/billing-trace-snippet";
 import { createBillingCorrelation, type BillingCorrelation } from "@/lib/billing/billing-correlation";
 import { buildDelayPlaybook } from "@/lib/billing/billing-delay-playbooks";
 import type { WebhookReceipt } from "@/lib/webhook-receipts";
-import type { WebhookStatusV2 } from "@/lib/webhook-status-v2";
+import type { CorrelationConfidence, WebhookStatusV2 } from "@/lib/webhook-status-v2";
+import { buildCorrelationConfidence } from "@/lib/webhook-status-v2";
 
 type Props = {
   initialTimeline: BillingTimelineEntry[];
@@ -22,6 +23,7 @@ type Props = {
   initialWebhookReceipt: WebhookReceipt;
   initialWebhookStatus: WebhookStatusV2;
   initialCorrelation?: BillingCorrelation | null;
+  initialCorrelationConfidence?: CorrelationConfidence | null;
   supportPath: string;
   relatedIncidentsLink?: string | null;
 };
@@ -33,6 +35,7 @@ export default function BillingTracePanel({
   initialWebhookReceipt,
   initialWebhookStatus,
   initialCorrelation,
+  initialCorrelationConfidence,
   supportPath,
   relatedIncidentsLink,
 }: Props) {
@@ -44,6 +47,9 @@ export default function BillingTracePanel({
   const [webhookStatus, setWebhookStatus] = useState<WebhookStatusV2>(initialWebhookStatus);
   const [correlation, setCorrelation] = useState<BillingCorrelation | null>(
     initialCorrelation ?? createBillingCorrelation({ timeline: initialTimeline, ledger: [], now: new Date() })
+  );
+  const [correlationConfidence, setCorrelationConfidence] = useState<CorrelationConfidence | null>(
+    initialCorrelationConfidence ?? buildCorrelationConfidence({ timeline: initialTimeline, webhookReceipt: initialWebhookReceipt, delay: initialDelay })
   );
   const [cooldownSec, setCooldownSec] = useState<number>(0);
   const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(null);
@@ -66,6 +72,14 @@ export default function BillingTracePanel({
       dup24h: webhookReceipt.dedupe.dupCount24h,
     });
   }, [timeline.length, webhookHealth.status, webhookHealth.lastErrorAt, webhookReceipt.dedupe.dupCount24h, webhookReceipt.lastWebhookAt]);
+
+  useEffect(() => {
+    if (correlationConfidence) {
+      logMonetisationClientEvent("billing_correlation_confidence_view", null, "billing", {
+        confidence: correlationConfidence.confidence,
+      });
+    }
+  }, [correlationConfidence]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -102,6 +116,19 @@ export default function BillingTracePanel({
       if (body.model.webhookReceipt) {
         setWebhookReceipt(body.model.webhookReceipt);
       }
+      if (body.model.correlationConfidence) {
+        setCorrelationConfidence(body.model.correlationConfidence);
+        logMonetisationClientEvent("billing_recheck_confidence_update", null, "billing", {
+          confidence: body.model.correlationConfidence.confidence,
+        });
+      } else if (body.model.timeline) {
+        const conf = buildCorrelationConfidence({
+          timeline: body.model.timeline,
+          webhookReceipt: body.model.webhookReceipt ?? webhookReceipt,
+          delay: body.model.delayState ?? null,
+        });
+        setCorrelationConfidence(conf);
+      }
       if (body.model.webhookStatusV2) {
         setWebhookStatus(body.model.webhookStatusV2);
         window.dispatchEvent(new CustomEvent("billing:webhookStatus", { detail: body.model.webhookStatusV2 }));
@@ -128,7 +155,8 @@ export default function BillingTracePanel({
     correlation ?? createBillingCorrelation({ timeline, ledger: [], now: new Date() });
   const traceSnippet = buildBillingTraceSnippet({ requestId: timeline[0]?.requestId ?? null, timeline, webhook: webhookHealth, delay });
   const playbook = computedCorrelation ? buildDelayPlaybook({ correlation: computedCorrelation, supportPath, requestId: timeline[0]?.requestId ?? null }) : null;
-  const missingWebhook = webhookStatus.state === "delayed";
+  const missingWebhook =
+    webhookStatus.state === "delayed" || webhookStatus.state === "failed" || correlationConfidence?.confidence === "delayed" || correlationConfidence?.confidence === "failed";
   const webhookReceiptSnippet = `Webhook receipt | ref ${webhookReceipt.lastWebhookRequestId ?? "unknown"} | last ${
     webhookReceipt.lastWebhookAt ?? "unknown"
   } | hash ${webhookReceipt.dedupe.lastEventIdHash ?? "n/a"}`;
@@ -199,6 +227,27 @@ export default function BillingTracePanel({
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="space-y-1">
               <p className="text-sm font-semibold text-[rgb(var(--ink))]">Correlation</p>
+              {correlationConfidence ? (
+                <span
+                  className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold ${
+                    correlationConfidence.confidence === "failed"
+                      ? "bg-rose-100 text-rose-800"
+                      : correlationConfidence.confidence === "delayed"
+                        ? "bg-amber-100 text-amber-800"
+                        : correlationConfidence.confidence === "healthy"
+                          ? "bg-emerald-100 text-emerald-800"
+                          : "bg-slate-100 text-[rgb(var(--ink))]"
+                  }`}
+                >
+                  {correlationConfidence.confidence === "unknown"
+                    ? "Upstream signals unavailable"
+                    : correlationConfidence.confidence === "healthy"
+                      ? "All good"
+                      : correlationConfidence.confidence === "delayed"
+                        ? "Webhook delayed"
+                        : "Webhook failed"}
+                </span>
+              ) : null}
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-[rgb(var(--muted))]">
                 <span className="font-semibold text-[rgb(var(--ink))]">Checkout</span>
                 <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold">
@@ -224,7 +273,7 @@ export default function BillingTracePanel({
               <div className="mt-1 flex flex-wrap items-center gap-2 text-[11px]">
                 <span className="font-semibold text-[rgb(var(--ink))]">Webhook receipt</span>
                 <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold">
-                  {webhookReceipt.lastWebhookAt ? `Seen ${new Date(webhookReceipt.lastWebhookAt).toLocaleString()}` : "No webhook seen (24h)"}
+                  {webhookReceipt.lastWebhookAt ? `Seen ${new Date(webhookReceipt.lastWebhookAt).toLocaleString()}` : "No recent webhook activity"}
                 </span>
                 {webhookReceipt.lastWebhookRequestId ? (
                   <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold">

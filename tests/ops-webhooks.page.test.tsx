@@ -21,6 +21,9 @@ describe("Ops webhooks page client", () => {
         userId: "user_1",
         summary: "err",
         eventIdHash: "abc",
+        groupKeyHash: "gh1",
+        lastSeenAt: "2024-02-10T10:00:00.000Z",
+        repeatCount: 3,
         correlation: { checkoutSeen: true, webhookSeen: false, creditChanged: false },
       },
     ];
@@ -32,5 +35,6 @@ describe("Ops webhooks page client", () => {
     expect(exportBtn).toBeTruthy();
     const incidentsLink = Array.from(container.querySelectorAll("a")).find((el) => el.textContent?.includes("Open incidents"));
     expect(incidentsLink?.getAttribute("href")).toContain("/app/ops/incidents");
+    expect(container.textContent).toContain("Repeats");
   });
 });

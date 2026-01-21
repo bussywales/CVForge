@@ -13,6 +13,9 @@ export type WebhookFailure = {
   userId: string | null;
   summary: string | null;
   eventIdHash: string | null;
+  groupKeyHash: string | null;
+  lastSeenAt: string | null;
+  repeatCount: number;
   correlation: { checkoutSeen?: boolean; webhookSeen?: boolean; creditChanged?: boolean };
 };
 
@@ -74,6 +77,27 @@ export async function listWebhookFailures({
   }
   const { data, error } = await query;
   if (error || !data) return { items: [], nextCursor: null };
+  const grouped = new Map<string, { count: number; lastSeen: string | null }>();
+  data.forEach((row: any) => {
+    let meta: any = {};
+    try {
+      meta = JSON.parse(row.body ?? "{}");
+    } catch {
+      meta = {};
+    }
+    const requestId = meta.requestId ?? meta.request_id ?? null;
+    const codeMasked = meta.code ?? meta.error_code ?? null;
+    const eventIdHash = hashValue(meta.eventId ?? meta.event_id ?? requestId ?? row.id);
+    const groupKey = hashValue(`${codeMasked ?? "unknown"}|${eventIdHash ?? ""}|${row.user_id ?? ""}`);
+    if (!grouped.has(groupKey ?? "")) {
+      grouped.set(groupKey ?? "", { count: 1, lastSeen: row.occurred_at ?? row.created_at ?? null });
+    } else {
+      const entry = grouped.get(groupKey ?? "")!;
+      entry.count += 1;
+      entry.lastSeen = entry.lastSeen ?? row.occurred_at ?? row.created_at ?? null;
+    }
+  });
+
   const items = data.slice(0, cappedLimit).map((row: any) => {
     let meta: any = {};
     try {
@@ -84,6 +108,8 @@ export async function listWebhookFailures({
     const requestId = meta.requestId ?? meta.request_id ?? null;
     const codeMasked = meta.code ?? meta.error_code ?? null;
     const eventIdHash = hashValue(meta.eventId ?? meta.event_id ?? requestId ?? row.id);
+    const groupKeyHash = hashValue(`${codeMasked ?? "unknown"}|${eventIdHash ?? ""}|${row.user_id ?? ""}`);
+    const repeatMeta = grouped.get(groupKeyHash ?? "") ?? { count: 1, lastSeen: row.occurred_at ?? row.created_at ?? null };
     return {
       id: row.id,
       requestId,
@@ -94,6 +120,9 @@ export async function listWebhookFailures({
       userId: meta.userId ?? row.user_id ?? null,
       summary: meta.message ?? meta.summary ?? row.subject ?? "Webhook failure",
       eventIdHash,
+      groupKeyHash,
+      lastSeenAt: repeatMeta.lastSeen,
+      repeatCount: repeatMeta.count,
       correlation: {
         checkoutSeen: Boolean(meta.checkoutSeen),
         webhookSeen: Boolean(meta.webhookSeen),

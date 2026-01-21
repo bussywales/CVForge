@@ -67,6 +67,9 @@ beforeAll(async () => {
           userId: "user_1",
           summary: "Webhook error",
           eventIdHash: "abc123",
+          groupKeyHash: "gk1",
+          lastSeenAt: "2024-02-10T10:00:00.000Z",
+          repeatCount: 2,
           correlation: { checkoutSeen: true, webhookSeen: false, creditChanged: false },
         },
       ],
@@ -86,5 +89,6 @@ describe("ops webhook failures route", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(body.ok).toBe(true);
     expect(body.items[0].requestId).toBe("req_123");
+    expect(body.items[0].repeatCount).toBeDefined();
   });
 });
