@@ -155,6 +155,7 @@ Early Access + Ops repeats (v0.8.27): invite-gated dashboard/billing/application
 Ops Early Access allowlist (v0.8.28): ops-managed allowlist table with grant/revoke + notes, ops APIs + /app/ops/access console; gate reads DB first with env fallback, logging/audit-friendly and masked.
 Ops Alerts v1 (v0.8.29): deterministic 15m alerting (RAG red, webhook/portal spikes, rate-limit pressure) with persisted state/events, webhook notify, Ops alerts page (firing/recent) and actionable deep links.
 Early Access invites v1 (v0.8.31): ops can create/revoke email-hash invites pre-signup with copyable links/instructions and recent invite history; gate auto-claims invites on signup/login (hashed email only) before env fallback, with masked logging and budgets.
+Onboarding funnel v1 (v0.8.32): deterministic onboarding steps (CV created/exported, application added, optional interview) with DB persistence, skip-for-week, dashboard “Getting started” card, and calm empty states guiding first value; telemetry is masked and deduped.
 
 ## Deterministic vs OpenAI usage
 Deterministic engines include role-fit.ts, interview-lift.ts, outreach-templates.ts, submission-quality.ts, and metrics-helper.ts. OpenAI is only used for autopack generation via server-side API calls.

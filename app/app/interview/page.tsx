@@ -6,7 +6,7 @@ import SupportFocusClient from "@/app/app/applications/support-focus-client";
 export const dynamic = "force-dynamic";
 
 export default async function InterviewPage() {
-  const { user } = await getSupabaseUser();
+  const { supabase, user } = await getSupabaseUser();
 
   if (!user) {
     return (
@@ -16,9 +16,41 @@ export default async function InterviewPage() {
     );
   }
 
+  const [interviewStatus, practiceStatus] = await Promise.all([
+    supabase
+      .from("applications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id)
+      .ilike("status", "%interview%"),
+    supabase
+      .from("interview_practice_answers")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id),
+  ]);
+  const hasInterviews = (interviewStatus.count ?? 0) + (practiceStatus.count ?? 0) > 0;
+
   return (
     <div className="space-y-4">
       <SupportFocusClient applicationId={null} />
+      {!hasInterviews ? (
+        <div className="rounded-2xl border border-dashed border-black/10 bg-white/80 p-4 text-sm text-[rgb(var(--muted))]">
+          <p>No interviews yet. Schedule one to unlock prep flows.</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <Link
+              href="/app/applications/new"
+              className="rounded-full border border-black/10 bg-[rgb(var(--ink))] px-3 py-1 text-[11px] font-semibold text-white"
+            >
+              Create application
+            </Link>
+            <Link
+              href="/app/pipeline"
+              className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+            >
+              View pipeline
+            </Link>
+          </div>
+        </div>
+      ) : null}
       <Section
         title="Interview Focus Session"
         description="Jump back into interview prep. Support links scroll here and highlight the section."

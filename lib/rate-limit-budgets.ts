@@ -14,7 +14,9 @@ type BudgetKey =
   | "ops_access_invite_create"
   | "ops_access_invite_revoke"
   | "ops_alerts_get"
-  | "ops_alerts_test";
+  | "ops_alerts_test"
+  | "onboarding_model_get"
+  | "onboarding_skip_post";
 
 type BudgetLevel = "high" | "medium" | "low";
 
@@ -41,6 +43,8 @@ const ROUTE_BUDGETS: Record<BudgetKey, BudgetLevel> = {
   ops_access_invite_revoke: "medium",
   ops_alerts_get: "medium",
   ops_alerts_test: "medium",
+  onboarding_model_get: "medium",
+  onboarding_skip_post: "medium",
 };
 
 export function getRateLimitBudget(route: BudgetKey) {

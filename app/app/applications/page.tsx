@@ -150,17 +150,12 @@ export default async function ApplicationsPage({
       >
         {items.length === 0 ? (
           <div className="space-y-3 rounded-2xl border border-dashed border-black/20 bg-white/70 p-6 text-sm text-[rgb(var(--muted))]">
-            <p>Create your first application to start the command centre.</p>
-            <ol className="list-decimal space-y-1 pl-4 text-xs">
-              <li>Create application with job link/text.</li>
-              <li>Add evidence and STAR draft.</li>
-              <li>Generate Autopack and submit.</li>
-            </ol>
+            <p>Start with one application to unlock next steps.</p>
             <Link
               href="/app/applications/new"
               className="inline-flex w-fit rounded-full border border-black/10 bg-[rgb(var(--ink))] px-4 py-2 text-xs font-semibold text-white hover:bg-black"
             >
-              Create application
+              Create your first application
             </Link>
           </div>
         ) : (

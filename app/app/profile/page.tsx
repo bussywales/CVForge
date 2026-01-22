@@ -48,6 +48,8 @@ export default async function ProfilePage() {
   const achievements = await listAchievements(supabase, user.id);
   const workHistory = await listWorkHistory(supabase, user.id);
   const completeness = calculateCompleteness(profile, achievements.length);
+  const autopacksCountResp = await supabase.from("autopacks").select("id", { count: "exact", head: true }).eq("user_id", user.id);
+  const autopacksCount = autopacksCountResp.count ?? 0;
 
   return (
     <div className="space-y-8">
@@ -62,6 +64,17 @@ export default async function ProfilePage() {
           completeness={completeness}
           updateAction={updateProfileAction}
         />
+        {autopacksCount === 0 ? (
+          <div className="mt-3 rounded-2xl border border-dashed border-black/10 bg-white/70 p-3 text-xs text-[rgb(var(--muted))]">
+            <p>No CV yet. Create your first CV from an application to unlock exports.</p>
+            <a
+              href="/app/applications/new"
+              className="mt-2 inline-flex rounded-full border border-black/10 bg-[rgb(var(--ink))] px-3 py-1 text-[11px] font-semibold text-white"
+            >
+              Create CV
+            </a>
+          </div>
+        ) : null}
       </Section>
 
       <Section

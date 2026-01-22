@@ -18,6 +18,8 @@ import { buildKeepMomentumModel, type KeepMomentumModel } from "@/lib/keep-momen
 import KeepMomentumCard from "./keep-momentum-card";
 import { getEarlyAccessDecision } from "@/lib/early-access";
 import EarlyAccessBlock from "@/components/EarlyAccessBlock";
+import { getOnboardingModel } from "@/lib/onboarding/onboarding";
+import OnboardingCard from "./onboarding-card";
 
 export const dynamic = "force-dynamic";
 
@@ -46,6 +48,7 @@ export default async function AppPage() {
   let credits = 0;
   let telemetryOptIn = false;
   let applications: ApplicationRecord[] = [];
+  let onboardingModel = null;
 
   try {
     credits = await getUserCredits(supabase, user.id);
@@ -73,6 +76,12 @@ export default async function AppPage() {
     telemetryOptIn = Boolean(data?.telemetry_opt_in);
   } catch (error) {
     console.error("[dashboard telemetry]", error);
+  }
+
+  try {
+    onboardingModel = await getOnboardingModel({ userId: user.id, supabase, now: new Date() });
+  } catch (error) {
+    console.error("[dashboard onboarding]", error);
   }
 
   const insights = await getInsightsSummary(supabase, user.id);
@@ -165,6 +174,7 @@ export default async function AppPage() {
           surface="dashboard"
         />
       ) : null}
+      <OnboardingCard model={onboardingModel} primaryHref={primaryCta} />
       <ActivationCard model={activation} error={activationError} />
       <KeepMomentumCard model={keepMomentum} error={keepMomentumError} />
 

@@ -5,6 +5,11 @@
 - Ops Access console adds invite flow for emails without accounts: create/revoke endpoints with budgets, copyable invite links/instructions, invite status badges, and recent invites list.
 - Logging/allowlists updated for invite search/create/revoke/claim events; docs/runbook refreshed and migrations aligned with email-hash primary keys.
 
+## v0.8.32
+- Onboarding funnel v1: deterministic onboarding model with auto-completed steps (CV created/exported, application added, optional interview) persisted in DB; skip-for-week support and logs.
+- Dashboard Getting started card with premium CTAs, skip/dismiss handling, and calm empty states across Applications/Profile (CV) and Interviews.
+- New onboarding APIs with rate limits, sanitised telemetry events, and docs/smoke tests for first-value flow updates.
+
 ## v0.8.30
 - Early Access email invites: allowlist supports email-only invites with hashed emails, optional user linkage, and unique active entries; ops can grant/revoke pre-signup and gate checks DB by user or email hash before env fallback.
 - Ops Early Access console updated for invite flow with user-found status, invite status, copyable instructions, and email-based grant/revoke; new helper for invite instructions and gate logging.
