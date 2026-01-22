@@ -54,6 +54,8 @@ import type { UserRole } from "@/lib/rbac";
 import BillingHelpPrompt from "./billing-help-prompt";
 import { createBillingCorrelation } from "@/lib/billing/billing-correlation";
 import WebhookBadge from "./webhook-badge";
+import EarlyAccessBlock from "@/components/EarlyAccessBlock";
+import { isEarlyAccessAllowed } from "@/lib/early-access";
 const BillingDeepLinkClient = nextDynamic(() => import("./billing-deeplink-client"), { ssr: false });
 
 export const dynamic = "force-dynamic";
@@ -86,6 +88,11 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
         Your session expired. Please sign in again.
       </div>
     );
+  }
+
+  const allow = await isEarlyAccessAllowed({ userId: user.id, email: user.email });
+  if (!allow && !isOpsRole(roleInfo.role)) {
+    return <EarlyAccessBlock email={user.email} />;
   }
 
   const portalError = parsePortalError(searchParams ?? undefined);

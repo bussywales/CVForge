@@ -4,6 +4,7 @@ import { getSupabaseUser } from "@/lib/data/supabase";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { buildRagStatus } from "@/lib/ops/rag-status";
+import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,15 +26,22 @@ export async function GET(request: Request) {
     return jsonError({ code: "FORBIDDEN", message: "Insufficient role", requestId, status: 403 });
   }
 
+  const budget = getRateLimitBudget("ops_rag_status");
   const limiter = checkRateLimit({
     route: "ops_rag_status",
     identifier: user.id,
-    limit: 40,
-    windowMs: 5 * 60 * 1000,
+    limit: budget.limit,
+    windowMs: budget.windowMs,
     category: "ops_action",
   });
   if (!limiter.allowed) {
-    const res = jsonError({ code: "RATE_LIMITED", message: "Rate limited — try again shortly", requestId, status: 429 });
+    const res = jsonError({
+      code: "RATE_LIMITED",
+      message: "Rate limited — try again shortly",
+      requestId,
+      status: 429,
+      meta: { limitKey: "ops_rag_status", budget: budget.budget, retryAfterSeconds: limiter.retryAfterSeconds },
+    });
     return applyRequestIdHeaders(res, requestId, { noStore: true, retryAfterSeconds: limiter.retryAfterSeconds });
   }
 

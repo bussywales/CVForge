@@ -5,6 +5,8 @@ import { getStripeClient } from "@/lib/stripe/stripe";
 import { logMonetisationEvent } from "@/lib/monetisation";
 import { captureServerError } from "@/lib/observability/sentry";
 import { withRequestIdHeaders } from "@/lib/observability/request-id";
+import { checkRateLimit } from "@/lib/rate-limit";
+import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +40,22 @@ export async function GET(request: Request) {
 
   if (!user) {
     return errorResponse("UNAUTHORIZED", "Unauthorized", 401);
+  }
+
+  if (wantsJson) {
+    const budget = getRateLimitBudget("billing_portal");
+    const limiter = checkRateLimit({
+      route: "billing_portal",
+      identifier: user.id,
+      limit: budget.limit,
+      windowMs: budget.windowMs,
+    });
+    if (!limiter.allowed) {
+      return NextResponse.json(
+        { ok: false, code: "RATE_LIMITED", requestId, budget: budget.budget, retryAfterSeconds: limiter.retryAfterSeconds },
+        { status: 429, headers: baseHeaders }
+      );
+    }
   }
 
   const settings = await fetchBillingSettings(supabase, user.id);

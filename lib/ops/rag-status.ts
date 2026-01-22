@@ -28,11 +28,16 @@ export type RagStatus = {
   signals: RagSignal[];
   topIssues: Array<{ key: SignalKey; label: string; severity: RagState; count: number; primaryAction: string; secondaryAction?: string | null }>;
   trend: { bucketMinutes: number; fromIso: string; toIso: string; buckets: RagTrendBucket[]; direction: "improving" | "stable" | "worsening" };
+  topRepeats: {
+    requestIds: Array<{ id: string; count: number }>;
+    codes: Array<{ code: string; count: number }>;
+    surfaces: Array<{ surface: string; count: number }>;
+  };
   updatedAt: string;
 };
 
 type SignalKey = "webhook_failures" | "webhook_errors" | "portal_errors" | "checkout_errors" | "rate_limits";
-type SignalEvent = { key: SignalKey; atMs: number; code?: string | null; surface?: string | null };
+type SignalEvent = { key: SignalKey; atMs: number; code?: string | null; surface?: string | null; requestId?: string | null };
 
 function sanitizeToken(value?: string | null) {
   if (!value) return "unknown";
@@ -115,6 +120,24 @@ function summariseSurfaces(events: SignalEvent[]) {
     .sort((a, b) => b[1] - a[1])
     .map(([surface, count]) => ({ surface, count }))
     .slice(0, 3);
+}
+
+function buildTopRepeats(events: SignalEvent[], windowFromMs: number, windowToMs: number) {
+  const windowEvents = events.filter((e) => e.atMs >= windowFromMs && e.atMs <= windowToMs);
+  const requestCounts = windowEvents
+    .filter((e) => e.requestId)
+    .reduce((map, ev) => {
+      const id = sanitizeToken(ev.requestId);
+      map.set(id, (map.get(id) ?? 0) + 1);
+      return map;
+    }, new Map<string, number>());
+  const codes = summariseCodes(windowEvents);
+  const surfaces = summariseSurfaces(windowEvents);
+  const topRequestIds = Array.from(requestCounts.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([id, count]) => ({ id, count }));
+  return { requestIds: topRequestIds, codes, surfaces };
 }
 
 function buildHeadline(status: RagState, issues: RagStatus["topIssues"]) {
@@ -226,14 +249,16 @@ function parseActivity(row: any): SignalEvent | null {
   }
   if (!key) return null;
   let code: string | null = type.split(".").pop() ?? null;
+  let requestId: string | null = null;
   try {
     const meta = JSON.parse(row?.body ?? "{}");
     code = (meta.code ?? meta.error_code ?? code ?? "unknown").toString();
+    requestId = meta.requestId ?? meta.request_id ?? null;
   } catch {
     // swallow
   }
   const atMs = new Date(row?.occurred_at ?? row?.created_at ?? Date.now()).getTime();
-  return { key, atMs, code, surface };
+  return { key, atMs, code, surface, requestId };
 }
 
 function parseWebhookFailure(item: Awaited<ReturnType<typeof listWebhookFailures>>["items"][number]): SignalEvent {
@@ -242,6 +267,7 @@ function parseWebhookFailure(item: Awaited<ReturnType<typeof listWebhookFailures
     atMs: new Date(item.at).getTime(),
     code: (item.code ?? "unknown").toString(),
     surface: "webhook",
+    requestId: item.requestId ?? null,
   };
 }
 
@@ -294,6 +320,7 @@ export async function buildRagStatus({ now = new Date(), windowMinutes = 15, tre
   const status: RagState = signals.some((s) => s.severity === "red") ? "red" : signals.some((s) => s.severity === "amber") ? "amber" : "green";
   const topIssues = deriveTopIssues(signals);
   const trend = computeTrend(events, { now, bucketMinutes: 15, hours: trendHours });
+  const topRepeats = buildTopRepeats(events, windowFromMs, windowToMs);
 
   return {
     rulesVersion: "rag_v2_15m_trend",
@@ -304,6 +331,7 @@ export async function buildRagStatus({ now = new Date(), windowMinutes = 15, tre
     signals,
     topIssues,
     trend,
+    topRepeats,
     updatedAt: now.toISOString(),
   };
 }

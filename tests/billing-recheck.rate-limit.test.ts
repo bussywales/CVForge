@@ -69,6 +69,9 @@ beforeAll(async () => {
     resetRateLimitStores = actual.resetRateLimitStores;
     return actual;
   });
+  vi.doMock("@/lib/rate-limit-budgets", () => ({
+    getRateLimitBudget: () => ({ budget: "test", limit: 5, windowMs: 1_000 }),
+  }));
 
   mockUser = { id: "user-1" };
   vi.doMock("@/lib/supabase/server", () => ({

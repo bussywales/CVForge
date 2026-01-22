@@ -32,14 +32,16 @@ export function jsonError({
   requestId,
   status = 500,
   noStore = true,
+  meta,
 }: {
   code: string;
   message: string;
   requestId: string;
   status?: number;
   noStore?: boolean;
+  meta?: Record<string, any>;
 }) {
-  const res = new Response(JSON.stringify({ error: { code, message, requestId } }), {
+  const res = new Response(JSON.stringify({ error: { code, message, requestId, meta } }), {
     status,
     headers: {
       "content-type": "application/json",

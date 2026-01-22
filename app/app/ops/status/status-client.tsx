@@ -26,6 +26,8 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
   const [ragCooldown, setRagCooldown] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(null);
+  const [topRepeatsLogged, setTopRepeatsLogged] = useState(false);
+  const [watchStatus, setWatchStatus] = useState<Record<string, string>>({});
   const signalActions: Record<SignalKey, { primary: string; secondary?: string | null }> = {
     webhook_failures: {
       primary: buildOpsWebhooksLink({ window: "15m", signal: "webhook_failures" }),
@@ -102,6 +104,13 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
   }, [directionLogged, rag?.trend, rag?.trend?.direction]);
 
   useEffect(() => {
+    if (rag?.topRepeats && !topRepeatsLogged) {
+      setTopRepeatsLogged(true);
+      logMonetisationClientEvent("ops_status_top_repeats_view", null, "ops", { windowMinutes: rag.window.minutes });
+    }
+  }, [rag?.topRepeats, rag?.window?.minutes, topRepeatsLogged]);
+
+  useEffect(() => {
     if (!status?.limits) return;
     logMonetisationClientEvent("system_status_limits_view", null, "ops", {
       billing: status.limits.rateLimitHits24h.billing_recheck,
@@ -126,11 +135,13 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
         const retrySeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 30;
         setRagCooldown(retrySeconds);
         logMonetisationClientEvent("ops_status_rag_fetch_error", null, "ops", { code: "RATE_LIMITED", requestId: body?.error?.requestId ?? null });
+        logMonetisationClientEvent("ops_panel_rate_limited", null, "ops", { panel: "system_status", retryAfterSeconds: retrySeconds });
         return;
       }
       if (!body?.ok) {
         setRagError({ message: body?.error?.message ?? "Unable to load system health", requestId: body?.error?.requestId ?? null });
         logMonetisationClientEvent("ops_status_rag_fetch_error", null, "ops", { code: body?.error?.code ?? "UNKNOWN", requestId: body?.error?.requestId ?? null });
+        logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "system_status", code: body?.error?.code ?? "UNKNOWN" });
         return;
       }
       setStatus(body.status);
@@ -141,12 +152,13 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
           topIssueKey: body.status.rag.topIssues?.[0]?.key ?? null,
           rulesVersion: body.status.rag.rulesVersion,
         });
-      }
-    } catch {
-      setRagError({ message: "Unable to load system health", requestId: null });
-      logMonetisationClientEvent("ops_status_rag_fetch_error", null, "ops", { code: "NETWORK", requestId: null });
     }
-  };
+  } catch {
+    setRagError({ message: "Unable to load system health", requestId: null });
+    logMonetisationClientEvent("ops_status_rag_fetch_error", null, "ops", { code: "NETWORK", requestId: null });
+    logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "system_status", code: "NETWORK" });
+  }
+};
 
   const handleRefresh = async () => {
     setLoading(true);
@@ -160,11 +172,13 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
         const retryAfterSeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined;
         setError({ message: retryAfterSeconds ? `Rate limited — try again in ~${retryAfterSeconds}s` : "Rate limited — try again shortly", requestId: body?.error?.requestId ?? requestId });
         logMonetisationClientEvent("ops_action_rate_limited", null, "ops", { action: "system_status", retryAfterSeconds });
+        logMonetisationClientEvent("ops_panel_rate_limited", null, "ops", { panel: "system_status", retryAfterSeconds });
         setLoading(false);
         return;
       }
       if (!body?.ok) {
         setError({ message: body?.error?.message ?? "Unable to refresh", requestId: body?.error?.requestId ?? null });
+        logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "system_status", code: body?.error?.code ?? "UNKNOWN" });
       setLoading(false);
       return;
     }
@@ -173,6 +187,7 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
     void fetchRag();
   } catch {
     setError({ message: "Unable to refresh", requestId: null });
+    logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "system_status", code: "NETWORK" });
     setLoading(false);
   }
 };
@@ -193,6 +208,35 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
       </div>
     </div>
   );
+
+  const handleWatchRepeat = async (requestId: string, count: number) => {
+    setWatchStatus((prev) => ({ ...prev, [requestId]: "Saving..." }));
+    logMonetisationClientEvent("ops_status_top_repeats_watch_click", null, "ops", { requestId, count });
+    try {
+      const res = await fetch("/api/ops/watch", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId, reasonCode: "repeat_request", note: `repeat ${count} in 15m`, ttlHours: 24 }),
+      });
+      const body = await res.json().catch(() => null);
+      if (res.status === 429 || body?.error?.code === "RATE_LIMITED") {
+        const retryAfter = Number(res.headers.get("retry-after") ?? body?.retryAfter ?? 0);
+        const retryAfterSeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null;
+        setWatchStatus((prev) => ({ ...prev, [requestId]: retryAfterSeconds ? `Rate limited ~${retryAfterSeconds}s` : "Rate limited" }));
+        logMonetisationClientEvent("ops_panel_rate_limited", null, "ops", { panel: "top_repeats", retryAfterSeconds });
+        return;
+      }
+      if (body?.ok) {
+        setWatchStatus((prev) => ({ ...prev, [requestId]: "Watch created" }));
+      } else {
+        setWatchStatus((prev) => ({ ...prev, [requestId]: "Watch failed" }));
+        logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "top_repeats", code: body?.error?.code ?? "UNKNOWN" });
+      }
+    } catch {
+      setWatchStatus((prev) => ({ ...prev, [requestId]: "Watch failed" }));
+      logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "top_repeats", code: "NETWORK" });
+    }
+  };
 
   return (
     <div className="space-y-3">
@@ -231,6 +275,8 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
             {rag ? `Updated ${new Date(rag.updatedAt).toLocaleTimeString()}` : ragCooldown > 0 ? `Rate limited — try again in ${ragCooldown}s` : "Loading…"}
           </span>
         </div>
+        {ragCooldown > 0 ? <p className="text-[11px] text-amber-800">Rate limited — try again in ~{ragCooldown}s.</p> : null}
+        {ragError && !ragCooldown ? <p className="text-[11px] text-amber-800">Temporarily unavailable.</p> : null}
         {rag ? <p className="mt-1 text-[11px] text-[rgb(var(--muted))]">{rag.headline}</p> : null}
         {ragError ? <ErrorBanner title="System health error" message={ragError.message} requestId={ragError.requestId ?? requestId} /> : null}
         {rag ? (
@@ -269,6 +315,82 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
               ))}
               {rag.topIssues.length === 0 ? <span className="text-[11px] text-[rgb(var(--muted))]">All clear.</span> : null}
             </div>
+            {rag.topRepeats ? (
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-2">
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-semibold text-[rgb(var(--ink))]">Top repeats (15m)</p>
+                  <span className="text-[10px] text-[rgb(var(--muted))]">Quick triage</span>
+                </div>
+                {rag.topRepeats.requestIds.length === 0 && rag.topRepeats.codes.length === 0 && rag.topRepeats.surfaces.length === 0 ? (
+                  <p className="text-[11px] text-[rgb(var(--muted))]">No repeats observed.</p>
+                ) : (
+                  <div className="mt-1 space-y-2">
+                    {rag.topRepeats.requestIds.length ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {rag.topRepeats.requestIds.map((item) => (
+                          <div key={item.id} className="flex items-center gap-2 rounded-lg border border-slate-100 bg-white px-2 py-1 text-[11px]">
+                            <span className="font-semibold text-[rgb(var(--ink))]">{item.id}</span>
+                            <span className="text-[rgb(var(--muted))]">({item.count})</span>
+                            <button
+                              type="button"
+                              className="rounded-full border border-black/10 bg-white px-2 py-0.5 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                              onClick={() => {
+                                navigator.clipboard.writeText(item.id).catch(() => undefined);
+                                logMonetisationClientEvent("ops_status_top_repeats_click", null, "ops", { type: "requestId", requestId: item.id });
+                              }}
+                            >
+                              Copy
+                            </button>
+                            <Link
+                              href={buildOpsIncidentsLink({ window: "15m", requestId: item.id, signal: "repeat_request" })}
+                              className="rounded-full border border-black/10 bg-white px-2 py-0.5 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                              onClick={() => logMonetisationClientEvent("ops_status_top_repeats_click", null, "ops", { type: "requestId_open", requestId: item.id })}
+                            >
+                              Open incidents
+                            </Link>
+                            <button
+                              type="button"
+                              className="rounded-full border border-black/10 bg-white px-2 py-0.5 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                              onClick={() => handleWatchRepeat(item.id, item.count)}
+                            >
+                              {watchStatus[item.id] ?? "Watch"}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    {rag.topRepeats.codes.length ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {rag.topRepeats.codes.map((entry) => (
+                          <Link
+                            key={`${entry.code}_${entry.count}`}
+                            href={buildOpsIncidentsLink({ window: "15m", code: entry.code, signal: "repeat_code" })}
+                            className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-[rgb(var(--muted))] shadow-sm"
+                            onClick={() => logMonetisationClientEvent("ops_status_top_repeats_click", null, "ops", { type: "code", code: entry.code })}
+                          >
+                            {entry.code} ({entry.count})
+                          </Link>
+                        ))}
+                      </div>
+                    ) : null}
+                    {rag.topRepeats.surfaces.length ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        {rag.topRepeats.surfaces.map((entry) => (
+                          <Link
+                            key={`${entry.surface}_${entry.count}`}
+                            href={buildOpsIncidentsLink({ window: "15m", surface: entry.surface, signal: "repeat_surface" })}
+                            className="rounded-full bg-white px-2 py-1 text-[10px] font-semibold text-[rgb(var(--muted))] shadow-sm"
+                            onClick={() => logMonetisationClientEvent("ops_status_top_repeats_click", null, "ops", { type: "surface", surface: entry.surface })}
+                          >
+                            {entry.surface} ({entry.count})
+                          </Link>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                )}
+              </div>
+            ) : null}
             <div className="rounded-xl border border-slate-100 bg-slate-50 p-2">
               <div className="flex items-center justify-between">
                 <p className="text-[11px] font-semibold text-[rgb(var(--ink))]">Why this status</p>

@@ -103,6 +103,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Click a signal action (e.g. Webhook failures/Incidents) → deep link opens with window=15m and relevant filters/signal params applied.
 - Non-ops hitting /api/ops/rag-status?window=15m&trend=24h get JSON 403 with requestId; ops receive rag_v2 payload with trend buckets.
 
+## Quick prod checks (v0.8.27)
+- With EARLY_ACCESS_MODE=on and a non-invited user → dashboard/billing/applications show Early Access page with support snippet copy; invited/ops still allowed.
+- Ops Status → Top repeats (15m) card visible with requestId/code/surface links opening Incidents (window=15m); Watch creates entry.
+- Ops Status/Webhooks under 429 keep last good payload visible and show cooldown message.
+
 ## Quick prod checks (v0.8.25)
 - Ops: open /app/ops/status → System Health (15m) pill + reason chips render with timestamp.
 - Click “Open Webhook Failures (15m)” → webhooks page loads filtered to 15m range.

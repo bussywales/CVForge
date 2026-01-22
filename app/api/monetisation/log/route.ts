@@ -4,6 +4,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import { applyRequestIdHeaders, withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
 import { processMonetisationLog } from "@/lib/monetisation-log";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -365,6 +366,13 @@ const allowedEvents = [
   "ops_status_rag_signal_click",
   "ops_status_rag_trend_view",
   "ops_status_rag_trend_direction",
+  "ops_status_top_repeats_view",
+  "ops_status_top_repeats_click",
+  "ops_status_top_repeats_watch_click",
+  "ops_panel_rate_limited",
+  "ops_panel_fetch_error",
+  "early_access_block_view",
+  "early_access_block_copy",
   "ops_webhook_open_incidents_click",
   "ops_webhook_open_dossier_click",
   "ops_user_billing_trace_view",
@@ -447,15 +455,22 @@ export async function POST(request: Request) {
   }
 
   const isOps = parsed.data.event.startsWith("ops_") || (parsed.data.surface ?? "").includes("ops");
+  const budget = getRateLimitBudget("monetisation_log");
   const limiter = checkRateLimit({
     route: "monetisation_log",
     identifier: user.id ?? ip,
-    limit: isOps ? 240 : 120,
-    windowMs: 5 * 60 * 1000,
+    limit: isOps ? budget.limit * 2 : budget.limit,
+    windowMs: budget.windowMs,
     category: isOps ? "ops_action" : "monetisation",
   });
   if (!limiter.allowed) {
-    const res = jsonError({ code: "RATE_LIMITED", message: "Too many events. Please slow down.", requestId, status: 429 });
+    const res = jsonError({
+      code: "RATE_LIMITED",
+      message: "Too many events. Please slow down.",
+      requestId,
+      status: 429,
+      meta: { limitKey: "monetisation_log", budget: budget.budget, retryAfterSeconds: limiter.retryAfterSeconds },
+    });
     return applyRequestIdHeaders(res, requestId, { noStore: true, retryAfterSeconds: limiter.retryAfterSeconds });
   }
 

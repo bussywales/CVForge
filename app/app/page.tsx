@@ -16,6 +16,8 @@ import { activationCoreProgress } from "@/lib/activation-loop";
 import ActivationCard from "./activation-card";
 import { buildKeepMomentumModel, type KeepMomentumModel } from "@/lib/keep-momentum";
 import KeepMomentumCard from "./keep-momentum-card";
+import { isEarlyAccessAllowed } from "@/lib/early-access";
+import EarlyAccessBlock from "@/components/EarlyAccessBlock";
 
 export const dynamic = "force-dynamic";
 
@@ -34,6 +36,11 @@ export default async function AppPage() {
 
   if (!user) {
     redirect("/login");
+  }
+
+  const allow = await isEarlyAccessAllowed({ userId: user.id, email: user.email });
+  if (!allow) {
+    return <EarlyAccessBlock email={user.email} />;
   }
 
   let credits = 0;

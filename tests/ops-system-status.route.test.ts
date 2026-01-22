@@ -76,6 +76,7 @@ beforeAll(async () => {
         headline: "All clear",
         signals: [],
         topIssues: [],
+        topRepeats: { requestIds: [], codes: [], surfaces: [] },
         trend: { bucketMinutes: 15, fromIso: "2024-02-09T12:00:00.000Z", toIso: "2024-02-10T12:00:00.000Z", buckets: [], direction: "stable" },
         updatedAt: "2024-02-10T12:00:00.000Z",
       },

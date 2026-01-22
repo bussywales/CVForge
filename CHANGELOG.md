@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.27
+- Early access gating for dashboard/billing/applications: ops bypass, invite list via EARLY_ACCESS_EMAILS, calm Early Access page with support snippet + logging.
+- Rate limit budgets centralised per route with 429 meta; ops/billing routes now share budgets; ops panels show cooldowns while keeping last good state.
+- Ops Status adds Top repeats (15m) card with deep links + watch shortcut; RAG model carries masked repeats/trend; Ops/Webhooks panels log rate-limit/fetch errors.
+
 ## v0.8.26
 - Ops RAG v2: deterministic helper with masked signals (counts, top codes/surfaces, first seen), headline, and 24h trend (96 buckets, health score, direction) driven by existing incident/webhook/rate-limit data; shared across /api/ops/system-status and /api/ops/rag-status.
 - Ops Status UI gains “Why this status” drill-down with per-signal actions, 15m deep links to webhooks/incidents, and a 24h trend strip with improving/stable/worsening direction + calm error/rate-limit handling.

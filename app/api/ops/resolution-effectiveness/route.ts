@@ -8,6 +8,7 @@ import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
 import { computeDue, LATER_WINDOW_MS } from "@/lib/ops/resolution-effectiveness";
 import { mapOutcomeRows, maskResolutionOutcome, type EffectivenessState } from "@/lib/ops/ops-resolution-outcomes";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -25,15 +26,22 @@ export async function POST(request: Request) {
     return jsonError({ code: "FORBIDDEN", message: "Insufficient role", requestId, status: 403 });
   }
 
+  const budget = getRateLimitBudget("ops_resolution_effectiveness");
   const limiter = checkRateLimit({
     route: "ops_resolution_effectiveness",
     identifier: user.id,
-    limit: 30,
-    windowMs: 5 * 60 * 1000,
+    limit: budget.limit,
+    windowMs: budget.windowMs,
     category: "ops_action",
   });
   if (!limiter.allowed) {
-    const res = jsonError({ code: "RATE_LIMITED", message: "Rate limited — try again shortly", requestId, status: 429 });
+    const res = jsonError({
+      code: "RATE_LIMITED",
+      message: "Rate limited — try again shortly",
+      requestId,
+      status: 429,
+      meta: { limitKey: "ops_resolution_effectiveness", budget: budget.budget, retryAfterSeconds: limiter.retryAfterSeconds },
+    });
     return applyRequestIdHeaders(res, requestId, { noStore: true, retryAfterSeconds: limiter.retryAfterSeconds });
   }
 

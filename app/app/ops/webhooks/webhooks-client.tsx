@@ -27,6 +27,7 @@ export default function WebhooksClient({ initialItems, initialNextCursor, initia
   const [loading, setLoading] = useState(false);
   const [chip, setChip] = useState<ChipFilter>("none");
   const [watchStatus, setWatchStatus] = useState<Record<string, string>>({});
+  const [panelMessage, setPanelMessage] = useState<string | null>(null);
 
   useEffect(() => {
     logMonetisationClientEvent("ops_webhook_queue_view", null, "ops", { range: since });
@@ -38,6 +39,7 @@ export default function WebhooksClient({ initialItems, initialNextCursor, initia
 
   const fetchItems = async (append = false) => {
     setLoading(true);
+    setPanelMessage(null);
     const params = new URLSearchParams();
     params.set("since", since);
     if (code) params.set("code", code);
@@ -50,22 +52,38 @@ export default function WebhooksClient({ initialItems, initialNextCursor, initia
       hasQ: Boolean(q),
       chip,
     });
-    const res = await fetch(`/api/ops/webhook-failures?${params.toString()}`, { method: "GET", cache: "no-store" });
-    const body = await res.json().catch(() => null);
-    if (!body?.ok) {
-      setLoading(false);
-      return;
-    }
-    if (append) {
-      setItems((prev) => [...prev, ...(body.items ?? [])]);
-    } else {
-      setItems(body.items ?? []);
-      if ((body.items ?? []).length === 0) {
-        logMonetisationClientEvent("ops_webhooks_queue_empty_view", null, "ops", { range: since });
+    try {
+      const res = await fetch(`/api/ops/webhook-failures?${params.toString()}`, { method: "GET", cache: "no-store" });
+      const body = await res.json().catch(() => null);
+      if (res.status === 429 || body?.error?.code === "RATE_LIMITED") {
+        const retryAfter = Number(res.headers.get("retry-after") ?? body?.retryAfter ?? 0);
+        const retryAfterSeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null;
+        setPanelMessage(retryAfterSeconds ? `Rate limited — try again in ~${retryAfterSeconds}s` : "Rate limited — try again shortly");
+        logMonetisationClientEvent("ops_panel_rate_limited", null, "ops", { panel: "webhooks", retryAfterSeconds });
+        setLoading(false);
+        return;
       }
+      if (!body?.ok) {
+        setPanelMessage("Temporarily unavailable");
+        logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "webhooks", code: body?.error?.code ?? "UNKNOWN" });
+        setLoading(false);
+        return;
+      }
+      if (append) {
+        setItems((prev) => [...prev, ...(body.items ?? [])]);
+      } else {
+        setItems(body.items ?? []);
+        if ((body.items ?? []).length === 0) {
+          logMonetisationClientEvent("ops_webhooks_queue_empty_view", null, "ops", { range: since });
+        }
+      }
+      setCursor(body.nextCursor ?? null);
+      setLoading(false);
+    } catch {
+      setPanelMessage("Temporarily unavailable");
+      logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "webhooks", code: "NETWORK" });
+      setLoading(false);
     }
-    setCursor(body.nextCursor ?? null);
-    setLoading(false);
   };
 
   const exportJson = () => {
@@ -168,6 +186,7 @@ export default function WebhooksClient({ initialItems, initialNextCursor, initia
           <p className="text-sm font-semibold text-[rgb(var(--ink))]">Webhook failures</p>
           {loading ? <span className="text-xs text-[rgb(var(--muted))]">Loading…</span> : null}
         </div>
+        {panelMessage ? <p className="text-[11px] text-amber-800">{panelMessage}</p> : null}
         <div className="mt-2 overflow-auto">
           <table className="min-w-full text-left text-xs">
             <thead>

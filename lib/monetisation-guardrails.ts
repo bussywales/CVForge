@@ -32,6 +32,13 @@ const DEDUPE_PERIODS: Record<string, "day" | "week"> = {
   ops_status_rag_signal_click: "day",
   ops_status_rag_trend_view: "day",
   ops_status_rag_trend_direction: "day",
+  ops_status_top_repeats_view: "day",
+  ops_status_top_repeats_click: "day",
+  ops_status_top_repeats_watch_click: "day",
+  ops_panel_rate_limited: "day",
+  ops_panel_fetch_error: "day",
+  early_access_block_view: "day",
+  early_access_block_copy: "day",
   system_status_limits_view: "day",
   billing_help_prompt_view: "day",
 };

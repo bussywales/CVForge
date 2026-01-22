@@ -12,6 +12,7 @@ import { buildWebhookReceipt } from "@/lib/webhook-receipts";
 import { buildWebhookStatusV2 } from "@/lib/webhook-status-v2";
 import { buildCorrelationConfidence } from "@/lib/webhook-status-v2";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,15 +27,22 @@ export async function GET(request: Request) {
     return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
   }
 
+  const budget = getRateLimitBudget("billing_recheck");
   const throttle = checkRateLimit({
     route: "billing_recheck",
     identifier: user.id ?? ip,
-    limit: 6,
-    windowMs: 5 * 60 * 1000,
+    limit: budget.limit,
+    windowMs: budget.windowMs,
   });
   if (!throttle.allowed) {
     headers.set("retry-after", `${throttle.retryAfterSeconds}`);
-    const res = jsonError({ code: "RATE_LIMITED", message: "Too many refreshes. Please wait a moment.", requestId, status: 429 });
+    const res = jsonError({
+      code: "RATE_LIMITED",
+      message: "Too many refreshes. Please wait a moment.",
+      requestId,
+      status: 429,
+      meta: { limitKey: "billing_recheck", budget: budget.budget, retryAfterSeconds: throttle.retryAfterSeconds },
+    });
     return applyRequestIdHeaders(res, requestId, { noStore: true, retryAfterSeconds: throttle.retryAfterSeconds });
   }
 
