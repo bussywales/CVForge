@@ -1,5 +1,12 @@
 # Changelog
 
+# Changelog
+
+## v0.8.29
+- Ops Alerts v1: deterministic 15m alert model (RAG red, webhook/portal spikes, rate-limit pressure) with stored state/events, webhook notifier, and actionable links.
+- Ops Alerts API + UI: /api/ops/alerts (with test hook) and /app/ops/alerts page showing firing/recent alerts, refresh/test controls, deep links, and webhook configuration note.
+- New alert tables with RLS, rate-limit budgets, logging allowlists, and early access invite runbook docs added.
+
 ## v0.8.28
 - Ops Early Access allowlist: new DB table with grant/revoke/audit fields + RLS; ops APIs to lookup/grant/revoke with budgets/requestId/no-store and idempotent writes.
 - Early access gate now checks DB first then env fallback; Early Access page shows reason; ops can manage access via new /app/ops/access console with lookup, status, and noteable grant/revoke actions.

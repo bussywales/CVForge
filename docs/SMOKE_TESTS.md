@@ -113,6 +113,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Ops → /app/ops/access: search user, grant access with note, status updates; revoke returns to blocked.
 - Ops access APIs return requestId/no-store and respect rate limits; audit entries/log events visible in Ops Audits.
 
+## Quick prod checks (v0.8.29)
+- Ops opens /app/ops/alerts → headline and cards render even if none are firing; webhook config note shows when missing.
+- Click “Send test alert” → success banner appears, event shows in Recent tab, webhook notify_success logged when configured.
+- Click an alert action → lands on Incidents/Webhooks with expected window=15m filters applied.
+
 ## Quick prod checks (v0.8.25)
 - Ops: open /app/ops/status → System Health (15m) pill + reason chips render with timestamp.
 - Click “Open Webhook Failures (15m)” → webhooks page loads filtered to 15m range.

@@ -107,6 +107,13 @@ export default function QuickLinksClient() {
         </p>
       </Link>
       <Link
+        href="/app/ops/alerts"
+        className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
+      >
+        Alerts
+        <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">15m thresholds + webhook notify</p>
+      </Link>
+      <Link
         href="/app/ops/access"
         className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
       >

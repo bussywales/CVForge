@@ -10,7 +10,9 @@ type BudgetKey =
   | "ops_watch"
   | "ops_access_get"
   | "ops_access_grant"
-  | "ops_access_revoke";
+  | "ops_access_revoke"
+  | "ops_alerts_get"
+  | "ops_alerts_test";
 
 type BudgetLevel = "high" | "medium" | "low";
 
@@ -33,6 +35,8 @@ const ROUTE_BUDGETS: Record<BudgetKey, BudgetLevel> = {
   ops_access_get: "medium",
   ops_access_grant: "medium",
   ops_access_revoke: "medium",
+  ops_alerts_get: "medium",
+  ops_alerts_test: "medium",
 };
 
 export function getRateLimitBudget(route: BudgetKey) {
