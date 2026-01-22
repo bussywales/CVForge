@@ -16,6 +16,7 @@ import BillingTriageCard from "./billing-triage-card";
 import { fetchBillingSettings } from "@/lib/data/billing";
 import { listRecentOutcomes } from "@/lib/ops/ops-resolution-outcomes";
 import { listWatch } from "@/lib/ops/ops-watch";
+import InviteAttribution from "../invite-attribution";
 
 export const dynamic = "force-dynamic";
 
@@ -31,6 +32,15 @@ export default async function OpsUserPage({ params }: { params: { id: string } }
   const authUser = await admin.auth.admin.getUserById(params.id).catch(() => null);
   if (!authUser?.data?.user) {
     notFound();
+  }
+  const { data: profile } = await admin.from("profiles").select("invite_id, invite_source, invited_at, invited_email_hash").eq("user_id", params.id).maybeSingle();
+  if (profile) {
+    try {
+      const { logMonetisationEvent } = await import("@/lib/monetisation");
+      await logMonetisationEvent(admin as any, user.id, "ops_user_invite_attribution_view", { meta: { source: profile.invite_source ?? "unknown" } });
+    } catch {
+      // ignore
+    }
   }
   const viewerRole = (await getUserRole(user.id)).role;
   const targetRoleInfo = await getUserRole(params.id);
@@ -113,6 +123,8 @@ export default async function OpsUserPage({ params }: { params: { id: string } }
           </div>
         </div>
       </div>
+
+      <InviteAttribution profile={profile} />
 
       <div className="rounded-2xl border border-black/10 bg-white/80 p-4">
         <p className="text-sm font-semibold text-[rgb(var(--ink))]">Applications</p>

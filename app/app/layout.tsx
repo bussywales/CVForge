@@ -3,6 +3,7 @@ import LogoutButton from "./logout-button";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { canSeeOpsNav, getUserRole, type UserRole } from "@/lib/rbac";
 import OpsNavLink from "./ops-nav-link";
+import InviteAutoClaimClient from "./invite-auto-claim-client";
 
 export const dynamic = "force-dynamic";
 
@@ -52,7 +53,10 @@ export default async function AppLayout({
             <LogoutButton />
           </nav>
         </header>
-        <main className="mt-10 flex-1">{children}</main>
+        <main className="mt-10 flex-1">
+          <InviteAutoClaimClient />
+          {children}
+        </main>
       </div>
     </div>
   );

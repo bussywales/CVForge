@@ -19,6 +19,7 @@ export type FunnelWindow = {
     cvToExport: number;
     exportToApplication: number;
   };
+  source?: string;
 };
 
 async function countTable(
@@ -26,11 +27,15 @@ async function countTable(
   table: string,
   timeField: string,
   since: string,
-  filters?: (query: any) => any
+  opts?: { filters?: (query: any) => any; userIds?: string[] }
 ): Promise<number> {
+  if (opts?.userIds && opts.userIds.length === 0) return 0;
   let query = supabase.from(table).select("id", { count: "exact", head: true }).gte(timeField, since);
-  if (filters) {
-    query = filters(query);
+  if (opts?.userIds) {
+    query = query.in("user_id", opts.userIds);
+  }
+  if (opts?.filters) {
+    query = opts.filters(query);
   }
   const { count } = await query;
   return count ?? 0;
@@ -41,24 +46,48 @@ function computeRate(numerator: number, denominator: number) {
   return Math.round((numerator / denominator) * 100);
 }
 
-export async function computeFunnel({ windowLabel, now = new Date(), supabase: supabaseClient }: { windowLabel: WindowLabel; now?: Date; supabase?: SupabaseClient }): Promise<FunnelWindow> {
+export async function computeFunnel({
+  windowLabel,
+  now = new Date(),
+  supabase: supabaseClient,
+  source,
+}: {
+  windowLabel: WindowLabel;
+  now?: Date;
+  supabase?: SupabaseClient;
+  source?: string | null;
+}): Promise<FunnelWindow> {
   const supabase = supabaseClient ?? createServiceRoleClient();
   const hours = windowLabel === "24h" ? 24 : 24 * 7;
   const since = new Date(now.getTime() - hours * 60 * 60 * 1000).toISOString();
 
+  let invitedCount = 0;
+  let userIds: string[] | null = null;
+  if (source !== undefined) {
+    let profileQuery = supabase.from("profiles").select("user_id", { count: "exact" }).gte("invited_at", since);
+    if (source === "unknown") {
+      profileQuery = profileQuery.is("invite_source", null);
+    } else {
+      profileQuery = profileQuery.eq("invite_source", source);
+    }
+    const { data: profileRows, count: invitedCountRaw } = await profileQuery;
+    invitedCount = invitedCountRaw ?? 0;
+    userIds = (profileRows ?? []).map((row: any) => row.user_id);
+  }
+
   const [invited, signedUp, createdCv, exportedCv, createdApplication, createdInterview] = await Promise.all([
-    countTable(supabase, "early_access_invites", "invited_at", since, (q) => q.is("revoked_at", null)),
-    countTable(supabase, "profiles", "created_at", since),
-    countTable(supabase, "autopacks", "created_at", since),
-    countTable(supabase, "application_apply_checklist", "cv_exported_at", since, (q) => q.not("cv_exported_at", "is", null)),
-    countTable(supabase, "applications", "created_at", since),
-    countTable(
-      supabase,
-      "applications",
-      "created_at",
-      since,
-      (q) => q.ilike("status", "%interview%")
-    ),
+    source === undefined ? countTable(supabase, "profiles", "invited_at", since) : Promise.resolve(invitedCount),
+    countTable(supabase, "profiles", "created_at", since, { userIds: userIds ?? undefined }),
+    countTable(supabase, "autopacks", "created_at", since, { userIds: userIds ?? undefined }),
+    countTable(supabase, "application_apply_checklist", "cv_exported_at", since, {
+      userIds: userIds ?? undefined,
+      filters: (q) => q.not("cv_exported_at", "is", null),
+    }),
+    countTable(supabase, "applications", "created_at", since, { userIds: userIds ?? undefined }),
+    countTable(supabase, "applications", "created_at", since, {
+      userIds: userIds ?? undefined,
+      filters: (q) => q.ilike("status", "%interview%"),
+    }),
   ]);
 
   return {
@@ -75,14 +104,25 @@ export async function computeFunnel({ windowLabel, now = new Date(), supabase: s
       cvToExport: computeRate(exportedCv, createdCv || 1),
       exportToApplication: computeRate(createdApplication, exportedCv || 1),
     },
+    source: source ?? undefined,
   };
 }
 
-export async function computeFunnelSummary(opts?: { now?: Date; supabase?: SupabaseClient }) {
+export async function computeFunnelSummary(opts?: { now?: Date; supabase?: SupabaseClient; groupBySource?: boolean }) {
   const now = opts?.now ?? new Date();
   const supabase = opts?.supabase;
   const windows: WindowLabel[] = ["24h", "7d"];
   const results: FunnelWindow[] = [];
+  if (opts?.groupBySource) {
+    const baseClient = supabase ?? createServiceRoleClient();
+    const { data: sourcesData } = await baseClient.from("profiles").select("invite_source, invited_at");
+    const sources = Array.from(new Set(["unknown", ...(sourcesData ?? []).map((row: any) => row.invite_source ?? "unknown")]));
+    for (const label of windows) {
+      const perSource = await Promise.all(sources.map((src) => computeFunnel({ windowLabel: label, now, supabase, source: src ?? "unknown" })));
+      results.push(...perSource.sort((a, b) => b.invited - a.invited));
+    }
+    return { windows: results, rulesVersion: "invite_funnel_v1_source" };
+  }
   for (const label of windows) {
     results.push(await computeFunnel({ windowLabel: label, now, supabase }));
   }

@@ -4,6 +4,7 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 let GET: any;
 let rlAllowed = true;
 let role = "admin";
+let computeFunnelSummaryMock: any;
 
 beforeAll(async () => {
   class SimpleHeaders {
@@ -72,8 +73,23 @@ beforeAll(async () => {
   vi.doMock("@/lib/rate-limit-budgets", () => ({
     getRateLimitBudget: () => ({ budget: "medium", limit: 10, windowMs: 1000 }),
   }));
+  computeFunnelSummaryMock = vi.fn(async () => ({
+    windows: [
+      {
+        windowLabel: "24h",
+        invited: 1,
+        signed_up: 1,
+        created_cv: 1,
+        exported_cv: 0,
+        created_application: 0,
+        created_interview: 0,
+        conversion: { invitedToSignup: 100, signupToCv: 100, cvToExport: 0, exportToApplication: 0 },
+      },
+    ],
+    rulesVersion: "test",
+  }));
   vi.doMock("@/lib/ops/funnel", () => ({
-    computeFunnelSummary: vi.fn(async () => ({ windows: [{ windowLabel: "24h", invited: 1, signed_up: 1, created_cv: 1, exported_cv: 0, created_application: 0, created_interview: 0, conversion: { invitedToSignup: 100, signupToCv: 100, cvToExport: 0, exportToApplication: 0 } }], rulesVersion: "test" })),
+    computeFunnelSummary: computeFunnelSummaryMock,
   }));
 
   const route = await import("@/app/api/ops/funnel/route");
@@ -104,5 +120,13 @@ describe("ops funnel route", () => {
     const res = await GET(new Request("http://localhost/api/ops/funnel"));
     expect(res.status).toBe(403);
     role = "admin";
+  });
+
+  it("handles groupBy source", async () => {
+    const res = await GET(new Request("http://localhost/api/ops/funnel?groupBy=source"));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(computeFunnelSummaryMock).toHaveBeenLastCalledWith({ supabase: {}, groupBySource: true });
   });
 });

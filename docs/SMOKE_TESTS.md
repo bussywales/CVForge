@@ -133,6 +133,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Open invite link, sign up/login → invite claim succeeds (attribution logs) and invite shows claimed.
 - Ops Command Centre funnel panel loads 24h/7d counts and refresh handles cooldown calmly.
 
+## Quick prod checks (v0.8.34a)
+- Open /invite/&lt;token&gt; in incognito → Continue to signup/login → after login invite auto-claims or banner shows retry.
+- Ops user dossier shows Invite attribution block when available.
+- Ops funnel page shows group-by-source rows for 24h/7d with calm cooldown handling.
+
 ## Quick prod checks (v0.8.30)
 - Ops → /app/ops/access: search a never-seen email → Invite status shows “Active/none”, grant invite works without a user account.
 - Incognito signup with that email passes the early access gate immediately (env fallback still works).

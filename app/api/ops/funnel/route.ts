@@ -5,6 +5,7 @@ import { getUserRole, isOpsRole } from "@/lib/rbac";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { computeFunnelSummary } from "@/lib/ops/funnel";
+import { logMonetisationEvent } from "@/lib/monetisation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -34,7 +35,14 @@ export async function GET(request: Request) {
   }
 
   try {
-    const summary = await computeFunnelSummary({ supabase });
+    const url = new URL(request.url);
+    const groupBySource = url.searchParams.get("groupBy") === "source";
+    const summary = await computeFunnelSummary({ supabase, groupBySource });
+    try {
+      await logMonetisationEvent(supabase as any, user.id, groupBySource ? "ops_funnel_groupby_source_view" : "ops_funnel_view", { meta: { groupBySource } });
+    } catch {
+      // ignore
+    }
     return NextResponse.json({ ok: true, requestId, summary }, { headers });
   } catch {
     return jsonError({ code: "OPS_FUNNEL_FAILED", message: "Unable to load funnel", requestId, status: 500 });

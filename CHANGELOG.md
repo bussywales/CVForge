@@ -15,6 +15,11 @@
 - Ops funnel counters: new ops API + Command Centre panel showing 24h/7d invited→signup→CV→export→application→interview counts with conversions and cooldown handling.
 - Logging/allowlists/rate-limit budgets expanded for invite attribution, funnel, and template copy; docs and smoke tests updated.
 
+## v0.8.34a
+- Invite landing page storing tokens pre-auth with Continue CTA; post-login auto-claim banner with retry/copy/dismiss and dedupe.
+- Ops funnel supports grouping by source with dedicated /app/ops/funnel page; user dossier shows invite attribution when present.
+- Logging/allowlists updated for landing, claim banner, funnel group-by-source, and dossier attribution.
+
 ## v0.8.30
 - Early Access email invites: allowlist supports email-only invites with hashed emails, optional user linkage, and unique active entries; ops can grant/revoke pre-signup and gate checks DB by user or email hash before env fallback.
 - Ops Early Access console updated for invite flow with user-found status, invite status, copyable instructions, and email-based grant/revoke; new helper for invite instructions and gate logging.

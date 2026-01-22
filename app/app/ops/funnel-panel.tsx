@@ -13,6 +13,7 @@ type FunnelWindow = {
   created_application: number;
   created_interview: number;
   conversion: { invitedToSignup: number; signupToCv: number; cvToExport: number; exportToApplication: number };
+  source?: string;
 };
 
 export default function FunnelPanel() {
@@ -25,7 +26,7 @@ export default function FunnelPanel() {
     setError(null);
     try {
       logMonetisationClientEvent("ops_funnel_refresh", null, "ops");
-      const res = await fetch("/api/ops/funnel", { method: "GET", cache: "no-store" });
+      const res = await fetch("/api/ops/funnel?groupBy=source", { method: "GET", cache: "no-store" });
       const body = await res.json().catch(() => null);
       if (res.status === 429 || body?.error?.code === "RATE_LIMITED") {
         setError("Cooldown — try again shortly");
@@ -49,47 +50,54 @@ export default function FunnelPanel() {
     fetchData();
   }, []);
 
-  const window24 = data?.find((w) => w.windowLabel === "24h");
-  const window7d = data?.find((w) => w.windowLabel === "7d");
+  const window24 = data?.filter((w) => w.windowLabel === "24h");
+  const window7d = data?.filter((w) => w.windowLabel === "7d");
 
-  const renderWindow = (win: FunnelWindow | undefined) => {
-    if (!win) return null;
+  const renderWindow = (wins: FunnelWindow[] | undefined) => {
+    if (!wins) return null;
     return (
       <div className="rounded-2xl border border-black/10 bg-white/80 p-3 text-sm text-[rgb(var(--ink))]">
-        <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">{win.windowLabel}</p>
-        <div className="mt-2 grid grid-cols-3 gap-2 text-[11px] text-[rgb(var(--muted))]">
-          <div>
-            <p className="text-[rgb(var(--ink))] font-semibold">Invited</p>
-            <p>{win.invited}</p>
-          </div>
-          <div>
-            <p className="text-[rgb(var(--ink))] font-semibold">Signed up</p>
-            <p>
-              {win.signed_up} ({win.conversion.invitedToSignup}%)
-            </p>
-          </div>
-          <div>
-            <p className="text-[rgb(var(--ink))] font-semibold">Created CV</p>
-            <p>
-              {win.created_cv} ({win.conversion.signupToCv}%)
-            </p>
-          </div>
-          <div>
-            <p className="text-[rgb(var(--ink))] font-semibold">Exported CV</p>
-            <p>
-              {win.exported_cv} ({win.conversion.cvToExport}%)
-            </p>
-          </div>
-          <div>
-            <p className="text-[rgb(var(--ink))] font-semibold">Applications</p>
-            <p>
-              {win.created_application} ({win.conversion.exportToApplication}%)
-            </p>
-          </div>
-          <div>
-            <p className="text-[rgb(var(--ink))] font-semibold">Interviews</p>
-            <p>{win.created_interview}</p>
-          </div>
+        <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">{wins[0]?.windowLabel}</p>
+        <div className="mt-2 space-y-2 text-[11px] text-[rgb(var(--muted))]">
+          {wins.map((win) => (
+            <div key={`${win.windowLabel}-${win.source ?? "all"}`} className="rounded-xl border border-black/10 bg-white/60 p-2">
+              <p className="text-[rgb(var(--ink))] font-semibold">{win.source ?? "unknown"}</p>
+              <div className="mt-1 grid grid-cols-3 gap-2">
+                <div>
+                  <p className="text-[rgb(var(--ink))] font-semibold">Invited</p>
+                  <p>{win.invited}</p>
+                </div>
+                <div>
+                  <p className="text-[rgb(var(--ink))] font-semibold">Signed up</p>
+                  <p>
+                    {win.signed_up} ({win.conversion.invitedToSignup}%)
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[rgb(var(--ink))] font-semibold">Created CV</p>
+                  <p>
+                    {win.created_cv} ({win.conversion.signupToCv}%)
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[rgb(var(--ink))] font-semibold">Exported CV</p>
+                  <p>
+                    {win.exported_cv} ({win.conversion.cvToExport}%)
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[rgb(var(--ink))] font-semibold">Applications</p>
+                  <p>
+                    {win.created_application} ({win.conversion.exportToApplication}%)
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[rgb(var(--ink))] font-semibold">Interviews</p>
+                  <p>{win.created_interview}</p>
+                </div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
     );
