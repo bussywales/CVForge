@@ -108,6 +108,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Ops Status → Top repeats (15m) card visible with requestId/code/surface links opening Incidents (window=15m); Watch creates entry.
 - Ops Status/Webhooks under 429 keep last good payload visible and show cooldown message.
 
+## Quick prod checks (v0.8.28)
+- Non-invited user hits /app → Early Access block shows calm message + snippet; invited/env allowlist passes through.
+- Ops → /app/ops/access: search user, grant access with note, status updates; revoke returns to blocked.
+- Ops access APIs return requestId/no-store and respect rate limits; audit entries/log events visible in Ops Audits.
+
 ## Quick prod checks (v0.8.25)
 - Ops: open /app/ops/status → System Health (15m) pill + reason chips render with timestamp.
 - Click “Open Webhook Failures (15m)” → webhooks page loads filtered to 15m range.

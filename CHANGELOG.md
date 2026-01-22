@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.8.28
+- Ops Early Access allowlist: new DB table with grant/revoke/audit fields + RLS; ops APIs to lookup/grant/revoke with budgets/requestId/no-store and idempotent writes.
+- Early access gate now checks DB first then env fallback; Early Access page shows reason; ops can manage access via new /app/ops/access console with lookup, status, and noteable grant/revoke actions.
+- Logging/allowlists expanded for access events; docs + smoke steps updated.
+
 ## v0.8.27
 - Early access gating for dashboard/billing/applications: ops bypass, invite list via EARLY_ACCESS_EMAILS, calm Early Access page with support snippet + logging.
 - Rate limit budgets centralised per route with 429 meta; ops/billing routes now share budgets; ops panels show cooldowns while keeping last good state.

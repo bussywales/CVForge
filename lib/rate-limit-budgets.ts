@@ -7,7 +7,10 @@ type BudgetKey =
   | "ops_webhooks"
   | "ops_resolution_outcome"
   | "ops_resolution_effectiveness"
-  | "ops_watch";
+  | "ops_watch"
+  | "ops_access_get"
+  | "ops_access_grant"
+  | "ops_access_revoke";
 
 type BudgetLevel = "high" | "medium" | "low";
 
@@ -27,6 +30,9 @@ const ROUTE_BUDGETS: Record<BudgetKey, BudgetLevel> = {
   ops_resolution_outcome: "medium",
   ops_resolution_effectiveness: "medium",
   ops_watch: "medium",
+  ops_access_get: "medium",
+  ops_access_grant: "medium",
+  ops_access_revoke: "medium",
 };
 
 export function getRateLimitBudget(route: BudgetKey) {

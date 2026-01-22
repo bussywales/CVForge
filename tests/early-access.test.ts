@@ -1,0 +1,66 @@
+/// <reference types="vitest/globals" />
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const mockRole = { role: "user" };
+let dbEntry: any = null;
+
+vi.mock("@/lib/rbac", () => ({
+  getUserRole: vi.fn(async () => mockRole),
+  isOpsRole: (role: string) => role === "admin" || role === "ops" || role === "super_admin",
+}));
+
+vi.mock("@/lib/supabase/service", () => ({
+  createServiceRoleClient: () => ({
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          is: () => ({
+            order: () => ({
+              limit: () => ({ data: dbEntry ? [dbEntry] : [] }),
+            }),
+          }),
+        }),
+      }),
+      upsert: () => ({ error: null }),
+      update: () => ({ error: null }),
+    }),
+  }),
+}));
+
+describe("early access decision", () => {
+  beforeEach(() => {
+    dbEntry = null;
+    process.env.EARLY_ACCESS_MODE = "on";
+    process.env.EARLY_ACCESS_EMAILS = "env@example.com";
+    mockRole.role = "user";
+  });
+
+  it("prefers ops bypass", async () => {
+    mockRole.role = "admin";
+    const { getEarlyAccessDecision } = await import("@/lib/early-access");
+    const result = await getEarlyAccessDecision({ userId: "u1", email: "nope@example.com" });
+    expect(result.allowed).toBe(true);
+    expect(result.reason).toBe("ops_bypass");
+  });
+
+  it("prefers db allowlist over env", async () => {
+    dbEntry = { user_id: "u1", granted_at: "2024-01-01T00:00:00.000Z", revoked_at: null, note: null };
+    const { getEarlyAccessDecision } = await import("@/lib/early-access");
+    const result = await getEarlyAccessDecision({ userId: "u1", email: "env@example.com" });
+    expect(result.reason).toBe("db_allowlist");
+  });
+
+  it("falls back to env allowlist", async () => {
+    const { getEarlyAccessDecision } = await import("@/lib/early-access");
+    const result = await getEarlyAccessDecision({ userId: "u1", email: "env@example.com" });
+    expect(result.allowed).toBe(true);
+    expect(result.reason).toBe("env_allowlist");
+  });
+
+  it("blocks when not allowed", async () => {
+    const { getEarlyAccessDecision } = await import("@/lib/early-access");
+    const result = await getEarlyAccessDecision({ userId: "u1", email: "nope@example.com" });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toBe("blocked");
+  });
+});

@@ -10,7 +10,7 @@ import { buildFollowupItems } from "@/lib/outreach-autopilot";
 import FollowupsDueStrip from "@/components/followups-due-strip";
 import { computeOutreachInsight } from "@/lib/outreach-insights";
 import EarlyAccessBlock from "@/components/EarlyAccessBlock";
-import { isEarlyAccessAllowed } from "@/lib/early-access";
+import { getEarlyAccessDecision } from "@/lib/early-access";
 
 export default async function ApplicationsPage({
   searchParams,
@@ -27,9 +27,9 @@ export default async function ApplicationsPage({
     );
   }
 
-  const allow = await isEarlyAccessAllowed({ userId: user.id, email: user.email });
-  if (!allow) {
-    return <EarlyAccessBlock email={user.email} />;
+  const access = await getEarlyAccessDecision({ userId: user.id, email: user.email });
+  if (!access.allowed) {
+    return <EarlyAccessBlock email={user.email} reason={access.reason} />;
   }
 
   const applications = await listApplications(supabase, user.id);

@@ -84,7 +84,7 @@ import OutreachPanel from "../outreach-panel";
 import { buildNextMove } from "@/lib/outreach-next-move";
 import SupportFocusClient from "../support-focus-client";
 import EarlyAccessBlock from "@/components/EarlyAccessBlock";
-import { isEarlyAccessAllowed } from "@/lib/early-access";
+import { getEarlyAccessDecision } from "@/lib/early-access";
 
 const RoleFitCard = dynamic(() => import("../role-fit-card"), {
   ssr: false,
@@ -186,9 +186,9 @@ export default async function ApplicationPage({
     );
   }
 
-  const allow = await isEarlyAccessAllowed({ userId: user.id, email: user.email });
-  if (!allow) {
-    return <EarlyAccessBlock email={user.email} />;
+  const access = await getEarlyAccessDecision({ userId: user.id, email: user.email });
+  if (!access.allowed) {
+    return <EarlyAccessBlock email={user.email} reason={access.reason} />;
   }
 
   let application;

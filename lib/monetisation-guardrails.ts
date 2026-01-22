@@ -39,6 +39,11 @@ const DEDUPE_PERIODS: Record<string, "day" | "week"> = {
   ops_panel_fetch_error: "day",
   early_access_block_view: "day",
   early_access_block_copy: "day",
+  ops_access_view: "day",
+  ops_access_lookup: "day",
+  ops_access_grant: "day",
+  ops_access_revoke: "day",
+  ops_access_error: "day",
   system_status_limits_view: "day",
   billing_help_prompt_view: "day",
 };

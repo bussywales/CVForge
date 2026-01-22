@@ -106,6 +106,13 @@ export default function QuickLinksClient() {
           Ops view of core health (24h) {ragPill}
         </p>
       </Link>
+      <Link
+        href="/app/ops/access"
+        className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
+      >
+        Access
+        <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">Manage early access allowlist (ops)</p>
+      </Link>
     </div>
   );
 }

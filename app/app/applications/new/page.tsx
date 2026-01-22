@@ -3,7 +3,7 @@ import Section from "@/components/Section";
 import { createApplicationAction } from "../actions";
 import ApplicationForm from "../application-form";
 import { getSupabaseUser } from "@/lib/data/supabase";
-import { isEarlyAccessAllowed } from "@/lib/early-access";
+import { getEarlyAccessDecision } from "@/lib/early-access";
 import EarlyAccessBlock from "@/components/EarlyAccessBlock";
 
 export default async function NewApplicationPage() {
@@ -15,9 +15,9 @@ export default async function NewApplicationPage() {
       </div>
     );
   }
-  const allow = await isEarlyAccessAllowed({ userId: user.id, email: user.email });
-  if (!allow) {
-    return <EarlyAccessBlock email={user.email} />;
+  const access = await getEarlyAccessDecision({ userId: user.id, email: user.email });
+  if (!access.allowed) {
+    return <EarlyAccessBlock email={user.email} reason={access.reason} />;
   }
 
   return (

@@ -55,7 +55,7 @@ import BillingHelpPrompt from "./billing-help-prompt";
 import { createBillingCorrelation } from "@/lib/billing/billing-correlation";
 import WebhookBadge from "./webhook-badge";
 import EarlyAccessBlock from "@/components/EarlyAccessBlock";
-import { isEarlyAccessAllowed } from "@/lib/early-access";
+import { getEarlyAccessDecision } from "@/lib/early-access";
 const BillingDeepLinkClient = nextDynamic(() => import("./billing-deeplink-client"), { ssr: false });
 
 export const dynamic = "force-dynamic";
@@ -90,9 +90,9 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
     );
   }
 
-  const allow = await isEarlyAccessAllowed({ userId: user.id, email: user.email });
-  if (!allow && !isOpsRole(roleInfo.role)) {
-    return <EarlyAccessBlock email={user.email} />;
+  const access = await getEarlyAccessDecision({ userId: user.id, email: user.email });
+  if (!access.allowed && !isOpsRole(roleInfo.role)) {
+    return <EarlyAccessBlock email={user.email} reason={access.reason} />;
   }
 
   const portalError = parsePortalError(searchParams ?? undefined);
