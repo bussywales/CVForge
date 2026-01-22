@@ -98,6 +98,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Billing Trace shows correlation confidence pill (healthy/unknown/delayed/failed) and updates on recheck.
 - Ops Webhooks queue shows Last seen + Repeats columns, Repeating (>=3)/Last hour chips work, and Watch button creates a watch entry.
 
+## Quick prod checks (v0.8.24)
+- Spam /app/billing recheck until 429 → calm cooldown copy shows retry seconds and requestId; page remains usable.
+- Spam ops actions (watch/outcome/effectiveness) → inline “Rate limited — try again shortly” message; previously saved state stays visible.
+- /app/ops/status shows Limits panel with approximate rate-limit hits/top routes and links to audits/incidents filters.
+
 ## Quick prod checks (v0.8.23)
 - Ops → /app/ops/status shows billing/webhook/ops cards with 24h counts and notes; refresh works and errors show requestId.
 - Billing badge stays neutral unless delayed/failed/just paid; correlation confidence pill appears in Billing Trace; recheck returns confidence.

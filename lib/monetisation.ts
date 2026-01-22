@@ -235,6 +235,8 @@ export type MonetisationEventName =
   | "ops_billing_triage_open_billing_click"
   | "ops_billing_triage_open_portal_click"
   | "ops_billing_triage_open_dashboard_click"
+  | "ops_action_rate_limited"
+  | "system_status_limits_view"
   | "streak_saver_view"
   | "streak_saver_dismiss"
   | "streak_saver_cta_click"

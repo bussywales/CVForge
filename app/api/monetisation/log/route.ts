@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createServerClient } from "@/lib/supabase/server";
-import { withRequestIdHeaders } from "@/lib/observability/request-id";
+import { applyRequestIdHeaders, withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
 import { processMonetisationLog } from "@/lib/monetisation-log";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -409,6 +410,8 @@ const allowedEvents = [
   "ops_billing_triage_open_billing_click",
   "ops_billing_triage_open_portal_click",
   "ops_billing_triage_open_dashboard_click",
+  "ops_action_rate_limited",
+  "system_status_limits_view",
 ] as const;
 
 const bodySchema = z.object({
@@ -419,7 +422,8 @@ const bodySchema = z.object({
 });
 
 export async function POST(request: Request) {
-  const { headers, requestId } = withRequestIdHeaders(request.headers);
+  const { headers, requestId } = withRequestIdHeaders(request.headers, undefined, { noStore: true });
+  const ip = (request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? "").split(",")[0]?.trim() || null;
   const supabase = createServerClient();
   const {
     data: { user },
@@ -433,6 +437,19 @@ export async function POST(request: Request) {
   const parsed = bodySchema.safeParse(body as Record<string, unknown>);
   if (!parsed.success) {
     return NextResponse.json({ ok: false, error: { code: "VALIDATION_FAIL", message: "Invalid payload", requestId } }, { headers, status: 200 });
+  }
+
+  const isOps = parsed.data.event.startsWith("ops_") || (parsed.data.surface ?? "").includes("ops");
+  const limiter = checkRateLimit({
+    route: "monetisation_log",
+    identifier: user.id ?? ip,
+    limit: isOps ? 240 : 120,
+    windowMs: 5 * 60 * 1000,
+    category: isOps ? "ops_action" : "monetisation",
+  });
+  if (!limiter.allowed) {
+    const res = jsonError({ code: "RATE_LIMITED", message: "Too many events. Please slow down.", requestId, status: 429 });
+    return applyRequestIdHeaders(res, requestId, { noStore: true, retryAfterSeconds: limiter.retryAfterSeconds });
   }
 
   return processMonetisationLog({ supabase, userId: user.id, parsed: parsed.data, requestId, headers });

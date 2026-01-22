@@ -1,5 +1,6 @@
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { listWebhookFailures } from "@/lib/ops/webhook-failures";
+import { getRateLimitSummary } from "@/lib/rate-limit";
 
 export type SystemStatus = {
   deployment: { vercelId?: string | null; matchedPath?: string | null };
@@ -13,6 +14,7 @@ export type SystemStatus = {
     audits_24h: number;
   };
   queues: { webhookFailuresQueue: { count24h: number; lastSeenAt?: string | null; firstSeenAt?: string | null; repeatsTop?: number | null } };
+  limits: { rateLimitHits24h: { billing_recheck: number; monetisation_log: number; ops_actions: number }; topLimitedRoutes24h: { route: string; count: number }[]; approx: boolean };
   notes: string[];
 };
 
@@ -63,12 +65,17 @@ export async function buildSystemStatus({ now = new Date(), vercelId, matchedPat
     webhookQueue.items.length > 0 ? webhookQueue.items.reduce((earliest, item) => (!earliest || (item.firstSeenAt ?? item.at ?? "") < earliest ? item.firstSeenAt ?? item.at ?? earliest : earliest), null as string | null) : null;
   const repeatsTop =
     webhookQueue.items.length > 0 ? webhookQueue.items.reduce((max, item) => Math.max(max, item.repeatCount ?? 1), 0) : null;
+  const { rateLimitHits, topLimitedRoutes24h } = getRateLimitSummary({ sinceMs: now.getTime() - 24 * 60 * 60 * 1000 });
 
   const notes: string[] = [];
   if (webhookFailures_24h > 20) notes.push("Webhook failures elevated");
   if ((repeatsTop ?? 0) >= 3) notes.push("Webhook repeats observed");
   if (billingRecheck429_24h > 5) notes.push("Billing recheck rate limits detected");
   if (portalErrors_24h > 5) notes.push("Portal errors elevated");
+  // Note: numbers are approximate because limits are in-memory.
+  if ((rateLimitHits.billing_recheck ?? 0) + (rateLimitHits.monetisation_log ?? 0) + (rateLimitHits.ops_actions ?? 0) > 0) {
+    notes.push("Rate limits observed (approx)");
+  }
 
   return {
     deployment: { vercelId: vercelId ?? null, matchedPath: matchedPath ?? null },
@@ -82,6 +89,7 @@ export async function buildSystemStatus({ now = new Date(), vercelId, matchedPat
       audits_24h,
     },
     queues: { webhookFailuresQueue: { count24h: webhookQueue.items.length, lastSeenAt, firstSeenAt, repeatsTop } },
+    limits: { rateLimitHits24h: rateLimitHits, topLimitedRoutes24h, approx: true },
     notes,
   };
 }

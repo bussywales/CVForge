@@ -12,6 +12,7 @@ const DEDUPE_PERIODS: Record<string, "day" | "week"> = {
   billing_recheck_rate_limited: "day",
   billing_resolution_confirm_yes: "day",
   billing_resolution_confirm_no: "day",
+  ops_action_rate_limited: "day",
   ops_billing_resolution_mark_resolved: "day",
   ops_resolution_outcome_set: "day",
   ops_playbook_suppressed_view: "day",
@@ -26,6 +27,7 @@ const DEDUPE_PERIODS: Record<string, "day" | "week"> = {
   ops_webhooks_queue_empty_view: "day",
   ops_webhooks_queue_filter_chip_click: "day",
   ops_system_status_view: "day",
+  system_status_limits_view: "day",
   billing_help_prompt_view: "day",
 };
 

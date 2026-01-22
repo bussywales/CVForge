@@ -1,18 +1,18 @@
 import { NextResponse } from "next/server";
-import { withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
+import { applyRequestIdHeaders, withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
 import { logMonetisationEvent } from "@/lib/monetisation";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { captureServerError } from "@/lib/observability/sentry";
 import { buildOutcomeEvent, mapOutcomeRows, type ResolutionOutcomeCode } from "@/lib/ops/ops-resolution-outcomes";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const { headers, requestId } = withRequestIdHeaders(request.headers);
-  headers.set("Cache-Control", "no-store");
+  const { headers, requestId } = withRequestIdHeaders(request.headers, undefined, { noStore: true });
   const { user } = await getSupabaseUser();
   if (!user) {
     return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
@@ -20,6 +20,18 @@ export async function POST(request: Request) {
   const roleInfo = await getUserRole(user.id);
   if (!isOpsRole(roleInfo.role)) {
     return jsonError({ code: "FORBIDDEN", message: "Insufficient role", requestId, status: 403 });
+  }
+
+  const limiter = checkRateLimit({
+    route: "ops_resolution_outcome",
+    identifier: user.id,
+    limit: 30,
+    windowMs: 5 * 60 * 1000,
+    category: "ops_action",
+  });
+  if (!limiter.allowed) {
+    const res = jsonError({ code: "RATE_LIMITED", message: "Rate limited — try again shortly", requestId, status: 429 });
+    return applyRequestIdHeaders(res, requestId, { noStore: true, retryAfterSeconds: limiter.retryAfterSeconds });
   }
 
   const body = await request.json().catch(() => ({}));

@@ -239,20 +239,30 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
                           const res = await fetch("/api/ops/watch", {
                             method: "POST",
                             headers: { "Content-Type": "application/json" },
-                            body: JSON.stringify({
-                              requestId: item.requestId ?? `webhook_${item.groupKeyHash ?? item.eventIdHash ?? item.id}`,
-                              reasonCode: "webhook_failure",
-                              note: `code ${item.code ?? "unknown"} | hash ${item.groupKeyHash ?? item.eventIdHash ?? "n/a"}`,
-                              ttlHours: 24,
-                            }),
-                          });
-                          const body = await res.json().catch(() => null);
-                          if (body?.ok) {
-                            setWatchStatus((prev) => ({ ...prev, [item.id]: "Watch created" }));
-                            logMonetisationClientEvent("ops_webhook_watch_success", null, "ops", { code: item.code ?? "unknown" });
-                          } else {
-                            setWatchStatus((prev) => ({ ...prev, [item.id]: "Watch failed" }));
-                            logMonetisationClientEvent("ops_webhook_watch_error", null, "ops", { code: item.code ?? "unknown" });
+                        body: JSON.stringify({
+                          requestId: item.requestId ?? `webhook_${item.groupKeyHash ?? item.eventIdHash ?? item.id}`,
+                          reasonCode: "webhook_failure",
+                          note: `code ${item.code ?? "unknown"} | hash ${item.groupKeyHash ?? item.eventIdHash ?? "n/a"}`,
+                          ttlHours: 24,
+                        }),
+                      });
+                      const body = await res.json().catch(() => null);
+                      if (res.status === 429 || body?.error?.code === "RATE_LIMITED") {
+                        const retryAfter = Number(res.headers.get("retry-after") ?? body?.retryAfter ?? 0);
+                        const retryAfterSeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : null;
+                        setWatchStatus((prev) => ({ ...prev, [item.id]: retryAfterSeconds ? `Rate limited — ~${retryAfterSeconds}s` : "Rate limited" }));
+                        logMonetisationClientEvent("ops_action_rate_limited", null, "ops", {
+                          action: "webhook_watch",
+                          retryAfterSeconds,
+                        });
+                        return;
+                      }
+                      if (body?.ok) {
+                        setWatchStatus((prev) => ({ ...prev, [item.id]: "Watch created" }));
+                        logMonetisationClientEvent("ops_webhook_watch_success", null, "ops", { code: item.code ?? "unknown" });
+                      } else {
+                        setWatchStatus((prev) => ({ ...prev, [item.id]: "Watch failed" }));
+                        logMonetisationClientEvent("ops_webhook_watch_error", null, "ops", { code: item.code ?? "unknown" });
                           }
                         } catch {
                           setWatchStatus((prev) => ({ ...prev, [item.id]: "Watch failed" }));

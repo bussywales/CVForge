@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
+import { applyRequestIdHeaders, withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
 import { createServerClient } from "@/lib/supabase/server";
 import { getUserCredits, listCreditActivity } from "@/lib/data/credits";
 import { buildBillingStatus } from "@/lib/billing/billing-status";
@@ -8,35 +8,34 @@ import { detectCreditDelay } from "@/lib/billing/billing-credit-delay";
 import { computeWebhookHealth } from "@/lib/webhook-health";
 import { fetchBillingSettings } from "@/lib/data/billing";
 import { createBillingCorrelation } from "@/lib/billing/billing-correlation";
-import { checkRecheckThrottle } from "@/lib/billing/recheck-throttle";
 import { buildWebhookReceipt } from "@/lib/webhook-receipts";
 import { buildWebhookStatusV2 } from "@/lib/webhook-status-v2";
 import { buildCorrelationConfidence } from "@/lib/webhook-status-v2";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request) {
-  const { headers, requestId } = withRequestIdHeaders(request.headers);
-  headers.set("cache-control", "no-store");
+  const { headers, requestId } = withRequestIdHeaders(request.headers, undefined, { noStore: true });
   const ip = (request.headers.get("x-forwarded-for") ?? request.headers.get("x-real-ip") ?? "").split(",")[0]?.trim() || null;
   const supabase = createServerClient();
   const { data: userRes } = await supabase.auth.getUser();
   const user = userRes.user;
   if (!user) {
-    const res = jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
-    res.headers.set("cache-control", "no-store");
-    return res;
+    return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
   }
 
-  const throttle = checkRecheckThrottle(user.id, ip);
+  const throttle = checkRateLimit({
+    route: "billing_recheck",
+    identifier: user.id ?? ip,
+    limit: 6,
+    windowMs: 5 * 60 * 1000,
+  });
   if (!throttle.allowed) {
-    headers.set("retry-after", `${throttle.retryAfterSec}`);
-    headers.set("cache-control", "no-store");
+    headers.set("retry-after", `${throttle.retryAfterSeconds}`);
     const res = jsonError({ code: "RATE_LIMITED", message: "Too many refreshes. Please wait a moment.", requestId, status: 429 });
-    res.headers.set("retry-after", `${throttle.retryAfterSec}`);
-    res.headers.set("cache-control", "no-store");
-    return res;
+    return applyRequestIdHeaders(res, requestId, { noStore: true, retryAfterSeconds: throttle.retryAfterSeconds });
   }
 
   try {
@@ -84,8 +83,6 @@ export async function GET(request: Request) {
       { headers, status: 200 }
     );
   } catch (error) {
-    const res = jsonError({ code: "RECHECK_FAILED", message: "Unable to refresh billing status", requestId, status: 200 });
-    res.headers.set("cache-control", "no-store");
-    return res;
+    return jsonError({ code: "RECHECK_FAILED", message: "Unable to refresh billing status", requestId, status: 200 });
   }
 }

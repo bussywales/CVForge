@@ -1,7 +1,7 @@
-/// <reference types="vitest/globals" />
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-let GET: any;
+let POST: any;
+let resetRateLimitStores: () => void;
 
 beforeAll(async () => {
   class SimpleHeaders {
@@ -20,10 +20,15 @@ beforeAll(async () => {
     url: string;
     method: string;
     headers: SimpleHeaders;
+    body?: any;
     constructor(url: string, init?: any) {
       this.url = url;
       this.method = init?.method ?? "GET";
       this.headers = new SimpleHeaders(init?.headers ?? {});
+      this.body = init?.body;
+    }
+    async json() {
+      return JSON.parse(this.body ?? "{}");
     }
   }
   (globalThis as any).Headers = SimpleHeaders as any;
@@ -35,9 +40,11 @@ beforeAll(async () => {
         status: init?.status ?? 200,
         headers: init?.headers ?? new SimpleHeaders(),
         json: async () => body,
+        text: async () => JSON.stringify(body),
       }),
     },
   }));
+
   vi.doMock("@/lib/observability/request-id", () => ({
     withRequestIdHeaders: (h?: HeadersInit, _?: string, opts?: { noStore?: boolean }) => {
       const headers = new SimpleHeaders(h as any);
@@ -55,43 +62,68 @@ beforeAll(async () => {
       status,
       headers: new SimpleHeaders({ "x-request-id": requestId, "cache-control": "no-store" }),
       json: async () => ({ error: { code, message, requestId } }),
-    }),
-  }));
-  vi.doMock("@/lib/data/supabase", () => ({
-    getSupabaseUser: async () => ({ user: { id: "ops-user", email: "ops@example.com" } }),
-  }));
-  vi.doMock("@/lib/rbac", () => ({
-    getUserRole: vi.fn().mockResolvedValue({ role: "admin" }),
-    isOpsRole: () => true,
-  }));
-  vi.doMock("@/lib/ops/system-status", () => ({
-    buildSystemStatus: vi.fn().mockResolvedValue({
-      deployment: { vercelId: "v1", matchedPath: "/api" },
-      now: "2024-02-10T12:00:00.000Z",
-      health: {
-        billingRecheck429_24h: 1,
-        portalErrors_24h: 0,
-        webhookFailures_24h: 2,
-        webhookRepeats_24h: 1,
-        incidents_24h: 5,
-        audits_24h: 3,
-      },
-      queues: { webhookFailuresQueue: { count24h: 2, lastSeenAt: "2024-02-10T11:00:00.000Z", repeatsTop: 2 } },
-      limits: { rateLimitHits24h: { billing_recheck: 0, monetisation_log: 0, ops_actions: 0 }, topLimitedRoutes24h: [], approx: true },
-      notes: [],
+      text: async () => JSON.stringify({ error: { code, message, requestId } }),
     }),
   }));
 
-  const route = await import("@/app/api/ops/system-status/route");
-  GET = route.GET;
+  vi.doMock("@/lib/supabase/server", () => ({
+    createServerClient: () => ({
+      auth: {
+        getUser: async () => ({ data: { user: { id: "user-1" } } }),
+      },
+    }),
+  }));
+
+  vi.doMock("@/lib/monetisation-log", () => ({
+    processMonetisationLog: vi.fn().mockResolvedValue({
+      status: 200,
+      headers: new SimpleHeaders(),
+      json: async () => ({ ok: true }),
+      text: async () => JSON.stringify({ ok: true }),
+    }),
+  }));
+
+  vi.doMock("@/lib/rate-limit", () => {
+    let count = 0;
+    return {
+      checkRateLimit: () => {
+        count += 1;
+        if (count > 1) {
+          return { allowed: false, retryAfterSeconds: 5, status: 429 };
+        }
+        return { allowed: true, remaining: 0 };
+      },
+      resetRateLimitStores: () => {
+        count = 0;
+      },
+      getRateLimitSummary: () => ({ rateLimitHits: { billing_recheck: 0, monetisation_log: 0, ops_actions: 0 }, topLimitedRoutes24h: [] }),
+    };
+  });
+
+  const mod = await import("@/app/api/monetisation/log/route");
+  POST = mod.POST;
+  const rateMod = await import("@/lib/rate-limit");
+  resetRateLimitStores = rateMod.resetRateLimitStores;
 });
 
-describe("ops system status route", () => {
-  it("returns status with no-store", async () => {
-    const res = await GET(new Request("http://localhost/api/ops/system-status"));
+afterEach(() => {
+  resetRateLimitStores();
+});
+
+describe("monetisation log rate limit", () => {
+  it("returns 429 when over limit", async () => {
+    const makeReq = () =>
+      new Request("http://localhost/api/monetisation/log", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ event: "gate_shown" }),
+      });
+    await POST(makeReq());
+    const res = await POST(makeReq());
     const body = await res.json();
-    expect(res.headers.get("cache-control")).toBe("no-store");
-    expect(body.ok).toBe(true);
-    expect(body.status.health.incidents_24h).toBe(5);
+    expect(res.status).toBe(429);
+    expect(body.error.requestId).toBe("req_test");
+    expect(res.headers.get("retry-after")).toBeTruthy();
+    expect(res.headers.get("cache-control")).toContain("no-store");
   });
 });

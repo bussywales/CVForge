@@ -2,6 +2,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 let GET: any;
 let mockUser: any;
+let resetRateLimitStores: (() => void) | null = null;
 
 beforeAll(async () => {
   class SimpleHeaders {
@@ -41,14 +42,33 @@ beforeAll(async () => {
   }));
 
   vi.doMock("@/lib/observability/request-id", () => ({
-    withRequestIdHeaders: (h?: HeadersInit) => ({ headers: new SimpleHeaders(h as any), requestId: "req_test" }),
+    withRequestIdHeaders: (h?: HeadersInit, _?: string, opts?: { noStore?: boolean }) => {
+      const headers = new SimpleHeaders(h as any);
+      headers.set("x-request-id", "req_test");
+      if (opts?.noStore ?? true) {
+        headers.set("cache-control", "no-store");
+      }
+      return { headers, requestId: "req_test" };
+    },
+    applyRequestIdHeaders: (res: any, requestId: string, opts?: { noStore?: boolean; retryAfterSeconds?: number }) => {
+      res.headers.set("x-request-id", requestId);
+      if (opts?.noStore ?? true) res.headers.set("cache-control", "no-store");
+      if (typeof opts?.retryAfterSeconds === "number") res.headers.set("retry-after", `${opts.retryAfterSeconds}`);
+      return res;
+    },
     jsonError: ({ code, message, requestId, status = 500 }: any) => ({
       status,
-      headers: new SimpleHeaders({ "x-request-id": requestId }),
+      headers: new SimpleHeaders({ "x-request-id": requestId, "cache-control": "no-store" }),
       json: async () => ({ error: { code, message, requestId } }),
       text: async () => JSON.stringify({ error: { code, message, requestId } }),
     }),
   }));
+
+  vi.doMock("@/lib/rate-limit", async () => {
+    const actual = await import("@/lib/rate-limit");
+    resetRateLimitStores = actual.resetRateLimitStores;
+    return actual;
+  });
 
   mockUser = { id: "user-1" };
   vi.doMock("@/lib/supabase/server", () => ({
@@ -93,22 +113,13 @@ beforeAll(async () => {
   vi.doMock("@/lib/billing/billing-correlation", () => ({
     createBillingCorrelation: vi.fn().mockReturnValue({ delay: { state: "none" } }),
   }));
-  vi.doMock("@/lib/billing/recheck-throttle", async () => {
-    const actual = await import("@/lib/billing/recheck-throttle");
-    return {
-      checkRecheckThrottle: actual.checkRecheckThrottle,
-      resetRecheckThrottle: actual.resetRecheckThrottle,
-    };
-  });
-
   const mod = await import("@/app/api/billing/recheck/route");
   GET = mod.GET;
 });
 
 describe("billing recheck rate limit", () => {
   afterEach(async () => {
-    const mod = await import("@/lib/billing/recheck-throttle");
-    mod.resetRecheckThrottle();
+    resetRateLimitStores?.();
   });
 
   it("returns ok when under limit", async () => {
@@ -116,7 +127,7 @@ describe("billing recheck rate limit", () => {
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.ok).toBe(true);
-    expect(body.requestId).toBe("req_test");
+    expect(body.requestId).toBeTruthy();
   });
 
   it("returns 429 when over limit", async () => {

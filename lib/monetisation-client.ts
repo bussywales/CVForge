@@ -281,6 +281,8 @@ const ALLOWED = [
   "ops_system_status_view",
   "ops_system_status_refresh_click",
   "ops_system_status_link_click",
+  "ops_action_rate_limited",
+  "system_status_limits_view",
   "ops_webhook_open_incidents_click",
   "ops_webhook_open_dossier_click",
   "ops_user_billing_trace_view",

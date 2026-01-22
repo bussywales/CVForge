@@ -52,6 +52,7 @@ export default function BillingTracePanel({
     initialCorrelationConfidence ?? buildCorrelationConfidence({ timeline: initialTimeline, webhookReceipt: initialWebhookReceipt, delay: initialDelay })
   );
   const [cooldownSec, setCooldownSec] = useState<number>(0);
+  const [cooldownMessage, setCooldownMessage] = useState<string | null>(null);
   const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
 
@@ -96,6 +97,7 @@ export default function BillingTracePanel({
     logMonetisationClientEvent("billing_recheck_click", null, "billing");
     logMonetisationClientEvent("billing_correlation_recheck_click", null, "billing", { priorDelayState: correlation?.delay.state });
     setError(null);
+    setCooldownMessage(null);
     try {
       const res = await fetch("/api/billing/recheck", { method: "GET", cache: "no-store" });
       const body = await res.json();
@@ -103,7 +105,8 @@ export default function BillingTracePanel({
         const retry = Number(res.headers.get("retry-after") ?? body?.retryAfter ?? 0);
         const cd = Number.isFinite(retry) ? retry : 30;
         setCooldownSec(cd);
-        logMonetisationClientEvent("billing_recheck_rate_limited", null, "billing", { cooldownSeconds: cd });
+        setCooldownMessage(`Rate limited — try again in ~${cd}s`);
+        logMonetisationClientEvent("billing_recheck_rate_limited", null, "billing", { retryAfterSeconds: cd });
         return;
       }
       if (!body.ok) {
@@ -225,6 +228,7 @@ export default function BillingTracePanel({
             </a>
           ) : null}
         </div>
+        {cooldownMessage ? <p className="text-[11px] text-[rgb(var(--muted))]">Rate limited — try again in ~{cooldownSec || 1}s</p> : null}
       </div>
       {computedCorrelation ? (
         <div className="rounded-2xl border border-black/10 bg-white/70 p-3 text-xs">

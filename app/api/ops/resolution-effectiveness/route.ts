@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
+import { applyRequestIdHeaders, withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -7,32 +7,34 @@ import { captureServerError } from "@/lib/observability/sentry";
 import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
 import { computeDue, LATER_WINDOW_MS } from "@/lib/ops/resolution-effectiveness";
 import { mapOutcomeRows, maskResolutionOutcome, type EffectivenessState } from "@/lib/ops/ops-resolution-outcomes";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MAX_LIMIT = 50;
 
-function addNoStore(headers: Headers) {
-  headers.set("Cache-Control", "no-store");
-  return headers;
-}
-
-function withNoStoreResponse(res: Response) {
-  res.headers.set("Cache-Control", "no-store");
-  return res;
-}
-
 export async function POST(request: Request) {
-  const { headers, requestId } = withRequestIdHeaders(request.headers);
-  addNoStore(headers);
+  const { headers, requestId } = withRequestIdHeaders(request.headers, undefined, { noStore: true });
   const { user } = await getSupabaseUser();
   if (!user) {
-    return withNoStoreResponse(jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 }));
+    return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
   }
   const roleInfo = await getUserRole(user.id);
   if (!isOpsRole(roleInfo.role)) {
-    return withNoStoreResponse(jsonError({ code: "FORBIDDEN", message: "Insufficient role", requestId, status: 403 }));
+    return jsonError({ code: "FORBIDDEN", message: "Insufficient role", requestId, status: 403 });
+  }
+
+  const limiter = checkRateLimit({
+    route: "ops_resolution_effectiveness",
+    identifier: user.id,
+    limit: 30,
+    windowMs: 5 * 60 * 1000,
+    category: "ops_action",
+  });
+  if (!limiter.allowed) {
+    const res = jsonError({ code: "RATE_LIMITED", message: "Rate limited — try again shortly", requestId, status: 429 });
+    return applyRequestIdHeaders(res, requestId, { noStore: true, retryAfterSeconds: limiter.retryAfterSeconds });
   }
 
   const body = await request.json().catch(() => ({}));
@@ -43,10 +45,10 @@ export async function POST(request: Request) {
   const source = typeof body?.source === "string" ? body.source.slice(0, 80) : "ops_resolution_effectiveness";
 
   if (!resolutionOutcomeId) {
-    return withNoStoreResponse(jsonError({ code: "MISSING_OUTCOME", message: "resolutionOutcomeId required", requestId, status: 400 }));
+    return jsonError({ code: "MISSING_OUTCOME", message: "resolutionOutcomeId required", requestId, status: 400 });
   }
   if (state !== "unknown" && state !== "success" && state !== "fail") {
-    return withNoStoreResponse(jsonError({ code: "INVALID_STATE", message: "Invalid state", requestId, status: 400 }));
+    return jsonError({ code: "INVALID_STATE", message: "Invalid state", requestId, status: 400 });
   }
 
   try {
@@ -58,7 +60,7 @@ export async function POST(request: Request) {
       .eq("type", "monetisation.ops_resolution_outcome_set")
       .single();
     if (fetchError || !existing) {
-      return withNoStoreResponse(jsonError({ code: "NOT_FOUND", message: "Outcome not found", requestId, status: 404 }));
+      return jsonError({ code: "NOT_FOUND", message: "Outcome not found", requestId, status: 404 });
     }
 
     let meta: Record<string, any> = {};
@@ -100,31 +102,30 @@ export async function POST(request: Request) {
       .single();
     if (updateError || !updated) {
       captureServerError(updateError ?? new Error("update_failed"), { requestId, route: "/api/ops/resolution-effectiveness", userId: user.id });
-      return withNoStoreResponse(jsonError({ code: "UPDATE_FAILED", message: "Unable to save effectiveness", requestId, status: 500 }));
+      return jsonError({ code: "UPDATE_FAILED", message: "Unable to save effectiveness", requestId, status: 500 });
     }
 
     const [parsed] = mapOutcomeRows([updated], now);
     if (!parsed) {
-      return withNoStoreResponse(jsonError({ code: "PARSE_FAILED", message: "Unable to parse outcome", requestId, status: 500 }));
+      return jsonError({ code: "PARSE_FAILED", message: "Unable to parse outcome", requestId, status: 500 });
     }
 
     return NextResponse.json({ ok: true, item: maskResolutionOutcome(parsed), requestId }, { headers });
   } catch (error) {
     captureServerError(error, { requestId, route: "/api/ops/resolution-effectiveness", userId: user?.id ?? "anon" });
-    return withNoStoreResponse(jsonError({ code: "SERVER_ERROR", message: "Unable to save effectiveness", requestId, status: 500 }));
+    return jsonError({ code: "SERVER_ERROR", message: "Unable to save effectiveness", requestId, status: 500 });
   }
 }
 
 export async function GET(request: Request) {
-  const { headers, requestId } = withRequestIdHeaders(request.headers);
-  addNoStore(headers);
+  const { headers, requestId } = withRequestIdHeaders(request.headers, undefined, { noStore: true });
   const { user } = await getSupabaseUser();
   if (!user) {
-    return withNoStoreResponse(jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 }));
+    return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
   }
   const roleInfo = await getUserRole(user.id);
   if (!isOpsRole(roleInfo.role)) {
-    return withNoStoreResponse(jsonError({ code: "FORBIDDEN", message: "Insufficient role", requestId, status: 403 }));
+    return jsonError({ code: "FORBIDDEN", message: "Insufficient role", requestId, status: 403 });
   }
 
   const url = new URL(request.url);
@@ -153,7 +154,7 @@ export async function GET(request: Request) {
     }
     const { data, error } = await query;
     if (error || !data) {
-      return withNoStoreResponse(jsonError({ code: "FETCH_FAILED", message: "Unable to fetch outcomes", requestId, status: 500 }));
+      return jsonError({ code: "FETCH_FAILED", message: "Unable to fetch outcomes", requestId, status: 500 });
     }
     const outcomes = mapOutcomeRows(data, now);
     if (due) {
@@ -184,6 +185,6 @@ export async function GET(request: Request) {
     );
   } catch (error) {
     captureServerError(error, { requestId, route: "/api/ops/resolution-effectiveness", userId: "ops" });
-    return withNoStoreResponse(jsonError({ code: "SERVER_ERROR", message: "Unable to fetch outcomes", requestId, status: 500 }));
+    return jsonError({ code: "SERVER_ERROR", message: "Unable to fetch outcomes", requestId, status: 500 });
   }
 }

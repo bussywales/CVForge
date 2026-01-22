@@ -89,6 +89,12 @@ export function ResolutionCard({
   const effectivenessRequestId = incidentRequestId ?? latestOutcome?.requestId ?? null;
   const canReviewEffectiveness = Boolean(latestOutcome?.id && isOutcomeDue(latestOutcome));
   const showWatchCta = outcomeCode === "WEBHOOK_DELAY_WAITED" || outcomeCode === "CREDITS_RECONCILED_SUPPORT";
+  const handleRateLimited = (action: string, res?: Response | null, body?: any) => {
+    const retry = Number(res?.headers?.get("retry-after") ?? body?.error?.retryAfter ?? body?.retryAfter ?? 0);
+    const retryAfterSeconds = Number.isFinite(retry) && retry > 0 ? retry : null;
+    logMonetisationClientEvent("ops_action_rate_limited", null, "ops", { action, retryAfterSeconds });
+    return retryAfterSeconds;
+  };
 
   useEffect(() => {
     if (viewLogged) return;
@@ -136,6 +142,11 @@ export function ResolutionCard({
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok || !body?.ok) {
+        if (res.status === 429 || body?.error?.code === "RATE_LIMITED") {
+          const retryAfter = handleRateLimited("resolution_outcome", res, body);
+          setError(retryAfter ? `Rate limited — try again in ~${retryAfter}s` : "Rate limited — try again shortly");
+          return;
+        }
         const reqId = res.headers.get("x-request-id") ?? body?.error?.requestId ?? null;
         setError(body?.error?.message ?? "Unable to save outcome");
         logMonetisationClientEvent("ops_resolution_outcome_set_error", null, "ops", { requestId: reqId });
@@ -189,6 +200,12 @@ export function ResolutionCard({
       const body = await res.json().catch(() => ({}));
       if (!res.ok || !body?.ok) {
         const reqId = res.headers.get("x-request-id") ?? body?.error?.requestId ?? null;
+        if (res.status === 429 || body?.error?.code === "RATE_LIMITED") {
+          const retryAfter = handleRateLimited("watch_add", res, body);
+          setError(retryAfter ? `Rate limited — try again in ~${retryAfter}s` : "Rate limited — try again shortly");
+          setWatchSaved(false);
+          return;
+        }
         logMonetisationClientEvent("ops_watch_add_error", null, "ops", { requestId: reqId });
         setError(body?.error?.message ?? "Unable to add watch");
         return;
@@ -227,6 +244,11 @@ export function ResolutionCard({
       });
       const body = await res.json().catch(() => ({}));
       if (!res.ok || !body?.ok) {
+        if (res.status === 429 || body?.error?.code === "RATE_LIMITED") {
+          const retryAfter = handleRateLimited("resolution_effectiveness", res, body);
+          setEffectivenessError(retryAfter ? `Rate limited — try again in ~${retryAfter}s` : "Rate limited — try again shortly");
+          return;
+        }
         const reqId = res.headers.get("x-request-id") ?? body?.error?.requestId ?? null;
         setEffectivenessError(body?.error?.message ?? "Unable to save follow-up");
         logMonetisationClientEvent("ops_resolution_effectiveness_save_error", null, "ops", {

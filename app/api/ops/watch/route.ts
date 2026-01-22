@@ -1,19 +1,32 @@
 import { NextResponse } from "next/server";
-import { withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
+import { applyRequestIdHeaders, withRequestIdHeaders, jsonError } from "@/lib/observability/request-id";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
 import { addWatch, listWatch } from "@/lib/ops/ops-watch";
 import { captureServerError } from "@/lib/observability/sentry";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
-  const { headers, requestId } = withRequestIdHeaders(request.headers);
+  const { headers, requestId } = withRequestIdHeaders(request.headers, undefined, { noStore: true });
   const { user } = await getSupabaseUser();
   if (!user) return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
   const roleInfo = await getUserRole(user.id);
   if (!isOpsRole(roleInfo.role)) return jsonError({ code: "FORBIDDEN", message: "Insufficient role", requestId, status: 403 });
+
+  const limiter = checkRateLimit({
+    route: "ops_watch",
+    identifier: user.id,
+    limit: 30,
+    windowMs: 5 * 60 * 1000,
+    category: "ops_action",
+  });
+  if (!limiter.allowed) {
+    const res = jsonError({ code: "RATE_LIMITED", message: "Rate limited — try again shortly", requestId, status: 429 });
+    return applyRequestIdHeaders(res, requestId, { noStore: true, retryAfterSeconds: limiter.retryAfterSeconds });
+  }
 
   const body = await request.json().catch(() => ({}));
   const requestIdInput = typeof body?.requestId === "string" ? body.requestId : null;
@@ -36,7 +49,7 @@ export async function POST(request: Request) {
 }
 
 export async function GET(request: Request) {
-  const { headers, requestId } = withRequestIdHeaders(request.headers);
+  const { headers, requestId } = withRequestIdHeaders(request.headers, undefined, { noStore: true });
   const { user } = await getSupabaseUser();
   if (!user) return jsonError({ code: "UNAUTHORIZED", message: "Unauthorized", requestId, status: 401 });
   const roleInfo = await getUserRole(user.id);

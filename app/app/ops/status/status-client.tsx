@@ -20,6 +20,15 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
     logMonetisationClientEvent("ops_system_status_view", null, "ops");
   }, []);
 
+  useEffect(() => {
+    if (!status?.limits) return;
+    logMonetisationClientEvent("system_status_limits_view", null, "ops", {
+      billing: status.limits.rateLimitHits24h.billing_recheck,
+      ops: status.limits.rateLimitHits24h.ops_actions,
+      monetisation: status.limits.rateLimitHits24h.monetisation_log,
+    });
+  }, [status?.limits]);
+
   const handleRefresh = async () => {
     setLoading(true);
     setError(null);
@@ -27,6 +36,14 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
     try {
       const res = await fetch("/api/ops/system-status", { method: "GET", cache: "no-store" });
       const body = await res.json();
+      if (res.status === 429 || body?.error?.code === "RATE_LIMITED") {
+        const retryAfter = Number(res.headers.get("retry-after") ?? body?.retryAfter ?? 0);
+        const retryAfterSeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined;
+        setError({ message: retryAfterSeconds ? `Rate limited — try again in ~${retryAfterSeconds}s` : "Rate limited — try again shortly", requestId: body?.error?.requestId ?? requestId });
+        logMonetisationClientEvent("ops_action_rate_limited", null, "ops", { action: "system_status", retryAfterSeconds });
+        setLoading(false);
+        return;
+      }
       if (!body?.ok) {
         setError({ message: body?.error?.message ?? "Unable to refresh", requestId: body?.error?.requestId ?? null });
         setLoading(false);
@@ -85,6 +102,51 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
           { label: "Incidents (24h)", value: status.health.incidents_24h },
           { label: "Audits (24h)", value: status.health.audits_24h },
         ])}
+      </div>
+      <div className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-sm font-semibold text-[rgb(var(--ink))]">Limits (approx)</p>
+          <div className="flex flex-wrap items-center gap-2">
+            <Link
+              href="/app/ops/audits?q=rate_limited"
+              className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+              onClick={() => logMonetisationClientEvent("ops_system_status_link_click", null, "ops", { target: "audits_rate_limit" })}
+            >
+              Open audits
+            </Link>
+            <Link
+              href="/app/ops/incidents?surface=billing&code=RATE_LIMIT"
+              className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+              onClick={() => logMonetisationClientEvent("ops_system_status_link_click", null, "ops", { target: "incidents_rate_limit" })}
+            >
+              Open incidents
+            </Link>
+          </div>
+        </div>
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[rgb(var(--muted))]">
+          <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]">
+            Billing recheck: {status.limits.rateLimitHits24h.billing_recheck}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]">
+            Monetisation log: {status.limits.rateLimitHits24h.monetisation_log}
+          </span>
+          <span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-semibold text-[rgb(var(--ink))]">
+            Ops actions: {status.limits.rateLimitHits24h.ops_actions}
+          </span>
+        </div>
+        {status.limits.topLimitedRoutes24h.length > 0 ? (
+          <div className="mt-2 text-[11px] text-[rgb(var(--muted))]">
+            <p className="font-semibold text-[rgb(var(--ink))]">Top limited routes</p>
+            <ul className="mt-1 space-y-1">
+              {status.limits.topLimitedRoutes24h.slice(0, 4).map((entry) => (
+                <li key={entry.route} className="flex items-center justify-between rounded-md border border-slate-100 bg-slate-50 px-2 py-1">
+                  <span className="text-[10px] font-semibold text-[rgb(var(--ink))]">{entry.route}</span>
+                  <span className="text-[10px] text-[rgb(var(--muted))]">{entry.count}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Link

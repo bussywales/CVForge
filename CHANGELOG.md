@@ -1,6 +1,9 @@
 # Changelog
 
-# Changelog
+## v0.8.24
+- Load & Limits Pack: shared in-memory rate limiter with Retry-After/x-request-id/no-store applied to billing recheck, monetisation log, ops outcomes/effectiveness/watch, and ops system status.
+- Billing recheck + ops actions show calm cooldown/rate-limit messages with sanitised logging; helper tightened for consistent headers.
+- Ops System Status gains a Limits panel (approximate rate-limit hits/top routes) with deep links to audits/incidents; pressure counters feed notes and tests.
 
 ## v0.8.23
 - Ops System Status: new ops-only API/UI with deployment/meta, 24h billing/webhook/incident/audit counts, webhook queue repeats, notes, refresh, and quick links.

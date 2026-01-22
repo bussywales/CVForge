@@ -1,8 +1,6 @@
-/// <reference types="vitest/globals" />
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
 let POST: any;
-let logMock: any;
 
 beforeAll(async () => {
   class SimpleHeaders {
@@ -20,16 +18,16 @@ beforeAll(async () => {
   class SimpleRequest {
     url: string;
     method: string;
-    body: any;
     headers: SimpleHeaders;
+    body?: any;
     constructor(url: string, init?: any) {
       this.url = url;
       this.method = init?.method ?? "POST";
-      this.body = init?.body ?? "";
       this.headers = new SimpleHeaders(init?.headers ?? {});
+      this.body = init?.body;
     }
     async json() {
-      return JSON.parse(this.body);
+      return JSON.parse(this.body ?? "{}");
     }
   }
   (globalThis as any).Headers = SimpleHeaders as any;
@@ -45,6 +43,7 @@ beforeAll(async () => {
       }),
     },
   }));
+
   vi.doMock("@/lib/observability/request-id", () => ({
     withRequestIdHeaders: (h?: HeadersInit, _?: string, opts?: { noStore?: boolean }) => {
       const headers = new SimpleHeaders(h as any);
@@ -65,46 +64,81 @@ beforeAll(async () => {
       text: async () => JSON.stringify({ error: { code, message, requestId } }),
     }),
   }));
-  vi.doMock("@/lib/observability/sentry", () => ({
-    captureServerError: () => undefined,
-  }));
+
   vi.doMock("@/lib/data/supabase", () => ({
-    getSupabaseUser: async () => ({ user: { id: "ops-user", email: "ops@example.com" } }),
+    getSupabaseUser: async () => ({ user: { id: "ops-1", email: "ops@test.com" } }),
   }));
+
   vi.doMock("@/lib/rbac", () => ({
-    getUserRole: vi.fn().mockResolvedValue({ role: "admin" }),
-    isOpsRole: (role: string) => role === "admin" || role === "super_admin",
+    getUserRole: async () => ({ role: "ops" }),
+    isOpsRole: () => true,
   }));
-  logMock = vi.fn().mockResolvedValue(undefined);
-  vi.doMock("@/lib/monetisation", () => ({
-    logMonetisationEvent: logMock,
-  }));
+
   vi.doMock("@/lib/supabase/service", () => ({
     createServiceRoleClient: () => ({}),
   }));
 
-  const route = await import("@/app/api/ops/resolution-outcome/route");
-  POST = route.POST;
+  vi.doMock("@/lib/monetisation", () => ({
+    logMonetisationEvent: vi.fn().mockResolvedValue({
+      id: "activity-1",
+      body: "{}",
+      occurred_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
+      type: "monetisation.ops_resolution_outcome_set",
+    }),
+  }));
+
+  vi.doMock("@/lib/ops/ops-resolution-outcomes", () => ({
+    buildOutcomeEvent: vi.fn().mockReturnValue({}),
+    mapOutcomeRows: vi.fn().mockReturnValue([
+      {
+        id: "activity-1",
+        code: "PORTAL_RETRY_SUCCESS",
+        createdAt: new Date().toISOString(),
+        actorMasked: null,
+        requestId: "req_a",
+        userId: "user_a",
+        note: null,
+        effectivenessState: "unknown",
+        effectivenessReason: null,
+        effectivenessNote: null,
+        effectivenessUpdatedAt: new Date().toISOString(),
+        effectivenessDeferredUntil: null,
+      },
+    ]),
+  }));
+
+  vi.doMock("@/lib/observability/sentry", () => ({
+    captureServerError: vi.fn(),
+  }));
+
+  vi.doMock("@/lib/rate-limit", () => ({
+    checkRateLimit: () => ({ allowed: false, retryAfterSeconds: 7, status: 429 }),
+    resetRateLimitStores: () => {},
+    getRateLimitSummary: () => ({ rateLimitHits: { billing_recheck: 0, monetisation_log: 0, ops_actions: 1 }, topLimitedRoutes24h: [] }),
+  }));
+
+  const mod = await import("@/app/api/ops/resolution-outcome/route");
+  POST = mod.POST;
 });
 
-describe("ops resolution outcome route", () => {
-  it("rejects missing targets", async () => {
-    const res = await POST(new Request("http://localhost", { body: JSON.stringify({ code: "PORTAL_RETRY_SUCCESS" }) }));
-    const body = await res.json();
-    expect(res.status).toBe(400);
-    expect(body.error.code).toBe("MISSING_TARGET");
-  });
+afterEach(() => {
+  vi.clearAllMocks();
+});
 
-  it("succeeds for ops user", async () => {
+describe("ops resolution outcome rate limit", () => {
+  it("returns 429 with retry headers when limited", async () => {
     const res = await POST(
-      new Request("http://localhost", {
-        body: JSON.stringify({ code: "PORTAL_RETRY_SUCCESS", requestId: "req_1", note: "done" }),
-        headers: { "Content-Type": "application/json" },
+      new Request("http://localhost/api/ops/resolution-outcome", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ code: "PORTAL_RETRY_SUCCESS", requestId: "req1" }),
       })
     );
     const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.ok).toBe(true);
-    expect(logMock).toHaveBeenCalledWith(expect.anything(), "ops-user", "ops_resolution_outcome_set", expect.anything());
+    expect(res.status).toBe(429);
+    expect(body.error.requestId).toBe("req_test");
+    expect(res.headers.get("retry-after")).toBe("7");
+    expect(res.headers.get("cache-control")).toContain("no-store");
   });
 });

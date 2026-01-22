@@ -43,10 +43,21 @@ beforeAll(async () => {
   }));
 
   vi.doMock("@/lib/observability/request-id", () => ({
-    withRequestIdHeaders: (h?: HeadersInit) => ({ headers: new SimpleHeaders(h as any), requestId: "req_test" }),
+    withRequestIdHeaders: (h?: HeadersInit, _?: string, opts?: { noStore?: boolean }) => {
+      const headers = new SimpleHeaders(h as any);
+      headers.set("x-request-id", "req_test");
+      if (opts?.noStore ?? true) headers.set("cache-control", "no-store");
+      return { headers, requestId: "req_test" };
+    },
+    applyRequestIdHeaders: (res: any, requestId: string, opts?: { noStore?: boolean; retryAfterSeconds?: number }) => {
+      res.headers.set("x-request-id", requestId);
+      if (opts?.noStore ?? true) res.headers.set("cache-control", "no-store");
+      if (typeof opts?.retryAfterSeconds === "number") res.headers.set("retry-after", `${opts.retryAfterSeconds}`);
+      return res;
+    },
     jsonError: ({ code, message, requestId, status = 500 }: any) => ({
       status,
-      headers: new SimpleHeaders({ "x-request-id": requestId }),
+      headers: new SimpleHeaders({ "x-request-id": requestId, "cache-control": "no-store" }),
       json: async () => ({ error: { code, message, requestId } }),
       text: async () => JSON.stringify({ error: { code, message, requestId } }),
     }),

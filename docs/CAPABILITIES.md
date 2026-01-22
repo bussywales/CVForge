@@ -147,6 +147,9 @@ Ops Audits (v0.7.99): ops-only audits page at `/app/ops/audits` lists masked aud
 Ops correlation (v0.8.00): audits and incidents cross-link via requestId with support bundles (masked actor/target/meta), billing-first next actions, quick filters, and masked exports.
 Incident Playbooks (v0.8.01): deterministic billing/Stripe playbooks suggest likely causes, next steps, safe deeplinks (billing/dossier/support link), and premium customer reply templates; outputs stay masked and ops-only.
 
+## Reliability and limits
+Load & Limits Pack v1 (v0.8.24): shared in-memory rate limiter wraps billing recheck, monetisation log, and ops actions (resolution outcome/effectiveness/watch/system status) with consistent x-request-id + no-store + Retry-After headers. Billing/ops UIs show calm cooldown or inline rate-limit messages without losing prior state. Ops System Status exposes a Limits panel (approximate hits and top routes) with masked deep links to audits/incidents for pressure triage.
+
 ## Deterministic vs OpenAI usage
 Deterministic engines include role-fit.ts, interview-lift.ts, outreach-templates.ts, submission-quality.ts, and metrics-helper.ts. OpenAI is only used for autopack generation via server-side API calls.
 
