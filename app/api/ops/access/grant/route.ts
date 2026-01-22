@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { applyRequestIdHeaders, jsonError, withRequestIdHeaders } from "@/lib/observability/request-id";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
-import { grantEarlyAccess } from "@/lib/early-access";
+import { grantEarlyAccess, hashEarlyAccessEmail } from "@/lib/early-access";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -12,6 +12,11 @@ export const dynamic = "force-dynamic";
 
 function isUuid(value?: string | null) {
   return typeof value === "string" && /^[0-9a-fA-F-]{36}$/.test(value);
+}
+
+function isEmail(value?: string | null) {
+  if (!value) return false;
+  return /\S+@\S+\.\S+/.test(value);
 }
 
 export async function POST(request: Request) {
@@ -39,22 +44,32 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   const targetUser = typeof body?.userId === "string" ? body.userId : null;
-  const note = typeof body?.note === "string" ? body.note.trim().slice(0, 280) : null;
-  if (!isUuid(targetUser)) {
+  const email = typeof body?.email === "string" ? body.email : null;
+  const note = typeof body?.note === "string" ? body.note.trim().slice(0, 120) : null;
+  if (!isEmail(email)) {
+    return jsonError({ code: "BAD_INPUT", message: "Invalid email", requestId, status: 400 });
+  }
+  if (targetUser && !isUuid(targetUser)) {
     return jsonError({ code: "BAD_INPUT", message: "Invalid userId", requestId, status: 400 });
   }
 
   try {
     const admin = createServiceRoleClient();
-    const record = await grantEarlyAccess({ userId: targetUser, grantedBy: user.id, note });
+    const record = await grantEarlyAccess({ userId: targetUser, email, grantedBy: user.id, note });
     await admin.from("ops_audit_log").insert({
       actor_user_id: user.id,
       target_user_id: targetUser,
       action: "early_access_grant",
-      meta: { note: record.note ?? null, requestId, source: "ops_ui" },
+      meta: { note: record.note ?? null, requestId, source: "ops_ui", hashedEmail: hashEarlyAccessEmail(email) },
     });
     return NextResponse.json(
-      { ok: true, userId: targetUser, record: { grantedAt: record.granted_at, revokedAt: record.revoked_at, note: record.note ?? null }, requestId },
+      {
+        ok: true,
+        userId: targetUser,
+        email,
+        record: { grantedAt: record.granted_at ?? record.invited_at, revokedAt: record.revoked_at, note: record.note ?? null },
+        requestId,
+      },
       { headers }
     );
   } catch {

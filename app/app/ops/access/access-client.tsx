@@ -1,98 +1,93 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import ErrorBanner from "@/components/ErrorBanner";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { buildInviteInstructions } from "@/lib/early-access-invite-text";
 
-type UserRow = { id: string; email: string | null; createdAt: string | null; name?: string | null; role?: string | null };
-
-type AccessRecord = { grantedAt?: string | null; revokedAt?: string | null; note?: string | null; reason?: string | null; allowed?: boolean };
+type Lookup = {
+  userFound: boolean;
+  userId: string | null;
+  allowedNow: boolean;
+  source: string | null;
+  dbInviteActive?: boolean;
+  record?: { grantedAt?: string | null; revokedAt?: string | null; note?: string | null } | null;
+};
 
 export default function AccessClient({ requestId }: { requestId: string | null }) {
   const [query, setQuery] = useState("");
-  const [users, setUsers] = useState<UserRow[]>([]);
-  const [selected, setSelected] = useState<UserRow | null>(null);
-  const [access, setAccess] = useState<AccessRecord | null>(null);
+  const [lookup, setLookup] = useState<Lookup | null>(null);
   const [loading, setLoading] = useState(false);
   const [actionMessage, setActionMessage] = useState<string | null>(null);
   const [error, setError] = useState<{ message?: string | null; requestId?: string | null } | null>(null);
   const [note, setNote] = useState("");
+  const [userFoundLabel, setUserFoundLabel] = useState<string>("Unknown");
 
-  const hasResults = users.length > 0;
   const statusLabel = useMemo(() => {
-    if (!access) return "Unknown";
-    if (access.allowed) return "Allowed";
+    if (!lookup) return "Unknown";
+    if (lookup.allowedNow) return "Allowed";
     return "Blocked";
-  }, [access]);
+  }, [lookup]);
 
   const statusReason = useMemo(() => {
-    if (!access?.reason) return "";
+    if (!lookup?.source) return "";
     const map: Record<string, string> = {
-      ops_bypass: "Ops bypass",
-      db_allowlist: "Allowlisted (db)",
-      env_allowlist: "Allowlisted (env)",
+      ops: "Ops bypass",
+      db_user: "Allowlisted (account)",
+      db_email: "Allowlisted (email invite)",
+      env: "Allowlisted (env)",
       blocked: "Blocked",
     };
-    return map[access.reason] ?? access.reason;
-  }, [access?.reason]);
+    return map[lookup.source] ?? lookup.source;
+  }, [lookup?.source]);
 
   useEffect(() => {
     logMonetisationClientEvent("ops_access_view", null, "ops");
+    logMonetisationClientEvent("ops_access_invite_view", null, "ops");
   }, []);
 
   const runSearch = async () => {
     const q = query.trim();
-    if (q.length < 3) {
-      setError({ message: "Enter at least 3 characters" });
-      setUsers([]);
+    if (!q.includes("@")) {
+      setError({ message: "Enter an email to invite or check status" });
       return;
     }
     setLoading(true);
     setError(null);
-    try {
-      const res = await fetch(`/api/ops/users/search?q=${encodeURIComponent(q)}`, { method: "GET", headers: { Accept: "application/json" } });
-      const reqId = res.headers.get("x-request-id");
-      const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.ok) {
-        setError({ message: data?.error?.message ?? "Unable to search", requestId: data?.error?.requestId ?? reqId });
-        setUsers([]);
-        return;
-      }
-      setUsers(data.users ?? []);
-      logMonetisationClientEvent("ops_access_lookup", null, "ops");
-    } catch {
-      setError({ message: "Unable to search", requestId: null });
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchAccess = async (user: UserRow) => {
     setActionMessage(null);
-    setError(null);
-    setSelected(user);
     try {
-      const res = await fetch(`/api/ops/access?userId=${encodeURIComponent(user.id)}`, { method: "GET", cache: "no-store" });
+      const res = await fetch(`/api/ops/access?email=${encodeURIComponent(q)}`, { method: "GET", cache: "no-store" });
+      const reqId = res.headers.get("x-request-id");
       const data = await res.json().catch(() => null);
       if (!data?.ok) {
         setError({ message: data?.error?.message ?? "Unable to load access", requestId: data?.error?.requestId });
         return;
       }
-      setAccess({ allowed: data.allowed, reason: data.reason, grantedAt: data.record?.grantedAt, revokedAt: data.record?.revokedAt, note: data.record?.note ?? null });
+      setLookup({
+        userFound: Boolean(data.userFound),
+        userId: data.userId ?? null,
+        allowedNow: data.allowedNow,
+        source: data.source ?? null,
+        record: data.record ?? null,
+        dbInviteActive: data.dbInviteActive ?? false,
+      });
+      setUserFoundLabel(data.userFound ? "Found" : "Not found");
+      logMonetisationClientEvent("ops_access_lookup", null, "ops");
     } catch {
       setError({ message: "Unable to load access", requestId: null });
+    } finally {
+      setLoading(false);
     }
   };
 
   const performAction = async (action: "grant" | "revoke") => {
-    if (!selected) return;
+    const email = query.trim();
+    if (!email) return;
     setError(null);
     setActionMessage(null);
     const endpoint = action === "grant" ? "/api/ops/access/grant" : "/api/ops/access/revoke";
     try {
-      const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ userId: selected.id, note }) });
+      const res = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, userId: lookup?.userId ?? null, note }) });
       const data = await res.json().catch(() => null);
       if (res.status === 429 || data?.error?.code === "RATE_LIMITED") {
         setActionMessage("Rate limited — try again shortly");
@@ -105,11 +100,22 @@ export default function AccessClient({ requestId }: { requestId: string | null }
         return;
       }
       setActionMessage(action === "grant" ? "Access granted" : "Access revoked");
-      logMonetisationClientEvent(action === "grant" ? "ops_access_grant" : "ops_access_revoke", null, "ops", { userId: selected.id });
-      fetchAccess(selected);
+      logMonetisationClientEvent(action === "grant" ? "ops_access_invite_grant" : "ops_access_invite_revoke", null, "ops");
+      runSearch();
     } catch {
       setError({ message: "Action failed", requestId: null });
     }
+  };
+
+  const copyInstructions = async () => {
+    const text = buildInviteInstructions();
+    try {
+      await navigator.clipboard.writeText(text);
+      setActionMessage("Instructions copied");
+    } catch {
+      setActionMessage("Copy failed — try manual copy");
+    }
+    logMonetisationClientEvent("ops_access_invite_copy_instructions", null, "ops");
   };
 
   return (
@@ -131,63 +137,37 @@ export default function AccessClient({ requestId }: { requestId: string | null }
           >
             {loading ? "Searching…" : "Search"}
           </button>
+          <button
+            type="button"
+            onClick={copyInstructions}
+            className="rounded-full border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-[rgb(var(--ink))]"
+          >
+            Copy invite instructions
+          </button>
         </div>
-        {hasResults ? (
-          <div className="mt-2 overflow-x-auto rounded-xl border border-black/5">
-            <table className="min-w-full text-left text-xs">
-              <thead className="text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
-                <tr>
-                  <th className="px-2 py-1">Email</th>
-                  <th className="px-2 py-1">User</th>
-                  <th className="px-2 py-1">Role</th>
-                  <th className="px-2 py-1 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((u) => (
-                  <tr key={u.id} className="border-t">
-                    <td className="px-2 py-1">{u.email ?? "—"}</td>
-                    <td className="px-2 py-1 font-mono text-[10px] text-[rgb(var(--muted))]">{u.id}</td>
-                    <td className="px-2 py-1">{u.role ?? "—"}</td>
-                    <td className="px-2 py-1 text-right">
-                      <button
-                        type="button"
-                        className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))]"
-                        onClick={() => fetchAccess(u)}
-                      >
-                        Manage access
-                      </button>
-                      <Link href={`/app/ops/users/${u.id}`} className="ml-2 rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))]">
-                        Open dossier
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
       </div>
       <div className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
         <div className="flex items-center justify-between">
           <p className="text-sm font-semibold text-[rgb(var(--ink))]">Access status</p>
-          {selected ? <span className="text-[10px] text-[rgb(var(--muted))]">User: {selected.id}</span> : null}
+          {lookup?.userId ? <span className="text-[10px] text-[rgb(var(--muted))]">User: {lookup.userId}</span> : null}
         </div>
-        {selected ? (
+        {lookup ? (
           <div className="mt-2 space-y-2">
             <div className="flex items-center gap-2">
               <span
                 className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
-                  access?.allowed ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                  lookup?.allowedNow ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
                 }`}
               >
                 {statusLabel}
               </span>
               {statusReason ? <span className="text-[11px] text-[rgb(var(--muted))]">{statusReason}</span> : null}
             </div>
-            {access?.grantedAt ? <p className="text-[11px] text-[rgb(var(--muted))]">Granted at: {access.grantedAt}</p> : null}
-            {access?.revokedAt ? <p className="text-[11px] text-[rgb(var(--muted))]">Revoked at: {access.revokedAt}</p> : null}
-            {access?.note ? <p className="text-[11px] text-[rgb(var(--muted))]">Note: {access.note}</p> : null}
+            <p className="text-[11px] text-[rgb(var(--muted))]">User account: {userFoundLabel}</p>
+            <p className="text-[11px] text-[rgb(var(--muted))]">Invite status: {lookup?.dbInviteActive ? "Active" : "None/revoked"}</p>
+            {lookup?.record?.grantedAt ? <p className="text-[11px] text-[rgb(var(--muted))]">Invite created: {lookup.record.grantedAt}</p> : null}
+            {lookup?.record?.revokedAt ? <p className="text-[11px] text-[rgb(var(--muted))]">Revoked at: {lookup.record.revokedAt}</p> : null}
+            {lookup?.record?.note ? <p className="text-[11px] text-[rgb(var(--muted))]">Note: {lookup.record.note}</p> : null}
             {actionMessage ? <p className="text-[11px] text-amber-800">{actionMessage}</p> : null}
             <div className="flex flex-wrap items-center gap-2">
               <input value={note} onChange={(e) => setNote(e.target.value)} placeholder="Optional note" className="rounded-xl border px-3 py-2 text-sm" />
@@ -207,10 +187,11 @@ export default function AccessClient({ requestId }: { requestId: string | null }
               >
                 Revoke access
               </button>
+              <p className="text-[11px] text-[rgb(var(--muted))]">If the user hasn’t signed up yet, the invite will activate when they sign up with this email.</p>
             </div>
           </div>
         ) : (
-          <p className="text-[11px] text-[rgb(var(--muted))]">Select a user to manage access.</p>
+          <p className="text-[11px] text-[rgb(var(--muted))]">Search an email to view or create an invite.</p>
         )}
       </div>
     </div>

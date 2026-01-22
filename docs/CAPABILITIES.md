@@ -154,6 +154,7 @@ Ops RAG drill-down v2 (v0.8.26): shared rag helper + /api/ops/rag-status expose 
 Early Access + Ops repeats (v0.8.27): invite-gated dashboard/billing/applications with calm Early Access page; central rate-limit budgets with 429 meta; Ops Status adds Top repeats (15m) with masked requestId/code/surface deep links and watch shortcuts while panels preserve last good state under 429/5xx.
 Ops Early Access allowlist (v0.8.28): ops-managed allowlist table with grant/revoke + notes, ops APIs + /app/ops/access console; gate reads DB first with env fallback, logging/audit-friendly and masked.
 Ops Alerts v1 (v0.8.29): deterministic 15m alerting (RAG red, webhook/portal spikes, rate-limit pressure) with persisted state/events, webhook notify, Ops alerts page (firing/recent) and actionable deep links.
+Early Access email invites (v0.8.30): allowlist supports email-only invites before signup; gate checks hashed email/user DB first, ops console grants/revokes invites and provides copyable instructions.
 
 ## Deterministic vs OpenAI usage
 Deterministic engines include role-fit.ts, interview-lift.ts, outreach-templates.ts, submission-quality.ts, and metrics-helper.ts. OpenAI is only used for autopack generation via server-side API calls.

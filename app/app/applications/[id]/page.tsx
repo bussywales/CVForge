@@ -188,7 +188,7 @@ export default async function ApplicationPage({
 
   const access = await getEarlyAccessDecision({ userId: user.id, email: user.email });
   if (!access.allowed) {
-    return <EarlyAccessBlock email={user.email} reason={access.reason} />;
+    return <EarlyAccessBlock email={user.email} reason={access.source} />;
   }
 
   let application;

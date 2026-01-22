@@ -5,7 +5,7 @@ let GET: any;
 let GRANT: any;
 let REVOKE: any;
 let role = "admin";
-let decision = { allowed: true, reason: "db_allowlist", allowlistMeta: { source: "db" } };
+let decision = { allowed: true, source: "db_user", allowlistMeta: { source: "db" } };
 
 beforeAll(async () => {
   class SimpleHeaders {
@@ -75,10 +75,12 @@ beforeAll(async () => {
     requireOpsAccess: vi.fn().mockResolvedValue(true),
   }));
   vi.doMock("@/lib/early-access", () => ({
+    __esModule: true,
     getEarlyAccessDecision: vi.fn(async () => decision),
     getEarlyAccessRecord: vi.fn(async () => ({ granted_at: "2024-01-01T00:00:00.000Z", revoked_at: null, note: "hi" })),
-    grantEarlyAccess: vi.fn(async () => ({ granted_at: "2024-01-02T00:00:00.000Z", revoked_at: null, note: null })),
+    grantEarlyAccess: vi.fn(async () => ({ granted_at: "2024-01-02T00:00:00.000Z", revoked_at: null, note: null, email_hash: "hash" })),
     revokeEarlyAccess: vi.fn(async () => ({ status: "revoked", revokedAt: "2024-01-03T00:00:00.000Z" })),
+    hashEarlyAccessEmail: () => "hash_mock",
   }));
   vi.doMock("@/lib/rate-limit-budgets", () => ({
     getRateLimitBudget: () => ({ budget: "test", limit: 5, windowMs: 1000 }),
@@ -87,11 +89,24 @@ beforeAll(async () => {
     createServiceRoleClient: () => ({
       auth: {
         admin: {
+          listUsers: vi.fn().mockResolvedValue({ data: { users: [{ id: "00000000-0000-0000-0000-000000000000", email: "target@example.com" }], lastPage: 1 } }),
           getUserById: vi.fn().mockResolvedValue({ data: { user: { email: "target@example.com" } } }),
         },
       },
       from: () => ({
         insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+        select: () => ({
+          eq: () => ({
+            is: () => ({
+              order: () => ({
+                limit: () => ({ data: [] }),
+              }),
+            }),
+            order: () => ({
+              limit: () => ({ data: [] }),
+            }),
+          }),
+        }),
       }),
     }),
   }));
@@ -107,7 +122,7 @@ beforeAll(async () => {
 describe("ops access routes", () => {
   it("forbids non-ops", async () => {
     role = "user";
-    const res = await GET(new Request("http://localhost/api/ops/access?userId=00000000-0000-0000-0000-000000000000"));
+    const res = await GET(new Request("http://localhost/api/ops/access?email=test@example.com"));
     expect(res.status).toBe(403);
   });
 
@@ -117,16 +132,20 @@ describe("ops access routes", () => {
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.ok).toBe(true);
-    expect(body.reason).toBe("db_allowlist");
+    expect(body.source).toBe("db_user");
   });
 
   it("grants and revokes idempotently", async () => {
-    const grantRes = await GRANT(new Request("http://localhost/api/ops/access/grant", { method: "POST", body: JSON.stringify({ userId: "00000000-0000-0000-0000-000000000000" }) }));
+    const grantRes = await GRANT(
+      new Request("http://localhost/api/ops/access/grant", { method: "POST", body: JSON.stringify({ userId: "00000000-0000-0000-0000-000000000000", email: "target@example.com" }) })
+    );
     const grantBody = await grantRes.json();
     expect(grantRes.status).toBe(200);
     expect(grantBody.ok).toBe(true);
 
-    const revokeRes = await REVOKE(new Request("http://localhost/api/ops/access/revoke", { method: "POST", body: JSON.stringify({ userId: "00000000-0000-0000-0000-000000000000" }) }));
+    const revokeRes = await REVOKE(
+      new Request("http://localhost/api/ops/access/revoke", { method: "POST", body: JSON.stringify({ userId: "00000000-0000-0000-0000-000000000000", email: "target@example.com" }) })
+    );
     const revokeBody = await revokeRes.json();
     expect(revokeBody.ok).toBe(true);
   });

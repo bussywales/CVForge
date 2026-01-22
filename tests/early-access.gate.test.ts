@@ -21,6 +21,7 @@ vi.mock("@/lib/supabase/service", () => ({
           }),
         }),
       }),
+      insert: () => ({ error: null }),
     }),
   }),
 }));
@@ -43,14 +44,14 @@ describe("early access gate", () => {
     const { getEarlyAccessDecision } = await import("@/lib/early-access");
     const result = await getEarlyAccessDecision({ userId: "user-1", email: "nope@example.com" });
     expect(result.allowed).toBe(false);
-    expect(result.reason).toBe("blocked");
+    expect(result.source).toBe("blocked");
   });
 
   it("allows invited email", async () => {
     const { getEarlyAccessDecision } = await import("@/lib/early-access");
     const result = await getEarlyAccessDecision({ userId: "user-1", email: "allowed@example.com" });
     expect(result.allowed).toBe(true);
-    expect(result.reason).toBe("env_allowlist");
+    expect(result.source).toBe("env");
   });
 
   it("bypasses when mode off", async () => {
@@ -58,20 +59,20 @@ describe("early access gate", () => {
     const { getEarlyAccessDecision } = await import("@/lib/early-access");
     const result = await getEarlyAccessDecision({ userId: "user-1", email: null });
     expect(result.allowed).toBe(true);
-    expect(result.reason).toBe("env_allowlist");
+    expect(result.source).toBe("env");
   });
 
   it("prefers db allowlist over env", async () => {
     dbEntry = { user_id: "user-1", granted_at: "2024-01-01T00:00:00.000Z", revoked_at: null, note: null };
     const { getEarlyAccessDecision } = await import("@/lib/early-access");
     const result = await getEarlyAccessDecision({ userId: "user-1", email: "allowed@example.com" });
-    expect(result.reason).toBe("db_allowlist");
+    expect(result.source).toBe("db_user");
   });
 
   it("bypasses ops role", async () => {
     mockRole.role = "admin";
     const { getEarlyAccessDecision } = await import("@/lib/early-access");
     const result = await getEarlyAccessDecision({ userId: "user-1", email: null });
-    expect(result.reason).toBe("ops_bypass");
+    expect(result.source).toBe("ops");
   });
 });

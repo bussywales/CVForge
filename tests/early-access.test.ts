@@ -23,6 +23,7 @@ vi.mock("@/lib/supabase/service", () => ({
       }),
       upsert: () => ({ error: null }),
       update: () => ({ error: null }),
+      insert: () => ({ error: null }),
     }),
   }),
 }));
@@ -40,27 +41,27 @@ describe("early access decision", () => {
     const { getEarlyAccessDecision } = await import("@/lib/early-access");
     const result = await getEarlyAccessDecision({ userId: "u1", email: "nope@example.com" });
     expect(result.allowed).toBe(true);
-    expect(result.reason).toBe("ops_bypass");
+    expect(result.source).toBe("ops");
   });
 
   it("prefers db allowlist over env", async () => {
     dbEntry = { user_id: "u1", granted_at: "2024-01-01T00:00:00.000Z", revoked_at: null, note: null };
     const { getEarlyAccessDecision } = await import("@/lib/early-access");
     const result = await getEarlyAccessDecision({ userId: "u1", email: "env@example.com" });
-    expect(result.reason).toBe("db_allowlist");
+    expect(result.source).toBe("db_user");
   });
 
   it("falls back to env allowlist", async () => {
     const { getEarlyAccessDecision } = await import("@/lib/early-access");
     const result = await getEarlyAccessDecision({ userId: "u1", email: "env@example.com" });
     expect(result.allowed).toBe(true);
-    expect(result.reason).toBe("env_allowlist");
+    expect(result.source).toBe("env");
   });
 
   it("blocks when not allowed", async () => {
     const { getEarlyAccessDecision } = await import("@/lib/early-access");
     const result = await getEarlyAccessDecision({ userId: "u1", email: "nope@example.com" });
     expect(result.allowed).toBe(false);
-    expect(result.reason).toBe("blocked");
+    expect(result.source).toBe("blocked");
   });
 });

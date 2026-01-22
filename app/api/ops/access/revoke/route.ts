@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { applyRequestIdHeaders, jsonError, withRequestIdHeaders } from "@/lib/observability/request-id";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
-import { revokeEarlyAccess } from "@/lib/early-access";
+import { revokeEarlyAccess, hashEarlyAccessEmail } from "@/lib/early-access";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { createServiceRoleClient } from "@/lib/supabase/service";
@@ -12,6 +12,11 @@ export const dynamic = "force-dynamic";
 
 function isUuid(value?: string | null) {
   return typeof value === "string" && /^[0-9a-fA-F-]{36}$/.test(value);
+}
+
+function isEmail(value?: string | null) {
+  if (!value) return false;
+  return /\S+@\S+\.\S+/.test(value);
 }
 
 export async function POST(request: Request) {
@@ -39,19 +44,20 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => ({}));
   const targetUser = typeof body?.userId === "string" ? body.userId : null;
-  const note = typeof body?.note === "string" ? body.note.trim().slice(0, 280) : null;
-  if (!isUuid(targetUser)) {
-    return jsonError({ code: "BAD_INPUT", message: "Invalid userId", requestId, status: 400 });
+  const email = typeof body?.email === "string" ? body.email : null;
+  const note = typeof body?.note === "string" ? body.note.trim().slice(0, 120) : null;
+  if (!isEmail(email) && !isUuid(targetUser)) {
+    return jsonError({ code: "BAD_INPUT", message: "Invalid email or userId", requestId, status: 400 });
   }
 
   try {
     const admin = createServiceRoleClient();
-    const result = await revokeEarlyAccess({ userId: targetUser, note });
+    const result = await revokeEarlyAccess({ userId: targetUser, email, note });
     await admin.from("ops_audit_log").insert({
       actor_user_id: user.id,
       target_user_id: targetUser,
       action: "early_access_revoke",
-      meta: { status: result.status, requestId, source: "ops_ui" },
+      meta: { status: result.status, requestId, source: "ops_ui", hashedEmail: hashEarlyAccessEmail(email) },
     });
     return NextResponse.json({ ok: true, userId: targetUser, status: result.status, requestId }, { headers });
   } catch {

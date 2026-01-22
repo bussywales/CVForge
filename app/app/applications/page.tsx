@@ -29,7 +29,7 @@ export default async function ApplicationsPage({
 
   const access = await getEarlyAccessDecision({ userId: user.id, email: user.email });
   if (!access.allowed) {
-    return <EarlyAccessBlock email={user.email} reason={access.reason} />;
+    return <EarlyAccessBlock email={user.email} reason={access.source} />;
   }
 
   const applications = await listApplications(supabase, user.id);

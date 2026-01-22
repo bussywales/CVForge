@@ -118,6 +118,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Click “Send test alert” → success banner appears, event shows in Recent tab, webhook notify_success logged when configured.
 - Click an alert action → lands on Incidents/Webhooks with expected window=15m filters applied.
 
+## Quick prod checks (v0.8.30)
+- Ops → /app/ops/access: search a never-seen email → Invite status shows “Active/none”, grant invite works without a user account.
+- Incognito signup with that email passes the early access gate immediately (env fallback still works).
+- Revoke invite → after logout/login the user is blocked again; copy invite instructions button works.
+
 ## Quick prod checks (v0.8.25)
 - Ops: open /app/ops/status → System Health (15m) pill + reason chips render with timestamp.
 - Click “Open Webhook Failures (15m)” → webhooks page loads filtered to 15m range.

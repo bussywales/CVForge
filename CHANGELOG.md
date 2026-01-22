@@ -2,6 +2,10 @@
 
 # Changelog
 
+## v0.8.30
+- Early Access email invites: allowlist supports email-only invites with hashed emails, optional user linkage, and unique active entries; ops can grant/revoke pre-signup and gate checks DB by user or email hash before env fallback.
+- Ops Early Access console updated for invite flow with user-found status, invite status, copyable instructions, and email-based grant/revoke; new helper for invite instructions and gate logging.
+
 ## v0.8.29
 - Ops Alerts v1: deterministic 15m alert model (RAG red, webhook/portal spikes, rate-limit pressure) with stored state/events, webhook notifier, and actionable links.
 - Ops Alerts API + UI: /api/ops/alerts (with test hook) and /app/ops/alerts page showing firing/recent alerts, refresh/test controls, deep links, and webhook configuration note.

@@ -92,7 +92,7 @@ export default async function BillingPage({ searchParams }: BillingPageProps) {
 
   const access = await getEarlyAccessDecision({ userId: user.id, email: user.email });
   if (!access.allowed && !isOpsRole(roleInfo.role)) {
-    return <EarlyAccessBlock email={user.email} reason={access.reason} />;
+    return <EarlyAccessBlock email={user.email} reason={access.source} />;
   }
 
   const portalError = parsePortalError(searchParams ?? undefined);
