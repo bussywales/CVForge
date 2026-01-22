@@ -1,6 +1,3 @@
-alter table public.early_access_allowlist
-  alter column user_id drop not null;
-
 do $$
 begin
   if not exists (select 1 from information_schema.columns where table_name = 'early_access_allowlist' and column_name = 'email_hash') then

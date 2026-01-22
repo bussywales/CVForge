@@ -61,7 +61,7 @@ export async function saveAlertStatesAndEvents({
         at: nowIso,
         summary_masked: alert.summary,
         signals_masked: alert.signals ?? {},
-        window: "15m",
+        window_label: "15m",
         rules_version: rulesVersion,
       });
     }
@@ -106,7 +106,7 @@ export async function listRecentAlertEvents({ sinceHours = 24, now = new Date() 
   const since = new Date(now.getTime() - sinceHours * 60 * 60 * 1000).toISOString();
   const { data } = await admin
     .from("ops_alert_events")
-    .select("id,key,state,at,summary_masked,signals_masked,window,rules_version")
+    .select("id,key,state,at,summary_masked,signals_masked,window_label,rules_version")
     .gte("at", since)
     .order("at", { ascending: false })
     .limit(200);
@@ -117,7 +117,7 @@ export async function listRecentAlertEvents({ sinceHours = 24, now = new Date() 
     at: row.at,
     summary: row.summary_masked ?? "",
     signals: row.signals_masked ?? {},
-    window: row.window ?? null,
+    window: row.window_label ?? null,
     rulesVersion: row.rules_version ?? null,
   }));
 }

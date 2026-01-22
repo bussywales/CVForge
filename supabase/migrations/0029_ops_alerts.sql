@@ -15,7 +15,7 @@ create table if not exists public.ops_alert_events (
   at timestamptz not null default now(),
   summary_masked text,
   signals_masked jsonb default '[]'::jsonb,
-  window text,
+  window_label text,
   rules_version text
 );
 
