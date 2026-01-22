@@ -15,7 +15,7 @@ begin
 end$$;
 
 update public.early_access_allowlist
-set email_hash = coalesce(email_hash, encode(digest(coalesce(user_id::text, 'legacy'), 'sha256'), 'hex'))
+set email_hash = coalesce(email_hash, md5(coalesce(user_id::text, 'legacy')))
 where email_hash is null;
 
 alter table public.early_access_allowlist alter column email_hash set not null;

@@ -11,7 +11,7 @@ alter table public.early_access_allowlist
 
 -- Populate email_hash if missing (fallback to hashed user_id to avoid nulls)
 update public.early_access_allowlist
-set email_hash = coalesce(email_hash, encode(digest(coalesce(user_id::text, 'legacy'), 'sha256'), 'hex'))
+set email_hash = coalesce(email_hash, md5(coalesce(user_id::text, 'legacy')))
 where email_hash is null;
 
 -- Drop old primary key on user_id and allow null user_id
