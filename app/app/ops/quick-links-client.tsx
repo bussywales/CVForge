@@ -1,8 +1,13 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import type { RagStatus } from "@/lib/ops/rag-status";
 
 export default function QuickLinksClient() {
+  const [rag, setRag] = useState<RagStatus | null>(null);
+
   const focusSearch = () => {
     if (typeof window === "undefined") return;
     const event = new CustomEvent("ops-focus-user-lookup");
@@ -12,6 +17,36 @@ export default function QuickLinksClient() {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
+
+  useEffect(() => {
+    const fetchRag = async () => {
+      try {
+        const res = await fetch("/api/ops/rag-status", { method: "GET", cache: "no-store" });
+        const body = await res.json().catch(() => null);
+        if (body?.ok) {
+          setRag(body.rag);
+        }
+      } catch {
+        // swallow
+      }
+    };
+    fetchRag();
+  }, []);
+
+  const ragPill = rag ? (
+    <Link
+      href="/app/ops/status#rag"
+      onClick={() => logMonetisationClientEvent("ops_rag_action_click", null, "ops", { target: "status_rag", window: "15m" })}
+      className="ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
+      style={{
+        backgroundColor:
+          rag.overall === "green" ? "rgba(16,185,129,0.15)" : rag.overall === "amber" ? "rgba(251,191,36,0.2)" : "rgba(248,113,113,0.2)",
+        color: rag.overall === "green" ? "#065f46" : rag.overall === "amber" ? "#92400e" : "#991b1b",
+      }}
+    >
+      {rag.overall.toUpperCase()}
+    </Link>
+  ) : null;
 
   return (
     <div className="grid gap-3 sm:grid-cols-3">
@@ -63,7 +98,9 @@ export default function QuickLinksClient() {
         className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
       >
         System status
-        <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">Ops view of core health (24h)</p>
+        <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">
+          Ops view of core health (24h) {ragPill}
+        </p>
       </Link>
     </div>
   );

@@ -5,6 +5,7 @@ import Link from "next/link";
 import ErrorBanner from "@/components/ErrorBanner";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import type { SystemStatus } from "@/lib/ops/system-status";
+import type { RagStatus } from "@/lib/ops/rag-status";
 
 type Props = {
   initialStatus: SystemStatus;
@@ -13,11 +14,15 @@ type Props = {
 
 export default function SystemStatusClient({ initialStatus, requestId }: Props) {
   const [status, setStatus] = useState<SystemStatus>(initialStatus);
+  const [rag, setRag] = useState<RagStatus | null>(null);
+  const [ragError, setRagError] = useState<{ message: string; requestId?: string | null } | null>(null);
+  const [ragCooldown, setRagCooldown] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(null);
 
   useEffect(() => {
     logMonetisationClientEvent("ops_system_status_view", null, "ops");
+    fetchRag();
   }, []);
 
   useEffect(() => {
@@ -28,6 +33,41 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
       monetisation: status.limits.rateLimitHits24h.monetisation_log,
     });
   }, [status?.limits]);
+
+  useEffect(() => {
+    if (ragCooldown <= 0) return;
+    const id = window.setInterval(() => setRagCooldown((prev) => Math.max(0, prev - 1)), 1000);
+    return () => window.clearInterval(id);
+  }, [ragCooldown]);
+
+  const fetchRag = async () => {
+    setRagError(null);
+    try {
+      const res = await fetch("/api/ops/rag-status", { method: "GET", cache: "no-store" });
+      const body = await res.json().catch(() => null);
+      if (res.status === 429 || body?.error?.code === "RATE_LIMITED") {
+        const retryAfter = Number(res.headers.get("retry-after") ?? body?.retryAfter ?? 0);
+        const retrySeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 30;
+        setRagCooldown(retrySeconds);
+        logMonetisationClientEvent("ops_rag_fetch_error", null, "ops", { code: "RATE_LIMITED", requestId: body?.error?.requestId ?? null });
+        return;
+      }
+      if (!body?.ok) {
+        setRagError({ message: body?.error?.message ?? "Unable to load system health", requestId: body?.error?.requestId ?? null });
+        logMonetisationClientEvent("ops_rag_fetch_error", null, "ops", { code: body?.error?.code ?? "UNKNOWN", requestId: body?.error?.requestId ?? null });
+        return;
+      }
+      setRag(body.rag);
+      logMonetisationClientEvent("ops_rag_view", null, "ops", {
+        level: body.rag?.overall,
+        reasonAreas: (body.rag?.reasons ?? []).map((r: any) => r.area),
+        window: "15m",
+      });
+    } catch {
+      setRagError({ message: "Unable to load system health", requestId: null });
+      logMonetisationClientEvent("ops_rag_fetch_error", null, "ops", { code: "NETWORK", requestId: null });
+    }
+  };
 
   const handleRefresh = async () => {
     setLoading(true);
@@ -46,16 +86,17 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
       }
       if (!body?.ok) {
         setError({ message: body?.error?.message ?? "Unable to refresh", requestId: body?.error?.requestId ?? null });
-        setLoading(false);
-        return;
-      }
-      setStatus(body.status);
       setLoading(false);
-    } catch {
-      setError({ message: "Unable to refresh", requestId: null });
-      setLoading(false);
+      return;
     }
-  };
+    setStatus(body.status);
+    setLoading(false);
+    void fetchRag();
+  } catch {
+    setError({ message: "Unable to refresh", requestId: null });
+    setLoading(false);
+  }
+};
 
   const card = (title: string, metrics: Array<{ label: string; value: number; hint?: string | null }>) => (
     <div className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
@@ -89,6 +130,77 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
         <span className="text-[11px] text-[rgb(var(--muted))]">Updated: {new Date(status.now).toLocaleString()}</span>
         {status.deployment.vercelId ? <span className="text-[10px] text-[rgb(var(--muted))]">Vercel: {status.deployment.vercelId}</span> : null}
       </div>
+      <div id="rag" className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-[rgb(var(--ink))]">System Health (last 15 minutes)</p>
+            {rag ? (
+              <span
+                className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
+                  rag.overall === "green"
+                    ? "bg-emerald-100 text-emerald-800"
+                    : rag.overall === "amber"
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-rose-100 text-rose-800"
+                }`}
+              >
+                {rag.overall.toUpperCase()}
+              </span>
+            ) : null}
+          </div>
+          <span className="text-[11px] text-[rgb(var(--muted))]">
+            {rag ? `Updated ${new Date(rag.updatedAt).toLocaleTimeString()}` : ragCooldown > 0 ? `Rate limited — try again in ${ragCooldown}s` : "Loading…"}
+          </span>
+        </div>
+        {ragError ? <ErrorBanner title="System health error" message={ragError.message} requestId={ragError.requestId ?? requestId} /> : null}
+        {rag ? (
+          <div className="mt-2 space-y-2">
+            <div className="flex flex-wrap items-center gap-2">
+              {(rag.reasons ?? []).slice(0, 4).map((reason) => (
+                <span
+                  key={`${reason.area}-${reason.code ?? reason.hint}`}
+                  className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
+                    reason.level === "red" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"
+                  }`}
+                >
+                  {`${reason.area === "rate_limit" ? "429s" : reason.area === "webhook" ? "Webhooks" : reason.area.charAt(0).toUpperCase() + reason.area.slice(1)}`}: ${reason.count}
+                </span>
+              ))}
+              {rag.reasons.length === 0 ? <span className="text-[11px] text-[rgb(var(--muted))]">All clear.</span> : null}
+            </div>
+            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+              <Link
+                href="/app/ops/webhooks?since=15m&only=failures"
+                className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                onClick={() => logMonetisationClientEvent("ops_rag_action_click", null, "ops", { target: "webhooks", window: "15m" })}
+              >
+                Open Webhook Failures (15m)
+              </Link>
+              <Link
+                href="/app/ops/incidents?window=15m&surface=billing"
+                className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                onClick={() => logMonetisationClientEvent("ops_rag_action_click", null, "ops", { target: "incidents_billing", window: "15m" })}
+              >
+                Open Incidents (15m, billing)
+              </Link>
+              <Link
+                href="/app/ops/incidents?window=15m&code=STRIPE_PORTAL"
+                className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                onClick={() => logMonetisationClientEvent("ops_rag_action_click", null, "ops", { target: "incidents_portal", window: "15m" })}
+              >
+                Open Incidents (portal errors)
+              </Link>
+              <Link
+                href="/app/ops/status#limits"
+                className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                onClick={() => logMonetisationClientEvent("ops_rag_action_click", null, "ops", { target: "limits", window: "15m" })}
+              >
+                Open Rate Limits
+              </Link>
+            </div>
+          </div>
+        ) : null}
+      </div>
       <div className="grid gap-3 md:grid-cols-3">
         {card("Billing", [
           { label: "Recheck 429 (24h)", value: status.health.billingRecheck429_24h },
@@ -103,7 +215,7 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
           { label: "Audits (24h)", value: status.health.audits_24h },
         ])}
       </div>
-      <div className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+      <div id="limits" className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm font-semibold text-[rgb(var(--ink))]">Limits (approx)</p>
           <div className="flex flex-wrap items-center gap-2">

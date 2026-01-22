@@ -5,6 +5,11 @@
 - Billing recheck + ops actions show calm cooldown/rate-limit messages with sanitised logging; helper tightened for consistent headers.
 - Ops System Status gains a Limits panel (approximate rate-limit hits/top routes) with deep links to audits/incidents; pressure counters feed notes and tests.
 
+## v0.8.25
+- Ops RAG status: deterministic 15-minute RAG helper with webhook/portal/checkout/rate-limit thresholds and reasons.
+- New ops API + status page strip with reason chips, cooldown handling, and quick actions to webhooks/incidents/limits; command centre shows tiny RAG badge.
+- Webhooks/incidents now accept 15m windows for deep links; logging allowlists updated for RAG events; tests/docs refreshed.
+
 ## v0.8.23
 - Ops System Status: new ops-only API/UI with deployment/meta, 24h billing/webhook/incident/audit counts, webhook queue repeats, notes, refresh, and quick links.
 - Webhook truth source: badge stays neutral unless delayed/failed/just-paid; correlation confidence returned by recheck and shown as a pill in Billing Trace.

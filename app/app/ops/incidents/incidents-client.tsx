@@ -33,9 +33,10 @@ type Props = {
   initialRequestId?: string | null;
   initialOutcomes?: ResolutionOutcome[];
   initialWatch?: WatchRecord[];
+  initialTime?: TimeFilter;
 };
 
-type TimeFilter = "1" | "24" | "168";
+type TimeFilter = "0.25" | "1" | "24" | "168";
 
 function formatDate(value: string) {
   const d = new Date(value);
@@ -60,9 +61,9 @@ function exportCsv(groups: IncidentGroup[]) {
   return [header, ...rows].join("\n");
 }
 
-export default function IncidentsClient({ incidents, initialLookup, initialRequestId, initialOutcomes, initialWatch }: Props) {
+export default function IncidentsClient({ incidents, initialLookup, initialRequestId, initialOutcomes, initialWatch, initialTime }: Props) {
   const [filters, setFilters] = useState({
-    time: "24" as TimeFilter,
+    time: (initialTime ?? "24") as TimeFilter,
     surface: "all",
     code: "",
     flow: "",
@@ -594,6 +595,7 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
               value={filters.time}
               onChange={(e) => setFilters((f) => ({ ...f, time: e.target.value as TimeFilter }))}
             >
+              <option value="0.25">{OPS_INCIDENTS_COPY.filters.time15m}</option>
               <option value="1">{OPS_INCIDENTS_COPY.filters.time1h}</option>
               <option value="24">{OPS_INCIDENTS_COPY.filters.time24h}</option>
               <option value="168">{OPS_INCIDENTS_COPY.filters.time7d}</option>

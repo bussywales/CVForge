@@ -8,7 +8,7 @@ import WebhooksClient from "./webhooks-client";
 
 export const dynamic = "force-dynamic";
 
-export default async function OpsWebhooksPage() {
+export default async function OpsWebhooksPage({ searchParams }: { searchParams?: { since?: string } }) {
   const { user } = await getSupabaseUser();
   const requestId = makeRequestId(headers().get("x-request-id"));
   const canAccess = user && (await requireOpsAccess(user.id, user.email));
@@ -16,7 +16,10 @@ export default async function OpsWebhooksPage() {
     return <AccessDenied requestId={requestId} code="ACCESS_DENIED" />;
   }
 
-  const { items, nextCursor } = await listWebhookFailures({ sinceHours: 24, limit: 50 });
+  const sinceParam = searchParams?.since;
+  const sinceHours = sinceParam === "7d" ? 24 * 7 : sinceParam === "1h" ? 1 : sinceParam === "15m" ? 0.25 : 24;
+  const initialSince = (sinceParam === "7d" ? "7d" : sinceParam === "1h" ? "1h" : sinceParam === "15m" ? "15m" : "24h") as "15m" | "1h" | "24h" | "7d";
+  const { items, nextCursor } = await listWebhookFailures({ sinceHours, limit: 50 });
 
   return (
     <div className="space-y-4">
@@ -25,7 +28,7 @@ export default async function OpsWebhooksPage() {
         <h1 className="text-lg font-semibold text-[rgb(var(--ink))]">Webhook Failures</h1>
         <p className="text-xs text-[rgb(var(--muted))]">Read-only queue of Stripe webhook issues with masked refs.</p>
       </div>
-      <WebhooksClient initialItems={items} initialNextCursor={nextCursor} />
+      <WebhooksClient initialItems={items} initialNextCursor={nextCursor} initialSince={initialSince} />
     </div>
   );
 }

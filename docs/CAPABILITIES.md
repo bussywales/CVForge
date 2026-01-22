@@ -149,6 +149,7 @@ Incident Playbooks (v0.8.01): deterministic billing/Stripe playbooks suggest lik
 
 ## Reliability and limits
 Load & Limits Pack v1 (v0.8.24): shared in-memory rate limiter wraps billing recheck, monetisation log, and ops actions (resolution outcome/effectiveness/watch/system status) with consistent x-request-id + no-store + Retry-After headers. Billing/ops UIs show calm cooldown or inline rate-limit messages without losing prior state. Ops System Status exposes a Limits panel (approximate hits and top routes) with masked deep links to audits/incidents for pressure triage.
+Ops RAG status v1 (v0.8.25): deterministic 15-minute RAG helper + API feeds Ops Status and Command Centre badges with masked reason chips and quick actions into webhook failures/incidents/rate-limit panels.
 
 ## Deterministic vs OpenAI usage
 Deterministic engines include role-fit.ts, interview-lift.ts, outreach-templates.ts, submission-quality.ts, and metrics-helper.ts. OpenAI is only used for autopack generation via server-side API calls.

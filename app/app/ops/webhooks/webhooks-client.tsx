@@ -6,16 +6,17 @@ import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 
 type Failure = Awaited<ReturnType<typeof import("@/lib/ops/webhook-failures").listWebhookFailures>>["items"][number];
 
+type SinceFilter = "15m" | "1h" | "24h" | "7d";
+
 type Props = {
   initialItems: Failure[];
   initialNextCursor: string | null;
+  initialSince?: SinceFilter;
 };
-
-type SinceFilter = "1h" | "24h" | "7d";
 type ChipFilter = "none" | "repeating" | "last24";
 
-export default function WebhooksClient({ initialItems, initialNextCursor }: Props) {
-  const [since, setSince] = useState<SinceFilter>("24h");
+export default function WebhooksClient({ initialItems, initialNextCursor, initialSince = "24h" }: Props) {
+  const [since, setSince] = useState<SinceFilter>(initialSince);
   const [code, setCode] = useState("");
   const [q, setQ] = useState("");
   const [userId, setUserId] = useState("");
@@ -104,6 +105,7 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <select value={since} onChange={(e) => setSince(e.target.value as SinceFilter)} className="rounded-md border px-2 py-1 text-sm">
+          <option value="15m">Last 15m</option>
           <option value="1h">Last hour</option>
           <option value="24h">Last 24h</option>
           <option value="7d">Last 7d</option>

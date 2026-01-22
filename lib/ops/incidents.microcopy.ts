@@ -10,6 +10,7 @@ export const OPS_INCIDENTS_COPY = {
     surfaceLabel: "Surface",
     timeLabel: "Time",
     surfaceAll: "All",
+    time15m: "15m",
     time24h: "24h",
     time7d: "7d",
     time1h: "1h",

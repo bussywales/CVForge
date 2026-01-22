@@ -98,6 +98,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Billing Trace shows correlation confidence pill (healthy/unknown/delayed/failed) and updates on recheck.
 - Ops Webhooks queue shows Last seen + Repeats columns, Repeating (>=3)/Last hour chips work, and Watch button creates a watch entry.
 
+## Quick prod checks (v0.8.25)
+- Ops: open /app/ops/status → System Health (15m) pill + reason chips render with timestamp.
+- Click “Open Webhook Failures (15m)” → webhooks page loads filtered to 15m range.
+- Spam refresh on status → if rate limited, cooldown copy appears and page remains usable.
+
 ## Quick prod checks (v0.8.24)
 - Spam /app/billing recheck until 429 → calm cooldown copy shows retry seconds and requestId; page remains usable.
 - Spam ops actions (watch/outcome/effectiveness) → inline “Rate limited — try again shortly” message; previously saved state stays visible.

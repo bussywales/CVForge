@@ -1,7 +1,7 @@
 import type { IncidentRecord } from "@/lib/ops/incidents-shared";
 
 export type IncidentFilters = {
-  time: "1" | "24" | "168";
+  time: "0.25" | "1" | "24" | "168";
   surface: string;
   code: string;
   flow: string;
