@@ -118,6 +118,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Click “Send test alert” → success banner appears, event shows in Recent tab, webhook notify_success logged when configured.
 - Click an alert action → lands on Incidents/Webhooks with expected window=15m filters applied.
 
+## Quick prod checks (v0.8.31)
+- Ops → /app/ops/access: search an email that has never signed up, click “Create invite”, copy link/instructions, and see invite pending + recent invites entry.
+- In incognito, sign up/login with that email → Early Access gate allows immediately (invite auto-claimed); revoke invite returns the gate to blocked on refresh/login.
+- Non-invited, EARLY_ACCESS_MODE=on user still sees Early Access block with support snippet; ops bypass remains intact.
+
 ## Quick prod checks (v0.8.30)
 - Ops → /app/ops/access: search a never-seen email → Invite status shows “Active/none”, grant invite works without a user account.
 - Incognito signup with that email passes the early access gate immediately (env fallback still works).

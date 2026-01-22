@@ -6,6 +6,8 @@ import { getEarlyAccessDecision, getEarlyAccessRecord, hashEarlyAccessEmail } fr
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { buildInviteLink, findLatestInviteByEmailHash, listRecentInvites } from "@/lib/early-access/invites";
+import { logMonetisationEvent } from "@/lib/monetisation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -81,16 +83,25 @@ export async function GET(request: Request) {
 
     const decision = await getEarlyAccessDecision({ userId: userId ?? user.id, email: userEmail ?? email ?? null });
     const record = userId ? await getEarlyAccessRecord(userId) : null;
-    let inviteRecord: any = null;
     const emailHash = hashEarlyAccessEmail(userEmail ?? email ?? null);
-    if (emailHash) {
-      const { data } = await admin
-        .from("early_access_allowlist")
-        .select("invited_at, revoked_at, note, user_id")
-        .eq("email_hash", emailHash)
-        .order("invited_at", { ascending: false })
-        .limit(1);
-      inviteRecord = data?.[0] ?? null;
+    const inviteRecord = emailHash ? await findLatestInviteByEmailHash(emailHash) : null;
+    const recentInvitesRaw = await listRecentInvites({ limit: 20 });
+    const recentInvites = recentInvitesRaw.map((row) => ({
+      emailHashPrefix: row.email_hash_prefix,
+      invitedAt: row.invited_at,
+      claimedAt: row.claimed_at,
+      revokedAt: row.revoked_at,
+      status: row.status,
+      token: row.token,
+      claimedUserId: row.claimed_user_id,
+      link: row.token ? buildInviteLink(row.token) : null,
+    }));
+    const inviteStatus = inviteRecord ? (inviteRecord.revoked_at ? "revoked" : inviteRecord.claimed_at ? "claimed" : "pending") : null;
+    const inviteLink = inviteRecord?.token ? buildInviteLink(inviteRecord.token) : null;
+    try {
+      await logMonetisationEvent(admin, user.id, "ops_early_access_search", { meta: { hashedEmailPrefix: emailHash ? emailHash.slice(0, 8) : null } });
+    } catch {
+      // ignore log failures
     }
     return NextResponse.json(
       {
@@ -99,12 +110,20 @@ export async function GET(request: Request) {
         userId,
         allowedNow: decision.allowed,
         source: decision.source,
-        record: record
-          ? { grantedAt: record.granted_at, revokedAt: record.revoked_at, note: record.note ?? null }
-          : inviteRecord
-            ? { grantedAt: inviteRecord.invited_at, revokedAt: inviteRecord.revoked_at, note: inviteRecord.note ?? null }
-            : null,
-        dbInviteActive: inviteRecord ? !inviteRecord.revoked_at : false,
+        record: record ? { grantedAt: record.granted_at, revokedAt: record.revoked_at, note: record.note ?? null } : null,
+        invite: inviteRecord
+          ? {
+              status: inviteStatus,
+              invitedAt: inviteRecord.invited_at,
+              claimedAt: inviteRecord.claimed_at,
+              revokedAt: inviteRecord.revoked_at,
+              expiresAt: inviteRecord.expires_at,
+              token: inviteRecord.token,
+              link: inviteLink,
+              emailHashPrefix: emailHash ? emailHash.slice(0, 8) : null,
+            }
+          : null,
+        recentInvites,
         requestId,
       },
       { headers }

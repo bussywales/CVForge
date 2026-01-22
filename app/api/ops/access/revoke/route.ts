@@ -53,11 +53,12 @@ export async function POST(request: Request) {
   try {
     const admin = createServiceRoleClient();
     const result = await revokeEarlyAccess({ userId: targetUser, email, note });
+    const hashedEmail = hashEarlyAccessEmail(email);
     await admin.from("ops_audit_log").insert({
       actor_user_id: user.id,
       target_user_id: targetUser,
       action: "early_access_revoke",
-      meta: { status: result.status, requestId, source: "ops_ui", hashedEmail: hashEarlyAccessEmail(email) },
+      meta: { status: result.status, requestId, source: "ops_ui", hashedEmailPrefix: hashedEmail ? hashedEmail.slice(0, 8) : null },
     });
     return NextResponse.json({ ok: true, userId: targetUser, status: result.status, requestId }, { headers });
   } catch {

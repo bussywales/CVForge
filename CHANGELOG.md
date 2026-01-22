@@ -1,6 +1,9 @@
 # Changelog
 
-# Changelog
+## v0.8.31
+- Early access invites v1: email-hash invites table + helper to create/list/revoke/claim; gate auto-claims on signup/login using hashed email with no raw addresses logged.
+- Ops Access console adds invite flow for emails without accounts: create/revoke endpoints with budgets, copyable invite links/instructions, invite status badges, and recent invites list.
+- Logging/allowlists updated for invite search/create/revoke/claim events; docs/runbook refreshed and migrations aligned with email-hash primary keys.
 
 ## v0.8.30
 - Early Access email invites: allowlist supports email-only invites with hashed emails, optional user linkage, and unique active entries; ops can grant/revoke pre-signup and gate checks DB by user or email hash before env fallback.

@@ -82,6 +82,14 @@ beforeAll(async () => {
     revokeEarlyAccess: vi.fn(async () => ({ status: "revoked", revokedAt: "2024-01-03T00:00:00.000Z" })),
     hashEarlyAccessEmail: () => "hash_mock",
   }));
+  vi.doMock("@/lib/early-access/invites", () => ({
+    findLatestInviteByEmailHash: vi.fn(async () => null),
+    listRecentInvites: vi.fn(async () => []),
+    buildInviteLink: (token: string) => `https://invite.test/${token}`,
+  }));
+  vi.doMock("@/lib/monetisation", () => ({
+    logMonetisationEvent: vi.fn(async () => null),
+  }));
   vi.doMock("@/lib/rate-limit-budgets", () => ({
     getRateLimitBudget: () => ({ budget: "test", limit: 5, windowMs: 1000 }),
   }));

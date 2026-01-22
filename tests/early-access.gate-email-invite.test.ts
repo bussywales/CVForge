@@ -26,6 +26,14 @@ vi.mock("@/lib/supabase/service", () => ({
   }),
 }));
 
+vi.mock("@/lib/monetisation", () => ({
+  logMonetisationEvent: vi.fn(async () => null),
+}));
+
+vi.mock("@/lib/early-access/invites", () => ({
+  claimInviteForUser: vi.fn(async () => ({ status: "skipped", reason: "no_invite" })),
+}));
+
 describe("early access gate email invite", () => {
   const originalEnv = { ...process.env };
 
