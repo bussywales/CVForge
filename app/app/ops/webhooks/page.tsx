@@ -8,7 +8,7 @@ import WebhooksClient from "./webhooks-client";
 
 export const dynamic = "force-dynamic";
 
-export default async function OpsWebhooksPage({ searchParams }: { searchParams?: { since?: string } }) {
+export default async function OpsWebhooksPage({ searchParams }: { searchParams?: { since?: string; window?: string } }) {
   const { user } = await getSupabaseUser();
   const requestId = makeRequestId(headers().get("x-request-id"));
   const canAccess = user && (await requireOpsAccess(user.id, user.email));
@@ -16,9 +16,9 @@ export default async function OpsWebhooksPage({ searchParams }: { searchParams?:
     return <AccessDenied requestId={requestId} code="ACCESS_DENIED" />;
   }
 
-  const sinceParam = searchParams?.since;
-  const sinceHours = sinceParam === "7d" ? 24 * 7 : sinceParam === "1h" ? 1 : sinceParam === "15m" ? 0.25 : 24;
-  const initialSince = (sinceParam === "7d" ? "7d" : sinceParam === "1h" ? "1h" : sinceParam === "15m" ? "15m" : "24h") as "15m" | "1h" | "24h" | "7d";
+  const windowParam = searchParams?.window ?? searchParams?.since;
+  const sinceHours = windowParam === "7d" ? 24 * 7 : windowParam === "1h" ? 1 : windowParam === "15m" ? 0.25 : 24;
+  const initialSince = (windowParam === "7d" ? "7d" : windowParam === "1h" ? "1h" : windowParam === "15m" ? "15m" : "24h") as "15m" | "1h" | "24h" | "7d";
   const { items, nextCursor } = await listWebhookFailures({ sinceHours, limit: 50 });
 
   return (

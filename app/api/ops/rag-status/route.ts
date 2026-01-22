@@ -34,7 +34,7 @@ export async function GET(request: Request) {
   try {
     const rag = await buildRagStatus();
     return NextResponse.json({ ok: true, rag, requestId }, { headers });
-  } catch (error) {
+  } catch {
     return jsonError({ code: "RAG_ERROR", message: "Unable to load system health", requestId, status: 500 });
   }
 }

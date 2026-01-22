@@ -10,6 +10,20 @@ vi.mock("@/lib/monetisation-client", () => ({
 const baseStatus = {
   deployment: { vercelId: null, matchedPath: null },
   now: "2024-02-10T12:00:00.000Z",
+  rag: {
+    rulesVersion: "rag_v1",
+    window: { minutes: 15, fromIso: "2024-02-10T11:45:00.000Z", toIso: "2024-02-10T12:00:00.000Z" },
+    overall: "green",
+    signals: {
+      webhookFailures15m: { count: 0, state: "green" },
+      webhookErrors15m: { count: 0, state: "green" },
+      portalErrors15m: { count: 0, state: "green" },
+      checkoutErrors15m: { count: 0, state: "green" },
+      rateLimits15m: { count: 0, state: "green" },
+    },
+    topIssues: [],
+    updatedAt: "2024-02-10T12:00:00.000Z",
+  },
   health: {
     billingRecheck429_24h: 0,
     portalErrors_24h: 0,
@@ -30,12 +44,26 @@ describe("SystemStatusClient RAG UI", () => {
       headers: new Headers(),
       json: async () => ({
         ok: true,
-        rag: {
-          overall: "green",
-          reasons: [{ area: "webhook", level: "amber", code: "webhook_failures", count: 3, hint: "Webhook failures elevated" }],
-          window: "15m",
-          updatedAt: "2024-02-10T12:00:00.000Z",
-          metrics: { portalErrors: 0, checkoutErrors: 0, webhookFailures: 3, webhookRepeats: 1, rateLimit429s: 0 },
+        status: {
+          rag: {
+            overall: "green",
+            rulesVersion: "rag_v1",
+            window: { minutes: 15, fromIso: "2024-02-10T11:45:00.000Z", toIso: "2024-02-10T12:00:00.000Z" },
+            signals: {
+              webhookFailures15m: { count: 3, state: "amber" },
+              webhookErrors15m: { count: 0, state: "green" },
+              portalErrors15m: { count: 0, state: "green" },
+              checkoutErrors15m: { count: 0, state: "green" },
+              rateLimits15m: { count: 0, state: "green" },
+            },
+            topIssues: [{ key: "webhook_failures", state: "amber", count: 3, label: "Webhook failures", primaryAction: "/app/ops/webhooks?window=15m" }],
+            updatedAt: "2024-02-10T12:00:00.000Z",
+          },
+          health: baseStatus.health,
+          queues: baseStatus.queues,
+          limits: baseStatus.limits,
+          deployment: baseStatus.deployment,
+          now: baseStatus.now,
         },
       }),
     }));
@@ -52,10 +80,10 @@ describe("SystemStatusClient RAG UI", () => {
       ReactDOM.createRoot(container).render(<SystemStatusClient initialStatus={baseStatus as any} requestId="req_ui" />);
       await Promise.resolve();
     });
-    expect(container.textContent).toContain("System Health");
+    expect(container.textContent).toContain("System health");
     expect(container.textContent).toContain("GREEN");
-    expect(container.textContent).toContain("Webhooks: 3");
-    expect(container.textContent).toContain("Open Webhook Failures");
+    expect(container.textContent).toContain("Webhook failures");
+    expect(container.textContent).toContain("Open");
     container.remove();
   });
 

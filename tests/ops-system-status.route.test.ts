@@ -68,6 +68,20 @@ beforeAll(async () => {
     buildSystemStatus: vi.fn().mockResolvedValue({
       deployment: { vercelId: "v1", matchedPath: "/api" },
       now: "2024-02-10T12:00:00.000Z",
+      rag: {
+        rulesVersion: "rag_v1",
+        window: { minutes: 15, fromIso: "2024-02-10T11:45:00.000Z", toIso: "2024-02-10T12:00:00.000Z" },
+        overall: "green",
+        signals: {
+          webhookFailures15m: { count: 0, state: "green" },
+          webhookErrors15m: { count: 0, state: "green" },
+          portalErrors15m: { count: 0, state: "green" },
+          checkoutErrors15m: { count: 0, state: "green" },
+          rateLimits15m: { count: 0, state: "green" },
+        },
+        topIssues: [],
+        updatedAt: "2024-02-10T12:00:00.000Z",
+      },
       health: {
         billingRecheck429_24h: 1,
         portalErrors_24h: 0,
@@ -93,5 +107,7 @@ describe("ops system status route", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(body.ok).toBe(true);
     expect(body.status.health.incidents_24h).toBe(5);
+    expect(body.status.rag.overall).toBe("green");
+    expect(body.status.rag.window.minutes).toBe(15);
   });
 });

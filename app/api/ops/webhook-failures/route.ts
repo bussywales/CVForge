@@ -30,8 +30,8 @@ export async function GET(request: Request) {
   }
 
   const url = new URL(request.url);
-  const sinceParam = url.searchParams.get("since");
-  const sinceHours = sinceParam === "7d" ? 24 * 7 : sinceParam === "1h" ? 1 : sinceParam === "15m" ? 0.25 : 24;
+  const windowParam = url.searchParams.get("window") ?? url.searchParams.get("since");
+  const sinceHours = windowParam === "7d" ? 24 * 7 : windowParam === "1h" ? 1 : windowParam === "15m" ? 0.25 : 24;
   const code = url.searchParams.get("code");
   const q = url.searchParams.get("q");
   const userId = url.searchParams.get("userId");

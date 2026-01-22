@@ -5,41 +5,41 @@ const baseMetrics = {
   portalErrors: 0,
   checkoutErrors: 0,
   webhookFailures: 0,
-  webhookRepeats: 0,
-  rateLimit429s: 0,
+  webhookErrors: 0,
+  rateLimits: 0,
 };
+
+const window = { minutes: 15, fromIso: "2024-02-10T09:45:00.000Z", toIso: "2024-02-10T10:00:00.000Z" };
 
 describe("computeRagStatus", () => {
   it("returns green when under thresholds", () => {
-    const rag = computeRagStatus(baseMetrics, new Date("2024-02-10T10:00:00.000Z"));
+    const rag = computeRagStatus(baseMetrics, window, new Date(window.toIso));
     expect(rag.overall).toBe("green");
-    expect(rag.reasons.length).toBe(0);
-    expect(rag.window).toBe("15m");
+    expect(rag.topIssues.length).toBe(0);
+    expect(rag.window.minutes).toBe(15);
   });
 
   it("returns amber for elevated webhook failures", () => {
-    const rag = computeRagStatus({ ...baseMetrics, webhookFailures: 3 }, new Date("2024-02-10T10:00:00.000Z"));
+    const rag = computeRagStatus({ ...baseMetrics, webhookFailures: 3 }, window, new Date(window.toIso));
     expect(rag.overall).toBe("amber");
-    expect(rag.reasons[0].area).toBe("webhook");
-    expect(rag.reasons[0].level).toBe("amber");
+    expect(rag.topIssues[0].key).toBe("webhook_failures");
   });
 
-  it("returns red for portal spike or repeats", () => {
-    const rag = computeRagStatus({ ...baseMetrics, portalErrors: 25 }, new Date("2024-02-10T10:00:00.000Z"));
+  it("returns red for portal spike", () => {
+    const rag = computeRagStatus({ ...baseMetrics, portalErrors: 12 }, window, new Date(window.toIso));
     expect(rag.overall).toBe("red");
-    expect(rag.reasons.some((r) => r.area === "portal" && r.level === "red")).toBe(true);
+    expect(rag.topIssues.some((i) => i.key === "portal_errors")).toBe(true);
   });
 
-  it("returns red when webhook repeats exceed threshold", () => {
-    const rag = computeRagStatus({ ...baseMetrics, webhookRepeats: 3 }, new Date("2024-02-10T10:00:00.000Z"));
+  it("returns red when webhook errors exceed threshold", () => {
+    const rag = computeRagStatus({ ...baseMetrics, webhookErrors: 6 }, window, new Date(window.toIso));
     expect(rag.overall).toBe("red");
-    expect(rag.reasons[0].area).toBe("webhook");
+    expect(rag.topIssues[0].key).toBe("webhook_errors");
   });
 
-  it("returns amber for rate limits but escalates to red when high", () => {
-    const amber = computeRagStatus({ ...baseMetrics, rateLimit429s: 12 }, new Date("2024-02-10T10:00:00.000Z"));
-    expect(amber.overall).toBe("amber");
-    const red = computeRagStatus({ ...baseMetrics, rateLimit429s: 55 }, new Date("2024-02-10T10:00:00.000Z"));
-    expect(red.overall).toBe("red");
+  it("keeps amber for rate limits only", () => {
+    const rag = computeRagStatus({ ...baseMetrics, rateLimits: 6 }, window, new Date(window.toIso));
+    expect(rag.overall).toBe("amber");
+    expect(rag.topIssues[0].key).toBe("rate_limits");
   });
 });

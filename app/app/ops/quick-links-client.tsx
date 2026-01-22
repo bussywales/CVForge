@@ -21,10 +21,10 @@ export default function QuickLinksClient() {
   useEffect(() => {
     const fetchRag = async () => {
       try {
-        const res = await fetch("/api/ops/rag-status", { method: "GET", cache: "no-store" });
+        const res = await fetch("/api/ops/system-status", { method: "GET", cache: "no-store" });
         const body = await res.json().catch(() => null);
-        if (body?.ok) {
-          setRag(body.rag);
+        if (body?.ok && body.status?.rag) {
+          setRag(body.status.rag);
         }
       } catch {
         // swallow
@@ -36,7 +36,7 @@ export default function QuickLinksClient() {
   const ragPill = rag ? (
     <Link
       href="/app/ops/status#rag"
-      onClick={() => logMonetisationClientEvent("ops_rag_action_click", null, "ops", { target: "status_rag", window: "15m" })}
+      onClick={() => logMonetisationClientEvent("ops_status_rag_action_click", null, "ops", { actionKey: "status_rag", overall: rag.overall })}
       className="ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
       style={{
         backgroundColor:
