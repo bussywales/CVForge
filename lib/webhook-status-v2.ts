@@ -25,7 +25,8 @@ export type WebhookStatusV2 = {
 };
 
 export type CorrelationConfidence = {
-  confidence: "unknown" | "healthy" | "delayed" | "failed";
+  status: "healthy" | "unknown" | "delayed" | "failed";
+  confidence: "low" | "med" | "high";
   reason: string;
 };
 
@@ -154,28 +155,28 @@ export function buildCorrelationConfidence({
   const hasCredits = Boolean(credits);
   const hasFailure = Boolean(webhookError || (webhookReceipt?.errors24h?.webhook_error_count ?? 0) > 0);
   if (hasFailure) {
-    return { confidence: "failed", reason: "webhook_error" };
+    return { status: "failed", confidence: "high", reason: "webhook_error" };
   }
   if (delay && "state" in delay && delay.state === "waiting_webhook") {
-    return { confidence: "delayed", reason: "waiting_webhook" };
+    return { status: "delayed", confidence: "med", reason: "waiting_webhook" };
   }
   if (delay && "state" in delay && delay.state === "waiting_ledger") {
-    return { confidence: "delayed", reason: "waiting_ledger" };
+    return { status: "delayed", confidence: "med", reason: "waiting_ledger" };
   }
   if (delay && "state" in delay && delay.state === "unknown" && checkout) {
-    return { confidence: "delayed", reason: "unknown_delay" };
+    return { status: "delayed", confidence: "low", reason: "unknown_delay" };
   }
   if (hasCredits && (!checkout || !webhook)) {
-    return { confidence: "healthy", reason: "credits_applied" };
+    return { status: "healthy", confidence: "med", reason: "credits_applied" };
   }
   if (!hasCredits && !checkout && !webhook) {
-    return { confidence: "unknown", reason: "no_upstream" };
+    return { status: "unknown", confidence: "low", reason: "no_upstream" };
   }
   const withinWindow = checkout ? now.getTime() - new Date(checkout.at).getTime() <= 20 * 60 * 1000 : false;
   if (withinWindow) {
-    return { confidence: "unknown", reason: "within_window" };
+    return { status: "unknown", confidence: "low", reason: "within_window" };
   }
-  return { confidence: "healthy", reason: "signals_present" };
+  return { status: "healthy", confidence: "high", reason: "signals_present" };
 }
 
 export type { WebhookReceipt } from "@/lib/webhook-receipts";

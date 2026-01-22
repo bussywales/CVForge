@@ -2,6 +2,11 @@
 
 # Changelog
 
+## v0.8.23
+- Ops System Status: new ops-only API/UI with deployment/meta, 24h billing/webhook/incident/audit counts, webhook queue repeats, notes, refresh, and quick links.
+- Webhook truth source: badge stays neutral unless delayed/failed/just-paid; correlation confidence returned by recheck and shown as a pill in Billing Trace.
+- Perf/index hardening: new indexes on application_activities and ops_audit_log to keep ops/billing routes fast; logging allowlists expanded.
+
 ## v0.8.22
 - Billing truth source: webhook badge now context-aware (neutral copy when credits exist, warnings only on true delays/failures) with updated support CTA logging.
 - Correlation row gains confidence badges (healthy/unknown/delayed/failed) and recheck payload exposes correlationConfidence for consistent UI.

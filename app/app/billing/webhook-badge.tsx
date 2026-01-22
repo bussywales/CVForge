@@ -2,20 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
-import type { WebhookStatusV2 } from "@/lib/webhook-status-v2";
+import type { CorrelationConfidence, WebhookStatusV2 } from "@/lib/webhook-status-v2";
 
 type Props = {
   status: WebhookStatusV2;
   supportSnippet?: string | null;
   creditsAvailable: number;
-  correlationConfidence?: { confidence: "unknown" | "healthy" | "delayed" | "failed"; reason: string } | null;
+  correlationConfidence?: CorrelationConfidence | null;
 };
 
 export default function WebhookBadge({ status, supportSnippet, creditsAvailable, correlationConfidence }: Props) {
   const [current, setCurrent] = useState<WebhookStatusV2>(status);
 
   useEffect(() => {
-    logMonetisationClientEvent("billing_webhook_badge_view_v2", null, "billing", {
+    logMonetisationClientEvent("billing_webhook_badge_view", null, "billing", {
       state: deriveDisplayState(status, creditsAvailable, correlationConfidence),
       reasonCode: status.reasonCode,
       mode: "initial",
@@ -35,7 +35,7 @@ export default function WebhookBadge({ status, supportSnippet, creditsAvailable,
             toState: nextDisplay,
           });
         }
-        logMonetisationClientEvent("billing_webhook_badge_view_v2", null, "billing", { state: nextDisplay, reasonCode: detail.reasonCode, mode: "recheck" });
+        logMonetisationClientEvent("billing_webhook_badge_view", null, "billing", { state: nextDisplay, reasonCode: detail.reasonCode, mode: "recheck" });
         return detail;
       });
     };
@@ -71,7 +71,7 @@ export default function WebhookBadge({ status, supportSnippet, creditsAvailable,
           className="rounded-full border border-indigo-200 bg-white px-3 py-1 text-[11px] font-semibold text-indigo-800 hover:bg-indigo-100"
           onClick={() => {
             navigator.clipboard.writeText(supportSnippet).catch(() => undefined);
-            logMonetisationClientEvent("billing_webhook_support_cta_click", null, "billing", {
+            logMonetisationClientEvent("billing_webhook_badge_cta_click", null, "billing", {
               state: displayState,
               reasonCode: current.reasonCode,
             });
@@ -84,13 +84,9 @@ export default function WebhookBadge({ status, supportSnippet, creditsAvailable,
   );
 }
 
-function deriveDisplayState(
-  status: WebhookStatusV2,
-  creditsAvailable: number,
-  correlationConfidence?: { confidence: "unknown" | "healthy" | "delayed" | "failed"; reason: string } | null
-): "neutral" | "healthy" | "delayed" | "failed" {
-  if (correlationConfidence?.confidence === "failed") return "failed";
-  if (correlationConfidence?.confidence === "delayed") return "delayed";
+function deriveDisplayState(status: WebhookStatusV2, creditsAvailable: number, correlationConfidence?: CorrelationConfidence | null): "neutral" | "healthy" | "delayed" | "failed" {
+  if (correlationConfidence?.status === "failed") return "failed";
+  if (correlationConfidence?.status === "delayed") return "delayed";
   if (status.state === "failed") return "failed";
   if (status.state === "delayed") return "delayed";
   if (creditsAvailable > 0 || status.state === "ok") return "healthy";

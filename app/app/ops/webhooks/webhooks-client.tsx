@@ -26,7 +26,7 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
   const [watchStatus, setWatchStatus] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    logMonetisationClientEvent("ops_webhooks_queue_view", null, "ops", { range: since });
+    logMonetisationClientEvent("ops_webhook_queue_view", null, "ops", { range: since });
     if ((initialItems ?? []).length === 0) {
       logMonetisationClientEvent("ops_webhooks_queue_empty_view", null, "ops", { range: since });
     }
@@ -41,7 +41,7 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
     if (q) params.set("q", q);
     if (userId) params.set("userId", userId);
     if (append && cursor) params.set("cursor", cursor);
-    logMonetisationClientEvent(append ? "ops_webhooks_queue_view" : "ops_webhooks_queue_filter", null, "ops", {
+    logMonetisationClientEvent(append ? "ops_webhook_queue_view" : "ops_webhooks_queue_filter", null, "ops", {
       range: since,
       hasCode: Boolean(code),
       hasQ: Boolean(q),
@@ -127,7 +127,7 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
             onClick={() => {
               const next = chip === "repeating" ? "none" : "repeating";
               setChip(next);
-              logMonetisationClientEvent("ops_webhooks_queue_filter_chip_click", null, "ops", { chip: "repeating", enabled: next === "repeating" });
+              logMonetisationClientEvent("ops_webhook_chip_click", null, "ops", { chip: "repeating", enabled: next === "repeating" });
             }}
           >
             {"Repeating (>=3)"}
@@ -137,7 +137,7 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
             className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${since === "1h" ? "border-indigo-300 bg-indigo-50 text-indigo-800" : "border-black/10 bg-white text-[rgb(var(--ink))]"}`}
             onClick={() => {
               setSince("1h");
-              logMonetisationClientEvent("ops_webhooks_queue_filter_chip_click", null, "ops", { chip: "last_hour" });
+              logMonetisationClientEvent("ops_webhook_chip_click", null, "ops", { chip: "last_hour" });
               fetchItems(false);
             }}
           >
@@ -152,7 +152,7 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
               if (since !== "7d") {
                 setSince("24h");
               }
-              logMonetisationClientEvent("ops_webhooks_queue_filter_chip_click", null, "ops", { chip: "last24", enabled: next === "last24" });
+              logMonetisationClientEvent("ops_webhook_chip_click", null, "ops", { chip: "last24", enabled: next === "last24" });
             }}
           >
             Last 24h
@@ -233,7 +233,7 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
                       type="button"
                       className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
                       onClick={async () => {
-                        logMonetisationClientEvent("ops_webhook_watch_create_click", null, "ops", { code: item.code ?? "unknown" });
+                        logMonetisationClientEvent("ops_webhook_watch_click", null, "ops", { code: item.code ?? "unknown" });
                         setWatchStatus((prev) => ({ ...prev, [item.id]: "Saving..." }));
                         try {
                           const res = await fetch("/api/ops/watch", {
@@ -249,14 +249,14 @@ export default function WebhooksClient({ initialItems, initialNextCursor }: Prop
                           const body = await res.json().catch(() => null);
                           if (body?.ok) {
                             setWatchStatus((prev) => ({ ...prev, [item.id]: "Watch created" }));
-                            logMonetisationClientEvent("ops_webhook_watch_created", null, "ops", { code: item.code ?? "unknown" });
+                            logMonetisationClientEvent("ops_webhook_watch_success", null, "ops", { code: item.code ?? "unknown" });
                           } else {
                             setWatchStatus((prev) => ({ ...prev, [item.id]: "Watch failed" }));
-                            logMonetisationClientEvent("ops_webhook_watch_create_error", null, "ops", { code: item.code ?? "unknown" });
+                            logMonetisationClientEvent("ops_webhook_watch_error", null, "ops", { code: item.code ?? "unknown" });
                           }
                         } catch {
                           setWatchStatus((prev) => ({ ...prev, [item.id]: "Watch failed" }));
-                          logMonetisationClientEvent("ops_webhook_watch_create_error", null, "ops", { code: item.code ?? "unknown" });
+                          logMonetisationClientEvent("ops_webhook_watch_error", null, "ops", { code: item.code ?? "unknown" });
                         }
                       }}
                     >

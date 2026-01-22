@@ -77,6 +77,7 @@ export default function BillingTracePanel({
     if (correlationConfidence) {
       logMonetisationClientEvent("billing_correlation_confidence_view", null, "billing", {
         confidence: correlationConfidence.confidence,
+        status: correlationConfidence.status,
       });
     }
   }, [correlationConfidence]);
@@ -156,7 +157,10 @@ export default function BillingTracePanel({
   const traceSnippet = buildBillingTraceSnippet({ requestId: timeline[0]?.requestId ?? null, timeline, webhook: webhookHealth, delay });
   const playbook = computedCorrelation ? buildDelayPlaybook({ correlation: computedCorrelation, supportPath, requestId: timeline[0]?.requestId ?? null }) : null;
   const missingWebhook =
-    webhookStatus.state === "delayed" || webhookStatus.state === "failed" || correlationConfidence?.confidence === "delayed" || correlationConfidence?.confidence === "failed";
+    webhookStatus.state === "delayed" ||
+    webhookStatus.state === "failed" ||
+    correlationConfidence?.status === "delayed" ||
+    correlationConfidence?.status === "failed";
   const webhookReceiptSnippet = `Webhook receipt | ref ${webhookReceipt.lastWebhookRequestId ?? "unknown"} | last ${
     webhookReceipt.lastWebhookAt ?? "unknown"
   } | hash ${webhookReceipt.dedupe.lastEventIdHash ?? "n/a"}`;
@@ -230,22 +234,23 @@ export default function BillingTracePanel({
               {correlationConfidence ? (
                 <span
                   className={`inline-flex items-center rounded-full px-2 py-1 text-[10px] font-semibold ${
-                    correlationConfidence.confidence === "failed"
+                    correlationConfidence.status === "failed"
                       ? "bg-rose-100 text-rose-800"
-                      : correlationConfidence.confidence === "delayed"
+                      : correlationConfidence.status === "delayed"
                         ? "bg-amber-100 text-amber-800"
-                        : correlationConfidence.confidence === "healthy"
+                        : correlationConfidence.status === "healthy"
                           ? "bg-emerald-100 text-emerald-800"
                           : "bg-slate-100 text-[rgb(var(--ink))]"
                   }`}
                 >
-                  {correlationConfidence.confidence === "unknown"
+                  {correlationConfidence.status === "unknown"
                     ? "Upstream signals unavailable"
-                    : correlationConfidence.confidence === "healthy"
+                    : correlationConfidence.status === "healthy"
                       ? "All good"
-                      : correlationConfidence.confidence === "delayed"
+                      : correlationConfidence.status === "delayed"
                         ? "Webhook delayed"
-                        : "Webhook failed"}
+                        : "Webhook failed"}{" "}
+                  • {correlationConfidence.confidence}
                 </span>
               ) : null}
               <div className="flex flex-wrap items-center gap-2 text-[11px] text-[rgb(var(--muted))]">

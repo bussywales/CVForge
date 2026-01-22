@@ -15,6 +15,7 @@ export type WebhookFailure = {
   eventIdHash: string | null;
   groupKeyHash: string | null;
   lastSeenAt: string | null;
+  firstSeenAt: string | null;
   repeatCount: number;
   correlation: { checkoutSeen?: boolean; webhookSeen?: boolean; creditChanged?: boolean };
 };
@@ -77,7 +78,7 @@ export async function listWebhookFailures({
   }
   const { data, error } = await query;
   if (error || !data) return { items: [], nextCursor: null };
-  const grouped = new Map<string, { count: number; lastSeen: string | null }>();
+  const grouped = new Map<string, { count: number; lastSeen: string | null; firstSeen: string | null }>();
   data.forEach((row: any) => {
     let meta: any = {};
     try {
@@ -90,11 +91,12 @@ export async function listWebhookFailures({
     const eventIdHash = hashValue(meta.eventId ?? meta.event_id ?? requestId ?? row.id);
     const groupKey = hashValue(`${codeMasked ?? "unknown"}|${eventIdHash ?? ""}|${row.user_id ?? ""}`);
     if (!grouped.has(groupKey ?? "")) {
-      grouped.set(groupKey ?? "", { count: 1, lastSeen: row.occurred_at ?? row.created_at ?? null });
+      grouped.set(groupKey ?? "", { count: 1, lastSeen: row.occurred_at ?? row.created_at ?? null, firstSeen: row.occurred_at ?? row.created_at ?? null });
     } else {
       const entry = grouped.get(groupKey ?? "")!;
       entry.count += 1;
       entry.lastSeen = entry.lastSeen ?? row.occurred_at ?? row.created_at ?? null;
+      entry.firstSeen = entry.firstSeen ?? row.occurred_at ?? row.created_at ?? null;
     }
   });
 
@@ -109,7 +111,7 @@ export async function listWebhookFailures({
     const codeMasked = meta.code ?? meta.error_code ?? null;
     const eventIdHash = hashValue(meta.eventId ?? meta.event_id ?? requestId ?? row.id);
     const groupKeyHash = hashValue(`${codeMasked ?? "unknown"}|${eventIdHash ?? ""}|${row.user_id ?? ""}`);
-    const repeatMeta = grouped.get(groupKeyHash ?? "") ?? { count: 1, lastSeen: row.occurred_at ?? row.created_at ?? null };
+    const repeatMeta = grouped.get(groupKeyHash ?? "") ?? { count: 1, lastSeen: row.occurred_at ?? row.created_at ?? null, firstSeen: row.occurred_at ?? row.created_at ?? null };
     return {
       id: row.id,
       requestId,
@@ -122,6 +124,7 @@ export async function listWebhookFailures({
       eventIdHash,
       groupKeyHash,
       lastSeenAt: repeatMeta.lastSeen,
+      firstSeenAt: repeatMeta.firstSeen,
       repeatCount: repeatMeta.count,
       correlation: {
         checkoutSeen: Boolean(meta.checkoutSeen),

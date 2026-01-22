@@ -53,43 +53,33 @@ beforeAll(async () => {
     getUserRole: vi.fn().mockResolvedValue({ role: "admin" }),
     isOpsRole: () => true,
   }));
-
-  vi.doMock("@/lib/ops/webhook-failures", () => ({
-    listWebhookFailures: vi.fn().mockResolvedValue({
-      items: [
-        {
-          id: "row_1",
-          requestId: "req_123",
-          at: "2024-02-10T10:00:00.000Z",
-          code: "err_timeout",
-          group: "stripe_webhook",
-          actorMasked: "o***@example.com",
-          userId: "user_1",
-          summary: "Webhook error",
-          eventIdHash: "abc123",
-          groupKeyHash: "gk1",
-          lastSeenAt: "2024-02-10T10:00:00.000Z",
-          firstSeenAt: "2024-02-10T09:00:00.000Z",
-          repeatCount: 2,
-          correlation: { checkoutSeen: true, webhookSeen: false, creditChanged: false },
-        },
-      ],
-      nextCursor: null,
+  vi.doMock("@/lib/ops/system-status", () => ({
+    buildSystemStatus: vi.fn().mockResolvedValue({
+      deployment: { vercelId: "v1", matchedPath: "/api" },
+      now: "2024-02-10T12:00:00.000Z",
+      health: {
+        billingRecheck429_24h: 1,
+        portalErrors_24h: 0,
+        webhookFailures_24h: 2,
+        webhookRepeats_24h: 1,
+        incidents_24h: 5,
+        audits_24h: 3,
+      },
+      queues: { webhookFailuresQueue: { count24h: 2, lastSeenAt: "2024-02-10T11:00:00.000Z", repeatsTop: 2 } },
+      notes: [],
     }),
   }));
 
-  const route = await import("@/app/api/ops/webhook-failures/route");
+  const route = await import("@/app/api/ops/system-status/route");
   GET = route.GET;
 });
 
-describe("ops webhook failures route", () => {
-  it("returns items with no-store headers", async () => {
-    const res = await GET(new Request("http://localhost/api/ops/webhook-failures?since=24h"));
+describe("ops system status route", () => {
+  it("returns status with no-store", async () => {
+    const res = await GET(new Request("http://localhost/api/ops/system-status"));
     const body = await res.json();
-    expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(body.ok).toBe(true);
-    expect(body.items[0].requestId).toBe("req_123");
-    expect(body.items[0].repeatCount).toBeDefined();
+    expect(body.status.health.incidents_24h).toBe(5);
   });
 });

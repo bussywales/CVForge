@@ -98,6 +98,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Billing Trace shows correlation confidence pill (healthy/unknown/delayed/failed) and updates on recheck.
 - Ops Webhooks queue shows Last seen + Repeats columns, Repeating (>=3)/Last hour chips work, and Watch button creates a watch entry.
 
+## Quick prod checks (v0.8.23)
+- Ops → /app/ops/status shows billing/webhook/ops cards with 24h counts and notes; refresh works and errors show requestId.
+- Billing badge stays neutral unless delayed/failed/just paid; correlation confidence pill appears in Billing Trace; recheck returns confidence.
+- Ops Webhooks link from status opens filtered webhooks; incidents link opens incidents; quick link visible on Ops landing.
+
 ## Ops support toolkit (ops/admin only)
 - Confirm “Ops Console” appears in the app nav only for ops/admin/super_admin; clicking opens /app/ops.
 - Non-ops user hitting /app/ops shows a 403-style Access denied page with reference/support snippet copy.

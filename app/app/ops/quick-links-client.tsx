@@ -58,6 +58,13 @@ export default function QuickLinksClient() {
         Webhooks
         <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">Stripe webhook failures (read-only)</p>
       </Link>
+      <Link
+        href="/app/ops/status"
+        className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
+      >
+        System status
+        <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">Ops view of core health (24h)</p>
+      </Link>
     </div>
   );
 }

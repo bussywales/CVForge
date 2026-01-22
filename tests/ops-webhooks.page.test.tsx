@@ -23,6 +23,7 @@ describe("Ops webhooks page client", () => {
         eventIdHash: "abc",
         groupKeyHash: "gh1",
         lastSeenAt: "2024-02-10T10:00:00.000Z",
+        firstSeenAt: "2024-02-10T09:00:00.000Z",
         repeatCount: 3,
         correlation: { checkoutSeen: true, webhookSeen: false, creditChanged: false },
       },

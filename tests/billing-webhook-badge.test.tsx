@@ -21,7 +21,7 @@ describe("WebhookBadge copy", () => {
           }}
           supportSnippet="snippet"
           creditsAvailable={10}
-          correlationConfidence={{ confidence: "healthy", reason: "credits_applied" }}
+          correlationConfidence={{ status: "healthy", confidence: "med", reason: "credits_applied" }}
         />
       );
     });
@@ -44,7 +44,7 @@ describe("WebhookBadge copy", () => {
           }}
           supportSnippet="snippet"
           creditsAvailable={0}
-          correlationConfidence={{ confidence: "delayed", reason: "waiting_webhook" }}
+          correlationConfidence={{ status: "delayed", confidence: "med", reason: "waiting_webhook" }}
         />
       );
     });
