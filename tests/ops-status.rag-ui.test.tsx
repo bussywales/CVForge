@@ -11,17 +11,14 @@ const baseStatus = {
   deployment: { vercelId: null, matchedPath: null },
   now: "2024-02-10T12:00:00.000Z",
   rag: {
-    rulesVersion: "rag_v1",
+    rulesVersion: "rag_v2_15m_trend",
     window: { minutes: 15, fromIso: "2024-02-10T11:45:00.000Z", toIso: "2024-02-10T12:00:00.000Z" },
+    status: "green",
     overall: "green",
-    signals: {
-      webhookFailures15m: { count: 0, state: "green" },
-      webhookErrors15m: { count: 0, state: "green" },
-      portalErrors15m: { count: 0, state: "green" },
-      checkoutErrors15m: { count: 0, state: "green" },
-      rateLimits15m: { count: 0, state: "green" },
-    },
+    headline: "All clear",
+    signals: [],
     topIssues: [],
+    trend: { bucketMinutes: 15, fromIso: "2024-02-09T12:00:00.000Z", toIso: "2024-02-10T12:00:00.000Z", buckets: [], direction: "stable" },
     updatedAt: "2024-02-10T12:00:00.000Z",
   },
   health: {
@@ -46,17 +43,23 @@ describe("SystemStatusClient RAG UI", () => {
         ok: true,
         status: {
           rag: {
-            overall: "green",
-            rulesVersion: "rag_v1",
+            overall: "amber",
+            status: "amber",
+            rulesVersion: "rag_v2_15m_trend",
             window: { minutes: 15, fromIso: "2024-02-10T11:45:00.000Z", toIso: "2024-02-10T12:00:00.000Z" },
-            signals: {
-              webhookFailures15m: { count: 3, state: "amber" },
-              webhookErrors15m: { count: 0, state: "green" },
-              portalErrors15m: { count: 0, state: "green" },
-              checkoutErrors15m: { count: 0, state: "green" },
-              rateLimits15m: { count: 0, state: "green" },
-            },
-            topIssues: [{ key: "webhook_failures", state: "amber", count: 3, label: "Webhook failures", primaryAction: "/app/ops/webhooks?window=15m" }],
+            headline: "Webhook failures (3) in last 15m",
+            signals: [
+              {
+                key: "webhook_failures",
+                label: "Webhook failures",
+                severity: "amber",
+                count: 3,
+                topCodes: [{ code: "timeout", count: 3 }],
+                topSurfaces: [{ surface: "webhook", count: 3 }],
+              },
+            ],
+            topIssues: [{ key: "webhook_failures", severity: "amber", count: 3, label: "Webhook failures", primaryAction: "/app/ops/webhooks?window=15m" }],
+            trend: { bucketMinutes: 15, fromIso: "2024-02-09T12:00:00.000Z", toIso: "2024-02-10T12:00:00.000Z", buckets: [{ at: "2024-02-10T11:45:00.000Z", green: 0, amber: 1, red: 0, score: 60, topSignalKey: "webhook_failures" }], direction: "stable" },
             updatedAt: "2024-02-10T12:00:00.000Z",
           },
           health: baseStatus.health,
@@ -81,9 +84,12 @@ describe("SystemStatusClient RAG UI", () => {
       await Promise.resolve();
     });
     expect(container.textContent).toContain("System health");
-    expect(container.textContent).toContain("GREEN");
+    expect(container.textContent).toContain("AMBER");
     expect(container.textContent).toContain("Webhook failures");
-    expect(container.textContent).toContain("Open");
+    expect(container.textContent).toContain("Why this status");
+    expect(container.textContent).toContain("24h trend");
+    const link = Array.from(container.querySelectorAll("a")).find((a) => a.getAttribute("href")?.includes("window=15m"));
+    expect(link?.getAttribute("href")).toContain("webhooks");
     container.remove();
   });
 

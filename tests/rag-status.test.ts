@@ -1,45 +1,81 @@
-import { describe, expect, it } from "vitest";
-import { computeRagStatus } from "@/lib/ops/rag-status";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const baseMetrics = {
-  portalErrors: 0,
-  checkoutErrors: 0,
-  webhookFailures: 0,
-  webhookErrors: 0,
-  rateLimits: 0,
-};
+let activities: any[] = [];
+let webhookFailures: any[] = [];
+let rateLimitEvents: any[] = [];
 
-const window = { minutes: 15, fromIso: "2024-02-10T09:45:00.000Z", toIso: "2024-02-10T10:00:00.000Z" };
+vi.mock("@/lib/supabase/service", () => ({
+  createServiceRoleClient: () => ({
+    from: () => ({
+      select: () => ({
+        gte: () => ({
+          or: () => ({
+            order: () => ({
+              limit: async () => ({ data: activities, error: null }),
+            }),
+          }),
+        }),
+      }),
+    }),
+  }),
+}));
 
-describe("computeRagStatus", () => {
-  it("returns green when under thresholds", () => {
-    const rag = computeRagStatus(baseMetrics, window, new Date(window.toIso));
-    expect(rag.overall).toBe("green");
-    expect(rag.topIssues.length).toBe(0);
-    expect(rag.window.minutes).toBe(15);
+vi.mock("@/lib/ops/webhook-failures", () => ({
+  listWebhookFailures: async () => ({ items: webhookFailures, nextCursor: null }),
+}));
+
+vi.mock("@/lib/rate-limit", () => ({
+  getRateLimitLog: () => rateLimitEvents,
+}));
+
+describe("rag status v2", () => {
+  beforeEach(() => {
+    activities = [];
+    webhookFailures = [];
+    rateLimitEvents = [];
   });
 
-  it("returns amber for elevated webhook failures", () => {
-    const rag = computeRagStatus({ ...baseMetrics, webhookFailures: 3 }, window, new Date(window.toIso));
-    expect(rag.overall).toBe("amber");
+  it("builds red status when webhook failures spike and returns trend buckets", async () => {
+    const now = new Date("2024-02-10T10:00:00.000Z");
+    webhookFailures = Array.from({ length: 6 }).map((_, idx) => ({
+      id: `wf-${idx}`,
+      requestId: `req-${idx}`,
+      at: new Date(now.getTime() - idx * 2 * 60 * 1000).toISOString(),
+      code: "timeout",
+      group: "stripe_webhook",
+      actorMasked: null,
+      userId: null,
+      summary: "failure",
+      eventIdHash: `hash-${idx}`,
+      groupKeyHash: `g-${idx}`,
+      lastSeenAt: null,
+      firstSeenAt: null,
+      repeatCount: 1,
+      correlation: {},
+    }));
+    const { buildRagStatus } = await import("@/lib/ops/rag-status");
+    const rag = await buildRagStatus({ now, windowMinutes: 15, trendHours: 24 });
+    expect(rag.status).toBe("red");
     expect(rag.topIssues[0].key).toBe("webhook_failures");
+    expect(rag.signals.find((s) => s.key === "webhook_failures")?.count).toBe(6);
+    expect(rag.trend.buckets.length).toBe(96);
+    expect(rag.rulesVersion).toBe("rag_v2_15m_trend");
   });
 
-  it("returns red for portal spike", () => {
-    const rag = computeRagStatus({ ...baseMetrics, portalErrors: 12 }, window, new Date(window.toIso));
-    expect(rag.overall).toBe("red");
-    expect(rag.topIssues.some((i) => i.key === "portal_errors")).toBe(true);
-  });
-
-  it("returns red when webhook errors exceed threshold", () => {
-    const rag = computeRagStatus({ ...baseMetrics, webhookErrors: 6 }, window, new Date(window.toIso));
-    expect(rag.overall).toBe("red");
-    expect(rag.topIssues[0].key).toBe("webhook_errors");
-  });
-
-  it("keeps amber for rate limits only", () => {
-    const rag = computeRagStatus({ ...baseMetrics, rateLimits: 6 }, window, new Date(window.toIso));
-    expect(rag.overall).toBe("amber");
-    expect(rag.topIssues[0].key).toBe("rate_limits");
+  it("marks improving direction when past buckets were worse", async () => {
+    const now = new Date("2024-02-10T10:00:00.000Z");
+    // Add portal errors in the 1-2h window, none recently.
+    activities = Array.from({ length: 6 }).map((_, idx) => ({
+      type: "monetisation.billing_portal_error",
+      body: JSON.stringify({ code: "portal_error" }),
+      occurred_at: new Date(now.getTime() - 90 * 60 * 1000 - idx * 60 * 1000).toISOString(),
+      created_at: new Date(now.getTime() - 90 * 60 * 1000 - idx * 60 * 1000).toISOString(),
+    }));
+    const { buildRagStatus } = await import("@/lib/ops/rag-status");
+    const rag = await buildRagStatus({ now, windowMinutes: 15, trendHours: 24 });
+    expect(rag.status).toBe("green");
+    expect(rag.trend.direction).toBe("improving");
+    expect(rag.topIssues.length).toBe(0);
+    expect(rag.trend.buckets.slice(-1)[0]?.green).toBe(1);
   });
 });

@@ -10,7 +10,11 @@ import { listWatch } from "@/lib/ops/ops-watch";
 
 export const dynamic = "force-dynamic";
 
-export default async function IncidentConsole({ searchParams }: { searchParams?: { requestId?: string; days?: string; window?: string } }) {
+export default async function IncidentConsole({
+  searchParams,
+}: {
+  searchParams?: { requestId?: string; days?: string; window?: string; surface?: string; code?: string; signal?: string };
+}) {
   const { user } = await getSupabaseUser();
   const requestId = makeRequestId(headers().get("x-request-id"));
   const canAccess = user && (await requireOpsAccess(user.id, user.email));
@@ -41,6 +45,11 @@ export default async function IncidentConsole({ searchParams }: { searchParams?:
     initialTime = "168";
   }
 
+  const surfaceParam = (searchParams?.surface ?? "").toLowerCase();
+  const allowedSurfaces = ["portal", "checkout", "billing", "webhook", "other"];
+  const initialSurface = allowedSurfaces.includes(surfaceParam) ? surfaceParam : "all";
+  const initialCode = searchParams?.code ?? "";
+
   const recent = await getRecentIncidentEvents({ limit: 200, sinceDays });
   const detail = lookupId ? await getIncidentByRequestId(lookupId) : null;
   const outcomes = await listRecentOutcomes({ requestId: lookupId || detail?.requestId || null, limit: 3 });
@@ -54,6 +63,8 @@ export default async function IncidentConsole({ searchParams }: { searchParams?:
       initialOutcomes={outcomes}
       initialWatch={watch}
       initialTime={initialTime}
+      initialSurface={initialSurface}
+      initialCode={initialCode}
     />
   );
 }

@@ -2,6 +2,8 @@
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
 let GET: any;
+let role = "admin";
+let allowed = true;
 
 beforeAll(async () => {
   class SimpleHeaders {
@@ -61,51 +63,53 @@ beforeAll(async () => {
     getSupabaseUser: async () => ({ user: { id: "ops-user", email: "ops@example.com" } }),
   }));
   vi.doMock("@/lib/rbac", () => ({
-    getUserRole: vi.fn().mockResolvedValue({ role: "admin" }),
-    isOpsRole: () => true,
+    getUserRole: vi.fn().mockResolvedValue({ role }),
+    isOpsRole: () => role === "admin",
   }));
-  vi.doMock("@/lib/ops/system-status", () => ({
-    buildSystemStatus: vi.fn().mockResolvedValue({
-      deployment: { vercelId: "v1", matchedPath: "/api" },
-      now: "2024-02-10T12:00:00.000Z",
-      rag: {
-        rulesVersion: "rag_v2_15m_trend",
-        window: { minutes: 15, fromIso: "2024-02-10T11:45:00.000Z", toIso: "2024-02-10T12:00:00.000Z" },
-        status: "green",
-        overall: "green",
-        headline: "All clear",
-        signals: [],
-        topIssues: [],
-        trend: { bucketMinutes: 15, fromIso: "2024-02-09T12:00:00.000Z", toIso: "2024-02-10T12:00:00.000Z", buckets: [], direction: "stable" },
-        updatedAt: "2024-02-10T12:00:00.000Z",
-      },
-      health: {
-        billingRecheck429_24h: 1,
-        portalErrors_24h: 0,
-        webhookFailures_24h: 2,
-        webhookRepeats_24h: 1,
-        incidents_24h: 5,
-        audits_24h: 3,
-      },
-      queues: { webhookFailuresQueue: { count24h: 2, lastSeenAt: "2024-02-10T11:00:00.000Z", repeatsTop: 2 } },
-      limits: { rateLimitHits24h: { billing_recheck: 0, monetisation_log: 0, ops_actions: 0 }, topLimitedRoutes24h: [], approx: true },
-      notes: [],
+  vi.doMock("@/lib/rate-limit", () => ({
+    checkRateLimit: vi.fn(() => (allowed ? { allowed: true, remaining: 1 } : { allowed: false, retryAfterSeconds: 12, status: 429 })),
+  }));
+  vi.doMock("@/lib/ops/rag-status", () => ({
+    buildRagStatus: vi.fn().mockResolvedValue({
+      rulesVersion: "rag_v2_15m_trend",
+      window: { minutes: 15, fromIso: "2024-02-10T11:45:00.000Z", toIso: "2024-02-10T12:00:00.000Z" },
+      status: "amber",
+      overall: "amber",
+      headline: "Webhook failures (2) in last 15m",
+      signals: [],
+      topIssues: [],
+      trend: { bucketMinutes: 15, fromIso: "2024-02-09T12:00:00.000Z", toIso: "2024-02-10T12:00:00.000Z", buckets: [], direction: "stable" },
+      updatedAt: "2024-02-10T12:00:00.000Z",
     }),
   }));
 
-  const route = await import("@/app/api/ops/system-status/route");
+  const route = await import("@/app/api/ops/rag-status/route");
   GET = route.GET;
 });
 
-describe("ops system status route", () => {
-  it("returns status with no-store", async () => {
-    const res = await GET(new Request("http://localhost/api/ops/system-status"));
+describe("ops rag status route", () => {
+  it("returns rag model with headers", async () => {
+    role = "admin";
+    allowed = true;
+    const res = await GET(new Request("http://localhost/api/ops/rag-status"));
     const body = await res.json();
     expect(res.headers.get("cache-control")).toBe("no-store");
     expect(body.ok).toBe(true);
-    expect(body.status.health.incidents_24h).toBe(5);
-    expect(body.status.rag.status).toBe("green");
-    expect(body.status.rag.window.minutes).toBe(15);
-    expect(body.status.rag.trend.bucketMinutes).toBe(15);
+    expect(body.rag.rulesVersion).toBe("rag_v2_15m_trend");
+    expect(body.rag.window.minutes).toBe(15);
+  });
+
+  it("blocks non-ops roles", async () => {
+    role = "user";
+    const res = await GET(new Request("http://localhost/api/ops/rag-status"));
+    expect(res.status).toBe(403);
+  });
+
+  it("returns retry-after when limited", async () => {
+    role = "admin";
+    allowed = false;
+    const res = await GET(new Request("http://localhost/api/ops/rag-status"));
+    expect(res.status).toBe(429);
+    expect(res.headers.get("retry-after")).toBe("12");
   });
 });

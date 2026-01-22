@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import ErrorBanner from "@/components/ErrorBanner";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { buildOpsIncidentsLink, buildOpsWebhooksLink } from "@/lib/ops/ops-links";
 import type { SystemStatus } from "@/lib/ops/system-status";
 import type { RagStatus } from "@/lib/ops/rag-status";
 
@@ -12,14 +13,39 @@ type Props = {
   requestId: string | null;
 };
 
+type SignalKey = RagStatus["signals"][number]["key"];
+
 export default function SystemStatusClient({ initialStatus, requestId }: Props) {
   const [status, setStatus] = useState<SystemStatus>(initialStatus);
   const [rag, setRag] = useState<RagStatus | null>(initialStatus.rag ?? null);
   const [ragLogged, setRagLogged] = useState(false);
+  const [drillLogged, setDrillLogged] = useState(false);
+  const [trendLogged, setTrendLogged] = useState(false);
+  const [directionLogged, setDirectionLogged] = useState(false);
   const [ragError, setRagError] = useState<{ message: string; requestId?: string | null } | null>(null);
   const [ragCooldown, setRagCooldown] = useState<number>(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(null);
+  const signalActions: Record<SignalKey, { primary: string; secondary?: string | null }> = {
+    webhook_failures: {
+      primary: buildOpsWebhooksLink({ window: "15m", signal: "webhook_failures" }),
+      secondary: buildOpsIncidentsLink({ window: "15m", surface: "webhook", signal: "webhook_failures" }),
+    },
+    webhook_errors: {
+      primary: buildOpsIncidentsLink({ window: "15m", surface: "webhook", signal: "webhook_errors" }),
+      secondary: buildOpsWebhooksLink({ window: "15m", signal: "webhook_errors" }),
+    },
+    portal_errors: {
+      primary: buildOpsIncidentsLink({ window: "15m", surface: "portal", signal: "portal_errors" }),
+    },
+    checkout_errors: {
+      primary: buildOpsIncidentsLink({ window: "15m", surface: "checkout", signal: "checkout_errors" }),
+    },
+    rate_limits: {
+      primary: "/app/ops/status#limits",
+      secondary: buildOpsIncidentsLink({ window: "15m", surface: "billing", code: "RATE_LIMIT", signal: "rate_limits" }),
+    },
+  };
 
   useEffect(() => {
     logMonetisationClientEvent("ops_system_status_view", null, "ops");
@@ -27,15 +53,53 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
   }, []);
 
   useEffect(() => {
+    setRagLogged(false);
+    setDrillLogged(false);
+    setTrendLogged(false);
+    setDirectionLogged(false);
+  }, [rag?.updatedAt, rag?.status]);
+
+  useEffect(() => {
     if (rag && !ragLogged) {
       setRagLogged(true);
       logMonetisationClientEvent("ops_status_rag_view", null, "ops", {
-        overall: rag.overall,
+        overall: rag.status ?? rag.overall,
         topIssueKey: rag.topIssues?.[0]?.key ?? null,
         rulesVersion: rag.rulesVersion,
       });
     }
   }, [rag, ragLogged]);
+
+  useEffect(() => {
+    if (rag && !drillLogged) {
+      setDrillLogged(true);
+      logMonetisationClientEvent("ops_status_rag_drilldown_view", null, "ops", {
+        overall: rag.status ?? rag.overall,
+        rulesVersion: rag.rulesVersion,
+      });
+    }
+  }, [drillLogged, rag]);
+
+  useEffect(() => {
+    if (rag?.trend && !trendLogged) {
+      setTrendLogged(true);
+      logMonetisationClientEvent("ops_status_rag_trend_view", null, "ops", { rulesVersion: rag.rulesVersion });
+    }
+  }, [rag?.trend, rag?.rulesVersion, trendLogged]);
+
+  useEffect(() => {
+    if (rag?.trend && !directionLogged) {
+      setDirectionLogged(true);
+      const buckets = rag.trend.buckets ?? [];
+      const last = buckets[buckets.length - 1];
+      const prev = buckets[buckets.length - 2];
+      logMonetisationClientEvent("ops_status_rag_trend_direction", null, "ops", {
+        direction: rag.trend.direction,
+        scoreNow: last?.score ?? null,
+        scorePrev: prev?.score ?? null,
+      });
+    }
+  }, [directionLogged, rag?.trend, rag?.trend?.direction]);
 
   useEffect(() => {
     if (!status?.limits) return;
@@ -73,7 +137,7 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
       setRag(body.status?.rag ?? null);
       if (body.status?.rag) {
         logMonetisationClientEvent("ops_status_rag_view", null, "ops", {
-          overall: body.status.rag.overall,
+          overall: body.status.rag.status ?? body.status.rag.overall,
           topIssueKey: body.status.rag.topIssues?.[0]?.key ?? null,
           rulesVersion: body.status.rag.rulesVersion,
         });
@@ -148,18 +212,18 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
       <div id="rag" className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-[rgb(var(--ink))]">System health: {rag ? rag.overall.toUpperCase() : "—"} (last 15 minutes)</p>
+            <p className="text-sm font-semibold text-[rgb(var(--ink))]">System health: {rag ? (rag.status ?? rag.overall).toUpperCase() : "—"} (last 15 minutes)</p>
             {rag ? (
               <span
                 className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
-                  rag.overall === "green"
+                  (rag.status ?? rag.overall) === "green"
                     ? "bg-emerald-100 text-emerald-800"
-                    : rag.overall === "amber"
+                    : (rag.status ?? rag.overall) === "amber"
                       ? "bg-amber-100 text-amber-800"
                       : "bg-rose-100 text-rose-800"
                 }`}
               >
-                {rag.overall.toUpperCase()}
+                {(rag.status ?? rag.overall).toUpperCase()}
               </span>
             ) : null}
           </div>
@@ -167,25 +231,26 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
             {rag ? `Updated ${new Date(rag.updatedAt).toLocaleTimeString()}` : ragCooldown > 0 ? `Rate limited — try again in ${ragCooldown}s` : "Loading…"}
           </span>
         </div>
+        {rag ? <p className="mt-1 text-[11px] text-[rgb(var(--muted))]">{rag.headline}</p> : null}
         {ragError ? <ErrorBanner title="System health error" message={ragError.message} requestId={ragError.requestId ?? requestId} /> : null}
         {rag ? (
-          <div className="mt-2 space-y-2">
+          <div className="mt-2 space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               {rag.topIssues.map((issue) => (
                 <div key={issue.key} className="flex items-center gap-2 rounded-lg border border-slate-100 bg-slate-50 px-2 py-1 text-[11px]">
                   <span
                     className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${
-                      issue.state === "red" ? "bg-rose-100 text-rose-800" : issue.state === "amber" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
+                      issue.severity === "red" ? "bg-rose-100 text-rose-800" : issue.severity === "amber" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"
                     }`}
                   >
-                    {issue.state.toUpperCase()}
+                    {issue.severity.toUpperCase()}
                   </span>
                   <span className="font-semibold text-[rgb(var(--ink))]">{issue.label}</span>
                   <span className="text-[rgb(var(--muted))]">({issue.count})</span>
                   <Link
                     href={issue.primaryAction}
                     className="rounded-full border border-black/10 bg-white px-2 py-0.5 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
-                    onClick={() => logMonetisationClientEvent("ops_status_rag_action_click", null, "ops", { actionKey: issue.key, overall: rag.overall })}
+                    onClick={() => logMonetisationClientEvent("ops_status_rag_action_click", null, "ops", { actionKey: issue.key, overall: rag.status ?? rag.overall })}
                   >
                     Open
                   </Link>
@@ -194,7 +259,7 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
                       href={issue.secondaryAction}
                       className="rounded-full border border-black/10 bg-white px-2 py-0.5 font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
                       onClick={() =>
-                        logMonetisationClientEvent("ops_status_rag_action_click", null, "ops", { actionKey: `${issue.key}_secondary`, overall: rag.overall })
+                        logMonetisationClientEvent("ops_status_rag_action_click", null, "ops", { actionKey: `${issue.key}_secondary`, overall: rag.status ?? rag.overall })
                       }
                     >
                       Secondary
@@ -204,8 +269,105 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
               ))}
               {rag.topIssues.length === 0 ? <span className="text-[11px] text-[rgb(var(--muted))]">All clear.</span> : null}
             </div>
-            {rag.topIssues[0] ? (
-              <p className="text-[11px] text-[rgb(var(--muted))]">Most common issue: {rag.topIssues[0].label} ({rag.topIssues[0].count})</p>
+            <div className="rounded-xl border border-slate-100 bg-slate-50 p-2">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-semibold text-[rgb(var(--ink))]">Why this status</p>
+                <span className="text-[10px] text-[rgb(var(--muted))]">Window: {rag.window.minutes}m</span>
+              </div>
+              <div className="mt-1 space-y-1">
+                {rag.signals.map((signal) => {
+                  const actions = signalActions[signal.key];
+                  const tone =
+                    signal.severity === "red" ? "bg-rose-100 text-rose-800" : signal.severity === "amber" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800";
+                  return (
+                    <div key={signal.key} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-slate-100 bg-white px-2 py-1">
+                      <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                        <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tone}`}>{signal.severity.toUpperCase()}</span>
+                        <span className="font-semibold text-[rgb(var(--ink))]">{signal.label}</span>
+                        <span className="text-[rgb(var(--muted))]">({signal.count})</span>
+                        {signal.topCodes?.length ? (
+                          <span className="flex flex-wrap items-center gap-1">
+                            {signal.topCodes.map((code) => (
+                              <span key={`${signal.key}_${code.code}`} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-[rgb(var(--muted))]">
+                                {code.code} ({code.count})
+                              </span>
+                            ))}
+                          </span>
+                        ) : null}
+                        {signal.topSurfaces?.length ? (
+                          <span className="flex flex-wrap items-center gap-1">
+                            {signal.topSurfaces.map((surface) => (
+                              <span key={`${signal.key}_${surface.surface}`} className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-[rgb(var(--muted))]">
+                                {surface.surface} ({surface.count})
+                              </span>
+                            ))}
+                          </span>
+                        ) : null}
+                        {signal.firstSeenAt ? (
+                          <span className="text-[10px] text-[rgb(var(--muted))]" title={signal.firstSeenAt ?? undefined}>
+                            First seen {new Date(signal.firstSeenAt).toLocaleTimeString()}
+                          </span>
+                        ) : null}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {actions?.primary ? (
+                          <Link
+                            href={actions.primary}
+                            className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                            onClick={() =>
+                              logMonetisationClientEvent("ops_status_rag_signal_click", null, "ops", {
+                                signalKey: signal.key,
+                                destination: actions.primary,
+                                windowMinutes: rag.window.minutes,
+                              })
+                            }
+                          >
+                            Open
+                          </Link>
+                        ) : null}
+                        {actions?.secondary ? (
+                          <Link
+                            href={actions.secondary}
+                            className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                            onClick={() =>
+                              logMonetisationClientEvent("ops_status_rag_signal_click", null, "ops", {
+                                signalKey: signal.key,
+                                destination: actions.secondary ?? "",
+                                windowMinutes: rag.window.minutes,
+                              })
+                            }
+                          >
+                            Secondary
+                          </Link>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+            {rag.trend ? (
+              <div className="rounded-xl border border-slate-100 bg-slate-50 p-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-[11px] font-semibold text-[rgb(var(--ink))]">24h trend (15m buckets)</p>
+                  <span className="text-[10px] text-[rgb(var(--muted))]">Direction: {rag.trend.direction}</span>
+                </div>
+                <div className="mt-2 flex items-end gap-[2px] overflow-hidden">
+                  {rag.trend.buckets.map((bucket) => {
+                    const height = Math.max(6, Math.round(bucket.score / 4));
+                    const tone = bucket.red ? "bg-rose-400" : bucket.amber ? "bg-amber-400" : "bg-emerald-400";
+                    return (
+                      <div
+                        key={bucket.at}
+                        className={`w-[6px] rounded-sm ${tone}`}
+                        style={{ height }}
+                        title={`${bucket.at} • score ${bucket.score}`}
+                      />
+                    );
+                  })}
+                </div>
+                <p className="mt-1 text-[10px] text-[rgb(var(--muted))]">Scores trend toward 100 = healthy.</p>
+              </div>
             ) : null}
           </div>
         ) : null}

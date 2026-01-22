@@ -98,6 +98,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Billing Trace shows correlation confidence pill (healthy/unknown/delayed/failed) and updates on recheck.
 - Ops Webhooks queue shows Last seen + Repeats columns, Repeating (>=3)/Last hour chips work, and Watch button creates a watch entry.
 
+## Quick prod checks (v0.8.26)
+- /app/ops/status shows System health pill with “Why this status” signals and a 24h trend strip; errors keep requestId visible without breaking the page.
+- Click a signal action (e.g. Webhook failures/Incidents) → deep link opens with window=15m and relevant filters/signal params applied.
+- Non-ops hitting /api/ops/rag-status?window=15m&trend=24h get JSON 403 with requestId; ops receive rag_v2 payload with trend buckets.
+
 ## Quick prod checks (v0.8.25)
 - Ops: open /app/ops/status → System Health (15m) pill + reason chips render with timestamp.
 - Click “Open Webhook Failures (15m)” → webhooks page loads filtered to 15m range.

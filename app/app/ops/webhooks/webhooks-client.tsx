@@ -12,13 +12,15 @@ type Props = {
   initialItems: Failure[];
   initialNextCursor: string | null;
   initialSince?: SinceFilter;
+  initialCode?: string | null;
+  initialQ?: string | null;
 };
 type ChipFilter = "none" | "repeating" | "last24";
 
-export default function WebhooksClient({ initialItems, initialNextCursor, initialSince = "24h" }: Props) {
+export default function WebhooksClient({ initialItems, initialNextCursor, initialSince = "24h", initialCode, initialQ }: Props) {
   const [since, setSince] = useState<SinceFilter>(initialSince);
-  const [code, setCode] = useState("");
-  const [q, setQ] = useState("");
+  const [code, setCode] = useState(initialCode ?? "");
+  const [q, setQ] = useState(initialQ ?? "");
   const [userId, setUserId] = useState("");
   const [items, setItems] = useState<Failure[]>(initialItems);
   const [cursor, setCursor] = useState<string | null>(initialNextCursor);

@@ -56,7 +56,7 @@ export async function listWebhookFailures({
 }): Promise<{ items: WebhookFailure[]; nextCursor: string | null }> {
   const admin = createServiceRoleClient();
   const since = new Date(now.getTime() - sinceHours * 60 * 60 * 1000).toISOString();
-  const cappedLimit = Math.min(Math.max(limit, 1), 100);
+  const cappedLimit = Math.min(Math.max(limit, 1), 400);
   let query = admin
     .from("application_activities")
     .select("id,user_id,type,subject,body,occurred_at,created_at")

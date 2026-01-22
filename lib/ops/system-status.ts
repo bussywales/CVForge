@@ -68,7 +68,7 @@ export async function buildSystemStatus({ now = new Date(), vercelId, matchedPat
   const repeatsTop =
     webhookQueue.items.length > 0 ? webhookQueue.items.reduce((max, item) => Math.max(max, item.repeatCount ?? 1), 0) : null;
   const { rateLimitHits, topLimitedRoutes24h } = getRateLimitSummary({ sinceMs: now.getTime() - 24 * 60 * 60 * 1000 });
-  const rag = await buildRagStatus(now);
+  const rag = await buildRagStatus({ now });
 
   const notes: string[] = [];
   if (webhookFailures_24h > 20) notes.push("Webhook failures elevated");

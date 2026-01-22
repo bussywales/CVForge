@@ -28,6 +28,10 @@ const DEDUPE_PERIODS: Record<string, "day" | "week"> = {
   ops_webhooks_queue_filter_chip_click: "day",
   ops_system_status_view: "day",
   ops_status_rag_view: "day",
+  ops_status_rag_drilldown_view: "day",
+  ops_status_rag_signal_click: "day",
+  ops_status_rag_trend_view: "day",
+  ops_status_rag_trend_direction: "day",
   system_status_limits_view: "day",
   billing_help_prompt_view: "day",
 };

@@ -34,6 +34,8 @@ type Props = {
   initialOutcomes?: ResolutionOutcome[];
   initialWatch?: WatchRecord[];
   initialTime?: TimeFilter;
+  initialSurface?: string | null;
+  initialCode?: string | null;
 };
 
 type TimeFilter = "0.25" | "1" | "24" | "168";
@@ -61,11 +63,11 @@ function exportCsv(groups: IncidentGroup[]) {
   return [header, ...rows].join("\n");
 }
 
-export default function IncidentsClient({ incidents, initialLookup, initialRequestId, initialOutcomes, initialWatch, initialTime }: Props) {
+export default function IncidentsClient({ incidents, initialLookup, initialRequestId, initialOutcomes, initialWatch, initialTime, initialSurface, initialCode }: Props) {
   const [filters, setFilters] = useState({
     time: (initialTime ?? "24") as TimeFilter,
-    surface: "all",
-    code: "",
+    surface: (initialSurface ?? "all") as string,
+    code: initialCode ?? "",
     flow: "",
     search: "",
     highImpact: false,

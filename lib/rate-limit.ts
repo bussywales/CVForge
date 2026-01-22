@@ -69,6 +69,10 @@ export function getRateLimitSummary({ sinceMs }: { sinceMs: number }) {
   return { rateLimitHits, topLimitedRoutes24h };
 }
 
+export function getRateLimitLog({ sinceMs }: { sinceMs: number }) {
+  return limitLog.filter((entry) => entry.at >= sinceMs);
+}
+
 export function resetRateLimitStores() {
   Object.keys(windowStore).forEach((key) => delete windowStore[key]);
   limitLog.length = 0;

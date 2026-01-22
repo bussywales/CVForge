@@ -36,15 +36,19 @@ export default function QuickLinksClient() {
   const ragPill = rag ? (
     <Link
       href="/app/ops/status#rag"
-      onClick={() => logMonetisationClientEvent("ops_status_rag_action_click", null, "ops", { actionKey: "status_rag", overall: rag.overall })}
+      onClick={() => logMonetisationClientEvent("ops_status_rag_action_click", null, "ops", { actionKey: "status_rag", overall: rag.status ?? rag.overall })}
       className="ml-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold"
       style={{
         backgroundColor:
-          rag.overall === "green" ? "rgba(16,185,129,0.15)" : rag.overall === "amber" ? "rgba(251,191,36,0.2)" : "rgba(248,113,113,0.2)",
-        color: rag.overall === "green" ? "#065f46" : rag.overall === "amber" ? "#92400e" : "#991b1b",
+          (rag.status ?? rag.overall) === "green"
+            ? "rgba(16,185,129,0.15)"
+            : (rag.status ?? rag.overall) === "amber"
+              ? "rgba(251,191,36,0.2)"
+              : "rgba(248,113,113,0.2)",
+        color: (rag.status ?? rag.overall) === "green" ? "#065f46" : (rag.status ?? rag.overall) === "amber" ? "#92400e" : "#991b1b",
       }}
     >
-      {rag.overall.toUpperCase()}
+      {(rag.status ?? rag.overall).toUpperCase()}
     </Link>
   ) : null;
 

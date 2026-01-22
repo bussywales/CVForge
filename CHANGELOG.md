@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.8.26
+- Ops RAG v2: deterministic helper with masked signals (counts, top codes/surfaces, first seen), headline, and 24h trend (96 buckets, health score, direction) driven by existing incident/webhook/rate-limit data; shared across /api/ops/system-status and /api/ops/rag-status.
+- Ops Status UI gains “Why this status” drill-down with per-signal actions, 15m deep links to webhooks/incidents, and a 24h trend strip with improving/stable/worsening direction + calm error/rate-limit handling.
+- Webhooks/Incidents accept window=15m + signal/code params for deep links; monetisation allowlists expanded for new RAG drill-down/trend events.
+
+## v0.8.25
+- Ops RAG status: deterministic 15-minute RAG helper with webhook/portal/checkout/rate-limit thresholds and reasons.
+- New ops API + status page strip with reason chips, cooldown handling, and quick actions to webhooks/incidents/limits; command centre shows tiny RAG badge.
+- Webhooks/incidents now accept 15m windows for deep links; logging allowlists updated for RAG events; tests/docs refreshed.
+
 ## v0.8.24
 - Load & Limits Pack: shared in-memory rate limiter with Retry-After/x-request-id/no-store applied to billing recheck, monetisation log, ops outcomes/effectiveness/watch, and ops system status.
 - Billing recheck + ops actions show calm cooldown/rate-limit messages with sanitised logging; helper tightened for consistent headers.
