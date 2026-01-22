@@ -5,6 +5,7 @@ import AccessDenied from "@/components/AccessDenied";
 import { makeRequestId } from "@/lib/observability/request-id";
 import QuickLinksClient from "./quick-links-client";
 import UserLookupClient from "./user-lookup-client";
+import FunnelPanel from "./funnel-panel";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +29,8 @@ export default async function OpsPage({ searchParams }: { searchParams?: { q?: s
       </div>
 
       <QuickLinksClient />
+
+      <FunnelPanel />
 
       <div className="rounded-2xl border border-black/10 bg-white/80 p-4">
         <UserLookupClient initialQuery={query} />

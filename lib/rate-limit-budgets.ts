@@ -16,7 +16,9 @@ type BudgetKey =
   | "ops_alerts_get"
   | "ops_alerts_test"
   | "onboarding_model_get"
-  | "onboarding_skip_post";
+  | "onboarding_skip_post"
+  | "invite_claim"
+  | "ops_funnel_get";
 
 type BudgetLevel = "high" | "medium" | "low";
 
@@ -45,6 +47,8 @@ const ROUTE_BUDGETS: Record<BudgetKey, BudgetLevel> = {
   ops_alerts_test: "medium",
   onboarding_model_get: "medium",
   onboarding_skip_post: "medium",
+  invite_claim: "medium",
+  ops_funnel_get: "medium",
 };
 
 export function getRateLimitBudget(route: BudgetKey) {

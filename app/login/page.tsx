@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createBrowserClient } from "@/lib/supabase/browser";
 import { emailSchema } from "@/lib/validators/auth";
 
@@ -18,6 +18,15 @@ export default function LoginPage() {
       process.env.NEXT_PUBLIC_SITE_URL ??
       (typeof window !== "undefined" ? window.location.origin : "");
     return `${base.replace(/\/$/, "")}/auth/callback?next=/app`;
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const inviteToken = params.get("invite");
+    if (inviteToken) {
+      localStorage.setItem("cvf_invite_token", inviteToken);
+    }
   }, []);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {

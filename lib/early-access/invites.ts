@@ -3,6 +3,7 @@ import "server-only";
 import { randomBytes } from "crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { hashEarlyAccessEmail } from "@/lib/early-access";
+import { logMonetisationEvent } from "@/lib/monetisation";
 
 export type InviteRecord = {
   id: string;
@@ -121,12 +122,15 @@ export async function listRecentInvites({ limit = 20 }: { limit?: number } = {})
   });
 }
 
-export async function claimInviteForUser({ email, userId, now = new Date() }: { email: string; userId: string; now?: Date }) {
+export async function claimInviteForUser({ email, userId, token, now = new Date() }: { email: string; userId: string; token?: string | null; now?: Date }) {
   const admin = createServiceRoleClient();
   const emailHash = hashEarlyAccessEmail(email);
   if (!emailHash) return { status: "skipped", reason: "no_email_hash" as const };
-  const invite = await findActiveInviteByEmailHash(emailHash);
+  const invite = token ? await findInviteByToken(token) : await findActiveInviteByEmailHash(emailHash);
   if (!invite) return { status: "skipped", reason: "no_invite" as const };
+  if (invite.email_hash !== emailHash) {
+    return { status: "skipped", reason: "email_mismatch" as const };
+  }
   if (invite.expires_at && new Date(invite.expires_at).getTime() < now.getTime()) {
     await admin.from("early_access_invites").update({ revoked_at: now.toISOString() }).eq("id", invite.id);
     return { status: "skipped", reason: "expired" as const };
@@ -147,5 +151,19 @@ export async function claimInviteForUser({ email, userId, now = new Date() }: { 
     .from("early_access_invites")
     .update({ claimed_at: now.toISOString(), claimed_user_id: userId })
     .eq("id", invite.id);
+  try {
+    await admin
+      .from("profiles")
+      .update({
+        invite_id: invite.id,
+        invite_source: "link",
+        invited_email_hash: emailHash,
+        invited_at: invite.invited_at ?? now.toISOString(),
+      })
+      .eq("user_id", userId);
+    await logMonetisationEvent(admin, userId, "invite_attribution_claim_success", { meta: { inviteId: invite.id, email_hash_prefix: emailHash.slice(0, 8) } });
+  } catch {
+    // ignore
+  }
   return { status: "claimed" as const, inviteId: invite.id, email_hash: emailHash };
 }

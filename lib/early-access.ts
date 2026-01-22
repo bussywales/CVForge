@@ -3,6 +3,8 @@ import "server-only";
 import { createHash } from "crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
+import { claimInviteForUser } from "@/lib/early-access/invites";
+import { logMonetisationEvent } from "@/lib/monetisation";
 
 type EarlyAccessSource = "ops" | "db_user" | "db_email" | "env" | "blocked";
 
@@ -88,6 +90,29 @@ export async function getEarlyAccessDecision({ userId, email }: { userId: string
     }
   }
 
+  if (!decision && email && mode !== "off") {
+    const claimResult = await claimInviteForUser({ email, userId });
+    const hashedEmailPrefix = emailHash ? emailHash.slice(0, 8) : null;
+    try {
+      const supabase = createServiceRoleClient();
+      await logMonetisationEvent(supabase, userId, "early_access_invite_claim_attempt", { meta: { email_hash_prefix: hashedEmailPrefix, status: claimResult.status } });
+      if (claimResult.status === "claimed") {
+        await logMonetisationEvent(supabase, userId, "early_access_invite_claim_success", { meta: { email_hash_prefix: hashedEmailPrefix } });
+      } else {
+        await logMonetisationEvent(supabase, userId, "early_access_invite_claim_skipped", { meta: { email_hash_prefix: hashedEmailPrefix, reason: claimResult.reason ?? claimResult.status } });
+      }
+    } catch {
+      // ignore logging failures
+    }
+    if (claimResult.status === "claimed") {
+      decision = {
+        allowed: true,
+        source: "db_email",
+        allowlistMeta: { source: "db", grantedAt: new Date().toISOString(), revokedAt: null, note: null },
+      };
+    }
+  }
+
   const finalDecision: EarlyAccessDecision = decision ?? { allowed: false, source: "blocked", allowlistMeta: { source: "none" } };
   try {
     const admin = createServiceRoleClient();
@@ -95,7 +120,7 @@ export async function getEarlyAccessDecision({ userId, email }: { userId: string
       actor_user_id: userId,
       target_user_id: userId,
       action: "early_access_gate",
-      meta: { source: finalDecision.source, allowed: finalDecision.allowed, hashedEmail: emailHash ? `hash:${emailHash}` : null },
+      meta: { source: finalDecision.source, allowed: finalDecision.allowed, hashedEmailPrefix: emailHash ? `hash:${emailHash.slice(0, 8)}` : null },
     });
   } catch {
     // ignore

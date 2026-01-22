@@ -20,6 +20,7 @@ import { getEarlyAccessDecision } from "@/lib/early-access";
 import EarlyAccessBlock from "@/components/EarlyAccessBlock";
 import { getOnboardingModel } from "@/lib/onboarding/onboarding";
 import OnboardingCard from "./onboarding-card";
+import InviteAttributionClient from "./invite-attribution-client";
 
 export const dynamic = "force-dynamic";
 
@@ -165,6 +166,7 @@ export default async function AppPage() {
 
   return (
     <div className="space-y-6">
+      <InviteAttributionClient />
       <TelemetryBanner telemetryOptIn={telemetryOptIn} />
       {followupsDue.length ? <FollowupsDueStrip items={followupsDue} surface="dashboard" /> : null}
       {credits > 0 && paidAction ? (

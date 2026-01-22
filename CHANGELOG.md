@@ -10,6 +10,11 @@
 - Dashboard Getting started card with premium CTAs, skip/dismiss handling, and calm empty states across Applications/Profile (CV) and Interviews.
 - New onboarding APIs with rate limits, sanitised telemetry events, and docs/smoke tests for first-value flow updates.
 
+## v0.8.33
+- Invite attribution + templates: invite claim route with masked attribution on profiles, token storage from signup/login, ops access templates (email/WhatsApp/SMS/DM) and copy logging.
+- Ops funnel counters: new ops API + Command Centre panel showing 24h/7d invited→signup→CV→export→application→interview counts with conversions and cooldown handling.
+- Logging/allowlists/rate-limit budgets expanded for invite attribution, funnel, and template copy; docs and smoke tests updated.
+
 ## v0.8.30
 - Early Access email invites: allowlist supports email-only invites with hashed emails, optional user linkage, and unique active entries; ops can grant/revoke pre-signup and gate checks DB by user or email hash before env fallback.
 - Ops Early Access console updated for invite flow with user-found status, invite status, copyable instructions, and email-based grant/revoke; new helper for invite instructions and gate logging.

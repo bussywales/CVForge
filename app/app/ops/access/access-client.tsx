@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import ErrorBanner from "@/components/ErrorBanner";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { buildInviteInstructions } from "@/lib/early-access-invite-text";
+import { buildInviteMessage, defaultInviteLink } from "@/lib/early-access/invite-messages";
 
 type Lookup = {
   userFound: boolean;
@@ -231,6 +232,18 @@ export default function AccessClient({ requestId }: { requestId: string | null }
     }
   };
 
+  const copyTemplate = async (channel: "email" | "whatsapp" | "sms" | "dm") => {
+    const link = inviteLink ?? defaultInviteLink();
+    const text = buildInviteMessage(channel, { firstName: null, inviteLink: link });
+    try {
+      await navigator.clipboard.writeText(text);
+      setActionMessage("Template copied");
+      logMonetisationClientEvent("ops_access_invite_template_copy", null, "ops", { meta: { channel } });
+    } catch {
+      setActionMessage("Copy failed — try manual copy");
+    }
+  };
+
   return (
     <div className="space-y-3">
       <div>
@@ -241,7 +254,7 @@ export default function AccessClient({ requestId }: { requestId: string | null }
       {error ? <ErrorBanner title="Access error" message={error.message ?? "Unable to load"} requestId={error.requestId ?? requestId ?? undefined} /> : null}
       <div className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-center gap-2">
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Email or user id" className="flex-1 rounded-xl border px-3 py-2 text-sm" />
+          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Invite or lookup by email" className="flex-1 rounded-xl border px-3 py-2 text-sm" />
           <button
             type="button"
             onClick={runSearch}
@@ -366,6 +379,36 @@ export default function AccessClient({ requestId }: { requestId: string | null }
                   >
                     Revoke invite
                   </button>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+                      onClick={() => copyTemplate("email")}
+                    >
+                      Copy email
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+                      onClick={() => copyTemplate("whatsapp")}
+                    >
+                      Copy WhatsApp
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+                      onClick={() => copyTemplate("sms")}
+                    >
+                      Copy SMS
+                    </button>
+                    <button
+                      type="button"
+                      className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+                      onClick={() => copyTemplate("dm")}
+                    >
+                      Copy DM
+                    </button>
+                  </div>
                 </>
               ) : null}
               {!invitePending && lookup?.invite?.status === "revoked" && !userFound ? (

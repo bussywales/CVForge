@@ -128,6 +128,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Create CV/autopack + export once → card auto-updates (no manual ticking); create application completes core steps.
 - Applications/Profile/Interview pages with no data show calm single-CTA empty states; skip for a week hides onboarding card and returns after window.
 
+## Quick prod checks (v0.8.33)
+- Ops /app/ops/access: enter a new email, create invite → templates (Email/WhatsApp/SMS/DM) show and copy works; revoke works.
+- Open invite link, sign up/login → invite claim succeeds (attribution logs) and invite shows claimed.
+- Ops Command Centre funnel panel loads 24h/7d counts and refresh handles cooldown calmly.
+
 ## Quick prod checks (v0.8.30)
 - Ops → /app/ops/access: search a never-seen email → Invite status shows “Active/none”, grant invite works without a user account.
 - Incognito signup with that email passes the early access gate immediately (env fallback still works).
