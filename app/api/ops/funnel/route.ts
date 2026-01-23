@@ -37,9 +37,15 @@ export async function GET(request: Request) {
   try {
     const url = new URL(request.url);
     const groupBySource = url.searchParams.get("groupBy") === "source";
-    const summary = await computeFunnelSummary({ supabase, groupBySource });
+    const windowParam = url.searchParams.get("window");
+    const source = url.searchParams.get("source");
+    const includeUnknown = url.searchParams.get("includeUnknown") !== "0";
+    const window = windowParam === "24h" || windowParam === "7d" ? windowParam : undefined;
+    const summary = await computeFunnelSummary({ supabase, groupBySource, source: source ?? undefined, window, includeUnknown });
     try {
-      await logMonetisationEvent(supabase as any, user.id, groupBySource ? "ops_funnel_groupby_source_view" : "ops_funnel_view", { meta: { groupBySource } });
+      await logMonetisationEvent(supabase as any, user.id, groupBySource ? "ops_funnel_groupby_source_view" : "ops_funnel_view", {
+        meta: { groupBySource, source: source ?? "all", window: window ?? "all", includeUnknown },
+      });
     } catch {
       // ignore
     }

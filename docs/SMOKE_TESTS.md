@@ -138,6 +138,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Ops user dossier shows Invite attribution block when available.
 - Ops funnel page shows group-by-source rows for 24h/7d with calm cooldown handling.
 
+## Quick prod checks (v0.8.35)
+- Open an invalid /invite/&lt;token&gt; → calm invalid state appears with Copy support snippet; valid token shows benefits + Continue/Claim.
+- After login with stored token, auto-claim success banner appears with “Create your first CV” CTA; failure banner still allows retry + “Why am I seeing this?”.
+- Ops funnel page: filter by window/source/include unknown, copy current link; counts update and cooldown still calm.
+
 ## Quick prod checks (v0.8.30)
 - Ops → /app/ops/access: search a never-seen email → Invite status shows “Active/none”, grant invite works without a user account.
 - Incognito signup with that email passes the early access gate immediately (env fallback still works).

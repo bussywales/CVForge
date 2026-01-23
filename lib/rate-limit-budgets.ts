@@ -18,6 +18,7 @@ type BudgetKey =
   | "onboarding_model_get"
   | "onboarding_skip_post"
   | "invite_claim"
+  | "invite_validate"
   | "ops_funnel_get";
 
 type BudgetLevel = "high" | "medium" | "low";
@@ -48,6 +49,7 @@ const ROUTE_BUDGETS: Record<BudgetKey, BudgetLevel> = {
   onboarding_model_get: "medium",
   onboarding_skip_post: "medium",
   invite_claim: "medium",
+  invite_validate: "low",
   ops_funnel_get: "medium",
 };
 

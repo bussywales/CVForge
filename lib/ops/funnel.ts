@@ -108,23 +108,52 @@ export async function computeFunnel({
   };
 }
 
-export async function computeFunnelSummary(opts?: { now?: Date; supabase?: SupabaseClient; groupBySource?: boolean }) {
+export async function computeFunnelSummary(opts?: {
+  now?: Date;
+  supabase?: SupabaseClient;
+  groupBySource?: boolean;
+  source?: string | null;
+  window?: WindowLabel;
+  includeUnknown?: boolean;
+}) {
   const now = opts?.now ?? new Date();
   const supabase = opts?.supabase;
-  const windows: WindowLabel[] = ["24h", "7d"];
+  const windows: WindowLabel[] = opts?.window ? [opts.window] : ["24h", "7d"];
   const results: FunnelWindow[] = [];
+  const includeUnknown = opts?.includeUnknown !== false;
   if (opts?.groupBySource) {
     const baseClient = supabase ?? createServiceRoleClient();
     const { data: sourcesData } = await baseClient.from("profiles").select("invite_source, invited_at");
-    const sources = Array.from(new Set(["unknown", ...(sourcesData ?? []).map((row: any) => row.invite_source ?? "unknown")]));
+    const sourcesRaw = Array.from(new Set((sourcesData ?? []).map((row: any) => row.invite_source ?? "unknown")));
+    const sources = sourcesRaw.filter((s) => (s === "unknown" ? includeUnknown : true));
+    const scopedSources =
+      opts?.source === undefined || opts.source === null
+        ? sources
+        : sources.filter((s) => s === (opts.source ?? "unknown"));
+    const finalSources: string[] = [];
+    if (includeUnknown && (!opts?.source || opts.source === "unknown")) {
+      finalSources.push("unknown");
+    }
+    finalSources.push(...scopedSources.filter((s) => s !== "unknown"));
     for (const label of windows) {
-      const perSource = await Promise.all(sources.map((src) => computeFunnel({ windowLabel: label, now, supabase, source: src ?? "unknown" })));
+      const perSource = await Promise.all(
+        (finalSources.length > 0 ? finalSources : sources).map((src) => computeFunnel({ windowLabel: label, now, supabase, source: src ?? "unknown" }))
+      );
       results.push(...perSource.sort((a, b) => b.invited - a.invited));
     }
-    return { windows: results, rulesVersion: "invite_funnel_v1_source" };
+    const uniqueSources = Array.from(
+      new Set(
+        (sourcesRaw ?? []).concat(includeUnknown ? ["unknown"] : []).filter((s) => {
+          if (!s) return false;
+          if (!includeUnknown && s === "unknown") return false;
+          return true;
+        })
+      )
+    );
+    return { windows: results, rulesVersion: "invite_funnel_v1_source", sources: uniqueSources };
   }
   for (const label of windows) {
-    results.push(await computeFunnel({ windowLabel: label, now, supabase }));
+    results.push(await computeFunnel({ windowLabel: label, now, supabase, source: opts?.source ?? undefined }));
   }
-  return { windows: results, rulesVersion: "invite_funnel_v1" };
+  return { windows: results, rulesVersion: "invite_funnel_v1", sources: ["all"] };
 }

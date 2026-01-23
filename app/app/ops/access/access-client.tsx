@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import ErrorBanner from "@/components/ErrorBanner";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { buildInviteInstructions } from "@/lib/early-access-invite-text";
@@ -404,13 +405,16 @@ export default function AccessClient({ requestId }: { requestId: string | null }
                     <button
                       type="button"
                       className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
-                      onClick={() => copyTemplate("dm")}
-                    >
-                      Copy DM
-                    </button>
-                  </div>
-                </>
-              ) : null}
+                  onClick={() => copyTemplate("dm")}
+                >
+                  Copy DM
+                </button>
+                <Link href="/app/ops/funnel?source=link" className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]">
+                  View funnel for this source
+                </Link>
+              </div>
+            </>
+          ) : null}
               {!invitePending && lookup?.invite?.status === "revoked" && !userFound ? (
                 <button
                   type="button"

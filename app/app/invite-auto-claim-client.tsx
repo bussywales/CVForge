@@ -6,6 +6,17 @@ import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 export default function InviteAutoClaimClient() {
   const [banner, setBanner] = useState<{ message: string; requestId?: string | null } | null>(null);
   const [retrying, setRetrying] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [showWhy, setShowWhy] = useState(false);
+
+  useEffect(() => {
+    if (success) {
+      logMonetisationClientEvent("invite_claim_success_banner_view", null, "user");
+      const id = setTimeout(() => setSuccess(false), 10000);
+      return () => clearTimeout(id);
+    }
+    return undefined;
+  }, [success]);
 
   const attemptClaim = async (source: "auto" | "retry") => {
     let token: string | null = null;
@@ -41,6 +52,9 @@ export default function InviteAutoClaimClient() {
         }
         logMonetisationClientEvent("early_access_invite_claim_success", null, "user", { meta: { source } });
         setBanner(null);
+        setShowWhy(false);
+        setSuccess(true);
+        return;
       } else {
         setBanner({ message: "Invite couldn’t be claimed yet — try again", requestId: body?.error?.requestId ?? null });
         logMonetisationClientEvent("invite_claim_banner_view", null, "user");
@@ -57,49 +71,96 @@ export default function InviteAutoClaimClient() {
     attemptClaim("auto");
   }, []);
 
-  if (!banner) return null;
+  if (!banner && !success) return null;
 
   return (
-    <div className="mb-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <span>{banner.message}</span>
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <button
-            type="button"
-            onClick={() => attemptClaim("retry")}
-            className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))]"
-            disabled={retrying}
-          >
-            {retrying ? "Trying…" : "Try again"}
-          </button>
-          {banner.requestId ? (
-            <button
-              type="button"
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(`Support snippet: requestId=${banner.requestId}`);
-                  logMonetisationClientEvent("invite_claim_banner_copy", null, "user");
-                } catch {
-                  // ignore
-                }
-              }}
-              className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))]"
-            >
-              Copy support snippet
-            </button>
-          ) : null}
-          <button
-            type="button"
-            onClick={() => {
-              setBanner(null);
-              logMonetisationClientEvent("invite_claim_banner_dismiss", null, "user");
-            }}
-            className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--muted))]"
-          >
-            Dismiss
-          </button>
+    <div className="mb-4 space-y-2">
+      {success ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>Invite applied ✅ Early Access unlocked</span>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <a
+                href="/app/applications/new"
+                className="rounded-full border border-emerald-200 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))]"
+                onClick={() => logMonetisationClientEvent("invite_claim_success_cta_click", null, "user")}
+              >
+                Create your first CV
+              </a>
+              <button
+                type="button"
+                onClick={() => setSuccess(false)}
+                className="rounded-full border border-emerald-200 bg-white px-3 py-1 font-semibold text-[rgb(var(--muted))]"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
         </div>
-      </div>
+      ) : null}
+      {banner ? (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>{banner.message}</span>
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <button
+                type="button"
+                onClick={() => attemptClaim("retry")}
+                className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))]"
+                disabled={retrying}
+              >
+                {retrying ? "Trying…" : "Try again"}
+              </button>
+              {banner.requestId ? (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await navigator.clipboard.writeText(`Support snippet: requestId=${banner.requestId}`);
+                      logMonetisationClientEvent("invite_claim_banner_copy", null, "user");
+                    } catch {
+                      // ignore
+                    }
+                  }}
+                  className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))]"
+                >
+                  Copy support snippet
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => {
+                  setShowWhy((prev) => !prev);
+                  logMonetisationClientEvent("invite_claim_fail_why_open", null, "user");
+                }}
+                className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--ink))]"
+              >
+                Why am I seeing this?
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBanner(null);
+                  logMonetisationClientEvent("invite_claim_banner_dismiss", null, "user");
+                }}
+                className="rounded-full border border-black/10 bg-white px-3 py-1 font-semibold text-[rgb(var(--muted))]"
+              >
+                Dismiss
+              </button>
+            </div>
+          </div>
+          {showWhy ? (
+            <div className="mt-2 rounded-xl border border-amber-100 bg-white/60 p-3 text-xs text-[rgb(var(--ink))]">
+              <p className="font-semibold">Why this appears</p>
+              <ul className="mt-1 list-disc space-y-1 pl-4">
+                <li>Invite may be claimed with a different email.</li>
+                <li>Invite could be expired or revoked.</li>
+                <li>Rate limits or network issues can delay claiming; try again shortly.</li>
+              </ul>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }

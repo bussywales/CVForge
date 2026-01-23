@@ -158,6 +158,7 @@ Early Access invites v1 (v0.8.31): ops can create/revoke email-hash invites pre-
 Onboarding funnel v1 (v0.8.32): deterministic onboarding steps (CV created/exported, application added, optional interview) with DB persistence, skip-for-week, dashboard “Getting started” card, and calm empty states guiding first value; telemetry is masked and deduped.
 Invite attribution + funnel (v0.8.33): invite tokens claim to profiles with masked hashes, ops can copy invite templates (email/WhatsApp/SMS/DM), and ops funnel API/panel shows 24h/7d invite→first-value counts with rate-limited refresh and sanitised telemetry.
 Invite landing + funnel drill-down (v0.8.34a): public invite page stores tokens pre-auth, post-login auto-claim banner with retry, ops funnel grouped by source, and dossiers show invite attribution links.
+Invite conversion booster (v0.8.35): polished invite landing with benefits/invalid state, auto-claim success banner with CV CTA, and ops funnel filters (window/source/include unknown) plus shareable links and access shortcut.
 
 ## Deterministic vs OpenAI usage
 Deterministic engines include role-fit.ts, interview-lift.ts, outreach-templates.ts, submission-quality.ts, and metrics-helper.ts. OpenAI is only used for autopack generation via server-side API calls.

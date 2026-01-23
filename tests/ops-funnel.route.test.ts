@@ -127,6 +127,22 @@ describe("ops funnel route", () => {
     const body = await res.json();
     expect(res.status).toBe(200);
     expect(body.ok).toBe(true);
-    expect(computeFunnelSummaryMock).toHaveBeenLastCalledWith({ supabase: {}, groupBySource: true });
+    expect(computeFunnelSummaryMock).toHaveBeenLastCalledWith(expect.objectContaining({ supabase: {}, groupBySource: true }));
+  });
+
+  it("passes filters and includeUnknown", async () => {
+    const res = await GET(new Request("http://localhost/api/ops/funnel?window=7d&source=instagram&includeUnknown=0"));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(computeFunnelSummaryMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        supabase: {},
+        groupBySource: false,
+        source: "instagram",
+        window: "7d",
+        includeUnknown: false,
+      })
+    );
   });
 });
