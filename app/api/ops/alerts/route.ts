@@ -7,7 +7,7 @@ import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { buildRagStatus } from "@/lib/ops/rag-status";
 import { listWebhookFailures } from "@/lib/ops/webhook-failures";
 import { buildOpsAlerts } from "@/lib/ops/ops-alerts";
-import { loadAlertStates, saveAlertStatesAndEvents, listRecentAlertEvents } from "@/lib/ops/ops-alerts-store";
+import { loadAlertStates, saveAlertStatesAndEvents, listRecentAlertEvents, listHandledAlertEvents } from "@/lib/ops/ops-alerts-store";
 import { notifyAlertTransitions } from "@/lib/ops/ops-alerts-notify";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 
@@ -93,7 +93,7 @@ export async function GET(request: Request) {
       lastState: previousStates,
     });
 
-    const { transitions } = await saveAlertStatesAndEvents({
+    const { transitions, eventIdsByKey } = await saveAlertStatesAndEvents({
       computedAlerts: alertsModel.alerts,
       previousStates,
       now,
@@ -110,12 +110,25 @@ export async function GET(request: Request) {
           meta: { key: t.key, to: t.to, severity: t.severity, requestId },
         }))
       );
-      await notifyAlertTransitions({ transitions: transitions.map((t) => ({ key: t.key, to: t.to } as any)), alerts: alertsModel.alerts, previousStates, now });
+      await notifyAlertTransitions({
+        transitions: transitions.map((t) => ({ key: t.key, to: t.to } as any)),
+        alerts: alertsModel.alerts,
+        previousStates,
+        now,
+        eventIdsByKey,
+      });
     }
 
     const recentEvents = await listRecentAlertEvents({ sinceHours: 24, now });
+    const handledEvents = await listHandledAlertEvents({ sinceHours: 24, now });
     const webhookConfigured = Boolean(process.env.OPS_ALERT_WEBHOOK_URL);
     const handled = await listHandledAlerts({ sinceHours: 24, now });
+    const recentEventsWithHandled = recentEvents.map((ev) => {
+      const eventHandled = handledEvents[ev.id];
+      const keyHandled = handled[ev.key];
+      const handledMeta = eventHandled ? eventHandled : keyHandled ? { ...keyHandled, source: "ui" } : null;
+      return { ...ev, handled: handledMeta };
+    });
 
     return NextResponse.json(
       {
@@ -126,7 +139,7 @@ export async function GET(request: Request) {
         headline: alertsModel.headline,
         firingCount: alertsModel.firingCount,
         alerts: alertsModel.alerts,
-        recentEvents,
+        recentEvents: recentEventsWithHandled,
         webhookConfigured,
         handled,
         currentUserId: user.id,

@@ -36,6 +36,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 ## Quick prod checks (v0.8.39)
 - Click Send test alert repeatedly; only one test event is created and the button cools down for 10s with a countdown.
 
+## Quick prod checks (v0.8.40)
+- Send a test alert → event shows in Recent with eventId.
+- POST /api/ops/alerts/ack with eventId → event shows Handled badge (source shown).
+- Re-POST same eventId → deduped:true, no duplicate handled records.
+
 ## Quick prod checks (v0.8.09)
 - With one archived and one active application, Activation and Keep Momentum CTAs deep-link to the newest active app (outreach/overview anchors) without dead links.
 - With zero applications, both cards surface a create-application CTA instead of empty/null states.

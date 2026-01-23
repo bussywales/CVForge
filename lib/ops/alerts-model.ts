@@ -9,7 +9,7 @@ export type OpsAlertsModel = {
   webhookConfigured?: boolean;
   jsonError?: any;
   requestId?: string | null;
-  handled?: Record<string, { at: string }>;
+  handled?: Record<string, { at: string; by?: string | null; source?: string | null }>;
   ownership?: Record<string, { claimedByUserId: string; claimedAt: string; expiresAt: string; eventId?: string | null; note?: string | null }>;
   snoozes?: Record<string, { snoozedByUserId: string; snoozedAt: string; untilAt: string; reason?: string | null }>;
   currentUserId?: string | null;
@@ -35,15 +35,28 @@ export const OPS_ALERTS_DEFAULT: OpsAlertsModel = {
 export function coerceOpsAlertsModel(input: any): OpsAlertsModel {
   if (!input || typeof input !== "object") return { ...OPS_ALERTS_DEFAULT };
   const alerts = Array.isArray((input as any).alerts) ? (input as any).alerts : [];
-  const recentEvents = Array.isArray((input as any).recentEvents) ? (input as any).recentEvents : [];
   const handledRaw = (input as any).handled;
   const handled =
     handledRaw && typeof handledRaw === "object" && !Array.isArray(handledRaw)
-      ? Object.entries(handledRaw as Record<string, any>).reduce<Record<string, { at: string }>>((acc, [k, v]) => {
-          if (v && typeof v === "object" && typeof (v as any).at === "string") acc[k] = { at: (v as any).at };
+      ? Object.entries(handledRaw as Record<string, any>).reduce<Record<string, { at: string; by?: string | null; source?: string | null }>>((acc, [k, v]) => {
+          if (v && typeof v === "object" && typeof (v as any).at === "string")
+            acc[k] = { at: (v as any).at, by: typeof (v as any).by === "string" ? (v as any).by : null, source: typeof (v as any).source === "string" ? (v as any).source : null };
           return acc;
         }, {})
       : {};
+  const recentEvents = Array.isArray((input as any).recentEvents)
+    ? (input as any).recentEvents.map((ev: any) => ({
+        ...ev,
+        handled:
+          ev?.handled && typeof ev.handled === "object" && typeof ev.handled.at === "string"
+            ? {
+                at: ev.handled.at,
+                by: typeof ev.handled.by === "string" ? ev.handled.by : null,
+                source: typeof ev.handled.source === "string" ? ev.handled.source : null,
+              }
+            : null,
+      }))
+    : [];
   const ownershipRaw = (input as any).ownership;
   const ownership =
     ownershipRaw && typeof ownershipRaw === "object" && !Array.isArray(ownershipRaw)

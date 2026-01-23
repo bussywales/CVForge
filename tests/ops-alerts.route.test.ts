@@ -90,8 +90,9 @@ beforeAll(async () => {
   }));
   vi.doMock("@/lib/ops/ops-alerts-store", () => ({
     loadAlertStates: vi.fn().mockResolvedValue({}),
-    saveAlertStatesAndEvents: vi.fn().mockResolvedValue({ transitions: [], updatedStates: {} }),
+    saveAlertStatesAndEvents: vi.fn().mockResolvedValue({ transitions: [], updatedStates: {}, eventIdsByKey: {} }),
     listRecentAlertEvents: vi.fn().mockResolvedValue([]),
+    listHandledAlertEvents: vi.fn().mockResolvedValue({}),
   }));
   vi.doMock("@/lib/ops/ops-alerts-notify", () => ({
     notifyAlertTransitions: vi.fn().mockResolvedValue([]),

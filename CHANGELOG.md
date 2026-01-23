@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.40
+- Ops Alerts webhook ACK: webhook notifications now include eventId and ack deep link; new ops-only /api/ops/alerts/ack dedupes and records handled with masked actor/source; UI shows handled badges (UI/Slack/etc.), disables duplicate handle, and offers Copy ACK curl; notify logs added.
+
 ## v0.8.39
 - Ops Alerts test sends are deduped within 10s (server-side) and the Send test alert button now shows a 10s cooldown countdown after success, auto-expands Test events as before, and stays enabled when a send fails; new telemetry added for send/cooldown/dedupe.
 

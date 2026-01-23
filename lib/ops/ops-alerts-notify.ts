@@ -6,16 +6,27 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 
 type Transition = { key: string; to: "ok" | "firing" };
 
-function buildPayload(alert: OpsAlert, nowIso: string) {
+function buildPayload(alert: OpsAlert, now: Date, eventId?: string | null) {
+  const windowMinutes = 15;
+  const windowTo = now.toISOString();
+  const windowFrom = new Date(now.getTime() - windowMinutes * 60 * 1000).toISOString();
   return {
+    eventId: eventId ?? null,
     key: alert.key,
     severity: alert.severity,
     state: alert.state,
     summary: alert.summary,
     window: "15m",
-    at: nowIso,
-    actions: alert.actions?.map((a) => ({ label: a.label, href: a.href, kind: a.kind ?? null })) ?? [],
+    windowMinutes,
+    windowFrom,
+    windowTo,
+    at: now.toISOString(),
+    actions:
+      alert.actions?.map((a) => ({ label: a.label, href: a.href, kind: a.kind ?? null }))?.concat(
+        eventId ? [{ label: "Mark handled (webhook)", href: `/api/ops/alerts/ack?eventId=${encodeURIComponent(eventId)}`, kind: "ack" }] : []
+      ) ?? (eventId ? [{ label: "Mark handled (webhook)", href: `/api/ops/alerts/ack?eventId=${encodeURIComponent(eventId)}`, kind: "ack" }] : []),
     signals: alert.signals ?? {},
+    headline: alert.summary,
   };
 }
 
@@ -25,12 +36,14 @@ export async function notifyAlertTransitions({
   previousStates,
   now = new Date(),
   includeResolutions = true,
+  eventIdsByKey = {},
 }: {
   transitions: Transition[];
   alerts: OpsAlert[];
   previousStates: Record<string, AlertStateRow>;
   now?: Date;
   includeResolutions?: boolean;
+  eventIdsByKey?: Record<string, string>;
 }) {
   const url = process.env.OPS_ALERT_WEBHOOK_URL;
   const results: Array<{ key: string; sent: boolean; error?: string }> = [];
@@ -64,10 +77,12 @@ export async function notifyAlertTransitions({
       });
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), 4000);
+      const eventId = eventIdsByKey[alert.key] ?? null;
+      const payload = buildPayload(alert, now, eventId);
       await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload(alert, nowIso)),
+        body: JSON.stringify(payload),
         signal: controller.signal,
       }).catch(() => null);
       clearTimeout(timer);
@@ -76,7 +91,13 @@ export async function notifyAlertTransitions({
         actor_user_id: null,
         target_user_id: null,
         action: "ops_alert_notify_success",
-        meta: { key: transition.key },
+        meta: { key: transition.key, eventId },
+      });
+      await admin.from("ops_audit_log").insert({
+        actor_user_id: null,
+        target_user_id: null,
+        action: "ops_alerts_webhook_notify_sent",
+        meta: { key: transition.key, eventId, severity: alert.severity, windowMinutes: 15 },
       });
       results.push({ key: transition.key, sent: true });
     } catch (error) {

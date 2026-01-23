@@ -79,6 +79,7 @@ export async function POST(request: Request) {
     ],
     previousStates: {},
     now,
+    eventIdsByKey: { ops_alert_test: eventId ?? undefined } as any,
   });
 
   await admin.from("ops_audit_log").insert({

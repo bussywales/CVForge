@@ -21,7 +21,7 @@ type Alert = {
 
 type AlertEvent = { id: string; key: string; state: string; at: string; summary: string; signals: Record<string, any>; isTest?: boolean; severity?: string | null };
 
-type HandledMap = Record<string, { at: string }>;
+type HandledMap = Record<string, { at: string; by?: string | null; source?: string | null }>;
 
 const HANDLED_COOLDOWN_MS = 15 * 60 * 1000;
 const OWNERSHIP_WINDOW = "15m";
@@ -59,6 +59,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const [testCooldownSeconds, setTestCooldownSeconds] = useState(0);
   const cooldownLoggedRef = useRef(false);
   const cooldownKeyRef = useRef<string | null>(null);
+  const ackViewLogged = useRef(false);
 
   const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a?.state === "firing"), [data?.alerts]);
   const recentEvents = useMemo(() => data?.recentEvents ?? [], [data?.recentEvents]);
@@ -167,6 +168,13 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   }, [cooldown]);
 
   useEffect(() => {
+    if (testEvents.length && !ackViewLogged.current) {
+      ackViewLogged.current = true;
+      logMonetisationClientEvent("ops_alerts_ack_view", null, "ops", { meta: { window: windowLabel } });
+    }
+  }, [testEvents.length, windowLabel]);
+
+  useEffect(() => {
     if (testCooldownSeconds <= 0) {
       if (cooldownKeyRef.current && typeof window !== "undefined") {
         window.sessionStorage.removeItem(cooldownKeyRef.current);
@@ -183,6 +191,12 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     const id = window.setInterval(() => setTestCooldownSeconds((prev) => Math.max(0, prev - 1)), 1000);
     return () => window.clearInterval(id);
   }, [testCooldownSeconds, windowLabel]);
+
+  const handledLabel = (handled?: { source?: string | null }) => {
+    if (!handled) return null;
+    const source = handled.source ? handled.source.replace(/^\w/, (c) => c.toUpperCase()) : "UI";
+    return `Handled (${source})`;
+  };
 
   const headlineTone = useMemo(() => {
     if (!data) return { label: "Unavailable", className: "bg-slate-100 text-slate-700" };
@@ -749,7 +763,14 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                           {ev.state}
                         </span>
                       </td>
-                      <td className="px-2 py-1">{ev.summary}</td>
+                      <td className="px-2 py-1">
+                        <span className="block">{ev.summary}</span>
+                        {ev.handled ? (
+                          <span className="mt-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                            {handledLabel(ev.handled)}
+                          </span>
+                        ) : null}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -779,9 +800,14 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                     return (
                       <li key={ev.id} className="rounded-lg border border-black/5 bg-white px-3 py-2 text-xs text-[rgb(var(--muted))]">
                         <div className="flex flex-wrap items-center justify-between gap-2">
-                          <p className="font-semibold text-[rgb(var(--ink))]">
-                            {formatShortLocalTime(ev.at)} · {ev.summary}
-                          </p>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <p className="font-semibold text-[rgb(var(--ink))]">
+                              {formatShortLocalTime(ev.at)} · {ev.summary}
+                            </p>
+                            {ev.handled ? (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">{handledLabel(ev.handled)}</span>
+                            ) : null}
+                          </div>
                           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-[rgb(var(--muted))]">
                             {ev.severity ?? "low"}
                           </span>
@@ -796,6 +822,20 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                           >
                             Open in Incidents
                           </Link>
+                          {ev.id ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                const cmd = `curl -X POST -H "Content-Type: application/json" -d '{\"eventId\":\"${ev.id}\",\"source\":\"webhook\"}' ${origin}/api/ops/alerts/ack`;
+                                if (navigator?.clipboard?.writeText) navigator.clipboard.writeText(cmd);
+                                logMonetisationClientEvent("ops_alerts_ack_curl_copy", null, "ops", { meta: { window: windowLabel } });
+                              }}
+                              className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                            >
+                              Copy ACK curl
+                            </button>
+                          ) : null}
                         </div>
                       </li>
                     );

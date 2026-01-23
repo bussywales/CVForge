@@ -43,7 +43,7 @@ export async function saveAlertStatesAndEvents({
   previousStates: Record<string, AlertStateRow>;
   now?: Date;
   rulesVersion: string;
-}): Promise<{ transitions: AlertTransition[]; updatedStates: Record<string, AlertStateRow> }> {
+}): Promise<{ transitions: AlertTransition[]; updatedStates: Record<string, AlertStateRow>; eventIdsByKey: Record<string, string> }> {
   const admin = createServiceRoleClient();
   const nowIso = now.toISOString();
   const rows: AlertStateRow[] = [];
@@ -79,15 +79,20 @@ export async function saveAlertStatesAndEvents({
   if (rows.length) {
     await admin.from("ops_alert_states").upsert(rows, { onConflict: "key" });
   }
+  let eventIdsByKey: Record<string, string> = {};
   if (events.length) {
-    await admin.from("ops_alert_events").insert(events);
+    const { data: inserted } = await admin.from("ops_alert_events").insert(events).select("id,key");
+    eventIdsByKey = (inserted ?? []).reduce<Record<string, string>>((acc, row: any) => {
+      if (row?.key && row?.id) acc[row.key] = row.id;
+      return acc;
+    }, {});
   }
 
   const updatedStates: Record<string, AlertStateRow> = {};
   rows.forEach((row) => {
     updatedStates[row.key] = row;
   });
-  return { transitions, updatedStates };
+  return { transitions, updatedStates, eventIdsByKey };
 }
 
 export async function updateAlertNotificationMeta(key: string, { lastNotifiedAt, payloadHash }: { lastNotifiedAt: string; payloadHash: string }) {
@@ -128,4 +133,29 @@ export async function listRecentAlertEvents({ sinceHours = 24, now = new Date() 
       severity,
     };
   });
+}
+
+export async function listHandledAlertEvents({ sinceHours = 24, now = new Date() }: { sinceHours?: number; now?: Date }) {
+  const admin = createServiceRoleClient();
+  const since = new Date(now.getTime() - sinceHours * 60 * 60 * 1000).toISOString();
+  const { data } = await admin
+    .from("application_activities")
+    .select("id,body,occurred_at,created_at")
+    .eq("type", "monetisation.ops_alert_handled")
+    .gte("occurred_at", since)
+    .order("occurred_at", { ascending: false })
+    .limit(200);
+  const handled: Record<string, { at: string; by?: string | null; source?: string | null }> = {};
+  (data ?? []).forEach((row: any) => {
+    try {
+      const meta = JSON.parse(row.body ?? "{}");
+      if (typeof meta?.eventId === "string") {
+        const at = row.occurred_at ?? row.created_at ?? now.toISOString();
+        handled[meta.eventId] = { at, by: typeof meta.actor === "string" ? meta.actor : null, source: typeof meta.source === "string" ? meta.source : null };
+      }
+    } catch {
+      /* ignore */
+    }
+  });
+  return handled;
 }
