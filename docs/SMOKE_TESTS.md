@@ -138,12 +138,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Ops user dossier shows Invite attribution block when available.
 - Ops funnel page shows group-by-source rows for 24h/7d with calm cooldown handling.
 
-## Quick prod checks (v0.8.35)
-- Open /app/ops/alerts with no alerts → shows “No alerts firing” with last-checked timestamp (no “unavailable”).
-- Simulate alerts API failure → “Alerts unavailable” banner with requestId appears and page stays usable; webhook unconfigured shows info note only.
-- Open an invalid /invite/&lt;token&gt; → calm invalid state appears with Copy support snippet; valid token shows benefits + Continue/Claim.
-- After login with stored token, auto-claim success banner appears with “Create your first CV” CTA; failure banner still allows retry + “Why am I seeing this?”.
-- Ops funnel page: filter by window/source/include unknown, copy current link; counts update and cooldown still calm.
+## Quick prod checks (v0.8.35a)
+- Visit /app/ops/alerts with no alerts firing → page loads calm empty state, no crash, headline reads “No alerts firing (last 15m)”.
+- Click Refresh → no crash, last-checked timestamp updates.
+- Trigger Send test alert (if allowed) or simulate non-JSON response → graceful banner with requestId, no crash, last good state kept.
+- Header shows real headline and last-checked time; webhook not configured shows informational note only.
 
 ## Quick prod checks (v0.8.34b)
 - Open /app/ops/alerts while the API returns non-JSON (e.g., bad upstream) → page shows Alerts unavailable banner with requestId, no crash; last-good data stays visible.

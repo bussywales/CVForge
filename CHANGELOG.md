@@ -1,12 +1,20 @@
 # Changelog
 
 # Changelog
+# Changelog
 
 ## v0.8.35
 - Ops Alerts polish: load state semantics prevent false “unavailable”, last-checked timestamp always shown, webhook note is informational with setup link, and model coercion keeps arrays safe.
 - Invite conversion booster: polished invite landing with benefits, invalid-state support snippet, and signed-in claim CTA with calm copy.
 - Post-claim UX: auto-claim success banner with CV CTA, retry banner gains “why” help, and extra logging/guardrails.
 - Ops funnel filters: API supports window/source/includeUnknown, UI adds filters + copyable deep links, and ops access links to funnel by source.
+
+## v0.8.35a
+- Docs-only release metadata for the already shipped alerts availability polish.
+- Alerts models coerced safely (no crash on missing fields) with safe refresh/test handling for non-JSON/partial payloads.
+- Header semantics show real state with last-checked timestamp; calm empty state when no alerts.
+- Webhook note is informational with setup link; short time formatter added.
+- Logging allowlists updated and tests added in prior code; this tag records the release without new code changes.
 
 ## v0.8.34b
 - Ops Alerts hardened against non-JSON responses: safe fetch/json helper, guarded parsing on initial load/refresh/test, and calm empty/error states with requestId.

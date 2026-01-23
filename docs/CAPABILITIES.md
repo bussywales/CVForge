@@ -159,7 +159,7 @@ Onboarding funnel v1 (v0.8.32): deterministic onboarding steps (CV created/expor
 Invite attribution + funnel (v0.8.33): invite tokens claim to profiles with masked hashes, ops can copy invite templates (email/WhatsApp/SMS/DM), and ops funnel API/panel shows 24h/7d invite→first-value counts with rate-limited refresh and sanitised telemetry.
 Invite landing + funnel drill-down (v0.8.34a): public invite page stores tokens pre-auth, post-login auto-claim banner with retry, ops funnel grouped by source, and dossiers show invite attribution links.
 Invite alerts hardening (v0.8.34b): Ops Alerts uses safe JSON fetch, calm empty/error states with requestId, preserves last-good data on refresh failures, and adds alerts load error telemetry.
-Invite conversion booster + alerts polish (v0.8.35): invite landing benefits/invalid handling, auto-claim success banner with CV CTA, ops funnel filters (window/source/include unknown) with shareable links, and Ops Alerts shows trustworthy load state with last-checked timestamp and calm webhook note.
+Invite conversion booster + alerts polish (v0.8.35/35a): invite landing benefits/invalid handling, auto-claim success banner with CV CTA, ops funnel filters (window/source/include unknown) with shareable links, and Ops Alerts resilient to non-JSON/partial responses with coerced models, trustworthy load state, last-checked timestamp, and calm webhook note.
 
 ## Deterministic vs OpenAI usage
 Deterministic engines include role-fit.ts, interview-lift.ts, outreach-templates.ts, submission-quality.ts, and metrics-helper.ts. OpenAI is only used for autopack generation via server-side API calls.
