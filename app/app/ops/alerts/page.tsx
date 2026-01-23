@@ -40,5 +40,16 @@ export default async function OpsAlertsPage() {
     initialError = { message: "Unable to load alerts", requestId, code: "FETCH_FAILED" };
   }
 
-  return <AlertsClient initial={initial} initialError={initialError} requestId={requestId} />;
+  let workflow: any = null;
+  try {
+    const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+    const wf = await fetchJsonSafe<any>(new URL("/api/ops/alerts/workflow", base), { cache: "no-store", headers: { "x-request-id": requestId } });
+    if (wf.ok && wf.json) {
+      workflow = wf.json;
+    }
+  } catch {
+    // ignore workflow failure
+  }
+
+  return <AlertsClient initial={{ ...initial, ...(workflow ?? {}) }} initialError={initialError} requestId={requestId} />;
 }

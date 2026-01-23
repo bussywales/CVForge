@@ -129,6 +129,7 @@ export async function GET(request: Request) {
         recentEvents,
         webhookConfigured,
         handled,
+        currentUserId: user.id,
       },
       { headers }
     );

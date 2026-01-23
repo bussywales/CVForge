@@ -15,6 +15,11 @@ type BudgetKey =
   | "ops_access_invite_revoke"
   | "ops_alerts_get"
   | "ops_alerts_test"
+  | "ops_alerts_claim"
+  | "ops_alerts_release"
+  | "ops_alerts_snooze"
+  | "ops_alerts_unsnooze"
+  | "ops_alerts_workflow_get"
   | "onboarding_model_get"
   | "onboarding_skip_post"
   | "invite_claim"
@@ -46,6 +51,11 @@ const ROUTE_BUDGETS: Record<BudgetKey, BudgetLevel> = {
   ops_access_invite_revoke: "medium",
   ops_alerts_get: "medium",
   ops_alerts_test: "medium",
+  ops_alerts_claim: "medium",
+  ops_alerts_release: "medium",
+  ops_alerts_snooze: "medium",
+  ops_alerts_unsnooze: "medium",
+  ops_alerts_workflow_get: "medium",
   onboarding_model_get: "medium",
   onboarding_skip_post: "medium",
   invite_claim: "medium",

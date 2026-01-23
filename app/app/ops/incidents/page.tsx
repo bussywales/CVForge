@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function IncidentConsole({
   searchParams,
 }: {
-  searchParams?: { requestId?: string; days?: string; window?: string; surface?: string; code?: string; signal?: string; from?: string };
+  searchParams?: { requestId?: string; days?: string; window?: string; surface?: string; code?: string; signal?: string; from?: string; claimed?: string };
 }) {
   const { user } = await getSupabaseUser();
   const requestId = makeRequestId(headers().get("x-request-id"));
@@ -51,6 +51,7 @@ export default async function IncidentConsole({
   const initialCode = searchParams?.code ?? "";
   const initialFrom = searchParams?.from ?? null;
   const initialSignal = searchParams?.signal ?? null;
+  const initialClaimed = searchParams?.claimed ?? null;
 
   const recent = await getRecentIncidentEvents({ limit: 200, sinceDays });
   const detail = lookupId ? await getIncidentByRequestId(lookupId) : null;
@@ -69,6 +70,7 @@ export default async function IncidentConsole({
       initialCode={initialCode}
       initialFrom={initialFrom}
       initialSignal={initialSignal}
+      initialClaimed={initialClaimed}
     />
   );
 }

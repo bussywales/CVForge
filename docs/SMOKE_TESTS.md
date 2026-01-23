@@ -25,6 +25,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Click Send test alert → API returns ok+eventId, Recent tab shows Test events section with audits/incidents links for the new is_test event.
 - Click Mark handled on an alert → outcome saves (requestId optional), handled badge shows timestamp, and the prompt suppresses for ~15 minutes.
 
+## Quick prod checks (v0.8.37)
+- Claim an alert → badge shows claimed by me + expiry; Release returns to unclaimed.
+- Snooze an alert for 1h → snoozed until timestamp shows; Unsnooze removes it.
+- Add a handoff note while claimed → note persists and shows collapsed; workflow fetch failures don’t break the page.
+
 ## Quick prod checks (v0.8.09)
 - With one archived and one active application, Activation and Keep Momentum CTAs deep-link to the newest active app (outreach/overview anchors) without dead links.
 - With zero applications, both cards surface a create-application CTA instead of empty/null states.

@@ -10,6 +10,9 @@ export type OpsAlertsModel = {
   jsonError?: any;
   requestId?: string | null;
   handled?: Record<string, { at: string }>;
+  ownership?: Record<string, { claimedByUserId: string; claimedAt: string; expiresAt: string; eventId?: string | null; note?: string | null }>;
+  snoozes?: Record<string, { snoozedByUserId: string; snoozedAt: string; untilAt: string; reason?: string | null }>;
+  currentUserId?: string | null;
 };
 
 export const OPS_ALERTS_DEFAULT: OpsAlertsModel = {
@@ -24,6 +27,9 @@ export const OPS_ALERTS_DEFAULT: OpsAlertsModel = {
   jsonError: null,
   webhookConfigured: false,
   handled: {},
+  ownership: {},
+  snoozes: {},
+  currentUserId: null,
 };
 
 export function coerceOpsAlertsModel(input: any): OpsAlertsModel {
@@ -38,6 +44,41 @@ export function coerceOpsAlertsModel(input: any): OpsAlertsModel {
           return acc;
         }, {})
       : {};
+  const ownershipRaw = (input as any).ownership;
+  const ownership =
+    ownershipRaw && typeof ownershipRaw === "object" && !Array.isArray(ownershipRaw)
+      ? Object.entries(ownershipRaw as Record<string, any>).reduce<
+          Record<string, { claimedByUserId: string; claimedAt: string; expiresAt: string; eventId?: string | null; note?: string | null }>
+        >((acc, [k, v]) => {
+          if (v && typeof v === "object" && typeof (v as any).claimedAt === "string" && typeof (v as any).expiresAt === "string" && typeof (v as any).claimedByUserId === "string") {
+            acc[k] = {
+              claimedByUserId: (v as any).claimedByUserId,
+              claimedAt: (v as any).claimedAt,
+              expiresAt: (v as any).expiresAt,
+              eventId: (v as any).eventId ?? null,
+              note: typeof (v as any).note === "string" ? (v as any).note : null,
+            };
+          }
+          return acc;
+        }, {})
+      : {};
+  const snoozesRaw = (input as any).snoozes;
+  const snoozes =
+    snoozesRaw && typeof snoozesRaw === "object" && !Array.isArray(snoozesRaw)
+      ? Object.entries(snoozesRaw as Record<string, any>).reduce<
+          Record<string, { snoozedByUserId: string; snoozedAt: string; untilAt: string; reason?: string | null }>
+        >((acc, [k, v]) => {
+          if (v && typeof v === "object" && typeof (v as any).snoozedAt === "string" && typeof (v as any).untilAt === "string" && typeof (v as any).snoozedByUserId === "string") {
+            acc[k] = {
+              snoozedByUserId: (v as any).snoozedByUserId,
+              snoozedAt: (v as any).snoozedAt,
+              untilAt: (v as any).untilAt,
+              reason: typeof (v as any).reason === "string" ? (v as any).reason : null,
+            };
+          }
+          return acc;
+        }, {})
+      : {};
   return {
     ...OPS_ALERTS_DEFAULT,
     ...input,
@@ -48,5 +89,8 @@ export function coerceOpsAlertsModel(input: any): OpsAlertsModel {
     requestId: (input as any).requestId ?? null,
     webhookConfigured: Boolean((input as any).webhookConfigured),
     handled,
+    ownership,
+    snoozes,
+    currentUserId: typeof (input as any).currentUserId === "string" ? (input as any).currentUserId : null,
   };
 }

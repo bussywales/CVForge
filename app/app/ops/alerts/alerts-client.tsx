@@ -24,6 +24,11 @@ type AlertEvent = { id: string; key: string; state: string; at: string; summary:
 type HandledMap = Record<string, { at: string }>;
 
 const HANDLED_COOLDOWN_MS = 15 * 60 * 1000;
+const OWNERSHIP_WINDOW = "15m";
+const SNOOZE_OPTIONS = [
+  { minutes: 60, label: "Snooze 1h" },
+  { minutes: 24 * 60, label: "Snooze 24h" },
+];
 
 export default function AlertsClient({ initial, initialError, requestId }: { initial: OpsAlertsModel | null; initialError?: { message?: string; requestId?: string | null; code?: string | null } | null; requestId: string | null }) {
   const [data, setData] = useState<OpsAlertsModel>(coerceOpsAlertsModel(initial));
@@ -42,6 +47,13 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const [handledErrors, setHandledErrors] = useState<Record<string, string | null>>({});
   const [testEventsOpen, setTestEventsOpen] = useState(false);
   const handledViewLogged = useRef<Set<string>>(new Set());
+  const [handoffNotes, setHandoffNotes] = useState<Record<string, string>>({});
+  const [ownership, setOwnership] = useState<Record<string, { claimedByUserId: string; claimedAt: string; expiresAt: string; eventId?: string | null; note?: string | null }>>(
+    initial?.ownership ?? {}
+  );
+  const [snoozes, setSnoozes] = useState<Record<string, { snoozedByUserId: string; snoozedAt: string; untilAt: string; reason?: string | null }>>(initial?.snoozes ?? {});
+  const [workflowError, setWorkflowError] = useState<string | null>(null);
+  const [workflowLoading, setWorkflowLoading] = useState(false);
 
   const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a?.state === "firing"), [data?.alerts]);
   const recentEvents = useMemo(() => data?.recentEvents ?? [], [data?.recentEvents]);
@@ -81,6 +93,29 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     });
   }, [data?.handled]);
 
+  const loadWorkflow = async () => {
+    setWorkflowLoading(true);
+    setWorkflowError(null);
+    try {
+      const res = await fetchJsonSafe<{ ownership?: any; snoozes?: any; serverNow?: string }>("/api/ops/alerts/workflow", {
+        cache: "no-store",
+      });
+      if (!res.ok || !res.json) {
+        setWorkflowError(res.error?.message ?? "Unable to load workflow");
+        logMonetisationClientEvent("ops_alert_workflow_load_error", null, "ops", { code: res.error?.code ?? res.status });
+        return;
+      }
+      const wf = res.json;
+      if (wf?.ownership && typeof wf.ownership === "object") setOwnership(wf.ownership as any);
+      if (wf?.snoozes && typeof wf.snoozes === "object") setSnoozes(wf.snoozes as any);
+    } catch {
+      setWorkflowError("Unable to load workflow");
+      logMonetisationClientEvent("ops_alert_workflow_load_error", null, "ops", { code: "NETWORK" });
+    } finally {
+      setWorkflowLoading(false);
+    }
+  };
+
   useEffect(() => {
     (data?.alerts ?? []).forEach((alert) => {
       if (handledViewLogged.current.has(alert.key)) return;
@@ -88,6 +123,20 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       logMonetisationClientEvent("ops_alert_handled_view", null, "ops", { alertKey: alert.key });
     });
   }, [data?.alerts]);
+
+  useEffect(() => {
+    loadWorkflow();
+  }, []);
+
+  useEffect(() => {
+    setHandoffNotes((prev) => {
+      const next = { ...prev };
+      Object.entries(ownership ?? {}).forEach(([key, value]) => {
+        if (value?.note) next[key] = value.note;
+      });
+      return next;
+    });
+  }, [ownership]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -224,11 +273,146 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     }
   };
 
+  const claimAlert = async (alert: Alert) => {
+    logMonetisationClientEvent("ops_alert_claim_click", null, "ops", { alertKey: alert.key });
+    try {
+      const res = await fetchJsonSafe<any>("/api/ops/alerts/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alertKey: alert.key, windowLabel: OWNERSHIP_WINDOW, eventId: alert.signals?.eventId ?? null, note: alert.signals?.handoffNote ?? null }),
+      });
+      if (!res.ok || !res.json) {
+        logMonetisationClientEvent("ops_alert_claim_error", null, "ops", { alertKey: alert.key, code: res.error?.code ?? res.status });
+        setWorkflowError(res.error?.message ?? "Unable to claim");
+        return;
+      }
+      const info = res.json?.ownership;
+      setOwnership((prev) => ({
+        ...prev,
+        [alert.key]: {
+          claimedByUserId: info?.claimedBy ?? (data as any)?.currentUserId ?? "",
+          claimedAt: info?.claimedAt ?? new Date().toISOString(),
+          expiresAt: info?.expiresAt ?? new Date().toISOString(),
+          eventId: info?.eventId ?? null,
+          note: info?.note ?? null,
+        },
+      }));
+      logMonetisationClientEvent("ops_alert_claim_success", null, "ops", { alertKey: alert.key });
+    } catch {
+      logMonetisationClientEvent("ops_alert_claim_error", null, "ops", { alertKey: alert.key, code: "NETWORK" });
+      setWorkflowError("Unable to claim");
+    }
+  };
+
+  const releaseAlert = async (alert: Alert) => {
+    logMonetisationClientEvent("ops_alert_release_click", null, "ops", { alertKey: alert.key });
+    try {
+      const res = await fetchJsonSafe<any>("/api/ops/alerts/release", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alertKey: alert.key, windowLabel: OWNERSHIP_WINDOW }),
+      });
+      if (!res.ok || !res.json) {
+        logMonetisationClientEvent("ops_alert_release_error", null, "ops", { alertKey: alert.key, code: res.error?.code ?? res.status });
+        setWorkflowError(res.error?.message ?? "Unable to release");
+        return;
+      }
+      setOwnership((prev) => {
+        const next = { ...prev };
+        delete next[alert.key];
+        return next;
+      });
+      logMonetisationClientEvent("ops_alert_release_success", null, "ops", { alertKey: alert.key });
+    } catch {
+      logMonetisationClientEvent("ops_alert_release_error", null, "ops", { alertKey: alert.key, code: "NETWORK" });
+      setWorkflowError("Unable to release");
+    }
+  };
+
+  const snooze = async (alert: Alert, minutes: number) => {
+    logMonetisationClientEvent("ops_alert_snooze_click", null, "ops", { alertKey: alert.key, minutes });
+    try {
+      const res = await fetchJsonSafe<any>("/api/ops/alerts/snooze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alertKey: alert.key, windowLabel: OWNERSHIP_WINDOW, minutes }),
+      });
+      if (!res.ok || !res.json) {
+        logMonetisationClientEvent("ops_alert_snooze_error", null, "ops", { alertKey: alert.key, code: res.error?.code ?? res.status });
+        setWorkflowError(res.error?.message ?? "Unable to snooze");
+        return;
+      }
+      const sn = res.json?.snooze;
+      setSnoozes((prev) => ({
+        ...prev,
+        [alert.key]: {
+          snoozedByUserId: sn?.snoozedBy ?? (data as any)?.currentUserId ?? "",
+          snoozedAt: sn?.snoozedAt ?? new Date().toISOString(),
+          untilAt: sn?.untilAt ?? new Date().toISOString(),
+          reason: sn?.reason ?? null,
+        },
+      }));
+      logMonetisationClientEvent("ops_alert_snooze_success", null, "ops", { alertKey: alert.key, minutes });
+    } catch {
+      logMonetisationClientEvent("ops_alert_snooze_error", null, "ops", { alertKey: alert.key, code: "NETWORK" });
+      setWorkflowError("Unable to snooze");
+    }
+  };
+
+  const unsnooze = async (alert: Alert) => {
+    logMonetisationClientEvent("ops_alert_unsnooze_click", null, "ops", { alertKey: alert.key });
+    try {
+      const res = await fetchJsonSafe<any>("/api/ops/alerts/unsnooze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alertKey: alert.key, windowLabel: OWNERSHIP_WINDOW }),
+      });
+      if (!res.ok || !res.json) {
+        logMonetisationClientEvent("ops_alert_unsnooze_error", null, "ops", { alertKey: alert.key, code: res.error?.code ?? res.status });
+        setWorkflowError(res.error?.message ?? "Unable to unsnooze");
+        return;
+      }
+      setSnoozes((prev) => {
+        const next = { ...prev };
+        delete next[alert.key];
+        return next;
+      });
+      logMonetisationClientEvent("ops_alert_unsnooze_success", null, "ops", { alertKey: alert.key });
+    } catch {
+      logMonetisationClientEvent("ops_alert_unsnooze_error", null, "ops", { alertKey: alert.key, code: "NETWORK" });
+      setWorkflowError("Unable to unsnooze");
+    }
+  };
+
+  const saveHandoff = async (alert: Alert, note: string) => {
+    const sanitized = note.replace(/\s+/g, " ").trim().slice(0, 280).replace(/https?:\/\/\S+/gi, "[url-redacted]");
+    try {
+      await fetchJsonSafe<any>("/api/ops/alerts/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ alertKey: alert.key, windowLabel: OWNERSHIP_WINDOW, note: sanitized, eventId: alert.signals?.eventId ?? null }),
+      });
+      setOwnership((prev) => ({
+        ...prev,
+        [alert.key]: prev[alert.key] ? { ...prev[alert.key], note: sanitized } : prev[alert.key],
+      }));
+      logMonetisationClientEvent("ops_alert_handoff_note_save", null, "ops", { alertKey: alert.key, length: sanitized.length });
+    } catch {
+      logMonetisationClientEvent("ops_alert_handoff_note_save", null, "ops", { alertKey: alert.key, length: sanitized.length, code: "NETWORK" });
+    }
+  };
+
   const renderAlertCard = (alert: Alert) => {
     const handledInfo = handled[alert.key];
     const handledRecent = handledInfo ? Date.now() - new Date(handledInfo.at).getTime() < HANDLED_COOLDOWN_MS : false;
     const note = handledNotes[alert.key] ?? "";
     const handledError = handledErrors[alert.key] ?? null;
+    const ownershipInfo = ownership[alert.key];
+    const snoozeInfo = snoozes[alert.key];
+    const now = new Date();
+    const claimedByMe = ownershipInfo?.claimedByUserId === (data as any)?.currentUserId;
+    const claimed = ownershipInfo && new Date(ownershipInfo.expiresAt).getTime() > now.getTime();
+    const snoozed = snoozeInfo && new Date(snoozeInfo.untilAt).getTime() > now.getTime();
     return (
       <div key={alert.key} className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-2">
@@ -256,13 +440,104 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
           {alert.actions?.map((action) => (
             <Link
               key={`${alert.key}-${action.href}`}
-              href={action.href}
+              href={
+                ownershipInfo && claimedByMe && action.kind === "incidents"
+                  ? `${action.href}${action.href.includes("?") ? "&" : "?"}claimed=me`
+                  : action.href
+              }
               onClick={() => logMonetisationClientEvent("ops_alert_action_click", null, "ops", { key: alert.key, actionKind: action.kind ?? null })}
               className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
             >
               {action.label}
             </Link>
           ))}
+        </div>
+        <div className="mt-3 space-y-2 rounded-xl border border-blue-100 bg-blue-50 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-[rgb(var(--ink))]">Ownership</p>
+            {claimed && ownershipInfo ? (
+              <span className="text-[11px] text-[rgb(var(--muted))]">
+                Claimed by {ownershipInfo.claimedByUserId === (data as any)?.currentUserId ? "me" : ownershipInfo.claimedByUserId} until{" "}
+                {formatShortLocalTime(ownershipInfo.expiresAt)}
+              </span>
+            ) : (
+              <span className="text-[11px] text-[rgb(var(--muted))]">{workflowLoading ? "Loading…" : "Unclaimed"}</span>
+            )}
+          </div>
+          {ownershipInfo?.note ? (
+            <details className="rounded-lg border border-blue-100 bg-white px-3 py-2 text-[11px] text-[rgb(var(--muted))]">
+              <summary className="cursor-pointer text-[rgb(var(--ink))]">Handoff note</summary>
+              <p className="mt-1 whitespace-pre-line">{ownershipInfo.note}</p>
+            </details>
+          ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            {!claimed ? (
+              <button
+                type="button"
+                className="rounded-full bg-[rgb(var(--ink))] px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
+                onClick={() => claimAlert(alert)}
+                disabled={workflowLoading}
+              >
+                Claim
+              </button>
+            ) : claimedByMe ? (
+              <>
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+                  onClick={() => releaseAlert(alert)}
+                  disabled={workflowLoading}
+                >
+                  Release
+                </button>
+                <input
+                  type="text"
+                  maxLength={280}
+                  value={handoffNotes[alert.key] ?? ownershipInfo?.note ?? ""}
+                  placeholder="Add handoff note (masked, optional)"
+                  onChange={(e) => setHandoffNotes((prev) => ({ ...prev, [alert.key]: e.target.value }))}
+                  onBlur={(e) => saveHandoff(alert, e.target.value)}
+                  className="flex-1 rounded-md border border-black/10 px-3 py-1 text-sm"
+                />
+              </>
+            ) : (
+              <button
+                type="button"
+                className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--muted))]"
+                disabled
+              >
+                Claimed
+              </button>
+            )}
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {snoozed ? (
+              <>
+                <span className="text-[11px] text-[rgb(var(--muted))]">Snoozed until {formatShortLocalTime(snoozeInfo?.untilAt)}</span>
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+                  onClick={() => unsnooze(alert)}
+                  disabled={workflowLoading}
+                >
+                  Unsnooze
+                </button>
+              </>
+            ) : (
+              SNOOZE_OPTIONS.map((opt) => (
+                <button
+                  key={opt.minutes}
+                  type="button"
+                  className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+                  onClick={() => snooze(alert, opt.minutes)}
+                  disabled={workflowLoading}
+                >
+                  {opt.label}
+                </button>
+              ))
+            )}
+          </div>
+          {workflowError ? <p className="text-[11px] text-rose-700">{workflowError}</p> : null}
         </div>
         <div className="mt-3 space-y-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
           <div className="flex flex-wrap items-center justify-between gap-2">

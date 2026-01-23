@@ -39,6 +39,7 @@ type Props = {
   initialCode?: string | null;
   initialFrom?: string | null;
   initialSignal?: string | null;
+  initialClaimed?: string | null;
 };
 
 type TimeFilter = "0.25" | "1" | "24" | "168";
@@ -84,6 +85,7 @@ export default function IncidentsClient({
   initialCode,
   initialFrom,
   initialSignal,
+  initialClaimed,
 }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -99,6 +101,7 @@ export default function IncidentsClient({
     highImpact: false,
     requestId: initialRequestId ?? "",
   });
+  const claimedParam = initialClaimed ?? null;
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [selected, setSelected] = useState<IncidentRecord | null>(initialLookup ?? null);
   const [playbookLinks, setPlaybookLinks] = useState<Record<string, { url: string; requestId?: string | null }>>({});
@@ -121,6 +124,7 @@ export default function IncidentsClient({
     if (nextFilters.highImpact) params.set("highImpact", "1");
     if (signalParam) params.set("signal", signalParam);
     if (fromParam) params.set("from", fromParam);
+    if (claimedParam) params.set("claimed", claimedParam);
     const qs = params.toString();
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
   };
@@ -425,7 +429,7 @@ export default function IncidentsClient({
               Back to Alerts
             </Link>
           </div>
-          <p className="text-[11px] text-[rgb(var(--muted))]">Filters: {filterSummary}</p>
+          <p className="text-[11px] text-[rgb(var(--muted))]">Filters: {filterSummary}{claimedParam === "me" ? " · claimed by me" : ""}</p>
         </div>
       ) : null}
       {hasWebhookFailures ? (

@@ -9,6 +9,12 @@
 - Incidents console: empty filtered state shows widen chips (remove code/surface, 24h, clear all) with query updates + logging; “From Alerts” banner logs a view with back link.
 - Logging/guardrails: allowlists and dedupe updated for widen/from-alerts/test/handled events; resolution outcomes accept alert_handled without requestId.
 
+## v0.8.37
+- Ops alert workflow v1: claim/release/snooze/unsnooze APIs with 15m workflow map, 30m claim TTL, masked handoff notes, and server helpers; new migrations for ownership/snoozes tables.
+- Alerts UI: claim/release buttons, snooze/unsnooze controls (1h/24h), handoff note input, claimed/snoozed badges/expiry, and resilient workflow fetch with logging on failure.
+- Incidents banner: From Alerts banner optionally notes claimed=me filter when deep-linked; actions append claimed=me for owned alerts.
+- Logging/allowlists extended for claim/release/snooze/unsnooze/workflow/handoff events; new tests for helpers, workflow route, and UI workflow states.
+
 ## v0.8.35
 - Ops Alerts polish: load state semantics prevent false “unavailable”, last-checked timestamp always shown, webhook note is informational with setup link, and model coercion keeps arrays safe.
 - Invite conversion booster: polished invite landing with benefits, invalid-state support snippet, and signed-in claim CTA with calm copy.

@@ -25,4 +25,5 @@ export const OPS_INCIDENTS_COPY = {
   groupEmpty: "Try narrowing time range or surface.",
   exportLimit: "Too many results to export. Narrow filters to export up to 500 groups.",
   relatedTitle: "Related events nearby",
+  claimedMe: "Claimed by me",
 } as const;
