@@ -139,6 +139,8 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Ops funnel page shows group-by-source rows for 24h/7d with calm cooldown handling.
 
 ## Quick prod checks (v0.8.35)
+- Open /app/ops/alerts with no alerts → shows “No alerts firing” with last-checked timestamp (no “unavailable”).
+- Simulate alerts API failure → “Alerts unavailable” banner with requestId appears and page stays usable; webhook unconfigured shows info note only.
 - Open an invalid /invite/&lt;token&gt; → calm invalid state appears with Copy support snippet; valid token shows benefits + Continue/Claim.
 - After login with stored token, auto-claim success banner appears with “Create your first CV” CTA; failure banner still allows retry + “Why am I seeing this?”.
 - Ops funnel page: filter by window/source/include unknown, copy current link; counts update and cooldown still calm.

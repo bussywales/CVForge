@@ -309,6 +309,8 @@ const ALLOWED = [
   "ops_alert_notify_fail",
   "ops_alert_test_fire",
   "ops_alerts_load_error",
+  "ops_alerts_load_ok",
+  "ops_alerts_webhook_setup_click",
   "ops_access_invite_view",
   "ops_access_invite_grant",
   "ops_access_invite_revoke",

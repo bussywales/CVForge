@@ -6,6 +6,7 @@ import ErrorBanner from "@/components/ErrorBanner";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { fetchJsonSafe } from "@/lib/http/safe-json";
 import { coerceOpsAlertsModel, type OpsAlertsModel } from "@/lib/ops/alerts-model";
+import { formatShortLocalTime } from "@/lib/time/format-short";
 
 type Alert = {
   key: string;
@@ -25,10 +26,12 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(
     initialError ? { message: initialError.message ?? "Unable to load alerts", requestId: initialError.requestId ?? requestId ?? null } : null
   );
+  const [loadState, setLoadState] = useState<"ok" | "error">(initialError ? "error" : "ok");
   const [cooldown, setCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [tab, setTab] = useState<"firing" | "recent">("firing");
+  const [lastCheckedAtIso, setLastCheckedAtIso] = useState<string | null>(new Date().toISOString());
 
   const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a?.state === "firing"), [data?.alerts]);
 
@@ -37,12 +40,19 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     logMonetisationClientEvent("ops_alerts_load_error", null, "ops", {
       meta: { code: initialError.code ?? "UNKNOWN", status: 0, hasJson: Boolean(initial), mode: "initial" },
     });
+    setLoadState("error");
   }, [initialError, initial]);
 
   useEffect(() => {
     if (!data) return;
     logMonetisationClientEvent("ops_alerts_view", null, "ops", { firing: data.firingCount, rulesVersion: data.rulesVersion });
   }, [data, data?.firingCount, data?.rulesVersion]);
+
+  useEffect(() => {
+    if (loadState === "ok") {
+      logMonetisationClientEvent("ops_alerts_load_ok", null, "ops");
+    }
+  }, [loadState]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -76,16 +86,21 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
         setError({ message: res.error?.message ?? "Unable to load alerts", requestId: res.requestId ?? null });
         logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "alerts", code: res.error?.code ?? "UNKNOWN" });
         logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: res.error?.code ?? "UNKNOWN", status: res.status, hasJson: Boolean(res.json), mode: "refresh" } });
+        setLoadState("error");
         return;
       }
       setData(coerceOpsAlertsModel(res.json));
       setError(null);
+      setLoadState("ok");
+      logMonetisationClientEvent("ops_alerts_load_ok", null, "ops");
     } catch {
       setError({ message: "Unable to load alerts", requestId: null });
       logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "alerts", code: "NETWORK" });
       logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: "NETWORK", status: 0, hasJson: false, mode: "refresh" } });
+      setLoadState("error");
     } finally {
       setLoading(false);
+      setLastCheckedAtIso(new Date().toISOString());
     }
   };
 
@@ -104,6 +119,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       if (!res.ok || !res.json) {
         setError({ message: res.error?.message ?? "Test alert failed", requestId: res.requestId ?? null });
         logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: res.error?.code ?? "UNKNOWN", status: res.status, hasJson: Boolean(res.json), mode: "test" } });
+        setLoadState("error");
         return;
       }
       setFlash("Test alert sent");
@@ -111,6 +127,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     } catch {
       setError({ message: "Test alert failed", requestId: null });
       logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: "NETWORK", status: 0, hasJson: false, mode: "test" } });
+      setLoadState("error");
     }
   };
 
@@ -160,7 +177,18 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
           <p className="text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Ops</p>
           <h1 className="text-lg font-semibold text-[rgb(var(--ink))]">Alerts</h1>
           <p className="text-xs text-[rgb(var(--muted))]">Thresholded 15m signals with actionable links.</p>
-          {!data?.webhookConfigured ? <p className="text-[11px] text-amber-700">Webhook not configured (OPS_ALERT_WEBHOOK_URL).</p> : null}
+          {!data?.webhookConfigured ? (
+            <p className="text-[11px] text-[rgb(var(--muted))]">
+              Notifications: Not configured (webhook).{" "}
+              <Link
+                href="/app/ops/status#alerts"
+                onClick={() => logMonetisationClientEvent("ops_alerts_webhook_setup_click", null, "ops", { meta: { destination: "ops_status" } })}
+                className="underline"
+              >
+                Setup
+              </Link>
+            </p>
+          ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -185,9 +213,14 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${headlineTone.className}`}>System health · {headlineTone.label}</span>
-            <span className="text-sm font-semibold text-[rgb(var(--ink))]">{data?.headline ?? "Alerts unavailable"}</span>
+            <span className="text-sm font-semibold text-[rgb(var(--ink))]">
+              {loadState === "ok" ? data?.headline ?? "No alerts firing (last 15m)" : "Alerts unavailable"}
+            </span>
           </div>
-            <span className="text-[11px] text-[rgb(var(--muted))]">Window: last 15 minutes</span>
+          <div className="text-right text-[11px] text-[rgb(var(--muted))]">
+            <div>Window: last 15 minutes</div>
+            <div>Last checked: {formatShortLocalTime(lastCheckedAtIso)}</div>
+          </div>
         </div>
         {flash ? <p className="mt-2 text-[11px] text-emerald-700">{flash}</p> : null}
       </div>
@@ -209,7 +242,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
         </button>
       </div>
 
-      {error ? <ErrorBanner title="Alerts unavailable" message={error.message} requestId={error.requestId ?? requestId ?? undefined} /> : null}
+      {loadState === "error" && error ? <ErrorBanner title="Alerts unavailable" message={error.message} requestId={error.requestId ?? requestId ?? undefined} /> : null}
 
       {tab === "firing" ? (
         firingAlerts.length ? (

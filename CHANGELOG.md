@@ -3,6 +3,7 @@
 # Changelog
 
 ## v0.8.35
+- Ops Alerts polish: load state semantics prevent false “unavailable”, last-checked timestamp always shown, webhook note is informational with setup link, and model coercion keeps arrays safe.
 - Invite conversion booster: polished invite landing with benefits, invalid-state support snippet, and signed-in claim CTA with calm copy.
 - Post-claim UX: auto-claim success banner with CV CTA, retry banner gains “why” help, and extra logging/guardrails.
 - Ops funnel filters: API supports window/source/includeUnknown, UI adds filters + copyable deep links, and ops access links to funnel by source.

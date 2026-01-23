@@ -46,6 +46,8 @@ const DEDUPE_PERIODS: Record<string, "day" | "week"> = {
   ops_alert_notify_fail: "day",
   ops_alert_test_fire: "day",
   ops_alerts_load_error: "day",
+  ops_alerts_load_ok: "day",
+  ops_alerts_webhook_setup_click: "day",
   ops_access_invite_view: "day",
   ops_access_invite_grant: "day",
   ops_access_invite_revoke: "day",
