@@ -140,7 +140,7 @@ export default function PackSelector({
         credentials: "include",
         body: JSON.stringify({ packKey, returnTo, applicationId }),
       });
-      const payload = await safeReadJson(response);
+      const payload = await safeReadJson<any>(response);
       const payloadError = (payload.data as any)?.error;
       const requestIdFromHeader = response.headers.get("x-request-id");
       const resolvedRequestId = payloadError?.requestId ?? requestIdFromHeader ?? requestId ?? null;

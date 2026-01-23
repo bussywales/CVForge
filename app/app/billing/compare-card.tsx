@@ -115,7 +115,7 @@ export default function CompareCard({
           applicationId: applicationId ?? undefined,
         }),
       });
-      const payload = await safeReadJson(response);
+      const payload = await safeReadJson<any>(response);
       const payloadError = (payload.data as any)?.error;
       const resolvedRequestId = payloadError?.requestId ?? response.headers.get("x-request-id") ?? rid ?? null;
       if (!response.ok || !(payload.data as any)?.url) {
@@ -171,7 +171,7 @@ export default function CompareCard({
           applicationId: applicationId ?? undefined,
         }),
       });
-      const payload = await safeReadJson(response);
+      const payload = await safeReadJson<any>(response);
       const payloadError = (payload.data as any)?.error;
       const resolvedRequestId = payloadError?.requestId ?? response.headers.get("x-request-id") ?? rid ?? null;
       if (!response.ok || !(payload.data as any)?.url) {
@@ -222,7 +222,7 @@ export default function CompareCard({
         headers,
         credentials: "include",
       });
-      const payload = await safeReadJson(response);
+      const payload = await safeReadJson<any>(response);
       const payloadError = (payload.data as any)?.error;
       const resolvedRequestId = payloadError?.requestId ?? response.headers.get("x-request-id") ?? rid ?? null;
       if (!response.ok || !(payload.data as any)?.url) {

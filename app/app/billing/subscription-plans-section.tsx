@@ -151,7 +151,7 @@ export default function SubscriptionPlansSection({
           applicationId: applicationId ?? undefined,
         }),
       });
-      const payload = await safeReadJson(response);
+      const payload = await safeReadJson<any>(response);
       const payloadError = (payload.data as any)?.error;
       const resolvedRequestId = payloadError?.requestId ?? response.headers.get("x-request-id") ?? generatedId ?? null;
       if (resolvedRequestId) setRequestId(resolvedRequestId);

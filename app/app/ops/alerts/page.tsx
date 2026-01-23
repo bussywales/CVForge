@@ -5,6 +5,8 @@ import AlertsClient from "./alerts-client";
 import { makeRequestId } from "@/lib/observability/request-id";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { requireOpsAccess } from "@/lib/rbac";
+import { fetchJsonSafe } from "@/lib/http/safe-json";
+import { logMonetisationEvent } from "@/lib/monetisation";
 
 export const dynamic = "force-dynamic";
 
@@ -18,22 +20,24 @@ export default async function OpsAlertsPage() {
   }
 
   let initial: any = null;
+  let initialError: { message?: string; requestId?: string | null; code?: string | null } | null = null;
   try {
     const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
-    const res = await fetch(new URL("/api/ops/alerts", base), { cache: "no-store", headers: { "x-request-id": requestId } });
-    const body = await res.json().catch(() => null);
-    if (body?.ok) {
-      initial = body;
+    const res = await fetchJsonSafe<any>(new URL("/api/ops/alerts", base), { cache: "no-store", headers: { "x-request-id": requestId } });
+    if (res.ok && res.json) {
+      initial = res.json;
     } else {
-      throw new Error(body?.error?.message ?? "Unable to load alerts");
+      initialError = { message: res.error?.message ?? "Unable to load alerts", requestId: res.requestId, code: res.error?.code };
+      try {
+        await logMonetisationEvent(null as any, user.id, "ops_alerts_load_error", { meta: { code: res.error?.code ?? "UNKNOWN", status: res.status, hasJson: Boolean(res.json), mode: "initial" } });
+      } catch {
+        // ignore
+      }
     }
   } catch {
     initial = null;
+    initialError = { message: "Unable to load alerts", requestId, code: "FETCH_FAILED" };
   }
 
-  if (!initial) {
-    return <ErrorBanner title="Alerts unavailable" message="Unable to load initial alerts" requestId={requestId ?? undefined} />;
-  }
-
-  return <AlertsClient initial={initial} requestId={requestId} />;
+  return <AlertsClient initial={initial} initialError={initialError} requestId={requestId} />;
 }

@@ -36,7 +36,7 @@ export default function RoleEditor({ targetUserId, targetEmail, currentRole, can
         headers,
         body: JSON.stringify({ targetUserId, role }),
       });
-      const payload = await safeReadJson(res);
+      const payload = await safeReadJson<any>(res);
       const payloadError = (payload.data as any)?.error;
       const resolvedRequestId = payloadError?.requestId ?? res.headers.get("x-request-id") ?? rid ?? null;
       if (!res.ok || !(payload.data as any)?.ok) {

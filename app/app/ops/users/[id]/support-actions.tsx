@@ -121,7 +121,7 @@ export default function SupportActions({ targetUserId, viewerRole, applications,
         note: note || undefined,
       }),
     });
-    const { data } = await safeReadJson(res);
+    const { data } = await safeReadJson<any>(res);
     const reqId = res.headers.get("x-request-id") ?? data?.error?.requestId;
     if (!res.ok) {
       setAdjustError({ requestId: reqId, message: data?.error?.message ?? OPS_COPY.creditError, code: data?.error?.code });

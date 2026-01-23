@@ -205,6 +205,7 @@ export type MonetisationEventName =
   | "ops_alert_notify_success"
   | "ops_alert_notify_fail"
   | "ops_alert_test_fire"
+  | "ops_alerts_load_error"
   | "ops_access_invite_view"
   | "ops_access_invite_grant"
   | "ops_access_invite_revoke"

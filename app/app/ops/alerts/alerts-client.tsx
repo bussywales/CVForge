@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import ErrorBanner from "@/components/ErrorBanner";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
+import { fetchJsonSafe } from "@/lib/http/safe-json";
 
 type Alert = {
   key: string;
@@ -28,19 +29,29 @@ type AlertsPayload = {
   webhookConfigured: boolean;
 };
 
-export default function AlertsClient({ initial, requestId }: { initial: AlertsPayload; requestId: string | null }) {
-  const [data, setData] = useState<AlertsPayload>(initial);
-  const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(null);
+export default function AlertsClient({ initial, initialError, requestId }: { initial: AlertsPayload | null; initialError?: { message?: string; requestId?: string | null; code?: string | null } | null; requestId: string | null }) {
+  const [data, setData] = useState<AlertsPayload | null>(initial);
+  const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(
+    initialError ? { message: initialError.message ?? "Unable to load alerts", requestId: initialError.requestId ?? requestId ?? null } : null
+  );
   const [cooldown, setCooldown] = useState(0);
   const [loading, setLoading] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [tab, setTab] = useState<"firing" | "recent">("firing");
 
-  const firingAlerts = useMemo(() => data.alerts.filter((a) => a.state === "firing"), [data.alerts]);
+  const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a.state === "firing"), [data?.alerts]);
 
   useEffect(() => {
+    if (!initialError) return;
+    logMonetisationClientEvent("ops_alerts_load_error", null, "ops", {
+      meta: { code: initialError.code ?? "UNKNOWN", status: 0, hasJson: Boolean(initial), mode: "initial" },
+    });
+  }, [initialError, initial]);
+
+  useEffect(() => {
+    if (!data) return;
     logMonetisationClientEvent("ops_alerts_view", null, "ops", { firing: data.firingCount, rulesVersion: data.rulesVersion });
-  }, [data.firingCount, data.rulesVersion]);
+  }, [data, data?.firingCount, data?.rulesVersion]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -49,38 +60,39 @@ export default function AlertsClient({ initial, requestId }: { initial: AlertsPa
   }, [cooldown]);
 
   const headlineTone = useMemo(() => {
+    if (!data) return { label: "Unavailable", className: "bg-slate-100 text-slate-700" };
     if (data.firingCount === 0) return { label: "Green", className: "bg-emerald-100 text-emerald-800" };
     const hasHigh = data.alerts.some((a) => a.state === "firing" && a.severity === "high");
     return hasHigh
       ? { label: "Red", className: "bg-rose-100 text-rose-800" }
       : { label: "Amber", className: "bg-amber-100 text-amber-800" };
-  }, [data.alerts, data.firingCount]);
+  }, [data]);
 
   const refresh = async () => {
     setLoading(true);
     setFlash(null);
     logMonetisationClientEvent("ops_alerts_refresh_click", null, "ops");
     try {
-      const res = await fetch("/api/ops/alerts", { method: "GET", cache: "no-store" });
-      const body = await res.json().catch(() => null);
-      if (res.status === 429 || body?.error?.code === "RATE_LIMITED") {
-        const retryAfter = Number(res.headers.get("retry-after") ?? body?.error?.meta?.retryAfterSeconds ?? 0);
-        const retrySeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 30;
+      const res = await fetchJsonSafe<AlertsPayload>("/api/ops/alerts", { method: "GET", cache: "no-store" });
+      if (res.status === 429 || res.error?.code === "RATE_LIMITED") {
+        const retrySeconds = 30;
         setCooldown(retrySeconds);
-        setError({ message: "Rate limited — try again shortly", requestId: body?.error?.requestId ?? null });
+        setError({ message: "Rate limited — try again shortly", requestId: res.requestId ?? null });
         logMonetisationClientEvent("ops_panel_rate_limited", null, "ops", { panel: "alerts", retryAfterSeconds: retrySeconds });
         return;
       }
-      if (!body?.ok) {
-        setError({ message: body?.error?.message ?? "Unable to load alerts", requestId: body?.error?.requestId ?? null });
-        logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "alerts", code: body?.error?.code ?? "UNKNOWN" });
+      if (!res.ok || !res.json) {
+        setError({ message: res.error?.message ?? "Unable to load alerts", requestId: res.requestId ?? null });
+        logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "alerts", code: res.error?.code ?? "UNKNOWN" });
+        logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: res.error?.code ?? "UNKNOWN", status: res.status, hasJson: Boolean(res.json), mode: "refresh" } });
         return;
       }
-      setData(body);
+      setData(res.json);
       setError(null);
     } catch {
       setError({ message: "Unable to load alerts", requestId: null });
       logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "alerts", code: "NETWORK" });
+      logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: "NETWORK", status: 0, hasJson: false, mode: "refresh" } });
     } finally {
       setLoading(false);
     }
@@ -91,23 +103,23 @@ export default function AlertsClient({ initial, requestId }: { initial: AlertsPa
     setError(null);
     logMonetisationClientEvent("ops_alert_test_fire", null, "ops");
     try {
-      const res = await fetch("/api/ops/alerts/test", { method: "POST", cache: "no-store" });
-      const body = await res.json().catch(() => null);
-      if (res.status === 429 || body?.error?.code === "RATE_LIMITED") {
-        const retryAfter = Number(res.headers.get("retry-after") ?? body?.error?.meta?.retryAfterSeconds ?? 0);
-        const retrySeconds = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : 30;
+      const res = await fetchJsonSafe("/api/ops/alerts/test", { method: "POST", cache: "no-store" });
+      if (res.status === 429 || res.error?.code === "RATE_LIMITED") {
+        const retrySeconds = 30;
         setCooldown(retrySeconds);
-        setError({ message: "Rate limited — try again shortly", requestId: body?.error?.requestId ?? null });
+        setError({ message: "Rate limited — try again shortly", requestId: res.requestId ?? null });
         return;
       }
-      if (!body?.ok) {
-        setError({ message: body?.error?.message ?? "Test alert failed", requestId: body?.error?.requestId ?? null });
+      if (!res.ok || !res.json) {
+        setError({ message: res.error?.message ?? "Test alert failed", requestId: res.requestId ?? null });
+        logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: res.error?.code ?? "UNKNOWN", status: res.status, hasJson: Boolean(res.json), mode: "test" } });
         return;
       }
       setFlash("Test alert sent");
       refresh();
     } catch {
       setError({ message: "Test alert failed", requestId: null });
+      logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: "NETWORK", status: 0, hasJson: false, mode: "test" } });
     }
   };
 
@@ -157,7 +169,7 @@ export default function AlertsClient({ initial, requestId }: { initial: AlertsPa
           <p className="text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Ops</p>
           <h1 className="text-lg font-semibold text-[rgb(var(--ink))]">Alerts</h1>
           <p className="text-xs text-[rgb(var(--muted))]">Thresholded 15m signals with actionable links.</p>
-          {!data.webhookConfigured ? <p className="text-[11px] text-amber-700">Webhook not configured (OPS_ALERT_WEBHOOK_URL).</p> : null}
+          {!data?.webhookConfigured ? <p className="text-[11px] text-amber-700">Webhook not configured (OPS_ALERT_WEBHOOK_URL).</p> : null}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <button
@@ -182,9 +194,9 @@ export default function AlertsClient({ initial, requestId }: { initial: AlertsPa
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <span className={`rounded-full px-3 py-1 text-xs font-semibold ${headlineTone.className}`}>System health · {headlineTone.label}</span>
-            <span className="text-sm font-semibold text-[rgb(var(--ink))]">{data.headline}</span>
+            <span className="text-sm font-semibold text-[rgb(var(--ink))]">{data?.headline ?? "Alerts unavailable"}</span>
           </div>
-          <span className="text-[11px] text-[rgb(var(--muted))]">Window: last 15 minutes</span>
+            <span className="text-[11px] text-[rgb(var(--muted))]">Window: last 15 minutes</span>
         </div>
         {flash ? <p className="mt-2 text-[11px] text-emerald-700">{flash}</p> : null}
       </div>
@@ -214,11 +226,16 @@ export default function AlertsClient({ initial, requestId }: { initial: AlertsPa
             {firingAlerts.map((alert) => renderAlertCard(alert))}
           </div>
         ) : (
-          <p className="rounded-2xl border border-black/10 bg-white p-4 text-sm text-[rgb(var(--muted))] shadow-sm">No alerts firing.</p>
+          <p className="rounded-2xl border border-black/10 bg-white p-4 text-sm text-[rgb(var(--muted))] shadow-sm">
+            No alerts firing (last 15m).{" "}
+            <button type="button" onClick={refresh} className="underline" disabled={loading || cooldown > 0}>
+              Refresh
+            </button>
+          </p>
         )
       ) : (
         <div className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
-          {data.recentEvents.length ? (
+          {data?.recentEvents?.length ? (
             <table className="min-w-full text-left text-xs">
               <thead className="text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
                 <tr>

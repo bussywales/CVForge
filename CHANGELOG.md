@@ -7,6 +7,11 @@
 - Post-claim UX: auto-claim success banner with CV CTA, retry banner gains “why” help, and extra logging/guardrails.
 - Ops funnel filters: API supports window/source/includeUnknown, UI adds filters + copyable deep links, and ops access links to funnel by source.
 
+## v0.8.34b
+- Ops Alerts hardened against non-JSON responses: safe fetch/json helper, guarded parsing on initial load/refresh/test, and calm empty/error states with requestId.
+- New empty state when no alerts firing or recent; last-good data preserved on refresh failures.
+- Logging allowlist expanded for alerts load errors; docs/smoke updated.
+
 ## v0.8.31
 - Early access invites v1: email-hash invites table + helper to create/list/revoke/claim; gate auto-claims on signup/login using hashed email with no raw addresses logged.
 - Ops Access console adds invite flow for emails without accounts: create/revoke endpoints with budgets, copyable invite links/instructions, invite status badges, and recent invites list.

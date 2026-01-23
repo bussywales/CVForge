@@ -143,6 +143,10 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - After login with stored token, auto-claim success banner appears with “Create your first CV” CTA; failure banner still allows retry + “Why am I seeing this?”.
 - Ops funnel page: filter by window/source/include unknown, copy current link; counts update and cooldown still calm.
 
+## Quick prod checks (v0.8.34b)
+- Open /app/ops/alerts while the API returns non-JSON (e.g., bad upstream) → page shows Alerts unavailable banner with requestId, no crash; last-good data stays visible.
+- Normal load with zero alerts shows “No alerts firing (last 15m)” calm empty state and Refresh CTA.
+
 ## Quick prod checks (v0.8.30)
 - Ops → /app/ops/access: search a never-seen email → Invite status shows “Active/none”, grant invite works without a user account.
 - Incognito signup with that email passes the early access gate immediately (env fallback still works).

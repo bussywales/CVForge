@@ -185,7 +185,7 @@ export default function OutreachPanel({
           linkedin_url: contactForm.linkedin.trim() || null,
         }),
       });
-      const payload = await safeReadJson(res);
+      const payload = await safeReadJson<any>(res);
       const payloadError = (payload.data as any)?.error;
       const resolvedRequestId = payloadError?.requestId ?? res.headers.get("x-request-id") ?? requestId ?? null;
       if (resolvedRequestId) setContactRequestId(resolvedRequestId);
