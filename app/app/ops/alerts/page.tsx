@@ -6,6 +6,7 @@ import { makeRequestId } from "@/lib/observability/request-id";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { requireOpsAccess } from "@/lib/rbac";
 import { fetchJsonSafe } from "@/lib/http/safe-json";
+import { coerceOpsAlertsModel } from "@/lib/ops/alerts-model";
 import { logMonetisationEvent } from "@/lib/monetisation";
 
 export const dynamic = "force-dynamic";
@@ -25,7 +26,7 @@ export default async function OpsAlertsPage() {
     const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
     const res = await fetchJsonSafe<any>(new URL("/api/ops/alerts", base), { cache: "no-store", headers: { "x-request-id": requestId } });
     if (res.ok && res.json) {
-      initial = res.json;
+      initial = coerceOpsAlertsModel(res.json);
     } else {
       initialError = { message: res.error?.message ?? "Unable to load alerts", requestId: res.requestId, code: res.error?.code };
       try {

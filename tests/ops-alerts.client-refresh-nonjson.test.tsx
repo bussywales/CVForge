@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { vi } from "vitest";
 import AlertsClient from "@/app/app/ops/alerts/alerts-client";
+import { coerceOpsAlertsModel } from "@/lib/ops/alerts-model";
 
 vi.mock("@/lib/http/safe-json", () => ({
   fetchJsonSafe: vi.fn(async () => ({ ok: false, status: 500, error: { code: "NON_JSON_RESPONSE", message: "bad" } })),
@@ -16,13 +17,15 @@ describe("AlertsClient refresh non-json", () => {
     render(
       <AlertsClient
         initial={{
-          window: { minutes: 15, fromIso: "", toIso: "" },
-          rulesVersion: "test",
-          headline: "ok",
-          firingCount: 0,
-          alerts: [],
-          recentEvents: [],
-          webhookConfigured: true,
+          ...coerceOpsAlertsModel({
+            window: { minutes: 15, fromIso: "", toIso: "" },
+            rulesVersion: "test",
+            headline: "ok",
+            firingCount: 0,
+            alerts: [],
+            recentEvents: [],
+            webhookConfigured: true,
+          }),
         }}
         requestId="req_test"
       />

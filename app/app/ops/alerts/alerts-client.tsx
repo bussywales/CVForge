@@ -5,6 +5,7 @@ import Link from "next/link";
 import ErrorBanner from "@/components/ErrorBanner";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { fetchJsonSafe } from "@/lib/http/safe-json";
+import { coerceOpsAlertsModel, type OpsAlertsModel } from "@/lib/ops/alerts-model";
 
 type Alert = {
   key: string;
@@ -19,18 +20,8 @@ type Alert = {
 
 type AlertEvent = { id: string; key: string; state: string; at: string; summary: string; signals: Record<string, any> };
 
-type AlertsPayload = {
-  window: { minutes: number; fromIso: string; toIso: string };
-  rulesVersion: string;
-  headline: string;
-  firingCount: number;
-  alerts: Alert[];
-  recentEvents: AlertEvent[];
-  webhookConfigured: boolean;
-};
-
-export default function AlertsClient({ initial, initialError, requestId }: { initial: AlertsPayload | null; initialError?: { message?: string; requestId?: string | null; code?: string | null } | null; requestId: string | null }) {
-  const [data, setData] = useState<AlertsPayload | null>(initial);
+export default function AlertsClient({ initial, initialError, requestId }: { initial: OpsAlertsModel | null; initialError?: { message?: string; requestId?: string | null; code?: string | null } | null; requestId: string | null }) {
+  const [data, setData] = useState<OpsAlertsModel>(coerceOpsAlertsModel(initial));
   const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(
     initialError ? { message: initialError.message ?? "Unable to load alerts", requestId: initialError.requestId ?? requestId ?? null } : null
   );
@@ -39,7 +30,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const [flash, setFlash] = useState<string | null>(null);
   const [tab, setTab] = useState<"firing" | "recent">("firing");
 
-  const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a.state === "firing"), [data?.alerts]);
+  const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a?.state === "firing"), [data?.alerts]);
 
   useEffect(() => {
     if (!initialError) return;
@@ -61,8 +52,8 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
 
   const headlineTone = useMemo(() => {
     if (!data) return { label: "Unavailable", className: "bg-slate-100 text-slate-700" };
-    if (data.firingCount === 0) return { label: "Green", className: "bg-emerald-100 text-emerald-800" };
-    const hasHigh = data.alerts.some((a) => a.state === "firing" && a.severity === "high");
+    if ((data.alerts ?? []).length === 0) return { label: "Green", className: "bg-emerald-100 text-emerald-800" };
+    const hasHigh = (data.alerts ?? []).some((a) => a?.state === "firing" && a?.severity === "high");
     return hasHigh
       ? { label: "Red", className: "bg-rose-100 text-rose-800" }
       : { label: "Amber", className: "bg-amber-100 text-amber-800" };
@@ -73,7 +64,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     setFlash(null);
     logMonetisationClientEvent("ops_alerts_refresh_click", null, "ops");
     try {
-      const res = await fetchJsonSafe<AlertsPayload>("/api/ops/alerts", { method: "GET", cache: "no-store" });
+      const res = await fetchJsonSafe<OpsAlertsModel>("/api/ops/alerts", { method: "GET", cache: "no-store" });
       if (res.status === 429 || res.error?.code === "RATE_LIMITED") {
         const retrySeconds = 30;
         setCooldown(retrySeconds);
@@ -87,7 +78,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
         logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: res.error?.code ?? "UNKNOWN", status: res.status, hasJson: Boolean(res.json), mode: "refresh" } });
         return;
       }
-      setData(res.json);
+      setData(coerceOpsAlertsModel(res.json));
       setError(null);
     } catch {
       setError({ message: "Unable to load alerts", requestId: null });
@@ -103,7 +94,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     setError(null);
     logMonetisationClientEvent("ops_alert_test_fire", null, "ops");
     try {
-      const res = await fetchJsonSafe("/api/ops/alerts/test", { method: "POST", cache: "no-store" });
+      const res = await fetchJsonSafe<OpsAlertsModel>("/api/ops/alerts/test", { method: "POST", cache: "no-store" });
       if (res.status === 429 || res.error?.code === "RATE_LIMITED") {
         const retrySeconds = 30;
         setCooldown(retrySeconds);
