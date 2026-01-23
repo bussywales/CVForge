@@ -54,6 +54,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const [snoozes, setSnoozes] = useState<Record<string, { snoozedByUserId: string; snoozedAt: string; untilAt: string; reason?: string | null }>>(initial?.snoozes ?? {});
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [workflowLoading, setWorkflowLoading] = useState(false);
+  const testEventsRef = useRef<HTMLDivElement | null>(null);
 
   const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a?.state === "firing"), [data?.alerts]);
   const recentEvents = useMemo(() => data?.recentEvents ?? [], [data?.recentEvents]);
@@ -144,6 +145,12 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     return () => window.clearInterval(id);
   }, [cooldown]);
 
+  const windowLabel = useMemo(() => {
+    if (typeof (data as any)?.window?.minutes === "number") return `${(data as any).window.minutes}m`;
+    if (typeof (data as any)?.window === "string") return (data as any).window;
+    return "15m";
+  }, [data]);
+
   const headlineTone = useMemo(() => {
     if (!data) return { label: "Unavailable", className: "bg-slate-100 text-slate-700" };
     if ((data.alerts ?? []).length === 0) return { label: "Green", className: "bg-emerald-100 text-emerald-800" };
@@ -198,6 +205,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
         const retrySeconds = 30;
         setCooldown(retrySeconds);
         setError({ message: "Rate limited — try again shortly", requestId: res.requestId ?? null });
+        setLoadState("error");
         return;
       }
       if (!res.ok || !res.json) {
@@ -208,8 +216,16 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
         setLoadState("error");
         return;
       }
-      setFlash("Test alert sent");
+      setFlash("Test alert recorded.");
+      const hasEventId = Boolean((res.json as any).eventId);
       logMonetisationClientEvent("ops_alerts_test_success", null, "ops", { meta: { eventId: (res.json as any).eventId ?? null } });
+      logMonetisationClientEvent("ops_alerts_test_sent_success", null, "ops", { meta: { window: windowLabel, hasEventId } });
+      setTab("recent");
+      setTestEventsOpen(true);
+      logMonetisationClientEvent("ops_alerts_test_events_auto_expand", null, "ops", { meta: { window: windowLabel, reason: "test_sent" } });
+      window.setTimeout(() => {
+        if (testEventsRef.current) testEventsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 30);
       refresh();
     } catch {
       setError({ message: "Test alert failed", requestId: null });
@@ -695,7 +711,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
             )}
           </div>
           {testEvents.length ? (
-            <div className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+            <div ref={testEventsRef} className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
               <div className="flex items-center justify-between">
                 <p className="text-sm font-semibold text-[rgb(var(--ink))]">Test events</p>
                 <button

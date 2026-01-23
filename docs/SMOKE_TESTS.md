@@ -30,6 +30,9 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Snooze an alert for 1h → snoozed until timestamp shows; Unsnooze removes it.
 - Add a handoff note while claimed → note persists and shows collapsed; workflow fetch failures don’t break the page.
 
+## Quick prod checks (v0.8.38)
+- Open /app/ops/alerts → click Send test alert → Test events auto-expands and shows new row.
+
 ## Quick prod checks (v0.8.09)
 - With one archived and one active application, Activation and Keep Momentum CTAs deep-link to the newest active app (outreach/overview anchors) without dead links.
 - With zero applications, both cards surface a create-application CTA instead of empty/null states.

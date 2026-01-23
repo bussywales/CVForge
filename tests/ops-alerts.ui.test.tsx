@@ -48,6 +48,69 @@ describe("Ops alerts UI extras", () => {
     expect(screen.getByText(/Test alert fired/i)).toBeTruthy();
   });
 
+  it("auto-expands test events after sending a test alert", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ops/alerts/workflow")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts/test")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, eventId: "evt_test" }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              ok: true,
+              headline: "ok",
+              alerts: [],
+              recentEvents: [
+                {
+                  id: "evt_test",
+                  key: "ops_alert_test",
+                  state: "firing",
+                  at: "2024-01-01T00:00:00.000Z",
+                  summary: "Test alert fired",
+                  isTest: true,
+                  severity: "low",
+                  signals: {},
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        );
+      }
+      return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/plain" } }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const initial = coerceOpsAlertsModel({ ok: true, headline: "ok", alerts: [], recentEvents: [] });
+    render(<AlertsClient initial={initial} requestId="req_ui" />);
+    fireEvent.click(screen.getByText(/Send test alert/i));
+    await waitFor(() => expect(screen.getByText(/Test alert recorded/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Test alert fired/i)).toBeTruthy());
+    expect(screen.getByText(/Hide/i)).toBeTruthy();
+  });
+
+  it("keeps test events collapsed when send test fails", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ops/alerts/workflow")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts/test")) {
+        return Promise.resolve(new Response("rate limited", { status: 429, headers: { "content-type": "text/plain" } }));
+      }
+      return Promise.resolve(new Response(JSON.stringify({ ok: true, alerts: [], recentEvents: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const initial = coerceOpsAlertsModel({ ok: true, alerts: [], recentEvents: [] });
+    render(<AlertsClient initial={initial} requestId="req_ui" />);
+    fireEvent.click(screen.getByText(/Send test alert/i));
+    await waitFor(() => expect(screen.getByText(/Rate limited/i)).toBeTruthy());
+    expect(screen.queryByText(/Test events/i)).toBeNull();
+  });
+
   it("marks handled without request id and shows badge", async () => {
     const initial = coerceOpsAlertsModel({
       ok: true,

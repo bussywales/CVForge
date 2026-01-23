@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.38
+- Ops Alerts test UX: sending a test alert now auto-expands the Test events panel, shows a calm success hint, and scrolls into view when possible while keeping failures collapsed with the existing error banner.
+
 ## v0.8.36
 - Ops Alerts actionability: incident deep links carry window/signal/surface/code/from=ops_alerts, “Mark handled” saves alert_handled outcomes (cooldown badge) with nullable requestId, and new allowlisted handled/test events.
 - Testable alerts: /api/ops/alerts/test persists masked is_test events (window_label=test) returning eventId; Alerts UI adds collapsible Test events with audits/incidents links.
