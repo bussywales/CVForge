@@ -106,11 +106,20 @@ beforeAll(async () => {
     }),
   }));
   vi.doMock("@/lib/supabase/service", () => ({
-    createServiceRoleClient: () => ({
-      from: () => ({
+    createServiceRoleClient: () => {
+      const chain: any = {
         insert: vi.fn().mockResolvedValue({}),
-      }),
-    }),
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        gte: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        limit: vi.fn().mockResolvedValue({ data: [] }),
+        single: vi.fn().mockResolvedValue({ data: { id: "evt1" }, error: null }),
+      };
+      return {
+        from: () => chain,
+      };
+    },
   }));
 
   const route = await import("@/app/api/ops/alerts/route");

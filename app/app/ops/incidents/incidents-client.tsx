@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import CopyIconButton from "@/components/CopyIconButton";
 import { OPS_INCIDENTS_COPY } from "@/lib/ops/incidents.microcopy";
@@ -36,6 +37,8 @@ type Props = {
   initialTime?: TimeFilter;
   initialSurface?: string | null;
   initialCode?: string | null;
+  initialFrom?: string | null;
+  initialSignal?: string | null;
 };
 
 type TimeFilter = "0.25" | "1" | "24" | "168";
@@ -63,7 +66,30 @@ function exportCsv(groups: IncidentGroup[]) {
   return [header, ...rows].join("\n");
 }
 
-export default function IncidentsClient({ incidents, initialLookup, initialRequestId, initialOutcomes, initialWatch, initialTime, initialSurface, initialCode }: Props) {
+function timeLabel(value: TimeFilter) {
+  if (value === "0.25") return "15m";
+  if (value === "1") return "1h";
+  if (value === "168") return "7d";
+  return "24h";
+}
+
+export default function IncidentsClient({
+  incidents,
+  initialLookup,
+  initialRequestId,
+  initialOutcomes,
+  initialWatch,
+  initialTime,
+  initialSurface,
+  initialCode,
+  initialFrom,
+  initialSignal,
+}: Props) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const fromParam = initialFrom ?? null;
+  const signalParam = initialSignal ?? null;
+  const fromLogRef = useRef(false);
   const [filters, setFilters] = useState({
     time: (initialTime ?? "24") as TimeFilter,
     surface: (initialSurface ?? "all") as string,
@@ -83,6 +109,21 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
   const billingSurfaces = useMemo(() => ["billing", "portal", "checkout", "diagnostics"], []);
   const [outcomes] = useState<ResolutionOutcome[]>(initialOutcomes ?? []);
   const [watchRecords] = useState<WatchRecord[]>(initialWatch ?? []);
+  const replaceQuery = (nextFilters: typeof filters) => {
+    const params = new URLSearchParams();
+    const windowParam = timeLabel(nextFilters.time);
+    params.set("window", windowParam);
+    if (nextFilters.surface && nextFilters.surface !== "all") params.set("surface", nextFilters.surface);
+    if (nextFilters.code) params.set("code", nextFilters.code);
+    if (nextFilters.flow) params.set("flow", nextFilters.flow);
+    if (nextFilters.requestId) params.set("requestId", nextFilters.requestId);
+    if (nextFilters.search) params.set("q", nextFilters.search);
+    if (nextFilters.highImpact) params.set("highImpact", "1");
+    if (signalParam) params.set("signal", signalParam);
+    if (fromParam) params.set("from", fromParam);
+    const qs = params.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  };
 
   const filtered = useMemo(() => filterIncidents(incidents, filters), [incidents, filters]);
   const groups = useMemo(() => groupIncidents(filtered), [filtered]);
@@ -164,6 +205,15 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
     if (surface === "billing") return "resolved_credits_delay";
     return "unknown";
   }, [primaryBillingIncident]);
+  const hasWidenableFilters = useMemo(
+    () => filters.time === "0.25" || filters.surface !== "all" || Boolean(filters.code) || Boolean(filters.requestId),
+    [filters.code, filters.requestId, filters.surface, filters.time]
+  );
+  const shouldShowWiden = groups.length === 0 && hasWidenableFilters;
+  const filterSummary = useMemo(
+    () => `Window ${timeLabel(filters.time)}, surface ${filters.surface}, code ${filters.code || "all"}`,
+    [filters.code, filters.surface, filters.time]
+  );
 
   useEffect(() => {
     if (filters.requestId) {
@@ -176,6 +226,17 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
       logMonetisationClientEvent("ops_billing_health_view", null, "ops");
     }
   }, [hasBillingHealth]);
+
+  useEffect(() => {
+    if (fromParam !== "ops_alerts" || fromLogRef.current) return;
+    fromLogRef.current = true;
+    logMonetisationClientEvent("ops_incidents_from_alerts_view", null, "ops", {
+      from: fromParam,
+      window: timeLabel(filters.time),
+      surface: filters.surface,
+      code: filters.code || null,
+    });
+  }, [fromParam, filters.time, filters.surface, filters.code]);
 
   useEffect(() => {
     if (incidents.length > 0) {
@@ -271,6 +332,22 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
     }
   };
 
+  const applyAndLogWiden = (
+    updater: (prev: typeof filters) => typeof filters,
+    removed: "code" | "surface" | "none" | "all"
+  ) => {
+    setFilters((prev) => {
+      const next = updater(prev);
+      replaceQuery(next);
+      logMonetisationClientEvent("ops_incidents_widen_click", null, "ops", {
+        from: fromParam ?? null,
+        nextWindow: timeLabel(next.time as TimeFilter),
+        removed,
+      });
+      return next;
+    });
+  };
+
   const handlePlaybookAction = async (action: IncidentPlaybook["actions"][number], playbook: IncidentPlaybook, group: IncidentGroup) => {
     logMonetisationClientEvent("ops_playbook_action_click", null, "ops", { playbookId: playbook.id, actionId: action.id });
     if (action.kind === "link") {
@@ -340,6 +417,17 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
 
   return (
     <div className="space-y-4">
+      {fromParam === "ops_alerts" ? (
+        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-3 text-xs text-blue-900">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-[rgb(var(--ink))]">From Alerts</p>
+            <Link href="/app/ops/alerts" className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline">
+              Back to Alerts
+            </Link>
+          </div>
+          <p className="text-[11px] text-[rgb(var(--muted))]">Filters: {filterSummary}</p>
+        </div>
+      ) : null}
       {hasWebhookFailures ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -611,7 +699,7 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
               onChange={(e) => setFilters((f) => ({ ...f, surface: e.target.value }))}
             >
               <option value="all">{OPS_INCIDENTS_COPY.filters.surfaceAll}</option>
-              {["billing", "checkout", "portal", "outcomes", "outreach", "referrals", "diagnostics", "other"].map((s) => (
+              {["billing", "checkout", "portal", "webhook", "outcomes", "outreach", "referrals", "diagnostics", "ops", "other"].map((s) => (
                 <option key={s} value={s}>
                   {s}
                 </option>
@@ -775,7 +863,51 @@ export default function IncidentsClient({ incidents, initialLookup, initialReque
           </div>
         ) : null}
         {groups.length === 0 ? (
-          <p className="text-sm text-[rgb(var(--muted))]">{OPS_INCIDENTS_COPY.groupEmpty}</p>
+          shouldShowWiden ? (
+            <div className="rounded-2xl border border-black/10 bg-white/80 p-4 text-sm text-[rgb(var(--muted))]">
+              <p className="font-semibold text-[rgb(var(--ink))]">No incidents match these filters (last {timeLabel(filters.time)})</p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] disabled:opacity-50"
+                  disabled={!filters.code}
+                  onClick={() => applyAndLogWiden((prev) => ({ ...prev, code: "" }), "code")}
+                >
+                  Remove code
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] disabled:opacity-50"
+                  disabled={filters.surface === "all"}
+                  onClick={() => applyAndLogWiden((prev) => ({ ...prev, surface: "all" }), "surface")}
+                >
+                  Remove surface
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] disabled:opacity-50"
+                  disabled={filters.time === "24"}
+                  onClick={() => applyAndLogWiden((prev) => ({ ...prev, time: "24" as TimeFilter }), "none")}
+                >
+                  Window 24h
+                </button>
+                <button
+                  type="button"
+                  className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+                  onClick={() =>
+                    applyAndLogWiden(
+                      () => ({ time: "24", surface: "all", code: "", flow: "", search: "", highImpact: false, requestId: "" }),
+                      "all"
+                    )
+                  }
+                >
+                  Clear all
+                </button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-[rgb(var(--muted))]">{OPS_INCIDENTS_COPY.groupEmpty}</p>
+          )
         ) : (
           groups.map((group) => {
             const expanded = expandedGroup === group.key;

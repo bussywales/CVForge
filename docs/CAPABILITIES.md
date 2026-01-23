@@ -138,6 +138,7 @@ Ops Command Centre at `/app/ops` (env-guarded) lets support staff search users, 
 Support actions (v0.7.87): ops dossier adds manual credit adjustments (admin+ only, bounded), support link generator (billing compare/sub/pack or specific app tabs with from=ops_support), and a recent ops audit list with requestId references.
 Support link generation is resilient to logging/copy failures; URL always renders with last-generated timestamp and manual copy hint if clipboard is blocked. Monetisation logging now fails softly (ok:false) instead of 500s.
 Observability: key flows return request IDs with premium error banners plus copyable support snippets; Sentry capture uses the same references for faster debugging.
+Ops Alerts actionability: alert actions deep-link to Incidents with window=15m/from=ops_alerts/signal/surface/code, test alerts persist masked is_test events with audits/incidents links, and alerts can be marked handled via alert_handled outcomes (requestId optional) with badges + cooldown.
 Incident Console (v0.7.82) lets ops look up Reference IDs and browse recent incidents (billing/checkout/portal/outcomes) with masked user info and support snippets.
 v0.7.84 extends requestId + structured error coverage across remaining APIs and surfaces, making support handoff consistent.
 Incident Console v2 (v0.7.85) adds grouped feeds, filters, related timelines, and CSV/JSON export for ops with no secrets exposed.

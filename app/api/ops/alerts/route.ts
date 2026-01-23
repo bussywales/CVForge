@@ -26,6 +26,31 @@ function aggregateRateLimits(entries: ReturnType<typeof getRateLimitLog>) {
   return { hits, topRoutes };
 }
 
+async function listHandledAlerts({ sinceHours = 24, now = new Date() }: { sinceHours?: number; now?: Date }) {
+  const admin = createServiceRoleClient();
+  const since = new Date(now.getTime() - sinceHours * 60 * 60 * 1000).toISOString();
+  const { data } = await admin
+    .from("application_activities")
+    .select("id,body,occurred_at,created_at")
+    .eq("type", "monetisation.ops_resolution_outcome_set")
+    .gte("occurred_at", since)
+    .order("occurred_at", { ascending: false })
+    .limit(100);
+  const handled: Record<string, { at: string }> = {};
+  (data ?? []).forEach((row: any) => {
+    try {
+      const meta = JSON.parse(row.body ?? "{}");
+      if (meta?.code === "alert_handled" && meta?.alertKey) {
+        const at = row.occurred_at ?? row.created_at ?? now.toISOString();
+        if (!handled[meta.alertKey]) handled[meta.alertKey] = { at };
+      }
+    } catch {
+      /* ignore */
+    }
+  });
+  return handled;
+}
+
 export async function GET(request: Request) {
   const { headers, requestId } = withRequestIdHeaders(request.headers, undefined, { noStore: true });
   const { user } = await getSupabaseUser();
@@ -90,6 +115,7 @@ export async function GET(request: Request) {
 
     const recentEvents = await listRecentAlertEvents({ sinceHours: 24, now });
     const webhookConfigured = Boolean(process.env.OPS_ALERT_WEBHOOK_URL);
+    const handled = await listHandledAlerts({ sinceHours: 24, now });
 
     return NextResponse.json(
       {
@@ -102,6 +128,7 @@ export async function GET(request: Request) {
         alerts: alertsModel.alerts,
         recentEvents,
         webhookConfigured,
+        handled,
       },
       { headers }
     );

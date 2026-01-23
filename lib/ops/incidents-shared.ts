@@ -1,4 +1,4 @@
-export type IncidentSurface = "billing" | "portal" | "checkout" | "outcomes" | "outreach" | "referrals" | "other" | "diagnostics";
+export type IncidentSurface = "billing" | "portal" | "checkout" | "webhook" | "ops" | "outcomes" | "outreach" | "referrals" | "other" | "diagnostics";
 
 export type IncidentRecord = {
   requestId: string;

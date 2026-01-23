@@ -20,6 +20,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - If activation is incomplete, Keep Momentum still renders without stealing focus.
 - Ops Activation Funnel reflects keep-momentum aggregates (views/clicks/skips) after interactions.
 
+## Quick prod checks (v0.8.36)
+- From /app/ops/alerts, click an alert action → Incidents opens with window=15m, from=ops_alerts, and signal/surface/code params; if empty, widen chips appear to broaden results.
+- Click Send test alert → API returns ok+eventId, Recent tab shows Test events section with audits/incidents links for the new is_test event.
+- Click Mark handled on an alert → outcome saves (requestId optional), handled badge shows timestamp, and the prompt suppresses for ~15 minutes.
+
 ## Quick prod checks (v0.8.09)
 - With one archived and one active application, Activation and Keep Momentum CTAs deep-link to the newest active app (outreach/overview anchors) without dead links.
 - With zero applications, both cards surface a create-application CTA instead of empty/null states.

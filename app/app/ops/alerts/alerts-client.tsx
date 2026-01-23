@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import ErrorBanner from "@/components/ErrorBanner";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
@@ -19,7 +19,11 @@ type Alert = {
   actions: Array<{ label: string; href: string; kind?: string }>;
 };
 
-type AlertEvent = { id: string; key: string; state: string; at: string; summary: string; signals: Record<string, any> };
+type AlertEvent = { id: string; key: string; state: string; at: string; summary: string; signals: Record<string, any>; isTest?: boolean; severity?: string | null };
+
+type HandledMap = Record<string, { at: string }>;
+
+const HANDLED_COOLDOWN_MS = 15 * 60 * 1000;
 
 export default function AlertsClient({ initial, initialError, requestId }: { initial: OpsAlertsModel | null; initialError?: { message?: string; requestId?: string | null; code?: string | null } | null; requestId: string | null }) {
   const [data, setData] = useState<OpsAlertsModel>(coerceOpsAlertsModel(initial));
@@ -32,8 +36,17 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const [flash, setFlash] = useState<string | null>(null);
   const [tab, setTab] = useState<"firing" | "recent">("firing");
   const [lastCheckedAtIso, setLastCheckedAtIso] = useState<string | null>(new Date().toISOString());
+  const [handled, setHandled] = useState<HandledMap>(initial?.handled ?? {});
+  const [handledNotes, setHandledNotes] = useState<Record<string, string>>({});
+  const [handledSaving, setHandledSaving] = useState<Record<string, boolean>>({});
+  const [handledErrors, setHandledErrors] = useState<Record<string, string | null>>({});
+  const [testEventsOpen, setTestEventsOpen] = useState(false);
+  const handledViewLogged = useRef<Set<string>>(new Set());
 
   const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a?.state === "firing"), [data?.alerts]);
+  const recentEvents = useMemo(() => data?.recentEvents ?? [], [data?.recentEvents]);
+  const testEvents = useMemo(() => recentEvents.filter((ev) => ev?.isTest), [recentEvents]);
+  const normalEvents = useMemo(() => recentEvents.filter((ev) => !ev?.isTest), [recentEvents]);
 
   useEffect(() => {
     if (!initialError) return;
@@ -53,6 +66,28 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       logMonetisationClientEvent("ops_alerts_load_ok", null, "ops");
     }
   }, [loadState]);
+
+  useEffect(() => {
+    if (!data?.handled) return;
+    setHandled((prev) => {
+      const merged: HandledMap = { ...prev };
+      Object.entries(data.handled ?? {}).forEach(([key, value]) => {
+        if (!value?.at) return;
+        if (!merged[key] || new Date(value.at).getTime() > new Date(merged[key].at).getTime()) {
+          merged[key] = { at: value.at };
+        }
+      });
+      return merged;
+    });
+  }, [data?.handled]);
+
+  useEffect(() => {
+    (data?.alerts ?? []).forEach((alert) => {
+      if (handledViewLogged.current.has(alert.key)) return;
+      handledViewLogged.current.add(alert.key);
+      logMonetisationClientEvent("ops_alert_handled_view", null, "ops", { alertKey: alert.key });
+    });
+  }, [data?.alerts]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -107,7 +142,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const sendTest = async () => {
     setFlash(null);
     setError(null);
-    logMonetisationClientEvent("ops_alert_test_fire", null, "ops");
+    logMonetisationClientEvent("ops_alerts_test_click", null, "ops");
     try {
       const res = await fetchJsonSafe<OpsAlertsModel>("/api/ops/alerts/test", { method: "POST", cache: "no-store" });
       if (res.status === 429 || res.error?.code === "RATE_LIMITED") {
@@ -118,20 +153,82 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       }
       if (!res.ok || !res.json) {
         setError({ message: res.error?.message ?? "Test alert failed", requestId: res.requestId ?? null });
-        logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: res.error?.code ?? "UNKNOWN", status: res.status, hasJson: Boolean(res.json), mode: "test" } });
+        logMonetisationClientEvent("ops_alerts_test_error", null, "ops", {
+          meta: { code: res.error?.code ?? "UNKNOWN", status: res.status, hasJson: Boolean(res.json) },
+        });
         setLoadState("error");
         return;
       }
       setFlash("Test alert sent");
+      logMonetisationClientEvent("ops_alerts_test_success", null, "ops", { meta: { eventId: (res.json as any).eventId ?? null } });
       refresh();
     } catch {
       setError({ message: "Test alert failed", requestId: null });
-      logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: "NETWORK", status: 0, hasJson: false, mode: "test" } });
+      logMonetisationClientEvent("ops_alerts_test_error", null, "ops", { meta: { code: "NETWORK", status: 0, hasJson: false } });
       setLoadState("error");
     }
   };
 
+  const markHandled = async (alert: Alert) => {
+    const key = alert.key;
+    const note = handledNotes[key]?.trim() ?? "";
+    const requestId = typeof alert?.signals?.requestId === "string" ? alert.signals.requestId : null;
+    const signal = typeof alert.signals?.signal === "string" ? alert.signals.signal : null;
+    const surface = typeof alert.signals?.surface === "string" ? alert.signals.surface : null;
+    const code = typeof alert.signals?.code === "string" ? alert.signals.code : null;
+    setHandledErrors((prev) => ({ ...prev, [key]: null }));
+    setHandledSaving((prev) => ({ ...prev, [key]: true }));
+    logMonetisationClientEvent("ops_alert_handled_click", null, "ops", { alertKey: key });
+    try {
+      const payload: Record<string, any> = {
+        code: "alert_handled",
+        note: note ? note.slice(0, 200) : undefined,
+        requestId,
+        meta: {
+          alertKey: key,
+          window_label: typeof data?.window?.minutes === "number" ? `${data.window.minutes}m` : data?.window ?? "15m",
+          signal,
+          surface,
+          code,
+        },
+      };
+      const res = await fetch("/api/ops/resolution-outcome", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      let body: any = null;
+      try {
+        body = await res.json();
+      } catch {
+        body = null;
+      }
+      if (!res.ok || !body?.ok) {
+        const msg = body?.error?.message ?? "Unable to mark handled";
+        setHandledErrors((prev) => ({ ...prev, [key]: msg }));
+        logMonetisationClientEvent("ops_alert_handled_error", null, "ops", {
+          alertKey: key,
+          code: body?.error?.code ?? res.status ?? "UNKNOWN",
+        });
+        return;
+      }
+      const handledAt = body?.item?.createdAt ?? new Date().toISOString();
+      setHandled((prev) => ({ ...prev, [key]: { at: handledAt } }));
+      setHandledNotes((prev) => ({ ...prev, [key]: "" }));
+      logMonetisationClientEvent("ops_alert_handled_save", null, "ops", { alertKey: key });
+    } catch {
+      setHandledErrors((prev) => ({ ...prev, [key]: "Unable to mark handled" }));
+      logMonetisationClientEvent("ops_alert_handled_error", null, "ops", { alertKey: key, code: "NETWORK" });
+    } finally {
+      setHandledSaving((prev) => ({ ...prev, [key]: false }));
+    }
+  };
+
   const renderAlertCard = (alert: Alert) => {
+    const handledInfo = handled[alert.key];
+    const handledRecent = handledInfo ? Date.now() - new Date(handledInfo.at).getTime() < HANDLED_COOLDOWN_MS : false;
+    const note = handledNotes[alert.key] ?? "";
+    const handledError = handledErrors[alert.key] ?? null;
     return (
       <div key={alert.key} className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-2">
@@ -142,6 +239,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
             <span className="text-sm font-semibold text-[rgb(var(--ink))]">{alert.summary}</span>
           </div>
           <div className="text-[11px] text-[rgb(var(--muted))]">
+            {handledInfo ? <span className="mr-2 rounded-full bg-emerald-100 px-2 py-0.5 font-semibold text-emerald-800">Handled {formatShortLocalTime(handledInfo.at)}</span> : null}
             {alert.startedAt ? `Started: ${alert.startedAt}` : null} {alert.lastSeenAt ? `· Last seen: ${alert.lastSeenAt}` : null}
           </div>
         </div>
@@ -165,6 +263,34 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
               {action.label}
             </Link>
           ))}
+        </div>
+        <div className="mt-3 space-y-2 rounded-xl border border-emerald-100 bg-emerald-50 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm font-semibold text-[rgb(var(--ink))]">Mark handled</p>
+            {handledRecent ? <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-emerald-800">Cooldown (15m)</span> : null}
+          </div>
+          {!handledRecent ? (
+            <div className="flex flex-col gap-2 md:flex-row md:items-center">
+              <input
+                type="text"
+                value={note}
+                placeholder="Optional note"
+                onChange={(e) => setHandledNotes((prev) => ({ ...prev, [alert.key]: e.target.value }))}
+                className="w-full rounded-md border border-emerald-200 px-3 py-1 text-sm text-[rgb(var(--ink))]"
+              />
+              <button
+                type="button"
+                onClick={() => markHandled(alert)}
+                disabled={handledSaving[alert.key]}
+                className="rounded-full bg-[rgb(var(--ink))] px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
+              >
+                {handledSaving[alert.key] ? "Saving…" : "Mark handled"}
+              </button>
+            </div>
+          ) : (
+            <p className="text-[11px] text-[rgb(var(--muted))]">Handled recently — we will keep this alert quiet for a bit.</p>
+          )}
+          {handledError ? <p className="text-[11px] text-rose-700">{handledError}</p> : null}
         </div>
       </div>
     );
@@ -258,39 +384,87 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
           </p>
         )
       ) : (
-        <div className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
-          {data?.recentEvents?.length ? (
-            <table className="min-w-full text-left text-xs">
-              <thead className="text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
-                <tr>
-                  <th className="px-2 py-1">At</th>
-                  <th className="px-2 py-1">Key</th>
-                  <th className="px-2 py-1">State</th>
-                  <th className="px-2 py-1">Summary</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.recentEvents.map((ev) => (
-                  <tr key={ev.id} className="border-t">
-                    <td className="px-2 py-1">{ev.at}</td>
-                    <td className="px-2 py-1 font-mono text-[11px] text-[rgb(var(--muted))]">{ev.key}</td>
-                    <td className="px-2 py-1">
-                      <span
-                        className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
-                          ev.state === "firing" ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800"
-                        }`}
-                      >
-                        {ev.state}
-                      </span>
-                    </td>
-                    <td className="px-2 py-1">{ev.summary}</td>
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+            {normalEvents.length ? (
+              <table className="min-w-full text-left text-xs">
+                <thead className="text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">
+                  <tr>
+                    <th className="px-2 py-1">At</th>
+                    <th className="px-2 py-1">Key</th>
+                    <th className="px-2 py-1">State</th>
+                    <th className="px-2 py-1">Summary</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="text-sm text-[rgb(var(--muted))]">No recent alert events.</p>
-          )}
+                </thead>
+                <tbody>
+                  {normalEvents.map((ev) => (
+                    <tr key={ev.id} className="border-t">
+                      <td className="px-2 py-1">{formatShortLocalTime(ev.at)}</td>
+                      <td className="px-2 py-1 font-mono text-[11px] text-[rgb(var(--muted))]">{ev.key}</td>
+                      <td className="px-2 py-1">
+                        <span
+                          className={`rounded-full px-2 py-1 text-[11px] font-semibold ${
+                            ev.state === "firing" ? "bg-rose-100 text-rose-800" : "bg-emerald-100 text-emerald-800"
+                          }`}
+                        >
+                          {ev.state}
+                        </span>
+                      </td>
+                      <td className="px-2 py-1">{ev.summary}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-sm text-[rgb(var(--muted))]">No recent alert events.</p>
+            )}
+          </div>
+          {testEvents.length ? (
+            <div className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-semibold text-[rgb(var(--ink))]">Test events</p>
+                <button
+                  type="button"
+                  className="text-[11px] font-semibold text-[rgb(var(--muted))] underline-offset-2 hover:underline"
+                  onClick={() => setTestEventsOpen((open) => !open)}
+                >
+                  {testEventsOpen ? "Hide" : "Show"}
+                </button>
+              </div>
+              {testEventsOpen ? (
+                <ul className="mt-2 space-y-2">
+                  {testEvents.map((ev) => {
+                    const auditsHref = ev.signals?.requestId
+                      ? `/app/ops/audits?requestId=${encodeURIComponent(ev.signals.requestId)}`
+                      : `/app/ops/audits?q=${encodeURIComponent(ev.id ?? ev.key ?? "ops_alert_test")}`;
+                    return (
+                      <li key={ev.id} className="rounded-lg border border-black/5 bg-white px-3 py-2 text-xs text-[rgb(var(--muted))]">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <p className="font-semibold text-[rgb(var(--ink))]">
+                            {formatShortLocalTime(ev.at)} · {ev.summary}
+                          </p>
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-[rgb(var(--muted))]">
+                            {ev.severity ?? "low"}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex flex-wrap items-center gap-2">
+                          <Link href={auditsHref} className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline">
+                            Open in Audits
+                          </Link>
+                          <Link
+                            href="/app/ops/incidents?window=15m&surface=ops&signal=alert_test&from=ops_alerts"
+                            className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                          >
+                            Open in Incidents
+                          </Link>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       )}
     </div>

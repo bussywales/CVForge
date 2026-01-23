@@ -47,11 +47,13 @@ export async function POST(request: Request) {
   const note = typeof body?.note === "string" ? body.note : null;
   const targetRequestId = typeof body?.requestId === "string" ? body.requestId : null;
   const targetUserId = typeof body?.userId === "string" ? body.userId : null;
+  const meta = body && typeof body?.meta === "object" && !Array.isArray(body.meta) ? body.meta : null;
 
   if (!code) {
     return jsonError({ code: "INVALID_CODE", message: "Resolution code required", requestId, status: 400 });
   }
-  if (!targetRequestId && !targetUserId) {
+  const allowMissingTarget = code === "alert_handled";
+  if (!allowMissingTarget && !targetRequestId && !targetUserId) {
     return jsonError({ code: "MISSING_TARGET", message: "requestId or userId required", requestId, status: 400 });
   }
   if (note && note.length > 200) {
@@ -67,6 +69,7 @@ export async function POST(request: Request) {
       userId: targetUserId,
       actorId: user.id,
       actorEmail: user.email,
+      meta,
     });
     const activity = await logMonetisationEvent(admin, user.id, "ops_resolution_outcome_set", payload);
     const parsed = activity ? mapOutcomeRows([activity], new Date())[0] : null;

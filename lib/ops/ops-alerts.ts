@@ -44,6 +44,15 @@ type BuildInput = {
   lastState?: Record<string, StoredAlertState>;
 };
 
+function resolveSurface(signal: string | null | undefined) {
+  if (!signal) return "ops";
+  if (signal.includes("webhook")) return "webhook";
+  if (signal.includes("portal")) return "portal";
+  if (signal.includes("checkout")) return "checkout";
+  if (signal.includes("billing") || signal.includes("rate_limit")) return "billing";
+  return "ops";
+}
+
 function resolveTimes(key: AlertKey, state: AlertState, nowIso: string, lastState?: Record<string, StoredAlertState>) {
   const prev = lastState?.[key];
   const startedAt = state === "firing" ? prev?.started_at ?? nowIso : null;
@@ -67,6 +76,10 @@ export function buildOpsAlerts({ now = new Date(), rag15m, webhookFailures, port
     const key: AlertKey = "ops_alert_rag_red";
     const state: AlertState = rag15m.status === "red" ? "firing" : "ok";
     const { startedAt, lastSeenAt } = resolveTimes(key, state, nowIso, lastState);
+    const topIssue = rag15m.topIssues?.[0];
+    const signal = topIssue?.key ?? "rag_red";
+    const surface = resolveSurface(signal);
+    const code = signal;
     alerts.push({
       key,
       severity: "high",
@@ -74,17 +87,23 @@ export function buildOpsAlerts({ now = new Date(), rag15m, webhookFailures, port
       startedAt,
       lastSeenAt,
       summary: rag15m.status === "red" ? rag15m.headline ?? "RAG is red" : "RAG not red",
-      signals: { status: rag15m.status, headline: rag15m.headline, topIssue: rag15m.topIssues?.[0]?.key ?? null },
+      signals: { status: rag15m.status, headline: rag15m.headline, topIssue: topIssue?.key ?? null, signal, surface, code },
       actions: [
         { label: "Open System Status", href: "/app/ops/status#rag", kind: "status" },
-        ...(rag15m.topIssues?.[0]
+        ...(topIssue
           ? [
               {
                 label: "Top issue",
                 href:
-                  rag15m.topIssues[0].key === "webhook_failures"
-                    ? buildOpsWebhooksLink({ window: "15m", signal: "webhook_failures" })
-                    : buildOpsIncidentsLink({ window: "15m", signal: rag15m.topIssues[0].key as any, surface: rag15m.topIssues[0].key }),
+                  topIssue.key === "webhook_failures"
+                    ? buildOpsWebhooksLink({ window: "15m", signal: "webhook_failures", from: "ops_alerts" })
+                    : buildOpsIncidentsLink({
+                        window: "15m",
+                        signal: topIssue.key as any,
+                        surface,
+                        code,
+                        from: "ops_alerts",
+                      }),
               },
             ]
           : []),
@@ -98,6 +117,9 @@ export function buildOpsAlerts({ now = new Date(), rag15m, webhookFailures, port
     const firing = webhookFailures.count >= 3 || webhookFailures.repeats >= 2;
     const state: AlertState = firing ? "firing" : "ok";
     const { startedAt, lastSeenAt } = resolveTimes(key, state, nowIso, lastState);
+    const signal = "webhook_failures";
+    const surface = resolveSurface(signal);
+    const code = signal;
     alerts.push({
       key,
       severity: firing && webhookFailures.count >= 5 ? "high" : "medium",
@@ -107,10 +129,14 @@ export function buildOpsAlerts({ now = new Date(), rag15m, webhookFailures, port
       summary: firing
         ? `Webhook failures spike (${webhookFailures.count} failures, ${webhookFailures.repeats} repeats)`
         : "Webhook failures normal",
-      signals: { failures: webhookFailures.count, repeats: webhookFailures.repeats },
+      signals: { failures: webhookFailures.count, repeats: webhookFailures.repeats, signal, surface, code },
       actions: [
-        { label: "Webhook failures", href: buildOpsWebhooksLink({ window: "15m", signal: "webhook_failures" }), kind: "webhooks" },
-        { label: "Incidents", href: buildOpsIncidentsLink({ window: "15m", surface: "webhook", signal: "webhook_failures" }), kind: "incidents" },
+        { label: "Webhook failures", href: buildOpsWebhooksLink({ window: "15m", signal, from: "ops_alerts" }), kind: "webhooks" },
+        {
+          label: "Incidents",
+          href: buildOpsIncidentsLink({ window: "15m", surface, signal, code, from: "ops_alerts" }),
+          kind: "incidents",
+        },
       ],
     });
   }
@@ -121,6 +147,9 @@ export function buildOpsAlerts({ now = new Date(), rag15m, webhookFailures, port
     const firing = portalErrors15m >= 5;
     const state: AlertState = firing ? "firing" : "ok";
     const { startedAt, lastSeenAt } = resolveTimes(key, state, nowIso, lastState);
+    const signal = "portal_errors";
+    const surface = resolveSurface(signal);
+    const code = "portal_error";
     alerts.push({
       key,
       severity: firing && portalErrors15m >= 10 ? "high" : "medium",
@@ -128,8 +157,14 @@ export function buildOpsAlerts({ now = new Date(), rag15m, webhookFailures, port
       startedAt,
       lastSeenAt,
       summary: firing ? `Portal errors spike (${portalErrors15m} in 15m)` : "Portal errors normal",
-      signals: { portalErrors: portalErrors15m },
-      actions: [{ label: "Open portal incidents", href: buildOpsIncidentsLink({ window: "15m", surface: "portal", signal: "portal_errors" }), kind: "incidents" }],
+      signals: { portalErrors: portalErrors15m, signal, surface, code },
+      actions: [
+        {
+          label: "Open portal incidents",
+          href: buildOpsIncidentsLink({ window: "15m", surface, signal, code, from: "ops_alerts" }),
+          kind: "incidents",
+        },
+      ],
     });
   }
 
@@ -141,6 +176,9 @@ export function buildOpsAlerts({ now = new Date(), rag15m, webhookFailures, port
     const firing = rateLimit15m.hits >= 20 || criticalHit;
     const state: AlertState = firing ? "firing" : "ok";
     const { startedAt, lastSeenAt } = resolveTimes(key, state, nowIso, lastState);
+    const signal = "rate_limits";
+    const surface = resolveSurface(signal);
+    const code = "RATE_LIMIT";
     alerts.push({
       key,
       severity: firing ? "medium" : "low",
@@ -150,10 +188,14 @@ export function buildOpsAlerts({ now = new Date(), rag15m, webhookFailures, port
       summary: firing
         ? `Rate limit pressure (${rateLimit15m.hits} hits${criticalHit ? " on critical routes" : ""})`
         : "Rate limits normal",
-      signals: { hits: rateLimit15m.hits, topRoutes: rateLimit15m.topRoutes.slice(0, 5) },
+      signals: { hits: rateLimit15m.hits, topRoutes: rateLimit15m.topRoutes.slice(0, 5), signal, surface, code },
       actions: [
         { label: "Open limits", href: "/app/ops/status#limits", kind: "status" },
-        { label: "Rate limit incidents", href: buildOpsIncidentsLink({ window: "15m", surface: "billing", code: "RATE_LIMIT", signal: "rate_limits" }), kind: "incidents" },
+        {
+          label: "Rate limit incidents",
+          href: buildOpsIncidentsLink({ window: "15m", surface, code, signal, from: "ops_alerts" }),
+          kind: "incidents",
+        },
       ],
     });
   }

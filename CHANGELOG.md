@@ -3,6 +3,12 @@
 # Changelog
 # Changelog
 
+## v0.8.36
+- Ops Alerts actionability: incident deep links carry window/signal/surface/code/from=ops_alerts, “Mark handled” saves alert_handled outcomes (cooldown badge) with nullable requestId, and new allowlisted handled/test events.
+- Testable alerts: /api/ops/alerts/test persists masked is_test events (window_label=test) returning eventId; Alerts UI adds collapsible Test events with audits/incidents links.
+- Incidents console: empty filtered state shows widen chips (remove code/surface, 24h, clear all) with query updates + logging; “From Alerts” banner logs a view with back link.
+- Logging/guardrails: allowlists and dedupe updated for widen/from-alerts/test/handled events; resolution outcomes accept alert_handled without requestId.
+
 ## v0.8.35
 - Ops Alerts polish: load state semantics prevent false “unavailable”, last-checked timestamp always shown, webhook note is informational with setup link, and model coercion keeps arrays safe.
 - Invite conversion booster: polished invite landing with benefits, invalid-state support snippet, and signed-in claim CTA with calm copy.

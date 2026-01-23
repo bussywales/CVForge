@@ -3,6 +3,7 @@ import "server-only";
 import { createHash } from "crypto";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import type { OpsAlert } from "@/lib/ops/ops-alerts";
+import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
 
 export type AlertStateRow = {
   key: string;
@@ -60,7 +61,7 @@ export async function saveAlertStatesAndEvents({
         state: toState,
         at: nowIso,
         summary_masked: alert.summary,
-        signals_masked: alert.signals ?? {},
+        signals_masked: sanitizeMonetisationMeta(alert.signals ?? {}),
         window_label: "15m",
         rules_version: rulesVersion,
       });
@@ -110,14 +111,21 @@ export async function listRecentAlertEvents({ sinceHours = 24, now = new Date() 
     .gte("at", since)
     .order("at", { ascending: false })
     .limit(200);
-  return (data ?? []).map((row: any) => ({
-    id: row.id,
-    key: row.key,
-    state: row.state,
-    at: row.at,
-    summary: row.summary_masked ?? "",
-    signals: row.signals_masked ?? {},
-    window: row.window_label ?? null,
-    rulesVersion: row.rules_version ?? null,
-  }));
+  return (data ?? []).map((row: any) => {
+    const signals = row.signals_masked && typeof row.signals_masked === "object" ? row.signals_masked : {};
+    const isTest = Boolean((signals as any).is_test ?? (signals as any).test ?? false);
+    const severity = (signals as any).severity ?? null;
+    return {
+      id: row.id,
+      key: row.key,
+      state: row.state,
+      at: row.at,
+      summary: row.summary_masked ?? "",
+      signals,
+      window: row.window_label ?? null,
+      rulesVersion: row.rules_version ?? null,
+      isTest,
+      severity,
+    };
+  });
 }

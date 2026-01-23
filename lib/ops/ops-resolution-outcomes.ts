@@ -12,7 +12,8 @@ export type ResolutionOutcomeCode =
   | "SUBSCRIPTION_REACTIVATED"
   | "USER_GUIDED_SELF_SERVE"
   | "NOT_BILLING_ISSUE"
-  | "OTHER";
+  | "OTHER"
+  | "alert_handled";
 
 export type ResolutionOutcome = {
   id?: string;
@@ -29,6 +30,11 @@ export type ResolutionOutcome = {
   effectivenessSource?: string | null;
   effectivenessUpdatedAt?: string | null;
   effectivenessDeferredUntil?: string | null;
+  alertKey?: string | null;
+  alertSignal?: string | null;
+  alertSurface?: string | null;
+  alertCode?: string | null;
+  alertWindow?: string | null;
 };
 
 type OutcomeInput = {
@@ -38,6 +44,7 @@ type OutcomeInput = {
   userId?: string | null;
   actorId?: string | null;
   actorEmail?: string | null;
+  meta?: Record<string, any> | null;
 };
 
 function maskEmail(email?: string | null) {
@@ -56,7 +63,7 @@ export function buildOutcomeEvent(input: OutcomeInput) {
   const trimmedNote =
     typeof input.note === "string" && input.note.length > 0 ? input.note.slice(0, 200) : undefined;
   const nowIso = new Date().toISOString();
-  const meta = sanitizeMonetisationMeta({
+  const baseMeta = sanitizeMonetisationMeta({
     code: input.code,
     note: trimmedNote,
     requestId: input.requestId ?? null,
@@ -69,6 +76,8 @@ export function buildOutcomeEvent(input: OutcomeInput) {
     effectivenessDeferredUntil: null,
     effectivenessSource: "ops_resolution_outcome",
   });
+  const extraMeta = sanitizeMonetisationMeta(input.meta ?? {});
+  const meta = { ...baseMeta, ...extraMeta };
   return { surface: "ops", meta };
 }
 
@@ -113,6 +122,16 @@ function parseOutcomeRow(row: any, now: Date): ResolutionOutcome | null {
   const note = typeof meta.note === "string" ? meta.note.slice(0, 200) : undefined;
   const createdAt = row.occurred_at ?? row.created_at ?? now.toISOString();
   const effectiveness = sanitizeEffectiveness(meta);
+  const alertKey = typeof meta.alertKey === "string" ? meta.alertKey : null;
+  const alertSignal = typeof meta.signal === "string" ? meta.signal : typeof meta.alertSignal === "string" ? meta.alertSignal : null;
+  const alertSurface = typeof meta.surface === "string" ? meta.surface : typeof meta.alertSurface === "string" ? meta.alertSurface : null;
+  const alertCode = typeof meta.code === "string" ? meta.code : typeof meta.alertCode === "string" ? meta.alertCode : null;
+  const alertWindow =
+    typeof meta.window_label === "string"
+      ? meta.window_label
+      : typeof meta.alertWindow === "string"
+        ? meta.alertWindow
+        : null;
   return {
     id: row.id ?? undefined,
     code: meta.code as ResolutionOutcomeCode,
@@ -123,6 +142,11 @@ function parseOutcomeRow(row: any, now: Date): ResolutionOutcome | null {
     userId: meta.userId ?? null,
     surface: meta.surface ?? meta.contextSurface ?? null,
     ...effectiveness,
+    alertKey,
+    alertSignal,
+    alertSurface,
+    alertCode,
+    alertWindow,
   };
 }
 

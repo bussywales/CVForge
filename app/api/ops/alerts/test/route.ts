@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { notifyAlertTransitions } from "@/lib/ops/ops-alerts-notify";
+import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -36,15 +37,24 @@ export async function POST(request: Request) {
   const now = new Date();
   const nowIso = now.toISOString();
   const admin = createServiceRoleClient();
-  await admin.from("ops_alert_events").insert({
-    key: "ops_alert_test",
-    state: "firing",
-    at: nowIso,
-    summary_masked: "Test alert fired",
-    signals_masked: { test: true },
-    window: "test",
-    rules_version: "ops_alerts_v1_15m",
-  });
+  const signals = { is_test: true, severity: "low" };
+  const { data: inserted, error: insertError } = await admin
+    .from("ops_alert_events")
+    .insert({
+      key: "ops_alert_test",
+      state: "firing",
+      at: nowIso,
+      summary_masked: "Test alert fired",
+      signals_masked: sanitizeMonetisationMeta(signals),
+      window_label: "test",
+      rules_version: "ops_alerts_v1_15m",
+    })
+    .select("id")
+    .single();
+  const eventId = inserted?.id ?? null;
+  if (insertError) {
+    return jsonError({ code: "ALERT_TEST_FAIL", message: "Unable to save test alert", requestId, status: 500 });
+  }
 
   await notifyAlertTransitions({
     transitions: [{ key: "ops_alert_test", to: "firing" }],
@@ -54,7 +64,7 @@ export async function POST(request: Request) {
         severity: "low",
         state: "firing",
         summary: "Test alert fired",
-        signals: { test: true },
+        signals,
         actions: [{ label: "Open alerts", href: "/app/ops/alerts", kind: "alerts" }],
       },
     ],
@@ -69,5 +79,5 @@ export async function POST(request: Request) {
     meta: { requestId },
   });
 
-  return NextResponse.json({ ok: true, requestId }, { headers });
+  return NextResponse.json({ ok: true, requestId, eventId }, { headers });
 }
