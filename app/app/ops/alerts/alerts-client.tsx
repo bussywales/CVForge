@@ -55,11 +55,32 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const [workflowError, setWorkflowError] = useState<string | null>(null);
   const [workflowLoading, setWorkflowLoading] = useState(false);
   const testEventsRef = useRef<HTMLDivElement | null>(null);
+  const [testSending, setTestSending] = useState(false);
+  const [testCooldownSeconds, setTestCooldownSeconds] = useState(0);
+  const cooldownLoggedRef = useRef(false);
+  const cooldownKeyRef = useRef<string | null>(null);
 
   const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a?.state === "firing"), [data?.alerts]);
   const recentEvents = useMemo(() => data?.recentEvents ?? [], [data?.recentEvents]);
   const testEvents = useMemo(() => recentEvents.filter((ev) => ev?.isTest), [recentEvents]);
   const normalEvents = useMemo(() => recentEvents.filter((ev) => !ev?.isTest), [recentEvents]);
+
+  const windowLabel = useMemo(() => {
+    if (typeof (data as any)?.window?.minutes === "number") return `${(data as any).window.minutes}m`;
+    if (typeof (data as any)?.window === "string") return (data as any).window;
+    return "15m";
+  }, [data]);
+
+  useEffect(() => {
+    cooldownKeyRef.current = `ops_alerts_test_cooldown_until_${windowLabel}`;
+    if (typeof window === "undefined") return;
+    const stored = window.sessionStorage.getItem(cooldownKeyRef.current);
+    if (stored) {
+      const until = Number(stored);
+      const remaining = Math.max(0, Math.ceil((until - Date.now()) / 1000));
+      if (remaining > 0) setTestCooldownSeconds(remaining);
+    }
+  }, [windowLabel]);
 
   useEffect(() => {
     if (!initialError) return;
@@ -145,11 +166,23 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     return () => window.clearInterval(id);
   }, [cooldown]);
 
-  const windowLabel = useMemo(() => {
-    if (typeof (data as any)?.window?.minutes === "number") return `${(data as any).window.minutes}m`;
-    if (typeof (data as any)?.window === "string") return (data as any).window;
-    return "15m";
-  }, [data]);
+  useEffect(() => {
+    if (testCooldownSeconds <= 0) {
+      if (cooldownKeyRef.current && typeof window !== "undefined") {
+        window.sessionStorage.removeItem(cooldownKeyRef.current);
+      }
+      if (cooldownLoggedRef.current) {
+        logMonetisationClientEvent("ops_alerts_test_cooldown_ended", null, "ops", { meta: { window: windowLabel } });
+        cooldownLoggedRef.current = false;
+      }
+      return;
+    }
+    if (!cooldownLoggedRef.current) {
+      cooldownLoggedRef.current = true;
+    }
+    const id = window.setInterval(() => setTestCooldownSeconds((prev) => Math.max(0, prev - 1)), 1000);
+    return () => window.clearInterval(id);
+  }, [testCooldownSeconds, windowLabel]);
 
   const headlineTone = useMemo(() => {
     if (!data) return { label: "Unavailable", className: "bg-slate-100 text-slate-700" };
@@ -196,9 +229,12 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   };
 
   const sendTest = async () => {
+    if (testSending || testCooldownSeconds > 0) return;
     setFlash(null);
     setError(null);
+    setTestSending(true);
     logMonetisationClientEvent("ops_alerts_test_click", null, "ops");
+    logMonetisationClientEvent("ops_alerts_test_send_click", null, "ops", { meta: { window: windowLabel } });
     try {
       const res = await fetchJsonSafe<OpsAlertsModel>("/api/ops/alerts/test", { method: "POST", cache: "no-store" });
       if (res.status === 429 || res.error?.code === "RATE_LIMITED") {
@@ -220,17 +256,29 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       const hasEventId = Boolean((res.json as any).eventId);
       logMonetisationClientEvent("ops_alerts_test_success", null, "ops", { meta: { eventId: (res.json as any).eventId ?? null } });
       logMonetisationClientEvent("ops_alerts_test_sent_success", null, "ops", { meta: { window: windowLabel, hasEventId } });
+      if ((res.json as any)?.deduped) {
+        logMonetisationClientEvent("ops_alerts_test_sent_deduped", null, "ops", { meta: { window: windowLabel, hasEventId } });
+      }
       setTab("recent");
       setTestEventsOpen(true);
       logMonetisationClientEvent("ops_alerts_test_events_auto_expand", null, "ops", { meta: { window: windowLabel, reason: "test_sent" } });
       window.setTimeout(() => {
         if (testEventsRef.current) testEventsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 30);
+      const until = Date.now() + 10_000;
+      if (cooldownKeyRef.current && typeof window !== "undefined") {
+        window.sessionStorage.setItem(cooldownKeyRef.current, `${until}`);
+      }
+      setTestCooldownSeconds(10);
+      cooldownLoggedRef.current = false;
+      logMonetisationClientEvent("ops_alerts_test_cooldown_started", null, "ops", { meta: { window: windowLabel, seconds: 10 } });
       refresh();
     } catch {
       setError({ message: "Test alert failed", requestId: null });
       logMonetisationClientEvent("ops_alerts_test_error", null, "ops", { meta: { code: "NETWORK", status: 0, hasJson: false } });
       setLoadState("error");
+    } finally {
+      setTestSending(false);
     }
   };
 
@@ -619,10 +667,10 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
           <button
             type="button"
             onClick={sendTest}
-            className="rounded-full bg-[rgb(var(--ink))] px-3 py-1 text-[11px] font-semibold text-white"
-            disabled={loading}
+            className="rounded-full bg-[rgb(var(--ink))] px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
+            disabled={loading || testSending || testCooldownSeconds > 0}
           >
-            Send test alert
+            {testSending ? "Sending…" : testCooldownSeconds > 0 ? `Try again in ${testCooldownSeconds}s` : "Send test alert"}
           </button>
         </div>
       </div>

@@ -98,14 +98,22 @@ beforeAll(async () => {
 });
 
 describe("ops alerts test event route", () => {
-  it("persists test event and returns id", async () => {
-    const res = await POST(new Request("http://localhost/api/ops/alerts/test"));
-    const body = await res.json();
-    expect(res.status).toBe(200);
-    expect(body.ok).toBe(true);
-    expect(body.eventId).toBe("evt-test");
+  it("persists test event and dedupes repeated sends within window", async () => {
+    inserts.ops_alert_events = [];
+    inserts.ops_audit_log = [];
+    const first = await POST(new Request("http://localhost/api/ops/alerts/test"));
+    const firstBody = await first.json();
+    expect(first.status).toBe(200);
+    expect(firstBody.ok).toBe(true);
+    expect(firstBody.eventId).toBe("evt-test");
     const event = inserts.ops_alert_events[0];
     expect(event.signals_masked.is_test).toBe(true);
     expect(event.window_label).toBe("test");
+
+    const second = await POST(new Request("http://localhost/api/ops/alerts/test"));
+    const secondBody = await second.json();
+    expect(secondBody.deduped).toBe(true);
+    expect(secondBody.eventId).toBe("evt-test");
+    expect(inserts.ops_alert_events.length).toBe(1);
   });
 });

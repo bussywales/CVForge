@@ -11,6 +11,9 @@ import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const TEST_DEDUPE_WINDOW_MS = 10_000;
+const testSendCache = new Map<string, { until: number; eventId: string | null }>();
+
 export async function POST(request: Request) {
   const { headers, requestId } = withRequestIdHeaders(request.headers, undefined, { noStore: true });
   const { user } = await getSupabaseUser();
@@ -35,6 +38,12 @@ export async function POST(request: Request) {
   }
 
   const now = new Date();
+  const cacheKey = `${user.id}:15m`;
+  const cached = testSendCache.get(cacheKey);
+  if (cached && cached.until > now.getTime()) {
+    return NextResponse.json({ ok: true, requestId, eventId: cached.eventId, deduped: true }, { headers });
+  }
+
   const nowIso = now.toISOString();
   const admin = createServiceRoleClient();
   const signals = { is_test: true, severity: "low" };
@@ -78,6 +87,8 @@ export async function POST(request: Request) {
     action: "ops_alert_test_fire",
     meta: { requestId },
   });
+
+  testSendCache.set(cacheKey, { until: now.getTime() + TEST_DEDUPE_WINDOW_MS, eventId });
 
   return NextResponse.json({ ok: true, requestId, eventId }, { headers });
 }

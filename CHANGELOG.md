@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.39
+- Ops Alerts test sends are deduped within 10s (server-side) and the Send test alert button now shows a 10s cooldown countdown after success, auto-expands Test events as before, and stays enabled when a send fails; new telemetry added for send/cooldown/dedupe.
+
 ## v0.8.38
 - Ops Alerts test UX: sending a test alert now auto-expands the Test events panel, shows a calm success hint, and scrolls into view when possible while keeping failures collapsed with the existing error banner.
 
