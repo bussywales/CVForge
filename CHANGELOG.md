@@ -3,6 +3,10 @@
 # Changelog
 # Changelog
 
+## v0.8.41
+- Alerts delivery receipts: webhook notifications record sent/delivered/failed receipts per event and surface delivery badges with copyable refs/support snippets; webhook configuration now uses a deterministic helper with calm disabled hint.
+- Signed ACK: ops can mint short-lived ACK tokens and webhook payloads include an ackUrl; public /api/alerts/ack verifies tokens to mark handled (deduped) without login; delivery/ack logging and allowlists added.
+
 ## v0.8.40
 - Ops Alerts webhook ACK: webhook notifications now include eventId and ack deep link; new ops-only /api/ops/alerts/ack dedupes and records handled with masked actor/source; UI shows handled badges (UI/Slack/etc.), disables duplicate handle, and offers Copy ACK curl; notify logs added.
 

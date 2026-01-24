@@ -60,6 +60,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const cooldownLoggedRef = useRef(false);
   const cooldownKeyRef = useRef<string | null>(null);
   const ackViewLogged = useRef(false);
+  const deliveryViewLogged = useRef(false);
 
   const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a?.state === "firing"), [data?.alerts]);
   const recentEvents = useMemo(() => data?.recentEvents ?? [], [data?.recentEvents]);
@@ -175,6 +176,15 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   }, [testEvents.length, windowLabel]);
 
   useEffect(() => {
+    if (deliveryViewLogged.current) return;
+    const hasDelivery = (data?.recentEvents ?? []).some((ev: any) => ev?.delivery);
+    if (hasDelivery) {
+      deliveryViewLogged.current = true;
+      logMonetisationClientEvent("ops_alerts_delivery_view", null, "ops", { meta: { window: windowLabel } });
+    }
+  }, [data?.recentEvents, windowLabel]);
+
+  useEffect(() => {
     if (testCooldownSeconds <= 0) {
       if (cooldownKeyRef.current && typeof window !== "undefined") {
         window.sessionStorage.removeItem(cooldownKeyRef.current);
@@ -196,6 +206,24 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     if (!handled) return null;
     const source = handled.source ? handled.source.replace(/^\w/, (c) => c.toUpperCase()) : "UI";
     return `Handled (${source})`;
+  };
+
+  const deliveryBadge = (delivery?: { status?: string; maskedReason?: string | null }) => {
+    if (!delivery?.status) return null;
+    const status = delivery.status;
+    const tone =
+      status === "delivered"
+        ? "bg-emerald-100 text-emerald-800"
+        : status === "failed"
+          ? "bg-rose-100 text-rose-800"
+          : "bg-amber-100 text-amber-800";
+    const label = status === "delivered" ? "Delivered" : status === "failed" ? "Failed" : "Sent";
+    return (
+      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tone}`}>
+        {label}
+        {status === "failed" && delivery.maskedReason ? ` · ${delivery.maskedReason}` : ""}
+      </span>
+    );
   };
 
   const headlineTone = useMemo(() => {
@@ -656,7 +684,9 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
           <p className="text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Ops</p>
           <h1 className="text-lg font-semibold text-[rgb(var(--ink))]">Alerts</h1>
           <p className="text-xs text-[rgb(var(--muted))]">Thresholded 15m signals with actionable links.</p>
-          {!data?.webhookConfigured ? (
+          {data?.webhookConfig && data.webhookConfig.mode === "disabled" ? (
+            <p className="text-[11px] text-[rgb(var(--muted))]">Webhook notifications disabled.</p>
+          ) : !data?.webhookConfigured ? (
             <p className="text-[11px] text-[rgb(var(--muted))]">
               Notifications: Not configured (webhook).{" "}
               <Link
@@ -747,6 +777,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                     <th className="px-2 py-1">Key</th>
                     <th className="px-2 py-1">State</th>
                     <th className="px-2 py-1">Summary</th>
+                    <th className="px-2 py-1">Delivery</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -769,6 +800,36 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                           <span className="mt-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
                             {handledLabel(ev.handled)}
                           </span>
+                        ) : null}
+                      </td>
+                      <td className="px-2 py-1">
+                        {deliveryBadge(ev.delivery)}
+                        {ev.delivery?.status === "failed" ? (
+                          <div className="mt-1 flex flex-wrap gap-2">
+                            {ev.delivery.providerRef ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (navigator?.clipboard?.writeText) navigator.clipboard.writeText(String(ev.delivery.providerRef));
+                                  logMonetisationClientEvent("ops_alerts_delivery_copy_ref", null, "ops", { meta: { window: windowLabel } });
+                                }}
+                                className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                              >
+                                Copy delivery ref
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const snippet = `Delivery failed for ${ev.key} (${ev.id ?? "event"}) · reason ${ev.delivery?.maskedReason ?? "unknown"}. Please check webhook endpoint.`;
+                                if (navigator?.clipboard?.writeText) navigator.clipboard.writeText(snippet);
+                                logMonetisationClientEvent("ops_alerts_delivery_copy_ref", null, "ops", { meta: { window: windowLabel, type: "support" } });
+                              }}
+                              className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                            >
+                              Copy support snippet
+                            </button>
+                          </div>
                         ) : null}
                       </td>
                     </tr>
@@ -807,6 +868,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                             {ev.handled ? (
                               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">{handledLabel(ev.handled)}</span>
                             ) : null}
+                            {deliveryBadge(ev.delivery)}
                           </div>
                           <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-[rgb(var(--muted))]">
                             {ev.severity ?? "low"}

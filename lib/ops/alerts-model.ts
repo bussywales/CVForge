@@ -7,6 +7,7 @@ export type OpsAlertsModel = {
   alerts: any[];
   recentEvents: any[];
   webhookConfigured?: boolean;
+  webhookConfig?: { configured: boolean; mode: string; hint: string };
   jsonError?: any;
   requestId?: string | null;
   handled?: Record<string, { at: string; by?: string | null; source?: string | null }>;
@@ -55,6 +56,15 @@ export function coerceOpsAlertsModel(input: any): OpsAlertsModel {
                 source: typeof ev.handled.source === "string" ? ev.handled.source : null,
               }
             : null,
+        delivery:
+          ev?.delivery && typeof ev.delivery === "object" && typeof ev.delivery.status === "string" && typeof ev.delivery.at === "string"
+            ? {
+                status: ev.delivery.status,
+                at: ev.delivery.at,
+                maskedReason: typeof ev.delivery.maskedReason === "string" ? ev.delivery.maskedReason : null,
+                providerRef: typeof ev.delivery.providerRef === "string" ? ev.delivery.providerRef : null,
+              }
+            : null,
       }))
     : [];
   const ownershipRaw = (input as any).ownership;
@@ -101,6 +111,14 @@ export function coerceOpsAlertsModel(input: any): OpsAlertsModel {
     jsonError: (input as any).jsonError ?? null,
     requestId: (input as any).requestId ?? null,
     webhookConfigured: Boolean((input as any).webhookConfigured),
+    webhookConfig:
+      (input as any).webhookConfig && typeof (input as any).webhookConfig === "object"
+        ? {
+            configured: Boolean((input as any).webhookConfig.configured),
+            mode: typeof (input as any).webhookConfig.mode === "string" ? (input as any).webhookConfig.mode : "disabled",
+            hint: typeof (input as any).webhookConfig.hint === "string" ? (input as any).webhookConfig.hint : "",
+          }
+        : undefined,
     handled,
     ownership,
     snoozes,

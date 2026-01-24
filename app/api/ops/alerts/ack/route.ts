@@ -6,6 +6,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
+import { recordAlertHandled } from "@/lib/ops/alerts-handled";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -52,60 +53,28 @@ export async function POST(request: Request) {
   }
 
   const admin = createServiceRoleClient();
-  const { data: eventRow } = await admin.from("ops_alert_events").select("id,key,signals_masked").eq("id", eventId).limit(1).single();
-  if (!eventRow) {
-    return jsonError({ code: "NOT_FOUND", message: "Event not found", requestId, status: 404 });
-  }
-
   await admin.from("ops_audit_log").insert({
     actor_user_id: user.id,
     target_user_id: null,
     action: "ops_alerts_ack_submit",
-    meta: { key: eventRow.key, eventId, source, requestId },
+    meta: { eventId, source, requestId },
   });
-
-  const sinceIso = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const { data: existing } = await admin
-    .from("application_activities")
-    .select("id,body")
-    .eq("type", "monetisation.ops_alert_handled")
-    .gte("occurred_at", sinceIso)
-    .like("body", `%\"eventId\":\"${eventId}\"%`)
-    .limit(1);
-  if (existing && existing.length) {
+  const result = await recordAlertHandled({ eventId, actorId: user.id, source, note });
+  if (!result.ok) return jsonError({ code: result.code ?? "ACK_FAILED", message: "Unable to ack alert", requestId, status: 404 });
+  if (result.deduped) {
     await admin.from("ops_audit_log").insert({
       actor_user_id: user.id,
       target_user_id: null,
       action: "ops_alerts_ack_submit_deduped",
-      meta: { key: eventRow.key, eventId, source, requestId },
+      meta: { key: result.eventKey, eventId, source, requestId },
     });
     return NextResponse.json({ ok: true, requestId, eventId, handled: true, deduped: true }, { headers });
   }
-
-  const handledAt = new Date().toISOString();
-  const bodyPayload = {
-    eventId,
-    alertKey: eventRow.key,
-    source,
-    note,
-    actor: user.id,
-    handledAt,
-  };
-  await admin.from("application_activities").insert({
-    application_id: user.id,
-    type: "monetisation.ops_alert_handled",
-    subject: "ops_alert_handled",
-    channel: "ops",
-    body: JSON.stringify(sanitizeMonetisationMeta(bodyPayload)),
-    occurred_at: handledAt,
-    created_at: handledAt,
-  });
-
   await admin.from("ops_audit_log").insert({
     actor_user_id: user.id,
     target_user_id: null,
     action: "ops_alerts_ack_submit_success",
-    meta: { key: eventRow.key, eventId, source, requestId },
+    meta: { key: result.eventKey, eventId, source, requestId },
   });
 
   return NextResponse.json({ ok: true, requestId, eventId, handled: true }, { headers });

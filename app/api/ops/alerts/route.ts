@@ -10,6 +10,8 @@ import { buildOpsAlerts } from "@/lib/ops/ops-alerts";
 import { loadAlertStates, saveAlertStatesAndEvents, listRecentAlertEvents, listHandledAlertEvents } from "@/lib/ops/ops-alerts-store";
 import { notifyAlertTransitions } from "@/lib/ops/ops-alerts-notify";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { getWebhookConfig } from "@/lib/ops/webhook-config";
+import { signAckToken } from "@/lib/ops/alerts-ack-token";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -116,12 +118,22 @@ export async function GET(request: Request) {
         previousStates,
         now,
         eventIdsByKey,
+        ackUrlByEventId: Object.values(eventIdsByKey ?? {}).reduce<Record<string, string>>((acc, eventId) => {
+          try {
+            const token = signAckToken({ eventId, exp: Math.floor(Date.now() / 1000) + 15 * 60, window_label: "15m" });
+            const base = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
+            acc[eventId] = `${base}/api/alerts/ack?token=${encodeURIComponent(token)}`;
+          } catch {
+            // ignore token failures
+          }
+          return acc;
+        }, {}),
       });
     }
 
     const recentEvents = await listRecentAlertEvents({ sinceHours: 24, now });
     const handledEvents = await listHandledAlertEvents({ sinceHours: 24, now });
-    const webhookConfigured = Boolean(process.env.OPS_ALERT_WEBHOOK_URL);
+    const webhookConfig = getWebhookConfig();
     const handled = await listHandledAlerts({ sinceHours: 24, now });
     const recentEventsWithHandled = recentEvents.map((ev) => {
       const eventHandled = handledEvents[ev.id];
@@ -140,7 +152,8 @@ export async function GET(request: Request) {
         firingCount: alertsModel.firingCount,
         alerts: alertsModel.alerts,
         recentEvents: recentEventsWithHandled,
-        webhookConfigured,
+        webhookConfigured: webhookConfig.configured,
+        webhookConfig,
         handled,
         currentUserId: user.id,
       },

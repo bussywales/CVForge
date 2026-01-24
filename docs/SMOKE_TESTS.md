@@ -41,6 +41,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - POST /api/ops/alerts/ack with eventId → event shows Handled badge (source shown).
 - Re-POST same eventId → deduped:true, no duplicate handled records.
 
+## Quick prod checks (v0.8.41)
+- Send test alert → Test events auto-expand and show Delivered/Failed badge.
+- If webhook URL missing → Alerts page shows “Webhook notifications disabled” (informational).
+- Click ACK link from webhook notification in a fresh session → handled recorded; retry dedupes.
+
 ## Quick prod checks (v0.8.09)
 - With one archived and one active application, Activation and Keep Momentum CTAs deep-link to the newest active app (outreach/overview anchors) without dead links.
 - With zero applications, both cards surface a create-application CTA instead of empty/null states.
