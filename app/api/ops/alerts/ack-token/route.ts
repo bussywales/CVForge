@@ -6,9 +6,19 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { signAckToken } from "@/lib/ops/alerts-ack-token";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { logMonetisationEvent } from "@/lib/monetisation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+
+function parseTtlSeconds() {
+  const raw = process.env.ALERTS_ACK_TTL_SECONDS;
+  const fallback = 900;
+  if (!raw) return fallback;
+  const parsed = parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(1800, Math.max(600, parsed));
+}
 
 export async function POST(request: Request) {
   const { headers, requestId } = withRequestIdHeaders(request.headers, undefined, { noStore: true });
@@ -43,7 +53,8 @@ export async function POST(request: Request) {
   const { data: eventRow } = await admin.from("ops_alert_events").select("id,window_label").eq("id", eventId).limit(1).single();
   if (!eventRow) return jsonError({ code: "NOT_FOUND", message: "Event not found", requestId, status: 404 });
 
-  const exp = Math.floor(Date.now() / 1000) + 15 * 60;
+  const ttlSeconds = parseTtlSeconds();
+  const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
   const token = signAckToken({ eventId, exp, window_label: eventRow.window_label ?? "15m" });
 
   await admin.from("ops_audit_log").insert({
@@ -52,6 +63,13 @@ export async function POST(request: Request) {
     action: "ops_alerts_ack_token_created",
     meta: { eventId, requestId },
   });
+  try {
+    await logMonetisationEvent(admin as any, user.id, "ops_alerts_ack_token_minted", {
+      meta: { ttlSeconds, window_label: eventRow.window_label ?? "15m", hasSecret: Boolean(process.env.ALERTS_ACK_SECRET) },
+    });
+  } catch {
+    /* ignore log errors */
+  }
 
-  return NextResponse.json({ ok: true, requestId, token, eventId, exp }, { headers });
+  return NextResponse.json({ ok: true, requestId, token, eventId, exp, ttlSeconds }, { headers });
 }

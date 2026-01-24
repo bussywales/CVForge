@@ -219,6 +219,7 @@ export type MonetisationEventName =
   | "ops_alerts_notify_delivered"
   | "ops_alerts_notify_failed"
   | "ops_alerts_ack_token_created"
+  | "ops_alerts_ack_token_minted"
   | "alerts_ack_public_success"
   | "alerts_ack_public_failed"
   | "ops_alerts_delivery_view"

@@ -61,6 +61,7 @@ const DEDUPE_PERIODS: Record<string, "day" | "week"> = {
   ops_alerts_notify_delivered: "day",
   ops_alerts_notify_failed: "day",
   ops_alerts_ack_token_created: "day",
+  ops_alerts_ack_token_minted: "day",
   alerts_ack_public_success: "day",
   alerts_ack_public_failed: "day",
   ops_alerts_delivery_view: "day",
