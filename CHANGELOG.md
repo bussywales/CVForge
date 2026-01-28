@@ -3,6 +3,12 @@
 # Changelog
 # Changelog
 
+## v0.8.43
+- UI-first Alerts ACK: Ops Alerts page adds Acknowledge + Copy ACK link (curl optional) for firing/test events with badges and calm hints; ACK uses ops token mint + public ack flow with safe logging/guardrails and suppresses repeat ACKs.
+
+## v0.8.42
+- Configurable ACK TTL: ops ack-token route reads ALERTS_ACK_TTL_SECONDS (clamped 10–30m, default 15m), returns ttlSeconds, and logs mint success/error while preserving requestId/jsonError/no-store behaviours.
+
 ## v0.8.41
 - Alerts delivery receipts: webhook notifications record sent/delivered/failed receipts per event and surface delivery badges with copyable refs/support snippets; webhook configuration now uses a deterministic helper with calm disabled hint.
 - Signed ACK: ops can mint short-lived ACK tokens and webhook payloads include an ackUrl; public /api/alerts/ack verifies tokens to mark handled (deduped) without login; delivery/ack logging and allowlists added.
@@ -672,3 +678,5 @@
 ## v0.6.0
 - Opt-in JD learning events and admin pack proposals.
 - Published domain packs integrated into Role Fit.
+## v0.8.43
+- UI-first Alerts ACK: Ops UI adds Acknowledge + Copy ACK link (curl optional) for firing/test events with badges and state hints; ACK tokens respect configurable TTL (ALERTS_ACK_TTL_SECONDS) and new logs cover ack clicks/link copy/public ack outcomes.

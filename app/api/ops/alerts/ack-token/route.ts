@@ -54,8 +54,20 @@ export async function POST(request: Request) {
   if (!eventRow) return jsonError({ code: "NOT_FOUND", message: "Event not found", requestId, status: 404 });
 
   const ttlSeconds = parseTtlSeconds();
-  const exp = Math.floor(Date.now() / 1000) + ttlSeconds;
-  const token = signAckToken({ eventId, exp, window_label: eventRow.window_label ?? "15m" });
+  let token: string;
+  let exp = Math.floor(Date.now() / 1000) + ttlSeconds;
+  try {
+    token = signAckToken({ eventId, exp, window_label: eventRow.window_label ?? "15m" });
+  } catch (err) {
+    try {
+      await logMonetisationEvent(admin as any, user.id, "ops_alerts_ack_token_mint_error", {
+        meta: { ttlSeconds, hasSecret: Boolean(process.env.ALERTS_ACK_SECRET) },
+      });
+    } catch {
+      // ignore
+    }
+    return jsonError({ code: "TOKEN_MINT_FAILED", message: "Unable to mint ACK token", requestId, status: 500 });
+  }
 
   await admin.from("ops_audit_log").insert({
     actor_user_id: user.id,
@@ -64,11 +76,11 @@ export async function POST(request: Request) {
     meta: { eventId, requestId },
   });
   try {
-    await logMonetisationEvent(admin as any, user.id, "ops_alerts_ack_token_minted", {
+    await logMonetisationEvent(admin as any, user.id, "ops_alerts_ack_token_mint_success", {
       meta: { ttlSeconds, window_label: eventRow.window_label ?? "15m", hasSecret: Boolean(process.env.ALERTS_ACK_SECRET) },
     });
   } catch {
-    /* ignore log errors */
+    // ignore
   }
 
   return NextResponse.json({ ok: true, requestId, token, eventId, exp, ttlSeconds }, { headers });

@@ -5,8 +5,9 @@ export function makeRequestId(existing?: string | null) {
 }
 
 export function withRequestIdHeaders(headersInit?: HeadersInit, requestId?: string, opts?: { noStore?: boolean }) {
-  const headers = new Headers(headersInit ?? {});
-  const resolved = makeRequestId(requestId ?? headers.get("x-request-id"));
+  const incoming = headersInit ? new Headers(headersInit) : null;
+  const resolved = makeRequestId(requestId ?? incoming?.get("x-request-id") ?? null);
+  const headers = new Headers();
   headers.set("x-request-id", resolved);
   const shouldNoStore = opts?.noStore ?? true;
   if (shouldNoStore) {

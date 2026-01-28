@@ -50,6 +50,10 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Set ALERTS_ACK_SECRET (+ optional ALERTS_ACK_TTL_SECONDS 10–30m); mint ACK token and confirm exp ≈ now + ttlSeconds returned.
 - Use /api/alerts/ack?token=... → handled recorded; expired/invalid tokens return jsonError with x-request-id.
 
+## Quick prod checks (v0.8.43)
+- Ops → Alerts → Send test alert → Acknowledge in UI; badge shows and button disables, no terminal needed.
+- Copy ACK link → paste into browser (fresh session OK) → handled state shows; duplicate ACKs dedupe.
+
 ## Quick prod checks (v0.8.09)
 - With one archived and one active application, Activation and Keep Momentum CTAs deep-link to the newest active app (outreach/overview anchors) without dead links.
 - With zero applications, both cards surface a create-application CTA instead of empty/null states.

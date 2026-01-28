@@ -94,6 +94,8 @@ describe("ops alerts ack token ttl", () => {
       logMonetisationEvent: vi.fn(),
     }));
 
+    process.env.ALERTS_ACK_SECRET = "secret";
+
     const mod = await import("@/app/api/ops/alerts/ack-token/route");
     POST = mod.POST;
   });

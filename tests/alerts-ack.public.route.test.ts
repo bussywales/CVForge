@@ -108,4 +108,9 @@ describe("public alerts ack route", () => {
     const res = await POST(new Request("http://localhost/api/alerts/ack?token=bad") as any);
     expect(res.status).toBe(400);
   });
+
+  it("rejects missing token", async () => {
+    const res = await POST(new Request("http://localhost/api/alerts/ack") as any);
+    expect(res.status).toBe(400);
+  });
 });

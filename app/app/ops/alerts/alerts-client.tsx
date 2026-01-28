@@ -7,6 +7,7 @@ import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { fetchJsonSafe } from "@/lib/http/safe-json";
 import { coerceOpsAlertsModel, type OpsAlertsModel } from "@/lib/ops/alerts-model";
 import { formatShortLocalTime } from "@/lib/time/format-short";
+import { buildAckLink } from "@/lib/ops/alerts-ack-link";
 
 type Alert = {
   key: string;
@@ -61,6 +62,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const cooldownKeyRef = useRef<string | null>(null);
   const ackViewLogged = useRef(false);
   const deliveryViewLogged = useRef(false);
+  const [ackState, setAckState] = useState<Record<string, { acknowledged: boolean; requestId?: string | null }>>({});
 
   const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a?.state === "firing"), [data?.alerts]);
   const recentEvents = useMemo(() => data?.recentEvents ?? [], [data?.recentEvents]);
@@ -151,6 +153,15 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   useEffect(() => {
     loadWorkflow();
   }, []);
+
+  useEffect(() => {
+    // sync acknowledged state when handled delivered from server
+    const updated: Record<string, { acknowledged: boolean; requestId?: string | null }> = {};
+    (data?.recentEvents ?? []).forEach((ev) => {
+      if (ev?.handled) updated[ev.id] = { acknowledged: true, requestId: null };
+    });
+    if (Object.keys(updated).length) setAckState((prev) => ({ ...prev, ...updated }));
+  }, [data?.recentEvents]);
 
   useEffect(() => {
     setHandoffNotes((prev) => {
@@ -379,6 +390,54 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     }
   };
 
+  const acknowledgeEvent = async (event: any) => {
+    if (!event?.id) return;
+    logMonetisationClientEvent("ops_alerts_ack_click", null, "ops", {
+      meta: { eventIdHash: typeof event.id === "string" ? event.id.slice(0, 8) : "unknown", window_label: event.window ?? "15m", isTest: Boolean(event.isTest) },
+    });
+    try {
+      const tokenRes = await fetchJsonSafe<{ token: string; requestId?: string | null; ttlSeconds?: number }>(`/api/ops/alerts/ack-token`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ eventId: event.id }),
+      });
+      if (!tokenRes.ok || !tokenRes.json?.token) {
+        setError({ message: tokenRes.error?.message ?? "Unable to acknowledge alert", requestId: tokenRes.requestId ?? null });
+        return;
+      }
+      const token = tokenRes.json.token;
+      const ackRes = await fetchJsonSafe<{ ok: boolean; deduped?: boolean; requestId?: string | null }>(`/api/alerts/ack`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      if (!ackRes.ok || !ackRes.json?.ok) {
+        setError({ message: ackRes.error?.message ?? "Unable to acknowledge alert", requestId: ackRes.requestId ?? tokenRes.requestId ?? null });
+        logMonetisationClientEvent("ops_alerts_ack_public_error", null, "ops", {
+          meta: { code: ackRes.error?.code ?? "ACK_FAILED", deduped: Boolean(ackRes.json?.deduped) },
+        });
+        return;
+      }
+      setAckState((prev) => ({ ...prev, [event.id]: { acknowledged: true, requestId: ackRes.requestId ?? tokenRes.requestId ?? null } }));
+      logMonetisationClientEvent("ops_alerts_ack_public_success", null, "ops", {
+        meta: { deduped: Boolean(ackRes.json?.deduped) },
+      });
+      logMonetisationClientEvent("ops_alerts_ack_ui_state_change", null, "ops", { meta: { acknowledged: true } });
+    } catch {
+      setError({ message: "Unable to acknowledge alert", requestId: null });
+    }
+  };
+
+  const copyAckLink = (token: string, meta: { window_label?: string | null; isTest?: boolean; eventId?: string }) => {
+    const link = buildAckLink(token, { returnTo: "/app/ops/alerts" });
+    if (navigator?.clipboard?.writeText) navigator.clipboard.writeText(link);
+    logMonetisationClientEvent("ops_alerts_ack_link_copy", null, "ops", {
+      meta: { window_label: meta.window_label ?? "15m", isTest: Boolean(meta.isTest), eventIdHash: meta.eventId ? meta.eventId.slice(0, 8) : "unknown" },
+    });
+  };
+
   const claimAlert = async (alert: Alert) => {
     logMonetisationClientEvent("ops_alert_claim_click", null, "ops", { alertKey: alert.key });
     try {
@@ -519,6 +578,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     const claimedByMe = ownershipInfo?.claimedByUserId === (data as any)?.currentUserId;
     const claimed = ownershipInfo && new Date(ownershipInfo.expiresAt).getTime() > now.getTime();
     const snoozed = snoozeInfo && new Date(snoozeInfo.untilAt).getTime() > now.getTime();
+    const eventId = typeof (alert as any)?.signals?.eventId === "string" ? (alert as any).signals.eventId : null;
     return (
       <div key={alert.key} className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-2">
@@ -672,6 +732,55 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
             <p className="text-[11px] text-[rgb(var(--muted))]">Handled recently — we will keep this alert quiet for a bit.</p>
           )}
           {handledError ? <p className="text-[11px] text-rose-700">{handledError}</p> : null}
+          {eventId ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => acknowledgeEvent({ ...alert, id: eventId, window: "15m", isTest: false })}
+                disabled={ackState[eventId]?.acknowledged}
+                className="rounded-full border border-black/10 px-2 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] disabled:opacity-50"
+              >
+                {ackState[eventId]?.acknowledged ? "Acknowledged" : "Acknowledge"}
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const tokenRes = await fetchJsonSafe<{ token: string }>(`/api/ops/alerts/ack-token`, {
+                    method: "POST",
+                    cache: "no-store",
+                    headers: { "content-type": "application/json" },
+                    body: JSON.stringify({ eventId }),
+                  });
+                  if (!tokenRes.ok || !tokenRes.json?.token) {
+                    setError({ message: tokenRes.error?.message ?? "Unable to copy ACK link", requestId: tokenRes.requestId ?? null });
+                    logMonetisationClientEvent("ops_alerts_ack_token_mint_error", null, "ops", {
+                      meta: { hasSecret: Boolean(process.env.ALERTS_ACK_SECRET) },
+                    });
+                    return;
+                  }
+                  copyAckLink(tokenRes.json.token, { window_label: "15m", isTest: false, eventId });
+                }}
+                className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+              >
+                Copy ACK link
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const origin = typeof window !== "undefined" ? window.location.origin : "";
+                  const cmd = `curl -X POST -H "Content-Type: application/json" -d '{\"eventId\":\"${eventId}\",\"source\":\"webhook\"}' ${origin}/api/ops/alerts/ack`;
+                  if (navigator?.clipboard?.writeText) navigator.clipboard.writeText(cmd);
+                  logMonetisationClientEvent("ops_alerts_ack_curl_copy", null, "ops", { meta: { window: windowLabel } });
+                }}
+                className="text-[11px] font-semibold text-[rgb(var(--muted))] underline-offset-2 hover:underline"
+              >
+                Copy ACK curl (for integrations)
+              </button>
+              {ackState[eventId]?.acknowledged ? (
+                <span className="text-[10px] text-emerald-700">Ack recorded ({ackState[eventId]?.requestId ?? "no request id"})</span>
+              ) : null}
+            </div>
+          ) : null}
         </div>
       </div>
     );
@@ -684,6 +793,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
           <p className="text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Ops</p>
           <h1 className="text-lg font-semibold text-[rgb(var(--ink))]">Alerts</h1>
           <p className="text-xs text-[rgb(var(--muted))]">Thresholded 15m signals with actionable links.</p>
+          <p className="text-[11px] text-[rgb(var(--muted))]">ACK marks an alert as seen/handled and prevents duplicate noise.</p>
           {data?.webhookConfig && data.webhookConfig.mode === "disabled" ? (
             <p className="text-[11px] text-[rgb(var(--muted))]">Webhook notifications disabled.</p>
           ) : !data?.webhookConfigured ? (
@@ -831,6 +941,55 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                             </button>
                           </div>
                         ) : null}
+                        {ev.id ? (
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => acknowledgeEvent(ev)}
+                              disabled={ackState[ev.id]?.acknowledged}
+                              className="rounded-full border border-black/10 px-2 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] disabled:opacity-50"
+                            >
+                              {ackState[ev.id]?.acknowledged ? "Acknowledged" : "Acknowledge"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={async () => {
+                                const tokenRes = await fetchJsonSafe<{ token: string }>(`/api/ops/alerts/ack-token`, {
+                                  method: "POST",
+                                  cache: "no-store",
+                                  headers: { "content-type": "application/json" },
+                                  body: JSON.stringify({ eventId: ev.id }),
+                                });
+                                if (!tokenRes.ok || !tokenRes.json?.token) {
+                                  setError({ message: tokenRes.error?.message ?? "Unable to copy ACK link", requestId: tokenRes.requestId ?? null });
+                                  logMonetisationClientEvent("ops_alerts_ack_token_mint_error", null, "ops", {
+                                    meta: { hasSecret: Boolean(process.env.ALERTS_ACK_SECRET) },
+                                  });
+                                  return;
+                                }
+                                copyAckLink(tokenRes.json.token, { window_label: ev.window ?? "15m", isTest: Boolean(ev.isTest), eventId: ev.id });
+                              }}
+                              className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                            >
+                              Copy ACK link
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                const cmd = `curl -X POST -H "Content-Type: application/json" -d '{\"eventId\":\"${ev.id}\",\"source\":\"webhook\"}' ${origin}/api/ops/alerts/ack`;
+                                if (navigator?.clipboard?.writeText) navigator.clipboard.writeText(cmd);
+                                logMonetisationClientEvent("ops_alerts_ack_curl_copy", null, "ops", { meta: { window: windowLabel } });
+                              }}
+                              className="text-[11px] font-semibold text-[rgb(var(--muted))] underline-offset-2 hover:underline"
+                            >
+                              Copy ACK curl (for integrations)
+                            </button>
+                            {ackState[ev.id]?.acknowledged ? (
+                              <span className="text-[10px] text-emerald-700">Ack recorded ({ackState[ev.id]?.requestId ?? "no request id"})</span>
+                            ) : null}
+                          </div>
+                        ) : null}
                       </td>
                     </tr>
                   ))}
@@ -852,6 +1011,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                   {testEventsOpen ? "Hide" : "Show"}
                 </button>
               </div>
+              <p className="mt-1 text-[11px] text-[rgb(var(--muted))]">Use Acknowledge to confirm the end-to-end loop (no terminal needed).</p>
               {testEventsOpen ? (
                 <ul className="mt-2 space-y-2">
                   {testEvents.map((ev) => {
@@ -885,18 +1045,53 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                             Open in Incidents
                           </Link>
                           {ev.id ? (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const origin = typeof window !== "undefined" ? window.location.origin : "";
-                                const cmd = `curl -X POST -H "Content-Type: application/json" -d '{\"eventId\":\"${ev.id}\",\"source\":\"webhook\"}' ${origin}/api/ops/alerts/ack`;
-                                if (navigator?.clipboard?.writeText) navigator.clipboard.writeText(cmd);
-                                logMonetisationClientEvent("ops_alerts_ack_curl_copy", null, "ops", { meta: { window: windowLabel } });
-                              }}
-                              className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
-                            >
-                              Copy ACK curl
-                            </button>
+                            <>
+                              <button
+                                type="button"
+                                onClick={() => acknowledgeEvent(ev)}
+                                disabled={ackState[ev.id]?.acknowledged}
+                                className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline disabled:opacity-50"
+                              >
+                                {ackState[ev.id]?.acknowledged ? "Acknowledged" : "Acknowledge"}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  const tokenRes = await fetchJsonSafe<{ token: string }>(`/api/ops/alerts/ack-token`, {
+                                    method: "POST",
+                                    cache: "no-store",
+                                    headers: { "content-type": "application/json" },
+                                    body: JSON.stringify({ eventId: ev.id }),
+                                  });
+                                  if (!tokenRes.ok || !tokenRes.json?.token) {
+                                    setError({ message: tokenRes.error?.message ?? "Unable to copy ACK link", requestId: tokenRes.requestId ?? null });
+                                    logMonetisationClientEvent("ops_alerts_ack_token_mint_error", null, "ops", {
+                                      meta: { hasSecret: Boolean(process.env.ALERTS_ACK_SECRET) },
+                                    });
+                                    return;
+                                  }
+                                  copyAckLink(tokenRes.json.token, { window_label: ev.window ?? "15m", isTest: true, eventId: ev.id });
+                                }}
+                                className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                              >
+                                Copy ACK link
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const origin = typeof window !== "undefined" ? window.location.origin : "";
+                                  const cmd = `curl -X POST -H "Content-Type: application/json" -d '{\"eventId\":\"${ev.id}\",\"source\":\"webhook\"}' ${origin}/api/ops/alerts/ack`;
+                                  if (navigator?.clipboard?.writeText) navigator.clipboard.writeText(cmd);
+                                  logMonetisationClientEvent("ops_alerts_ack_curl_copy", null, "ops", { meta: { window: windowLabel } });
+                                }}
+                                className="text-[11px] font-semibold text-[rgb(var(--muted))] underline-offset-2 hover:underline"
+                              >
+                                Copy ACK curl (for integrations)
+                              </button>
+                              {ackState[ev.id]?.acknowledged ? (
+                                <span className="text-[10px] text-emerald-700">Ack recorded ({ackState[ev.id]?.requestId ?? "no request id"})</span>
+                              ) : null}
+                            </>
                           ) : null}
                         </div>
                       </li>
