@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.48
+- Ops Alerts webhook test + deliveries visibility: new webhook config truth panel (Alerts + Status), sendable webhook test from the UI, and a Deliveries section with filters and receipt polling/visibility.
+
 ## v0.8.47
 - Ops Alerts UX polish: post-send polling to surface new test events, per-tab last-loaded timestamps, and ACK cache reconciliation across tabs with a background refresh after acknowledgement.
 

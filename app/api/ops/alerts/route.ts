@@ -10,7 +10,7 @@ import { buildOpsAlerts } from "@/lib/ops/ops-alerts";
 import { loadAlertStates, saveAlertStatesAndEvents, listRecentAlertEvents, listHandledAlertEvents } from "@/lib/ops/ops-alerts-store";
 import { notifyAlertTransitions } from "@/lib/ops/ops-alerts-notify";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { getWebhookConfig } from "@/lib/ops/webhook-config";
+import { getAlertsWebhookConfig } from "@/lib/ops/alerts-webhook-config";
 import { signAckToken } from "@/lib/ops/alerts-ack-token";
 
 export const runtime = "nodejs";
@@ -133,7 +133,7 @@ export async function GET(request: Request) {
 
     const recentEvents = await listRecentAlertEvents({ sinceHours: 24, now });
     const handledEvents = await listHandledAlertEvents({ sinceHours: 24, now });
-    const webhookConfig = getWebhookConfig();
+    const webhookConfig = getAlertsWebhookConfig();
     const handled = await listHandledAlerts({ sinceHours: 24, now });
     const recentEventsWithHandled = recentEvents.map((ev) => {
       const eventHandled = handledEvents[ev.id];

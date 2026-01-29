@@ -4,6 +4,7 @@ import { hashAlertPayload, updateAlertNotificationMeta, type AlertStateRow } fro
 import type { OpsAlert } from "@/lib/ops/ops-alerts";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { recordAlertDelivery } from "@/lib/ops/ops-alerts-delivery";
+import { getAlertsWebhookConfig } from "@/lib/ops/alerts-webhook-config";
 
 type Transition = { key: string; to: "ok" | "firing" };
 
@@ -49,10 +50,13 @@ export async function notifyAlertTransitions({
   eventIdsByKey?: Record<string, string>;
   ackUrlByEventId?: Record<string, string>;
 }) {
+  const config = getAlertsWebhookConfig();
   const url = process.env.OPS_ALERT_WEBHOOK_URL;
+  const secret = process.env.OPS_ALERT_WEBHOOK_SECRET;
   const results: Array<{ key: string; sent: boolean; error?: string }> = [];
-  if (!url) {
-    transitions.forEach((t) => results.push({ key: t.key, sent: false, error: "missing_webhook" }));
+  if (!config.configured || !url) {
+    const error = config.mode === "enabled" ? "missing_webhook" : config.mode;
+    transitions.forEach((t) => results.push({ key: t.key, sent: false, error }));
     return results;
   }
   const nowIso = now.toISOString();
@@ -88,9 +92,11 @@ export async function notifyAlertTransitions({
       let delivered = false;
       let maskedReason: string | null = null;
       try {
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (secret) headers["x-ops-alert-secret"] = secret;
         const res = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers,
           body: JSON.stringify(payload),
           signal: controller.signal,
         });

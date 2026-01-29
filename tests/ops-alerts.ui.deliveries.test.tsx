@@ -1,5 +1,5 @@
 /// <reference types="vitest/globals" />
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AlertsClient from "@/app/app/ops/alerts/alerts-client";
 import { coerceOpsAlertsModel } from "@/lib/ops/alerts-model";
@@ -23,7 +23,7 @@ vi.mock("@/lib/monetisation-client", () => ({
   logMonetisationClientEvent: (...args: any[]) => logMock(...args),
 }));
 
-describe("Ops alerts delivery UI", () => {
+describe("Ops alerts deliveries UI", () => {
   beforeEach(() => {
     replaceMock.mockReset();
     searchParamsValue = new URLSearchParams();
@@ -37,38 +37,29 @@ describe("Ops alerts delivery UI", () => {
     logMock.mockReset();
   });
 
-  it("shows delivery badges and copy actions", async () => {
+  it("filters deliveries and expands failure details", async () => {
+    const deliveries = [
+      {
+        deliveryId: "del_1",
+        eventId: "evt_1",
+        status: "failed",
+        attempt: 1,
+        isTest: true,
+        createdAt: "2024-01-01T00:01:00.000Z",
+        headline: "Webhook test notification",
+        reason: "status_500",
+      },
+    ];
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input.toString();
       if (url.includes("/api/ops/alerts/workflow")) {
         return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
       }
       if (url.includes("/api/ops/alerts/deliveries")) {
-        return Promise.resolve(new Response(JSON.stringify({ ok: true, deliveries: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, deliveries }), { status: 200, headers: { "content-type": "application/json" } }));
       }
       if (url.includes("/api/ops/alerts")) {
-        return Promise.resolve(
-          new Response(
-            JSON.stringify({
-              ok: true,
-              alerts: [],
-              recentEvents: [
-                {
-                  id: "evt_d",
-                  key: "ops_alert_test",
-                  state: "firing",
-                  at: "2024-01-01T00:00:00.000Z",
-                  summary: "Test alert fired",
-                  isTest: true,
-                  severity: "low",
-                  signals: {},
-                  delivery: { status: "failed", maskedReason: "status_500", at: "2024-01-01T00:01:00.000Z" },
-                },
-              ],
-            }),
-            { status: 200, headers: { "content-type": "application/json" } }
-          )
-        );
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, alerts: [], recentEvents: [] }), { status: 200, headers: { "content-type": "application/json" } }));
       }
       return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/plain" } }));
     });
@@ -77,25 +68,17 @@ describe("Ops alerts delivery UI", () => {
     const initial = coerceOpsAlertsModel({
       ok: true,
       alerts: [],
-      recentEvents: [
-        {
-          id: "evt_d",
-          key: "ops_alert_test",
-          state: "firing",
-          at: "2024-01-01T00:00:00.000Z",
-          summary: "Test alert fired",
-          isTest: true,
-          severity: "low",
-          signals: {},
-          delivery: { status: "failed", maskedReason: "status_500", at: "2024-01-01T00:01:00.000Z" },
-        },
-      ],
+      recentEvents: [],
+      webhookConfig: { configured: true, mode: "enabled", hint: "enabled", setupHref: "/app/ops/status#alerts", safeMeta: { hasUrl: true, hasSecret: true } },
     });
     render(<AlertsClient initial={initial} requestId="req_ui" />);
     fireEvent.click(screen.getByText(/Recent/i));
-    fireEvent.click(screen.getByText(/Show/i));
-    expect(screen.getByText(/Failed/)).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/Webhook test notification/i)).toBeTruthy());
+    fireEvent.click(screen.getByText(/Why\?/i));
+    expect(screen.getByText(/Reason: status_500/i)).toBeTruthy();
     fireEvent.click(screen.getByText(/Copy support snippet/i));
-    expect(logMock).toHaveBeenCalledWith("ops_alerts_delivery_copy_ref", null, "ops", { meta: { window: "15m", type: "support" } });
+    expect((navigator as any).clipboard.writeText).toHaveBeenCalled();
+    fireEvent.click(screen.getByText(/^Failed$/i));
+    await waitFor(() => expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("status=failed"))).toBe(true));
   });
 });

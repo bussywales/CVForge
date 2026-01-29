@@ -25,6 +25,7 @@ vi.stubGlobal("fetch", fetchMock);
 describe("ops alerts notify receipts", () => {
   it("records sent and delivered receipts", async () => {
     process.env.OPS_ALERT_WEBHOOK_URL = "https://example.com/webhook";
+    process.env.OPS_ALERT_WEBHOOK_SECRET = "secret";
     deliveries.length = 0;
     fetchMock.mockResolvedValueOnce({ ok: true, status: 200, json: async () => ({}) });
     const mod = await import("@/lib/ops/ops-alerts-notify");
@@ -42,6 +43,7 @@ describe("ops alerts notify receipts", () => {
 
   it("records failure receipt", async () => {
     process.env.OPS_ALERT_WEBHOOK_URL = "https://example.com/webhook";
+    process.env.OPS_ALERT_WEBHOOK_SECRET = "secret";
     deliveries.length = 0;
     recordAlertDelivery.mockClear();
     fetchMock.mockRejectedValueOnce(new Error("fail"));

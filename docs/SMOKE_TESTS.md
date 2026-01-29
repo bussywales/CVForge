@@ -50,6 +50,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Set ALERTS_ACK_SECRET (+ optional ALERTS_ACK_TTL_SECONDS 10–30m); mint ACK token and confirm exp ≈ now + ttlSeconds returned.
 - Use /api/alerts/ack?token=... → handled recorded; expired/invalid tokens return jsonError with x-request-id.
 
+## Quick prod checks (v0.8.48)
+- Open /app/ops/alerts → confirm webhook config panel shows correct state.
+- Click Send webhook test → Deliveries shows a receipt without manual refresh.
+- Failed delivery row → Why? shows reason and Copy support snippet works.
+
 ## Quick prod checks (v0.8.47)
 - Send test alert → observe "Waiting for event to appear..." and the new event shows without manual refresh (fallback hint if delayed).
 - Acknowledge a test event → hard refresh → row stays acknowledged and the button remains disabled.

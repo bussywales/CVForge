@@ -28,6 +28,7 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
   const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(null);
   const [topRepeatsLogged, setTopRepeatsLogged] = useState(false);
   const [watchStatus, setWatchStatus] = useState<Record<string, string>>({});
+  const [webhookConfigLogged, setWebhookConfigLogged] = useState(false);
   const signalActions: Record<SignalKey, { primary: string; secondary?: string | null }> = {
     webhook_failures: {
       primary: buildOpsWebhooksLink({ window: "15m", signal: "webhook_failures" }),
@@ -53,6 +54,18 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
     logMonetisationClientEvent("ops_system_status_view", null, "ops");
     fetchRag();
   }, []);
+
+  useEffect(() => {
+    if (!status.webhookConfig || webhookConfigLogged) return;
+    setWebhookConfigLogged(true);
+    logMonetisationClientEvent("ops_alerts_webhook_config_view", null, "ops", {
+      meta: {
+        mode: status.webhookConfig.mode,
+        hasUrl: status.webhookConfig.safeMeta?.hasUrl ?? false,
+        hasSecret: status.webhookConfig.safeMeta?.hasSecret ?? false,
+      },
+    });
+  }, [status.webhookConfig, webhookConfigLogged]);
 
   useEffect(() => {
     setRagLogged(false);
@@ -152,13 +165,13 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
           topIssueKey: body.status.rag.topIssues?.[0]?.key ?? null,
           rulesVersion: body.status.rag.rulesVersion,
         });
+      }
+    } catch {
+      setRagError({ message: "Unable to load system health", requestId: null });
+      logMonetisationClientEvent("ops_status_rag_fetch_error", null, "ops", { code: "NETWORK", requestId: null });
+      logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "system_status", code: "NETWORK" });
     }
-  } catch {
-    setRagError({ message: "Unable to load system health", requestId: null });
-    logMonetisationClientEvent("ops_status_rag_fetch_error", null, "ops", { code: "NETWORK", requestId: null });
-    logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "system_status", code: "NETWORK" });
-  }
-};
+  };
 
   const handleRefresh = async () => {
     setLoading(true);
@@ -179,18 +192,18 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
       if (!body?.ok) {
         setError({ message: body?.error?.message ?? "Unable to refresh", requestId: body?.error?.requestId ?? null });
         logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "system_status", code: body?.error?.code ?? "UNKNOWN" });
+        setLoading(false);
+        return;
+      }
+      setStatus(body.status);
       setLoading(false);
-      return;
+      void fetchRag();
+    } catch {
+      setError({ message: "Unable to refresh", requestId: null });
+      logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "system_status", code: "NETWORK" });
+      setLoading(false);
     }
-    setStatus(body.status);
-    setLoading(false);
-    void fetchRag();
-  } catch {
-    setError({ message: "Unable to refresh", requestId: null });
-    logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "system_status", code: "NETWORK" });
-    setLoading(false);
-  }
-};
+  };
 
   const card = (title: string, metrics: Array<{ label: string; value: number; hint?: string | null }>) => (
     <div className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
@@ -253,6 +266,41 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
         <span className="text-[11px] text-[rgb(var(--muted))]">Updated: {new Date(status.now).toLocaleString()}</span>
         {status.deployment.vercelId ? <span className="text-[10px] text-[rgb(var(--muted))]">Vercel: {status.deployment.vercelId}</span> : null}
       </div>
+      {status.webhookConfig ? (
+        <div id="alerts" className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold text-[rgb(var(--ink))]">Alerts webhook</p>
+              <p className="text-[11px] text-[rgb(var(--muted))]">{status.webhookConfig.hint}</p>
+            </div>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-[rgb(var(--muted))]">{status.webhookConfig.mode.replace("_", " ")}</span>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] text-[rgb(var(--muted))]">
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-[rgb(var(--ink))]">
+              URL: {status.webhookConfig.safeMeta?.hasUrl ? "set" : "missing"}
+            </span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-[rgb(var(--ink))]">
+              Secret: {status.webhookConfig.safeMeta?.hasSecret ? "set" : "missing"}
+            </span>
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <Link
+              href={status.webhookConfig.setupHref}
+              className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+              onClick={() => logMonetisationClientEvent("ops_system_status_link_click", null, "ops", { target: "alerts_webhook_setup" })}
+            >
+              Configure
+            </Link>
+            <Link
+              href="/app/ops/alerts"
+              className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+              onClick={() => logMonetisationClientEvent("ops_system_status_link_click", null, "ops", { target: "ops_alerts" })}
+            >
+              Open alerts
+            </Link>
+          </div>
+        </div>
+      ) : null}
       <div id="rag" className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">

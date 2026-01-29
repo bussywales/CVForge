@@ -15,6 +15,7 @@ type BudgetKey =
   | "ops_access_invite_revoke"
   | "ops_alerts_get"
   | "ops_alerts_test"
+  | "ops_alerts_webhook_test"
   | "ops_alerts_ack"
   | "ops_alerts_ack_token"
   | "alerts_ack_public"
@@ -23,6 +24,7 @@ type BudgetKey =
   | "ops_alerts_snooze"
   | "ops_alerts_unsnooze"
   | "ops_alerts_workflow_get"
+  | "ops_alerts_deliveries_get"
   | "onboarding_model_get"
   | "onboarding_skip_post"
   | "invite_claim"
@@ -54,6 +56,7 @@ const ROUTE_BUDGETS: Record<BudgetKey, BudgetLevel> = {
   ops_access_invite_revoke: "medium",
   ops_alerts_get: "medium",
   ops_alerts_test: "medium",
+  ops_alerts_webhook_test: "medium",
   ops_alerts_ack: "low",
   ops_alerts_ack_token: "low",
   alerts_ack_public: "low",
@@ -62,6 +65,7 @@ const ROUTE_BUDGETS: Record<BudgetKey, BudgetLevel> = {
   ops_alerts_snooze: "medium",
   ops_alerts_unsnooze: "medium",
   ops_alerts_workflow_get: "medium",
+  ops_alerts_deliveries_get: "medium",
   onboarding_model_get: "medium",
   onboarding_skip_post: "medium",
   invite_claim: "medium",

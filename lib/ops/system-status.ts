@@ -2,11 +2,13 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { listWebhookFailures } from "@/lib/ops/webhook-failures";
 import { buildRagStatus, type RagStatus } from "@/lib/ops/rag-status";
 import { getRateLimitSummary } from "@/lib/rate-limit";
+import { getAlertsWebhookConfig, type AlertsWebhookConfig } from "@/lib/ops/alerts-webhook-config";
 
 export type SystemStatus = {
   deployment: { vercelId?: string | null; matchedPath?: string | null };
   now: string;
   rag?: RagStatus | null;
+  webhookConfig?: AlertsWebhookConfig;
   health: {
     billingRecheck429_24h: number;
     portalErrors_24h: number;
@@ -69,6 +71,7 @@ export async function buildSystemStatus({ now = new Date(), vercelId, matchedPat
     webhookQueue.items.length > 0 ? webhookQueue.items.reduce((max, item) => Math.max(max, item.repeatCount ?? 1), 0) : null;
   const { rateLimitHits, topLimitedRoutes24h } = getRateLimitSummary({ sinceMs: now.getTime() - 24 * 60 * 60 * 1000 });
   const rag = await buildRagStatus({ now });
+  const webhookConfig = getAlertsWebhookConfig();
 
   const notes: string[] = [];
   if (webhookFailures_24h > 20) notes.push("Webhook failures elevated");
@@ -84,6 +87,7 @@ export async function buildSystemStatus({ now = new Date(), vercelId, matchedPat
     deployment: { vercelId: vercelId ?? null, matchedPath: matchedPath ?? null },
     now: now.toISOString(),
     rag,
+    webhookConfig,
     health: {
       billingRecheck429_24h,
       portalErrors_24h,

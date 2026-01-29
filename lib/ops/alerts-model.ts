@@ -7,7 +7,7 @@ export type OpsAlertsModel = {
   alerts: any[];
   recentEvents: any[];
   webhookConfigured?: boolean;
-  webhookConfig?: { configured: boolean; mode: string; hint: string };
+  webhookConfig?: { configured: boolean; mode: string; hint: string; setupHref?: string; safeMeta?: { hasUrl: boolean; hasSecret: boolean } };
   jsonError?: any;
   requestId?: string | null;
   handled?: Record<string, { at: string; by?: string | null; source?: string | null }>;
@@ -110,13 +110,21 @@ export function coerceOpsAlertsModel(input: any): OpsAlertsModel {
     firingCount: typeof (input as any).firingCount === "number" ? (input as any).firingCount : alerts.filter((a: any) => a?.state === "firing").length,
     jsonError: (input as any).jsonError ?? null,
     requestId: (input as any).requestId ?? null,
-    webhookConfigured: Boolean((input as any).webhookConfigured),
+    webhookConfigured: typeof (input as any).webhookConfigured === "boolean" ? Boolean((input as any).webhookConfigured) : Boolean((input as any)?.webhookConfig?.configured),
     webhookConfig:
       (input as any).webhookConfig && typeof (input as any).webhookConfig === "object"
         ? {
             configured: Boolean((input as any).webhookConfig.configured),
             mode: typeof (input as any).webhookConfig.mode === "string" ? (input as any).webhookConfig.mode : "disabled",
             hint: typeof (input as any).webhookConfig.hint === "string" ? (input as any).webhookConfig.hint : "",
+            setupHref: typeof (input as any).webhookConfig.setupHref === "string" ? (input as any).webhookConfig.setupHref : undefined,
+            safeMeta:
+              (input as any).webhookConfig.safeMeta && typeof (input as any).webhookConfig.safeMeta === "object"
+                ? {
+                    hasUrl: Boolean((input as any).webhookConfig.safeMeta.hasUrl),
+                    hasSecret: Boolean((input as any).webhookConfig.safeMeta.hasSecret),
+                  }
+                : undefined,
           }
         : undefined,
     handled,

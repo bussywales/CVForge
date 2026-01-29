@@ -52,6 +52,9 @@ describe("Ops alerts ack UI", () => {
       if (url.includes("/api/ops/alerts/workflow")) {
         return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
       }
+      if (url.includes("/api/ops/alerts/deliveries")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, deliveries: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
       if (url.includes("/api/ops/alerts")) {
         alertsCalls += 1;
         return Promise.resolve(
@@ -120,6 +123,9 @@ describe("Ops alerts ack UI", () => {
       }
       if (url.includes("/api/ops/alerts/workflow")) {
         return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts/deliveries")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, deliveries: [] }), { status: 200, headers: { "content-type": "application/json" } }));
       }
       if (url.includes("/api/ops/alerts")) {
         return Promise.resolve(
@@ -200,6 +206,9 @@ describe("Ops alerts ack UI", () => {
       if (url.includes("/api/ops/alerts/workflow")) {
         return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
       }
+      if (url.includes("/api/ops/alerts/deliveries")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, deliveries: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
       if (url.includes("/api/ops/alerts")) {
         return Promise.resolve(new Response(JSON.stringify({ ok: true, alerts: [], recentEvents: [] }), { status: 200, headers: { "content-type": "application/json" } }));
       }
@@ -247,6 +256,9 @@ describe("Ops alerts ack UI", () => {
       }
       if (url.includes("/api/ops/alerts/workflow")) {
         return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts/deliveries")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, deliveries: [] }), { status: 200, headers: { "content-type": "application/json" } }));
       }
       return Promise.resolve(new Response(JSON.stringify({ ok: true, alerts: [], recentEvents: [] }), { status: 200, headers: { "content-type": "application/json" } }));
     });

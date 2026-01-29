@@ -25,6 +25,19 @@ type AlertEvent = { id: string; key: string; state: string; at: string; summary:
 
 type HandledMap = Record<string, { at: string; by?: string | null; source?: string | null }>;
 
+type DeliveryRow = {
+  deliveryId: string;
+  eventId: string;
+  createdAt: string | null;
+  status: "sent" | "delivered" | "failed";
+  attempt: number;
+  isTest: boolean;
+  window_label?: string | null;
+  headline?: string | null;
+  reason?: string | null;
+  requestId?: string | null;
+};
+
 const HANDLED_COOLDOWN_MS = 15 * 60 * 1000;
 const OWNERSHIP_WINDOW = "15m";
 const SNOOZE_OPTIONS = [
@@ -65,9 +78,26 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const [testSending, setTestSending] = useState(false);
   const [testCooldownSeconds, setTestCooldownSeconds] = useState(0);
   const [pollHint, setPollHint] = useState<string | null>(null);
+  const [webhookTestSending, setWebhookTestSending] = useState(false);
+  const [webhookTestError, setWebhookTestError] = useState<{ message: string; requestId?: string | null } | null>(null);
+  const [deliveries, setDeliveries] = useState<DeliveryRow[]>([]);
+  const [deliveriesFilter, setDeliveriesFilter] = useState<"all" | "failed" | "tests">("all");
+  const [deliveryEventFilter, setDeliveryEventFilter] = useState("");
+  const [deliveryEventFilterInput, setDeliveryEventFilterInput] = useState("");
+  const [deliveriesLoading, setDeliveriesLoading] = useState(false);
+  const [deliveriesError, setDeliveriesError] = useState<{ message: string; requestId?: string | null } | null>(null);
+  const [deliveryHint, setDeliveryHint] = useState<string | null>(null);
+  const [deliveryHighlightId, setDeliveryHighlightId] = useState<string | null>(null);
+  const [expandedDeliveryId, setExpandedDeliveryId] = useState<string | null>(null);
   const cooldownLoggedRef = useRef(false);
   const cooldownKeyRef = useRef<string | null>(null);
   const pollRef = useRef<{ timer: number | null; attempts: number; eventId: string; running: boolean } | null>(null);
+  const deliveryPollRef = useRef<{ timer: number | null; attempts: number; eventId: string; running: boolean } | null>(null);
+  const deliveryHighlightTimerRef = useRef<number | null>(null);
+  const deliveriesRef = useRef<HTMLDivElement | null>(null);
+  const deliveryEventInputRef = useRef<HTMLInputElement | null>(null);
+  const deliveriesViewLogged = useRef(false);
+  const webhookConfigViewLogged = useRef(false);
   const ackViewLogged = useRef(false);
   const deliveryViewLogged = useRef(false);
   const [ackState, setAckState] = useState<Record<string, { acknowledged: boolean; requestId?: string | null }>>({});
@@ -96,6 +126,11 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     if (typeof (data as any)?.window === "string") return (data as any).window;
     return "15m";
   }, [data]);
+
+  const webhookConfig = data?.webhookConfig ?? null;
+  const webhookMode = webhookConfig?.mode ?? (data?.webhookConfigured ? "enabled" : "disabled");
+  const webhookEnabled = webhookMode === "enabled";
+  const webhookSetupHref = webhookConfig?.setupHref ?? "/app/ops/status#alerts";
 
   useEffect(() => {
     cooldownKeyRef.current = `ops_alerts_test_cooldown_until_${windowLabel}`;
@@ -248,6 +283,14 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     }
   }, [data?.recentEvents, windowLabel]);
 
+  useEffect(() => {
+    if (!webhookConfig || webhookConfigViewLogged.current) return;
+    webhookConfigViewLogged.current = true;
+    logMonetisationClientEvent("ops_alerts_webhook_config_view", null, "ops", {
+      meta: { mode: webhookConfig.mode, hasUrl: webhookConfig.safeMeta?.hasUrl ?? false, hasSecret: webhookConfig.safeMeta?.hasSecret ?? false },
+    });
+  }, [webhookConfig]);
+
 
   useEffect(() => {
     if (testCooldownSeconds <= 0) {
@@ -289,6 +332,17 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
         {status === "failed" && delivery.maskedReason ? ` · ${delivery.maskedReason}` : ""}
       </span>
     );
+  };
+
+  const deliveryStatusBadge = (status: DeliveryRow["status"]) => {
+    const tone =
+      status === "delivered"
+        ? "bg-emerald-100 text-emerald-800"
+        : status === "failed"
+          ? "bg-rose-100 text-rose-800"
+          : "bg-amber-100 text-amber-800";
+    const label = status === "delivered" ? "Delivered" : status === "failed" ? "Failed" : "Sent";
+    return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tone}`}>{label}</span>;
   };
 
   const headlineTone = useMemo(() => {
@@ -368,6 +422,56 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     [markLastLoaded, tab]
   );
 
+  const fetchDeliveries = useCallback(
+    async ({
+      filter,
+      eventId,
+      silent,
+    }: {
+      filter: "all" | "failed" | "tests";
+      eventId?: string;
+      silent?: boolean;
+    }): Promise<DeliveryRow[] | null> => {
+      if (!silent) {
+        setDeliveriesLoading(true);
+      }
+      const params = new URLSearchParams();
+      if (eventId) params.set("eventId", eventId);
+      if (filter === "failed") params.set("status", "failed");
+      if (filter === "tests") params.set("isTest", "1");
+      const qs = params.toString();
+      try {
+        const res = await fetchJsonSafe<{ deliveries?: DeliveryRow[] }>(`/api/ops/alerts/deliveries${qs ? `?${qs}` : ""}`, { method: "GET", cache: "no-store" });
+        if (!res.ok || !res.json) {
+          if (!silent) {
+            setDeliveriesError({ message: res.error?.message ?? "Unable to load deliveries", requestId: res.requestId ?? null });
+          }
+          return null;
+        }
+        const next = Array.isArray(res.json.deliveries) ? (res.json.deliveries as DeliveryRow[]) : [];
+        setDeliveries(next);
+        if (!silent) {
+          setDeliveriesError(null);
+        }
+        if (!deliveriesViewLogged.current) {
+          deliveriesViewLogged.current = true;
+          logMonetisationClientEvent("ops_alerts_deliveries_view", null, "ops", { meta: { filter } });
+        }
+        return next;
+      } catch {
+        if (!silent) {
+          setDeliveriesError({ message: "Unable to load deliveries", requestId: null });
+        }
+        return null;
+      } finally {
+        if (!silent) {
+          setDeliveriesLoading(false);
+        }
+      }
+    },
+    []
+  );
+
   const refresh = async () => fetchLatestAlerts({ reason: "manual", targetTab: tab });
 
   useEffect(() => {
@@ -377,6 +481,11 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     }
     previousTabRef.current = tab;
   }, [fetchLatestAlerts, tab]);
+
+  useEffect(() => {
+    if (tab !== "recent") return;
+    fetchDeliveries({ filter: deliveriesFilter, eventId: deliveryEventFilter || undefined });
+  }, [tab, deliveriesFilter, deliveryEventFilter, fetchDeliveries]);
 
   const stopTestPoll = useCallback(
     ({
@@ -412,6 +521,16 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     },
     [windowLabel]
   );
+
+  const stopDeliveryPoll = useCallback(({ found }: { found: boolean }) => {
+    const current = deliveryPollRef.current;
+    if (!current) return;
+    if (current.timer) {
+      window.clearTimeout(current.timer);
+    }
+    deliveryPollRef.current = null;
+    setDeliveryHint(null);
+  }, []);
 
   const startTestPoll = async (eventId: string) => {
     stopTestPoll({ found: false, announce: false });
@@ -450,6 +569,46 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     }
   };
 
+  const startDeliveryPoll = useCallback(
+    async (eventId: string) => {
+      stopDeliveryPoll({ found: false });
+      const backoff = [1000, 2000, 3000, 4000, 5000];
+      deliveryPollRef.current = { timer: null, attempts: 0, eventId, running: false };
+      setDeliveryHint("Waiting for delivery receipt...");
+
+      const runAttempt = async () => {
+        const current = deliveryPollRef.current;
+        if (!current || current.running) return;
+        current.running = true;
+        current.attempts += 1;
+        const next = await fetchDeliveries({ filter: "all", eventId, silent: true });
+        const match = next?.find((row) => row.eventId === eventId) ?? null;
+        current.running = false;
+        if (!deliveryPollRef.current) return;
+        if (match) {
+          stopDeliveryPoll({ found: true });
+          setDeliveryHint(null);
+          setDeliveryHighlightId(match.deliveryId);
+          if (deliveryHighlightTimerRef.current) {
+            window.clearTimeout(deliveryHighlightTimerRef.current);
+          }
+          deliveryHighlightTimerRef.current = window.setTimeout(() => setDeliveryHighlightId(null), 3000);
+          return;
+        }
+        const attemptIndex = current.attempts - 1;
+        if (attemptIndex >= backoff.length - 1) {
+          stopDeliveryPoll({ found: false });
+          setDeliveryHint(null);
+          return;
+        }
+        deliveryPollRef.current.timer = window.setTimeout(runAttempt, backoff[attemptIndex + 1]);
+      };
+
+      await runAttempt();
+    },
+    [fetchDeliveries, stopDeliveryPoll]
+  );
+
   useEffect(() => {
     if (tab !== "recent") {
       stopTestPoll({ found: false, announce: false });
@@ -457,10 +616,70 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   }, [stopTestPoll, tab]);
 
   useEffect(() => {
+    if (tab !== "recent") {
+      stopDeliveryPoll({ found: false });
+      setDeliveryHint(null);
+    }
+  }, [stopDeliveryPoll, tab]);
+
+  useEffect(() => {
     return () => {
       stopTestPoll({ found: false, announce: false });
+      stopDeliveryPoll({ found: false });
+      if (deliveryHighlightTimerRef.current) {
+        window.clearTimeout(deliveryHighlightTimerRef.current);
+      }
     };
-  }, [stopTestPoll]);
+  }, [stopDeliveryPoll, stopTestPoll]);
+
+  const sendWebhookTest = async () => {
+    if (webhookTestSending) return;
+    if (!webhookEnabled) {
+      logMonetisationClientEvent("ops_alerts_webhook_not_configured_blocked", null, "ops", { meta: { mode: webhookMode } });
+      setFlash("Webhook not configured.");
+      return;
+    }
+    setWebhookTestError(null);
+    setFlash(null);
+    setDeliveryHint(null);
+    setExpandedDeliveryId(null);
+    stopDeliveryPoll({ found: false });
+    setWebhookTestSending(true);
+    logMonetisationClientEvent("ops_alerts_webhook_test_click", null, "ops", { meta: { window: windowLabel } });
+    try {
+      const res = await fetchJsonSafe<{ eventId?: string }>("/api/ops/alerts/webhook-test", { method: "POST", cache: "no-store" });
+      if (res.status === 429 || res.error?.code === "RATE_LIMITED") {
+        setWebhookTestError({ message: "Rate limited — try again shortly", requestId: res.requestId ?? null });
+        return;
+      }
+      if (!res.ok || !res.json) {
+        setWebhookTestError({ message: res.error?.message ?? "Webhook test failed", requestId: res.requestId ?? null });
+        return;
+      }
+      const eventId = (res.json as any).eventId ?? null;
+      logMonetisationClientEvent("ops_alerts_webhook_test_queued", null, "ops", { meta: { window: windowLabel, hasEventId: Boolean(eventId) } });
+      setFlash("Webhook test queued.");
+      if (tab !== "recent") setTab("recent");
+      setDeliveriesFilter("all");
+      if (eventId) {
+        setDeliveryEventFilter(eventId);
+        setDeliveryEventFilterInput(eventId);
+        window.setTimeout(() => {
+          if (deliveryEventInputRef.current) deliveryEventInputRef.current.focus();
+        }, 0);
+        window.setTimeout(() => {
+          if (deliveriesRef.current) deliveriesRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        }, 30);
+        startDeliveryPoll(eventId);
+      } else {
+        await fetchDeliveries({ filter: deliveriesFilter, eventId: deliveryEventFilter || undefined });
+      }
+    } catch {
+      setWebhookTestError({ message: "Webhook test failed", requestId: null });
+    } finally {
+      setWebhookTestSending(false);
+    }
+  };
 
   const sendTest = async () => {
     if (testSending || testCooldownSeconds > 0) return;
@@ -523,6 +742,26 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     } finally {
       setTestSending(false);
     }
+  };
+
+  const applyDeliveriesFilter = (next: "all" | "failed" | "tests") => {
+    setDeliveriesFilter(next);
+    setExpandedDeliveryId(null);
+    logMonetisationClientEvent("ops_alerts_deliveries_filter_click", null, "ops", { meta: { filter: next } });
+  };
+
+  const applyDeliveryEventFilter = () => {
+    const trimmed = deliveryEventFilterInput.trim();
+    setDeliveryEventFilter(trimmed);
+    setExpandedDeliveryId(null);
+    logMonetisationClientEvent("ops_alerts_deliveries_filter_click", null, "ops", { meta: { filter: "event", hasEventId: Boolean(trimmed) } });
+  };
+
+  const clearDeliveryEventFilter = () => {
+    setDeliveryEventFilter("");
+    setDeliveryEventFilterInput("");
+    setExpandedDeliveryId(null);
+    logMonetisationClientEvent("ops_alerts_deliveries_filter_click", null, "ops", { meta: { filter: "event_clear" } });
   };
 
   const markHandled = async (alert: Alert) => {
@@ -1001,13 +1240,24 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
           <h1 className="text-lg font-semibold text-[rgb(var(--ink))]">Alerts</h1>
           <p className="text-xs text-[rgb(var(--muted))]">Thresholded 15m signals with actionable links.</p>
           <p className="text-[11px] text-[rgb(var(--muted))]">ACK marks an alert as seen/handled and prevents duplicate noise.</p>
-          {data?.webhookConfig && data.webhookConfig.mode === "disabled" ? (
-            <p className="text-[11px] text-[rgb(var(--muted))]">Webhook notifications disabled.</p>
-          ) : !data?.webhookConfigured ? (
+          {webhookConfig ? (
             <p className="text-[11px] text-[rgb(var(--muted))]">
-              Notifications: Not configured (webhook).{" "}
+              {webhookConfig.hint}{" "}
+              {!webhookConfig.configured ? (
+                <Link
+                  href={webhookSetupHref}
+                  onClick={() => logMonetisationClientEvent("ops_alerts_webhook_setup_click", null, "ops", { meta: { destination: "ops_status" } })}
+                  className="underline"
+                >
+                  Setup
+                </Link>
+              ) : null}
+            </p>
+          ) : data?.webhookConfigured === false ? (
+            <p className="text-[11px] text-[rgb(var(--muted))]">
+              Webhook notifications disabled.{" "}
               <Link
-                href="/app/ops/status#alerts"
+                href={webhookSetupHref}
                 onClick={() => logMonetisationClientEvent("ops_alerts_webhook_setup_click", null, "ops", { meta: { destination: "ops_status" } })}
                 className="underline"
               >
@@ -1016,23 +1266,45 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
             </p>
           ) : null}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={refresh}
-            disabled={loading || cooldown > 0}
-            className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] disabled:opacity-50"
-          >
-            {cooldown > 0 ? `Retry in ${cooldown}s` : loading ? "Refreshing…" : "Refresh"}
-          </button>
-          <button
-            type="button"
-            onClick={sendTest}
-            className="rounded-full bg-[rgb(var(--ink))] px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
-            disabled={loading || testSending || testCooldownSeconds > 0}
-          >
-            {testSending ? "Sending…" : testCooldownSeconds > 0 ? `Try again in ${testCooldownSeconds}s` : "Send test alert"}
-          </button>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={refresh}
+              disabled={loading || cooldown > 0}
+              className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] disabled:opacity-50"
+            >
+              {cooldown > 0 ? `Retry in ${cooldown}s` : loading ? "Refreshing…" : "Refresh"}
+            </button>
+            <button
+              type="button"
+              onClick={sendTest}
+              className="rounded-full bg-[rgb(var(--ink))] px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-60"
+              disabled={loading || testSending || testCooldownSeconds > 0}
+            >
+              {testSending ? "Sending…" : testCooldownSeconds > 0 ? `Try again in ${testCooldownSeconds}s` : "Send test alert"}
+            </button>
+            <button
+              type="button"
+              onClick={sendWebhookTest}
+              className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] disabled:opacity-50"
+              disabled={webhookTestSending || !webhookEnabled}
+            >
+              {webhookTestSending ? "Sending webhook..." : "Send webhook test"}
+            </button>
+          </div>
+          {!webhookEnabled ? (
+            <p className="text-[10px] text-[rgb(var(--muted))]">
+              Webhook test disabled.{" "}
+              <Link
+                href={webhookSetupHref}
+                onClick={() => logMonetisationClientEvent("ops_alerts_webhook_not_configured_blocked", null, "ops", { meta: { mode: webhookMode } })}
+                className="underline"
+              >
+                Configure webhook
+              </Link>
+            </p>
+          ) : null}
         </div>
       </div>
       <div className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
@@ -1075,6 +1347,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       </div>
 
       {loadState === "error" && error ? <ErrorBanner title="Alerts unavailable" message={error.message} requestId={error.requestId ?? requestId ?? undefined} /> : null}
+      {webhookTestError ? <ErrorBanner title="Webhook test failed" message={webhookTestError.message} requestId={webhookTestError.requestId ?? undefined} /> : null}
 
       {tab === "firing" ? (
         firingAlerts.length ? (
@@ -1318,6 +1591,127 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
               ) : null}
             </div>
           ) : null}
+          <div ref={deliveriesRef} className="rounded-2xl border border-black/10 bg-white p-3 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <p className="text-sm font-semibold text-[rgb(var(--ink))]">Deliveries</p>
+                <p className="text-[11px] text-[rgb(var(--muted))]">Last 20 webhook receipts.</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => applyDeliveriesFilter("all")}
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${deliveriesFilter === "all" ? "bg-[rgb(var(--ink))] text-white" : "bg-white text-[rgb(var(--ink))] border border-black/10"}`}
+                >
+                  All
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyDeliveriesFilter("failed")}
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${deliveriesFilter === "failed" ? "bg-[rgb(var(--ink))] text-white" : "bg-white text-[rgb(var(--ink))] border border-black/10"}`}
+                >
+                  Failed
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyDeliveriesFilter("tests")}
+                  className={`rounded-full px-3 py-1 text-[11px] font-semibold ${deliveriesFilter === "tests" ? "bg-[rgb(var(--ink))] text-white" : "bg-white text-[rgb(var(--ink))] border border-black/10"}`}
+                >
+                  Tests
+                </button>
+              </div>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <input
+                ref={deliveryEventInputRef}
+                type="text"
+                value={deliveryEventFilterInput}
+                onChange={(e) => setDeliveryEventFilterInput(e.target.value)}
+                placeholder="Filter by event id"
+                className="w-full rounded-md border border-black/10 px-3 py-1 text-sm md:w-72"
+              />
+              <button
+                type="button"
+                onClick={applyDeliveryEventFilter}
+                className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+              >
+                Apply
+              </button>
+              {deliveryEventFilter ? (
+                <button
+                  type="button"
+                  onClick={clearDeliveryEventFilter}
+                  className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--muted))]"
+                >
+                  Clear
+                </button>
+              ) : null}
+            </div>
+            {deliveryHint ? <p className="mt-2 text-[11px] text-[rgb(var(--muted))]">{deliveryHint}</p> : null}
+            {deliveriesLoading ? <p className="mt-2 text-[11px] text-[rgb(var(--muted))]">Loading deliveries...</p> : null}
+            {deliveriesError ? (
+              <div className="mt-2">
+                <ErrorBanner title="Deliveries unavailable" message={deliveriesError.message} requestId={deliveriesError.requestId ?? undefined} />
+              </div>
+            ) : null}
+            {!deliveriesLoading && !deliveriesError ? (
+              deliveries.length ? (
+                <ul className="mt-2 space-y-2">
+                  {deliveries.map((row) => {
+                    const highlight = deliveryHighlightId === row.deliveryId;
+                    const expanded = expandedDeliveryId === row.deliveryId;
+                    return (
+                      <li key={row.deliveryId} className={`rounded-lg border px-3 py-2 text-xs ${highlight ? "border-amber-200 bg-amber-50" : "border-black/5 bg-white"}`}>
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {deliveryStatusBadge(row.status)}
+                            <span className="text-[11px] text-[rgb(var(--muted))]">{row.createdAt ? formatShortLocalTime(row.createdAt) : "--"}</span>
+                            <span className="font-semibold text-[rgb(var(--ink))]">{row.headline ?? "Alert"}</span>
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-[rgb(var(--muted))]">Attempt {row.attempt}</span>
+                            {row.isTest ? <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold text-[rgb(var(--muted))]">Test</span> : null}
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const snippet = `Webhook delivery ${row.status} for ${row.eventId}${row.requestId ? ` (req ${row.requestId})` : ""}. ${row.headline ? `Headline: ${row.headline}. ` : ""}${row.reason ? `Reason: ${row.reason}.` : ""}`.trim();
+                                if (navigator?.clipboard?.writeText) navigator.clipboard.writeText(snippet);
+                                logMonetisationClientEvent("ops_alerts_delivery_support_copy", null, "ops", { meta: { status: row.status, isTest: row.isTest } });
+                              }}
+                              className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                            >
+                              Copy support snippet
+                            </button>
+                            {row.status === "failed" ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const next = expanded ? null : row.deliveryId;
+                                  setExpandedDeliveryId(next);
+                                  logMonetisationClientEvent("ops_alerts_delivery_row_expand", null, "ops", { meta: { status: row.status, hasReason: Boolean(row.reason) } });
+                                }}
+                                className="text-[11px] font-semibold text-[rgb(var(--muted))] underline-offset-2 hover:underline"
+                              >
+                                {expanded ? "Hide" : "Why?"}
+                              </button>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="mt-1 text-[10px] text-[rgb(var(--muted))]">Event: {row.eventId}</div>
+                        {expanded ? (
+                          <div className="mt-2 rounded-md border border-amber-100 bg-amber-50 px-2 py-1 text-[11px] text-amber-900">
+                            Reason: {row.reason ?? "No reason provided."}
+                          </div>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="mt-2 text-[11px] text-[rgb(var(--muted))]">No deliveries found.</p>
+              )
+            ) : null}
+          </div>
         </div>
       )}
     </div>
