@@ -107,6 +107,138 @@ describe("Ops alerts ack UI", () => {
     expect((navigator as any).clipboard.writeText).toHaveBeenCalled();
   });
 
+  it("keeps acknowledged state when switching tabs after ack", async () => {
+    let handledAfterAck = false;
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ops/alerts/ack-token")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, token: "tok_test" }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/alerts/ack")) {
+        handledAfterAck = true;
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, eventId: "evt_test", handled: true }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts/workflow")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              ok: true,
+              alerts: [
+                {
+                  key: "ops_alert_test",
+                  severity: "low",
+                  state: "firing",
+                  summary: "Test alert fired",
+                  signals: { eventId: "evt_test", signal: "alert_test", surface: "ops" },
+                  actions: [],
+                },
+              ],
+              recentEvents: [
+                {
+                  id: "evt_test",
+                  key: "ops_alert_test",
+                  state: "firing",
+                  at: "2024-01-01T00:00:00.000Z",
+                  summary: "Test alert fired",
+                  isTest: true,
+                  severity: "low",
+                  signals: {},
+                  handled: handledAfterAck ? { at: "2024-01-01T00:05:00.000Z", source: "ui" } : null,
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        );
+      }
+      return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/plain" } }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const initial = coerceOpsAlertsModel({
+      ok: true,
+      alerts: [
+        {
+          key: "ops_alert_test",
+          severity: "low",
+          state: "firing",
+          summary: "Test alert fired",
+          signals: { eventId: "evt_test", signal: "alert_test", surface: "ops" },
+          actions: [],
+        },
+      ],
+      recentEvents: [
+        {
+          id: "evt_test",
+          key: "ops_alert_test",
+          state: "firing",
+          at: "2024-01-01T00:00:00.000Z",
+          summary: "Test alert fired",
+          isTest: true,
+          severity: "low",
+          signals: {},
+        },
+      ],
+    });
+    render(<AlertsClient initial={initial} requestId="req_ui" />);
+    fireEvent.click(screen.getByText(/Recent/i));
+    fireEvent.click(screen.getByText(/Show/i));
+    fireEvent.click(screen.getByText(/Acknowledge/i));
+    await waitFor(() => expect(screen.getByText(/Acknowledged/i)).toBeTruthy());
+    fireEvent.click(screen.getByText(/Firing/i));
+    await waitFor(() => {
+      const ackButton = screen.getByText(/Acknowledged/i);
+      expect(ackButton.closest("button")?.getAttribute("disabled")).not.toBeNull();
+    });
+  });
+
+  it("rehydrates acknowledged state in firing tab from recent handled events", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ops/alerts/workflow")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, alerts: [], recentEvents: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/plain" } }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const initial = coerceOpsAlertsModel({
+      ok: true,
+      alerts: [
+        {
+          key: "ops_alert_test",
+          severity: "low",
+          state: "firing",
+          summary: "Test alert fired",
+          signals: { eventId: "evt_test", signal: "alert_test", surface: "ops" },
+          actions: [],
+        },
+      ],
+      recentEvents: [
+        {
+          id: "evt_test",
+          key: "ops_alert_test",
+          state: "firing",
+          at: "2024-01-01T00:00:00.000Z",
+          summary: "Test alert fired",
+          isTest: true,
+          severity: "low",
+          signals: {},
+          handled: { at: "2024-01-01T00:05:00.000Z", source: "ui" },
+        },
+      ],
+    });
+    render(<AlertsClient initial={initial} requestId="req_ui" />);
+    await waitFor(() => {
+      const ackButton = screen.getByText(/Acknowledged/i);
+      expect(ackButton.closest("button")?.getAttribute("disabled")).not.toBeNull();
+    });
+  });
+
   it("shows error banner on non-json ack token response", async () => {
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input.toString();

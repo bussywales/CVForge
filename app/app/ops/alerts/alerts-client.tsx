@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import ErrorBanner from "@/components/ErrorBanner";
@@ -45,6 +45,8 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const [loading, setLoading] = useState(false);
   const [flash, setFlash] = useState<string | null>(null);
   const [tab, setTab] = useState<"firing" | "recent">("firing");
+  const [lastLoadedFiringAt, setLastLoadedFiringAt] = useState<string | null>(null);
+  const [lastLoadedRecentAt, setLastLoadedRecentAt] = useState<string | null>(null);
   const [lastCheckedAtIso, setLastCheckedAtIso] = useState<string | null>(new Date().toISOString());
   const [handled, setHandled] = useState<HandledMap>(initial?.handled ?? {});
   const [handledNotes, setHandledNotes] = useState<Record<string, string>>({});
@@ -62,16 +64,27 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const testEventsRef = useRef<HTMLDivElement | null>(null);
   const [testSending, setTestSending] = useState(false);
   const [testCooldownSeconds, setTestCooldownSeconds] = useState(0);
+  const [pollHint, setPollHint] = useState<string | null>(null);
   const cooldownLoggedRef = useRef(false);
   const cooldownKeyRef = useRef<string | null>(null);
+  const pollRef = useRef<{ timer: number | null; attempts: number; eventId: string; running: boolean } | null>(null);
   const ackViewLogged = useRef(false);
   const deliveryViewLogged = useRef(false);
   const [ackState, setAckState] = useState<Record<string, { acknowledged: boolean; requestId?: string | null }>>({});
   const previousTabRef = useRef<"firing" | "recent">(tab);
   const tabInitializedRef = useRef(false);
+  const initialLoadedRef = useRef(false);
 
   const resolveTab = (value: string | null) => (value === "recent" || value === "firing" ? (value as "recent" | "firing") : null);
   const tabParam = resolveTab(searchParams?.get("tab"));
+
+  const markLastLoaded = useCallback((target: "firing" | "recent", at: string) => {
+    if (target === "recent") {
+      setLastLoadedRecentAt(at);
+    } else {
+      setLastLoadedFiringAt(at);
+    }
+  }, []);
 
   const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a?.state === "firing"), [data?.alerts]);
   const recentEvents = useMemo(() => data?.recentEvents ?? [], [data?.recentEvents]);
@@ -117,6 +130,14 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     }
   }, [tab, tabParam, pathname, router, searchParams]);
+
+  useEffect(() => {
+    if (!tabInitializedRef.current) return;
+    if (initialLoadedRef.current) return;
+    if (!data || initialError) return;
+    markLastLoaded(tab, new Date().toISOString());
+    initialLoadedRef.current = true;
+  }, [data, initialError, markLastLoaded, tab]);
 
   useEffect(() => {
     if (!initialError) return;
@@ -279,60 +300,178 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       : { label: "Amber", className: "bg-amber-100 text-amber-800" };
   }, [data]);
 
-  const fetchLatestAlerts = async ({ reason }: { reason: "manual" | "tab" | "test" | "ack" }) => {
-    setLoading(true);
-    if (reason === "manual") {
-      setFlash(null);
-      logMonetisationClientEvent("ops_alerts_refresh_click", null, "ops");
-    }
-    try {
-      const res = await fetchJsonSafe<OpsAlertsModel>("/api/ops/alerts", { method: "GET", cache: "no-store" });
-      if (res.status === 429 || res.error?.code === "RATE_LIMITED") {
-        const retrySeconds = 30;
-        setCooldown(retrySeconds);
-        setError({ message: "Rate limited — try again shortly", requestId: res.requestId ?? null });
-        logMonetisationClientEvent("ops_panel_rate_limited", null, "ops", { panel: "alerts", retryAfterSeconds: retrySeconds });
-        return;
+  const fetchLatestAlerts = useCallback(
+    async ({
+      reason,
+      targetTab,
+      silent,
+    }: {
+      reason: "manual" | "tab" | "test" | "ack" | "poll";
+      targetTab?: "firing" | "recent";
+      silent?: boolean;
+    }): Promise<OpsAlertsModel | null> => {
+      const activeTab = targetTab ?? tab;
+      const loadedAt = new Date().toISOString();
+      if (!silent) {
+        setLoading(true);
       }
-      if (!res.ok || !res.json) {
-        setError({ message: res.error?.message ?? "Unable to load alerts", requestId: res.requestId ?? null });
-        logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "alerts", code: res.error?.code ?? "UNKNOWN" });
-        logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: res.error?.code ?? "UNKNOWN", status: res.status, hasJson: Boolean(res.json), mode: "refresh" } });
-        setLoadState("error");
-        return;
+      if (reason === "manual") {
+        setFlash(null);
+        logMonetisationClientEvent("ops_alerts_refresh_click", null, "ops");
       }
-      setData(coerceOpsAlertsModel(res.json));
-      setError(null);
-      setLoadState("ok");
-      logMonetisationClientEvent("ops_alerts_load_ok", null, "ops");
-    } catch {
-      setError({ message: "Unable to load alerts", requestId: null });
-      logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "alerts", code: "NETWORK" });
-      logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: "NETWORK", status: 0, hasJson: false, mode: "refresh" } });
-      setLoadState("error");
-    } finally {
-      setLoading(false);
-      setLastCheckedAtIso(new Date().toISOString());
-    }
-  };
+      try {
+        const res = await fetchJsonSafe<OpsAlertsModel>("/api/ops/alerts", { method: "GET", cache: "no-store" });
+        if (res.status === 429 || res.error?.code === "RATE_LIMITED") {
+          if (!silent) {
+            const retrySeconds = 30;
+            setCooldown(retrySeconds);
+            setError({ message: "Rate limited — try again shortly", requestId: res.requestId ?? null });
+            logMonetisationClientEvent("ops_panel_rate_limited", null, "ops", { panel: "alerts", retryAfterSeconds: retrySeconds });
+          }
+          return null;
+        }
+        if (!res.ok || !res.json) {
+          if (!silent) {
+            setError({ message: res.error?.message ?? "Unable to load alerts", requestId: res.requestId ?? null });
+            logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "alerts", code: res.error?.code ?? "UNKNOWN" });
+            logMonetisationClientEvent("ops_alerts_load_error", null, "ops", {
+              meta: { code: res.error?.code ?? "UNKNOWN", status: res.status, hasJson: Boolean(res.json), mode: "refresh" },
+            });
+            setLoadState("error");
+          }
+          return null;
+        }
+        const nextData = coerceOpsAlertsModel(res.json);
+        setData(nextData);
+        setError(null);
+        setLoadState("ok");
+        if (!silent) {
+          logMonetisationClientEvent("ops_alerts_load_ok", null, "ops");
+        }
+        markLastLoaded(activeTab, loadedAt);
+        return nextData;
+      } catch {
+        if (!silent) {
+          setError({ message: "Unable to load alerts", requestId: null });
+          logMonetisationClientEvent("ops_panel_fetch_error", null, "ops", { panel: "alerts", code: "NETWORK" });
+          logMonetisationClientEvent("ops_alerts_load_error", null, "ops", { meta: { code: "NETWORK", status: 0, hasJson: false, mode: "refresh" } });
+          setLoadState("error");
+        }
+        return null;
+      } finally {
+        if (!silent) {
+          setLoading(false);
+        }
+        setLastCheckedAtIso(loadedAt);
+      }
+    },
+    [markLastLoaded, tab]
+  );
 
-  const refresh = async () => fetchLatestAlerts({ reason: "manual" });
+  const refresh = async () => fetchLatestAlerts({ reason: "manual", targetTab: tab });
 
   useEffect(() => {
     const prev = previousTabRef.current;
     if (tab === "recent" && prev !== "recent") {
-      fetchLatestAlerts({ reason: "tab" });
+      fetchLatestAlerts({ reason: "tab", targetTab: "recent" });
     }
     previousTabRef.current = tab;
-  }, [tab]);
+  }, [fetchLatestAlerts, tab]);
+
+  const stopTestPoll = useCallback(
+    ({
+      found,
+      attempts,
+      surface,
+      announce = true,
+    }: {
+      found: boolean;
+      attempts?: number;
+      surface?: "test_events" | "recent";
+      announce?: boolean;
+    }) => {
+      const current = pollRef.current;
+      if (!current) return;
+      if (current.timer) {
+        window.clearInterval(current.timer);
+      }
+      const totalAttempts = typeof attempts === "number" ? attempts : current.attempts;
+      pollRef.current = null;
+      setPollHint(null);
+      logMonetisationClientEvent("ops_alerts_test_poll_stop", null, "ops", {
+        meta: { window: windowLabel, attempts: totalAttempts, found },
+      });
+      if (found && surface) {
+        logMonetisationClientEvent("ops_alerts_test_poll_found", null, "ops", {
+          meta: { window: windowLabel, attempts: totalAttempts, surface },
+        });
+      }
+      if (announce) {
+        setFlash(found ? "Test alert recorded." : "Sent. If it doesn't appear, hit Refresh.");
+      }
+    },
+    [windowLabel]
+  );
+
+  const startTestPoll = async (eventId: string) => {
+    stopTestPoll({ found: false, announce: false });
+    const maxAttempts = 6;
+    const intervalMs = 1500;
+    pollRef.current = { timer: null, attempts: 0, eventId, running: false };
+    setPollHint("Waiting for event to appear...");
+    logMonetisationClientEvent("ops_alerts_test_poll_start", null, "ops", {
+      meta: { window: windowLabel, maxAttempts, intervalMs },
+    });
+
+    const runAttempt = async () => {
+      const current = pollRef.current;
+      if (!current || current.running) return;
+      current.running = true;
+      current.attempts += 1;
+      const attempt = current.attempts;
+      const nextData = await fetchLatestAlerts({ reason: "poll", targetTab: "recent", silent: true });
+      const match = nextData?.recentEvents?.find((ev) => ev?.id === eventId);
+      const found = Boolean(match);
+      current.running = false;
+      if (!pollRef.current) return;
+      if (found) {
+        const surface = match?.isTest ? "test_events" : "recent";
+        stopTestPoll({ found: true, attempts: attempt, surface });
+        return;
+      }
+      if (attempt >= maxAttempts) {
+        stopTestPoll({ found: false, attempts: attempt });
+      }
+    };
+
+    await runAttempt();
+    if (pollRef.current) {
+      pollRef.current.timer = window.setInterval(runAttempt, intervalMs);
+    }
+  };
+
+  useEffect(() => {
+    if (tab !== "recent") {
+      stopTestPoll({ found: false, announce: false });
+    }
+  }, [stopTestPoll, tab]);
+
+  useEffect(() => {
+    return () => {
+      stopTestPoll({ found: false, announce: false });
+    };
+  }, [stopTestPoll]);
 
   const sendTest = async () => {
     if (testSending || testCooldownSeconds > 0) return;
     setFlash(null);
+    setPollHint(null);
+    stopTestPoll({ found: false, announce: false });
     setError(null);
     setTestSending(true);
     logMonetisationClientEvent("ops_alerts_test_click", null, "ops");
     logMonetisationClientEvent("ops_alerts_test_send_click", null, "ops", { meta: { window: windowLabel } });
+    logMonetisationClientEvent("ops_alerts_test_send_clicked", null, "ops", { meta: { window: windowLabel } });
     try {
       const res = await fetchJsonSafe<OpsAlertsModel>("/api/ops/alerts/test", { method: "POST", cache: "no-store" });
       if (res.status === 429 || res.error?.code === "RATE_LIMITED") {
@@ -350,8 +489,8 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
         setLoadState("error");
         return;
       }
-      setFlash("Test alert recorded.");
-      const hasEventId = Boolean((res.json as any).eventId);
+      const eventId = (res.json as any).eventId ?? null;
+      const hasEventId = Boolean(eventId);
       logMonetisationClientEvent("ops_alerts_test_success", null, "ops", { meta: { eventId: (res.json as any).eventId ?? null } });
       logMonetisationClientEvent("ops_alerts_test_sent_success", null, "ops", { meta: { window: windowLabel, hasEventId } });
       if ((res.json as any)?.deduped) {
@@ -371,8 +510,11 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       setTestCooldownSeconds(10);
       cooldownLoggedRef.current = false;
       logMonetisationClientEvent("ops_alerts_test_cooldown_started", null, "ops", { meta: { window: windowLabel, seconds: 10 } });
-      if (wasRecent) {
-        fetchLatestAlerts({ reason: "test" });
+      if (eventId) {
+        startTestPoll(eventId);
+      } else {
+        setFlash("Test alert recorded.");
+        fetchLatestAlerts({ reason: "test", targetTab: "recent" });
       }
     } catch {
       setError({ message: "Test alert failed", requestId: null });
@@ -438,6 +580,14 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     }
   };
 
+  const applyHandledToData = (eventId: string, handledMeta: { at: string; source?: string | null }) => {
+    setData((prev) => {
+      if (!prev) return prev;
+      const nextEvents = (prev.recentEvents ?? []).map((ev) => (ev?.id === eventId ? { ...ev, handled: handledMeta } : ev));
+      return { ...prev, recentEvents: nextEvents };
+    });
+  };
+
   const acknowledgeEvent = async (event: any) => {
     if (!event?.id) return;
     logMonetisationClientEvent("ops_alerts_ack_click", null, "ops", {
@@ -468,12 +618,19 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
         });
         return;
       }
+      const handledMeta = event?.handled?.at
+        ? { at: event.handled.at, source: event.handled.source ?? "ui" }
+        : { at: new Date().toISOString(), source: "ui" };
+      applyHandledToData(event.id, handledMeta);
       setAckState((prev) => ({ ...prev, [event.id]: { acknowledged: true, requestId: ackRes.requestId ?? tokenRes.requestId ?? null } }));
       logMonetisationClientEvent("ops_alerts_ack_public_success", null, "ops", {
         meta: { deduped: Boolean(ackRes.json?.deduped) },
       });
       logMonetisationClientEvent("ops_alerts_ack_ui_state_change", null, "ops", { meta: { acknowledged: true } });
-      await fetchLatestAlerts({ reason: "ack" });
+      if (ackRes.json?.deduped) {
+        setFlash("Already acknowledged.");
+      }
+      await fetchLatestAlerts({ reason: "ack", targetTab: tab, silent: true });
     } catch {
       setError({ message: "Unable to acknowledge alert", requestId: null });
     }
@@ -891,6 +1048,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
             <div>Last checked: {formatShortLocalTime(lastCheckedAtIso)}</div>
           </div>
         </div>
+        {pollHint ? <p className="mt-2 text-[11px] text-[rgb(var(--muted))]">{pollHint}</p> : null}
         {flash ? <p className="mt-2 text-[11px] text-emerald-700">{flash}</p> : null}
       </div>
 
@@ -909,6 +1067,11 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
         >
           Recent (24h)
         </button>
+      </div>
+      <div className="text-[11px] text-[rgb(var(--muted))]">
+        <span>Firing last loaded: {lastLoadedFiringAt ? formatShortLocalTime(lastLoadedFiringAt) : "--"}</span>
+        <span className="mx-2">·</span>
+        <span>Recent last loaded: {lastLoadedRecentAt ? formatShortLocalTime(lastLoadedRecentAt) : "--"}</span>
       </div>
 
       {loadState === "error" && error ? <ErrorBanner title="Alerts unavailable" message={error.message} requestId={error.requestId ?? requestId ?? undefined} /> : null}

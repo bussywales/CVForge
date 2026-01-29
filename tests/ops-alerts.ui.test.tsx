@@ -255,6 +255,35 @@ describe("Ops alerts UI extras", () => {
     expect(screen.getByText(/Send test alert/i)).toBeTruthy();
   });
 
+  it("tracks last-loaded timestamps per tab", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2024-01-01T00:00:00.000Z"));
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ops/alerts/workflow")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, alerts: [], recentEvents: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/plain" } }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const initial = coerceOpsAlertsModel({ ok: true, alerts: [], recentEvents: [] });
+    render(<AlertsClient initial={initial} requestId="req_ui" />);
+    await waitFor(() => {
+      const text = screen.getByText(/Firing last loaded:/).textContent ?? "";
+      expect(text).not.toContain("--");
+    });
+    vi.setSystemTime(new Date("2024-01-01T00:00:10.000Z"));
+    fireEvent.click(screen.getByText(/Recent/i));
+    await waitFor(() => expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("/api/ops/alerts"))).toBe(true));
+    await waitFor(() => {
+      const text = screen.getByText(/Recent last loaded:/).textContent ?? "";
+      expect(text).not.toContain("--");
+    });
+  });
+
   it("marks handled without request id and shows badge", async () => {
     const initial = coerceOpsAlertsModel({
       ok: true,

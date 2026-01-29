@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.47
+- Ops Alerts UX polish: post-send polling to surface new test events, per-tab last-loaded timestamps, and ACK cache reconciliation across tabs with a background refresh after acknowledgement.
+
 ## v0.8.46
 - Ops Alerts UI consistency: Recent tab selection persists via query params, switching to Recent auto-refreshes the latest alert events, Send test alert jumps to Recent with the Test events panel open, and ACKed rows stay acknowledged after refresh with server rehydration.
 
