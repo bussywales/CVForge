@@ -50,6 +50,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Set ALERTS_ACK_SECRET (+ optional ALERTS_ACK_TTL_SECONDS 10–30m); mint ACK token and confirm exp ≈ now + ttlSeconds returned.
 - Use /api/alerts/ack?token=... → handled recorded; expired/invalid tokens return jsonError with x-request-id.
 
+## Quick prod checks (v0.8.51)
+- Open /app/ops/help and verify Training Drills, Quick Cards, and Templates are visible.
+- Search for a drill/tag and confirm results filter; Copy template works and logs without blocking.
+- Toggle Print view and confirm nav + controls are hidden in the print layout.
+
 ## Quick prod checks (v0.8.50)
 - Open /app/ops/help (ops-only) and verify the TOC renders with sticky navigation on desktop.
 - Use search to filter sections; no-results state shows and Clear search restores all content.

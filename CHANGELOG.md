@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.51
+- Ops Training v1: /app/ops/help adds training drills, quick cards, and escalation templates with deep links, print view, and search/tag matching plus new telemetry and tests.
+
 ## v0.8.50
 - Ops Help Page v1: new ops-only /app/ops/help runbook with sticky TOC, search, copyable section links, and release discipline tests tied to RUNBOOK_META.
 

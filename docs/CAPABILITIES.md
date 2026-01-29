@@ -136,6 +136,7 @@ Opt-in, anonymised JD learning events feed admin-reviewed domain pack proposals 
 ## Ops/Support
 Ops Command Centre at `/app/ops` (env-guarded) lets support staff search users, view billing/credits/app snapshots, and open read-only dossiers at `/app/ops/users/:id` covering billing, outreach, outcomes, and next actions.
 Ops Help/Runbook at `/app/ops/help` provides an ops-only playbook with sticky TOC, search, copyable section links, and a release discipline gate tied to RUNBOOK_META vs CHANGELOG.
+Ops Training v1 extends the runbook with drills, quick cards, and escalation templates (copyable) plus print view for handoffs and training.
 Support actions (v0.7.87): ops dossier adds manual credit adjustments (admin+ only, bounded), support link generator (billing compare/sub/pack or specific app tabs with from=ops_support), and a recent ops audit list with requestId references.
 Support link generation is resilient to logging/copy failures; URL always renders with last-generated timestamp and manual copy hint if clipboard is blocked. Monetisation logging now fails softly (ok:false) instead of 500s.
 Observability: key flows return request IDs with premium error banners plus copyable support snippets; Sentry capture uses the same references for faster debugging.
