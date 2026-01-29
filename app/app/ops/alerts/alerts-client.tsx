@@ -115,6 +115,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const tabParam = resolveTab(tabParamRaw === "deliveries" ? "recent" : tabParamRaw);
   const fromParam = searchParams?.get("from");
   const fromTraining = fromParam === "ops_training";
+  const trainingScenarioId = searchParams?.get("scenarioId");
   const trainingEventId = searchParams?.get("eventId");
   const searchKey = searchParams?.toString() ?? "";
   const deliveriesStatusParam = searchParams?.get("status") ?? searchParams?.get("deliveries");
@@ -426,6 +427,49 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
           : "bg-amber-100 text-amber-800";
     const label = status === "delivered" ? "Delivered" : status === "failed" ? "Failed" : "Sent";
     return <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${tone}`}>{label}</span>;
+  };
+
+  const buildTrainingLinks = (event: any) => {
+    const requestId = typeof event?.signals?.requestId === "string" ? event.signals.requestId : null;
+    const eventId = typeof event?.id === "string" ? event.id : null;
+    const windowKey = typeof event?.window === "string" ? event.window : windowLabel;
+    const auditsHref = requestId
+      ? `/app/ops/audits?requestId=${encodeURIComponent(requestId)}`
+      : eventId
+        ? `/app/ops/audits?eventId=${encodeURIComponent(eventId)}`
+        : `/app/ops/audits?from=ops_training&q=alert_test`;
+    const incidentsHref = requestId
+      ? `/app/ops/incidents?from=ops_training&window=${encodeURIComponent(windowKey)}&requestId=${encodeURIComponent(requestId)}`
+      : `/app/ops/incidents?from=ops_training&window=${encodeURIComponent(windowKey)}&surface=ops&signal=alert_test`;
+    const statusHref = `/app/ops/status?window=${encodeURIComponent(windowKey)}&from=ops_training#alerts`;
+    return { auditsHref, incidentsHref, statusHref, requestId, eventId };
+  };
+
+  const logTrainingPrefilledLink = (target: string, meta?: Record<string, any>) => {
+    try {
+      logMonetisationClientEvent("ops_training_prefilled_link_opened", null, "ops", { meta: { target, ...(meta ?? {}) } });
+    } catch {
+      // ignore
+    }
+  };
+
+  const copyTrainingLinks = async (event: any) => {
+    if (!navigator?.clipboard?.writeText) return;
+    const { auditsHref, incidentsHref, statusHref } = buildTrainingLinks(event);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    const text = [
+      "CVForge Ops Training Links",
+      `Audits: ${origin}${auditsHref}`,
+      `Incidents: ${origin}${incidentsHref}`,
+      `System Status: ${origin}${statusHref}`,
+    ].join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setFlash("Filtered links copied.");
+      logTrainingPrefilledLink("copy_links");
+    } catch {
+      // ignore
+    }
   };
 
   const headlineTone = useMemo(() => {
@@ -976,17 +1020,37 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
         });
         return;
       }
+      const ackRequestId = ackRes.requestId ?? tokenRes.requestId ?? null;
       const handledMeta = event?.handled?.at
         ? { at: event.handled.at, source: event.handled.source ?? "ui" }
         : { at: new Date().toISOString(), source: "ui" };
       applyHandledToData(event.id, handledMeta);
-      setAckState((prev) => ({ ...prev, [event.id]: { acknowledged: true, requestId: ackRes.requestId ?? tokenRes.requestId ?? null } }));
+      setAckState((prev) => ({ ...prev, [event.id]: { acknowledged: true, requestId: ackRequestId } }));
       logMonetisationClientEvent("ops_alerts_ack_public_success", null, "ops", {
         meta: { deduped: Boolean(ackRes.json?.deduped) },
       });
       logMonetisationClientEvent("ops_alerts_ack_ui_state_change", null, "ops", { meta: { acknowledged: true } });
       if (ackRes.json?.deduped) {
         setFlash("Already acknowledged.");
+      }
+      if (fromTraining || trainingScenarioId || event?.isTest) {
+        void (async () => {
+          try {
+            const markRes = await fetchJsonSafe<{ scenario?: any }>(`/api/ops/training/scenarios/mark`, {
+              method: "POST",
+              cache: "no-store",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ scenarioId: trainingScenarioId ?? null, eventId: event.id, ackRequestId }),
+            });
+            if (markRes.ok && markRes.json?.scenario) {
+              logMonetisationClientEvent("ops_training_scenario_marked", null, "ops", {
+                meta: { hasScenarioId: Boolean(trainingScenarioId), hasEventId: Boolean(event.id) },
+              });
+            }
+          } catch {
+            // ignore
+          }
+        })();
       }
       await fetchLatestAlerts({ reason: "ack", targetTab: tab, silent: true });
     } catch {
@@ -1636,6 +1700,8 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                     const auditsHref = ev.signals?.requestId
                       ? `/app/ops/audits?requestId=${encodeURIComponent(ev.signals.requestId)}`
                       : `/app/ops/audits?q=${encodeURIComponent(ev.id ?? ev.key ?? "ops_alert_test")}`;
+                    const isTrainingFocus = fromTraining && trainingEventId === ev.id;
+                    const trainingLinks = isTrainingFocus ? buildTrainingLinks(ev) : null;
                     return (
                       <li
                         id={`ops-training-event-${ev.id}`}
@@ -1668,6 +1734,31 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                           >
                             Open in Incidents
                           </Link>
+                          {isTrainingFocus && trainingLinks ? (
+                            <>
+                              <Link
+                                href={trainingLinks.auditsHref}
+                                onClick={() => logTrainingPrefilledLink("audits", { hasRequestId: Boolean(trainingLinks.requestId) })}
+                                className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                              >
+                                Open Audits (filtered)
+                              </Link>
+                              <Link
+                                href={trainingLinks.incidentsHref}
+                                onClick={() => logTrainingPrefilledLink("incidents", { hasRequestId: Boolean(trainingLinks.requestId) })}
+                                className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                              >
+                                Open Incidents (filtered)
+                              </Link>
+                              <button
+                                type="button"
+                                onClick={() => copyTrainingLinks(ev)}
+                                className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline"
+                              >
+                                Copy filtered links
+                              </button>
+                            </>
+                          ) : null}
                           {ev.id ? (
                             <>
                               <button

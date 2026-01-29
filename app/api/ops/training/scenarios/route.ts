@@ -22,6 +22,8 @@ const mapScenario = (row: any) => ({
   windowLabel: row.window_label ?? "15m",
   eventId: row.event_id ?? null,
   requestId: row.request_id ?? null,
+  acknowledgedAt: row.acknowledged_at ?? null,
+  ackRequestId: row.ack_request_id ?? null,
   meta: row.meta && typeof row.meta === "object" ? row.meta : {},
   isActive: Boolean(row.is_active ?? true),
 });

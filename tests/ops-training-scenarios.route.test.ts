@@ -4,12 +4,14 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 let GET: any;
 let POST: any;
 let DEACTIVATE: any;
+let MARK: any;
 let role = "admin";
 let rateAllowed = true;
 
 const listMock = vi.fn();
 const createMock = vi.fn();
 const deactivateMock = vi.fn();
+const markMock = vi.fn();
 const testEventMock = vi.fn();
 
 beforeAll(async () => {
@@ -92,6 +94,7 @@ beforeAll(async () => {
     listTrainingScenarios: (...args: any[]) => listMock(...args),
     createTrainingScenario: (...args: any[]) => createMock(...args),
     deactivateScenario: (...args: any[]) => deactivateMock(...args),
+    markTrainingScenarioAcknowledged: (...args: any[]) => markMock(...args),
   }));
   vi.doMock("@/lib/supabase/service", () => ({
     createServiceRoleClient: () => ({
@@ -104,6 +107,8 @@ beforeAll(async () => {
   POST = mod.POST;
   const deact = await import("@/app/api/ops/training/scenarios/[id]/deactivate/route");
   DEACTIVATE = deact.POST;
+  const mark = await import("@/app/api/ops/training/scenarios/mark/route");
+  MARK = mark.POST;
 });
 
 describe("ops training scenarios routes", () => {
@@ -171,5 +176,32 @@ describe("ops training scenarios routes", () => {
       params: { id: "not-a-uuid" },
     });
     expect(res.status).toBe(400);
+  });
+
+  it("marks a scenario as acknowledged", async () => {
+    role = "admin";
+    rateAllowed = true;
+    markMock.mockResolvedValueOnce({
+      id: "scn_1",
+      created_at: "2024-01-01T00:00:00.000Z",
+      created_by: "ops-user",
+      scenario_type: "alerts_test",
+      window_label: "15m",
+      event_id: "evt_train",
+      request_id: "req_test",
+      acknowledged_at: "2024-01-01T00:10:00.000Z",
+      ack_request_id: "req_ack",
+      meta: {},
+      is_active: true,
+    });
+    const res = await MARK(
+      new Request("http://localhost/api/ops/training/scenarios/mark", {
+        method: "POST",
+        body: JSON.stringify({ scenarioId: "scn_1", eventId: "evt_train", ackRequestId: "req_ack" }),
+      }) as any
+    );
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.scenario.acknowledgedAt).toBe("2024-01-01T00:10:00.000Z");
   });
 });

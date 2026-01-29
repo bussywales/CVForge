@@ -167,6 +167,8 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
   const [scenarioHint, setScenarioHint] = useState<string | null>(null);
   const [scenarioCreating, setScenarioCreating] = useState(false);
   const [scenarioHighlightId, setScenarioHighlightId] = useState<string | null>(null);
+  const [scenarioReportCopiedId, setScenarioReportCopiedId] = useState<string | null>(null);
+  const [scenariosRequestId, setScenariosRequestId] = useState<string | null>(null);
   const scenariosViewLogged = useRef(false);
   const scenarioHighlightTimer = useRef<number | null>(null);
 
@@ -267,6 +269,7 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
         }
         const next = coerceTrainingScenarios(res.json.scenarios);
         setScenarios(next);
+        setScenariosRequestId(res.requestId ?? null);
         if (!silent) setScenariosError(null);
         if (!scenariosViewLogged.current) {
           scenariosViewLogged.current = true;
@@ -455,6 +458,7 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
         return;
       }
       setScenarios((prev) => [scenario, ...prev.filter((item) => item.id !== scenario.id)]);
+      setScenariosRequestId(res.requestId ?? null);
       setScenarioHint("Scenario created.");
       highlightScenario(scenario.id);
       try {
@@ -500,8 +504,90 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
       logMonetisationClientEvent("ops_training_link_click", null, "ops", {
         meta: { destination, type: scenario.scenarioType, scenarioId: scenario.id.slice(0, 8) },
       });
+      logMonetisationClientEvent("ops_training_prefilled_link_opened", null, "ops", {
+        meta: { target: destination, type: scenario.scenarioType, hasEventId: Boolean(scenario.eventId) },
+      });
     } catch {
       // ignore
+    }
+  };
+
+  const scenarioLabel = (scenario: TrainingScenario) => {
+    return scenario.scenarioType === "alerts_test" ? "Alerts: Test alert" : "Mixed: Basic end-to-end";
+  };
+
+  const buildScenarioLinks = (scenario: TrainingScenario) => {
+    const windowLabel = scenario.windowLabel || "15m";
+    const eventParam = scenario.eventId ? `&eventId=${encodeURIComponent(scenario.eventId)}` : "";
+    const scenarioParam = scenario.id ? `&scenarioId=${encodeURIComponent(scenario.id)}` : "";
+    const requestParam = scenario.requestId ? `&requestId=${encodeURIComponent(scenario.requestId)}` : "";
+    const alertsPath = `/app/ops/alerts?from=ops_training&tab=recent&window=${encodeURIComponent(windowLabel)}${eventParam}${scenarioParam}`;
+    const incidentsPath = scenario.requestId
+      ? `/app/ops/incidents?from=ops_training&window=${encodeURIComponent(windowLabel)}${requestParam}`
+      : `/app/ops/incidents?from=ops_training&window=${encodeURIComponent(windowLabel)}&surface=ops&signal=alert_test`;
+    const auditsPath = scenario.requestId
+      ? `/app/ops/audits?requestId=${encodeURIComponent(scenario.requestId)}`
+      : scenario.eventId
+        ? `/app/ops/audits?eventId=${encodeURIComponent(scenario.eventId)}`
+        : `/app/ops/audits?from=ops_training&q=alert_test`;
+    const statusPath = `/app/ops/status?window=${encodeURIComponent(windowLabel)}&from=ops_training#alerts`;
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    return {
+      alertsPath,
+      incidentsPath,
+      auditsPath,
+      statusPath,
+      alerts: `${origin}${alertsPath}`,
+      incidents: `${origin}${incidentsPath}`,
+      audits: `${origin}${auditsPath}`,
+      status: `${origin}${statusPath}`,
+    };
+  };
+
+  const buildScenarioReport = (scenario: TrainingScenario) => {
+    const now = new Date();
+    const localStamp = typeof window !== "undefined" ? now.toLocaleString("sv-SE") : now.toISOString();
+    const utcStamp = now.toISOString();
+    const links = buildScenarioLinks(scenario);
+    const acknowledged = scenario.acknowledgedAt ? "Yes" : "Not yet";
+    const lines = [
+      "CVForge Ops Training Report",
+      "",
+      `Scenario: ${scenarioLabel(scenario)} (${scenario.id})`,
+      `Generated at: ${localStamp} (UTC ${utcStamp})`,
+      `Window: ${scenario.windowLabel || "15m"}`,
+      "IDs:",
+      `- eventId: ${scenario.eventId ?? "--"}`,
+      `- requestId: ${scenario.requestId ?? "--"}`,
+      `- ackRequestId: ${scenario.ackRequestId ?? "--"}`,
+      "Links:",
+      `- Alerts: ${links.alerts}`,
+      `- Incidents: ${links.incidents}`,
+      `- Audits: ${links.audits}`,
+      `- System Status: ${links.status}`,
+      "Checklist:",
+      "- Opened Alerts and confirmed event visible",
+      `- Acknowledged alert: ${acknowledged}`,
+      "- Opened Audits/Incidents filtered by requestId",
+      "Outcome/notes:",
+      "",
+      `RequestId (last scenarios fetch): ${scenariosRequestId ?? "--"}`,
+    ];
+    return lines.join("\\n");
+  };
+
+  const handleScenarioReportCopy = async (scenario: TrainingScenario) => {
+    if (!navigator?.clipboard?.writeText) return;
+    try {
+      const report = buildScenarioReport(scenario);
+      await navigator.clipboard.writeText(report);
+      setScenarioReportCopiedId(scenario.id);
+      window.setTimeout(() => setScenarioReportCopiedId(null), 1500);
+      logMonetisationClientEvent("ops_help_training_report_copied", null, "ops", {
+        meta: { scenarioType: scenario.scenarioType, hasEventId: Boolean(scenario.eventId), hasRequestId: Boolean(scenario.requestId) },
+      });
+    } catch {
+      setScenarioReportCopiedId(null);
     }
   };
 
@@ -737,17 +823,6 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
   };
 
   const renderTrainingSandbox = () => {
-    const scenarioLabel = (scenario: TrainingScenario) => {
-      return scenario.scenarioType === "alerts_test" ? "Alerts: Test alert" : "Mixed: Basic end-to-end";
-    };
-    const buildLinks = (scenario: TrainingScenario) => {
-      const eventParam = scenario.eventId ? `&eventId=${encodeURIComponent(scenario.eventId)}` : "";
-      return {
-        alerts: `/app/ops/alerts?from=ops_training&tab=recent&window=15m${eventParam}`,
-        incidents: "/app/ops/incidents?from=ops_training&window=15m&surface=ops&signal=alert_test",
-        status: "/app/ops/status#alerts",
-      };
-    };
     return (
       <div className="rounded-2xl border border-black/10 bg-white/90 p-4">
         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -801,7 +876,7 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
           scenarios.length ? (
             <div className="mt-3 space-y-2">
               {scenarios.map((scenario) => {
-                const links = buildLinks(scenario);
+                const links = buildScenarioLinks(scenario);
                 const highlight = scenarioHighlightId === scenario.id;
                 return (
                   <div
@@ -833,26 +908,40 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
                     </div>
                     <div className="mt-2 flex flex-wrap gap-2">
                       <Link
-                        href={links.alerts}
+                        href={links.alertsPath}
                         onClick={() => handleScenarioLinkClick(scenario, "alerts")}
                         className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
                       >
                         Open Alerts
                       </Link>
                       <Link
-                        href={links.incidents}
+                        href={links.incidentsPath}
                         onClick={() => handleScenarioLinkClick(scenario, "incidents")}
                         className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
                       >
                         Open Incidents
                       </Link>
                       <Link
-                        href={links.status}
+                        href={links.auditsPath}
+                        onClick={() => handleScenarioLinkClick(scenario, "audits")}
+                        className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                      >
+                        Open Audits
+                      </Link>
+                      <Link
+                        href={links.statusPath}
                         onClick={() => handleScenarioLinkClick(scenario, "status")}
                         className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
                       >
                         Open System Status
                       </Link>
+                      <button
+                        type="button"
+                        onClick={() => handleScenarioReportCopy(scenario)}
+                        className="rounded-full bg-[rgb(var(--ink))] px-3 py-1 text-[11px] font-semibold text-white"
+                      >
+                        {scenarioReportCopiedId === scenario.id ? "Copied" : "Copy training report"}
+                      </button>
                     </div>
                     {scenario.scenarioType === "mixed_basic" ? (
                       <p className="mt-2 text-[11px] text-[rgb(var(--muted))]">No incidents generated for this scenario type yet.</p>

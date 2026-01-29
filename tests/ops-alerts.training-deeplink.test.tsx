@@ -67,7 +67,7 @@ describe("ops alerts training deep link", () => {
                       summary: "Test alert fired",
                       isTest: true,
                       severity: "low",
-                      signals: {},
+                      signals: { requestId: "req_train" },
                     },
                   ]
                 : [],
@@ -89,6 +89,9 @@ describe("ops alerts training deep link", () => {
     await vi.advanceTimersByTimeAsync(2000);
 
     await waitFor(() => expect(screen.getByText(/Test alert recorded/i)).toBeTruthy());
+    expect(screen.getByText(/Open Audits \\(filtered\\)/i).getAttribute("href")).toContain("requestId=req_train");
+    expect(screen.getByText(/Open Incidents \\(filtered\\)/i).getAttribute("href")).toContain("requestId=req_train");
+    expect(screen.getByText(/Copy filtered links/i)).toBeTruthy();
     expect(replaceMock.mock.calls.length).toBeLessThanOrEqual(1);
     const highlighted = document.getElementById("ops-training-event-evt_train");
     expect(highlighted?.className).toContain("bg-amber-50");

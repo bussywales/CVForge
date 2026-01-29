@@ -138,6 +138,7 @@ Ops Command Centre at `/app/ops` (env-guarded) lets support staff search users, 
 Ops Help/Runbook at `/app/ops/help` provides an ops-only playbook with sticky TOC, search, copyable section links, and a release discipline gate tied to RUNBOOK_META vs CHANGELOG.
 Ops Training v1 extends the runbook with drills, quick cards, and escalation templates (copyable) plus print view for handoffs and training.
 Ops Training sandbox v1 adds an ops-only scenario generator with safe test alert creation, a recent scenarios list, and deep links into Alerts/Incidents/Status for hands-on drills.
+Ops Training reports add copyable scenario summaries with prefilled drill links and ACK state tracking for consistent handoffs.
 Ops Alerts training deep links now avoid history API loops while still focusing and polling for the target event.
 Support actions (v0.7.87): ops dossier adds manual credit adjustments (admin+ only, bounded), support link generator (billing compare/sub/pack or specific app tabs with from=ops_support), and a recent ops audit list with requestId references.
 Support link generation is resilient to logging/copy failures; URL always renders with last-generated timestamp and manual copy hint if clipboard is blocked. Monetisation logging now fails softly (ok:false) instead of 500s.

@@ -1,6 +1,6 @@
 /// <reference types="vitest/globals" />
 import { describe, expect, it, vi } from "vitest";
-import { createTrainingScenario, deactivateScenario, listTrainingScenarios } from "@/lib/ops/training-scenarios";
+import { createTrainingScenario, deactivateScenario, listTrainingScenarios, markTrainingScenarioAcknowledged } from "@/lib/ops/training-scenarios";
 
 vi.mock("@/lib/supabase/service", () => {
   const store: Record<string, any[]> = { ops_training_scenarios: [] };
@@ -81,6 +81,14 @@ describe("ops training scenarios helper", () => {
     const list = await listTrainingScenarios({ userId: "user-1", limit: 10, activeOnly: true });
     expect(list.length).toBe(1);
     expect(list[0].id).toBe(created.id);
+
+    const acked = await markTrainingScenarioAcknowledged({
+      scenarioId: created.id,
+      ackRequestId: "req_ack",
+      now: new Date("2024-01-01T00:10:00.000Z"),
+    });
+    expect(acked.acknowledged_at).toBe("2024-01-01T00:10:00.000Z");
+    expect(acked.ack_request_id).toBe("req_ack");
 
     await deactivateScenario({ id: created.id });
     const after = await listTrainingScenarios({ userId: "user-1", limit: 10, activeOnly: true });

@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.54
+- Ops training sandbox adds copyable training reports with prefilled deep links (alerts/incidents/audits/status) and records acknowledgement state for scenarios after ACK.
+
 ## v0.8.53
 - Ops Alerts training deep links are now stable: URL syncing is idempotent and guarded to avoid history API loops while keeping training focus and polling reliable.
 

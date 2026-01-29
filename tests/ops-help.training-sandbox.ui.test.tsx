@@ -66,6 +66,8 @@ describe("ops help training sandbox ui", () => {
               windowLabel: "15m",
               eventId: "evt_train",
               requestId: "req_train",
+              acknowledgedAt: null,
+              ackRequestId: null,
               meta: {},
               isActive: true,
             },
@@ -82,6 +84,50 @@ describe("ops help training sandbox ui", () => {
     const alertsLink = screen.getByText("Open Alerts");
     expect(alertsLink.getAttribute("href")).toContain("from=ops_training");
     expect(alertsLink.getAttribute("href")).toContain("eventId=evt_train");
+    expect(alertsLink.getAttribute("href")).toContain("scenarioId=scn_1");
+    expect(screen.getByText("Open Audits")).toBeTruthy();
+  });
+
+  it("copies training report with deep links", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: {
+        scenarios: [
+          {
+            id: "scn_1",
+            createdAt: "2024-01-01T00:00:00.000Z",
+            createdBy: "ops-user",
+            scenarioType: "alerts_test",
+            windowLabel: "15m",
+            eventId: "evt_train",
+            requestId: "req_train",
+            acknowledgedAt: "2024-01-01T00:10:00.000Z",
+            ackRequestId: "req_ack",
+            meta: {},
+            isActive: true,
+          },
+        ],
+      },
+    });
+
+    render(<HelpClient sections={sections} meta={meta} />);
+    await waitFor(() => expect(screen.getByText("Alerts: Test alert")).toBeTruthy());
+    fireEvent.click(screen.getByText("Copy training report"));
+
+    const clipboardWrite = (navigator.clipboard as any).writeText as any;
+    await waitFor(() => expect(clipboardWrite).toHaveBeenCalled());
+    const report = clipboardWrite.mock.calls[0][0] as string;
+    expect(report).toContain("CVForge Ops Training Report");
+    expect(report).toContain("Scenario: Alerts: Test alert (scn_1)");
+    expect(report).toContain("eventId: evt_train");
+    expect(report).toContain("requestId: req_train");
+    expect(report).toContain("ackRequestId: req_ack");
+    expect(report).toContain("Acknowledged alert: Yes");
+    expect(report).toContain("http://localhost/app/ops/alerts");
+    expect(report).toContain("http://localhost/app/ops/incidents");
+    expect(report).toContain("http://localhost/app/ops/audits");
+    expect(report).toContain("http://localhost/app/ops/status");
   });
 
   it("preserves last-good list on refresh failure", async () => {

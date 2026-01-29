@@ -77,8 +77,8 @@ export type RunbookSection = {
 };
 
 export const RUNBOOK_META = {
-  lastUpdatedVersion: "v0.8.53",
-  lastUpdatedIso: "2026-02-04T00:00:00.000Z",
+  lastUpdatedVersion: "v0.8.54",
+  lastUpdatedIso: "2026-02-11T00:00:00.000Z",
   rulesVersion: "ops_runbook_v1",
 };
 
@@ -286,6 +286,68 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
         record: ["alertKey/eventId, handled timestamp, and any outcomes saved."],
         exit: ["Alert is acknowledged/handled and no longer repeats in the 15m window."],
         escalate: ["Alert continues firing after ACK/handled or signal is unexplained."],
+      },
+    ],
+  },
+  {
+    id: "training-reports-handoff",
+    title: "Training reports and escalation handoff",
+    category: "Training",
+    ...BASE_SUPPORT,
+    owner: "Support",
+    lastUpdatedIso: LAST_UPDATED,
+    linkedSurfaces: ["alerts", "incidents", "status", "webhooks"],
+    tags: ["training", "report", "handoff", "escalation"],
+    body: [
+      { type: "heading", text: "What this is / When to use" },
+      {
+        type: "paragraph",
+        text: "Use training reports to capture the drill context, links, and acknowledgement state so handoffs stay consistent across shifts and engineering escalations.",
+      },
+      { type: "heading", text: "Symptoms" },
+      {
+        type: "bullets",
+        items: ["Training outcomes are shared without links or requestId context.", "Ops handoff lacks clarity on what was already checked."],
+      },
+      { type: "heading", text: "Likely causes" },
+      {
+        type: "bullets",
+        items: ["Manual note-taking without a standardized report.", "Scenario links not copied from the training sandbox."],
+      },
+      {
+        type: "checks",
+        items: [
+          "Confirm the training scenario has an eventId and requestId.",
+          "Verify the alert was acknowledged and the badge is visible in Alerts.",
+          "Ensure the report links open filtered Audits and Incidents.",
+        ],
+      },
+      {
+        type: "actions",
+        items: [
+          "From the Training sandbox, click “Copy training report”.",
+          "Paste the report into the handoff channel and add outcome notes.",
+          "Use the filtered Audits/Incidents links to confirm requestId context.",
+        ],
+      },
+      {
+        type: "escalate",
+        items: ["The scenario shows repeated failures or missing data after multiple runs.", "Acknowledgement state does not persist across refresh."],
+      },
+      {
+        type: "send",
+        items: [
+          "Training report text (with scenarioId, eventId, requestId, and links).",
+          "Timestamp and window label used during the drill.",
+          "Any errors or screenshots observed during the workflow.",
+        ],
+      },
+      {
+        type: "links",
+        items: [
+          { label: "Ops Help", href: "/app/ops/help#training-drills" },
+          { label: "Ops Alerts", href: "/app/ops/alerts" },
+        ],
       },
     ],
   },

@@ -28,6 +28,7 @@ type BudgetKey =
   | "ops_training_scenarios_get"
   | "ops_training_scenarios_post"
   | "ops_training_scenarios_deactivate"
+  | "ops_training_scenarios_mark"
   | "onboarding_model_get"
   | "onboarding_skip_post"
   | "invite_claim"
@@ -72,6 +73,7 @@ const ROUTE_BUDGETS: Record<BudgetKey, BudgetLevel> = {
   ops_training_scenarios_get: "medium",
   ops_training_scenarios_post: "medium",
   ops_training_scenarios_deactivate: "medium",
+  ops_training_scenarios_mark: "medium",
   onboarding_model_get: "medium",
   onboarding_skip_post: "medium",
   invite_claim: "medium",

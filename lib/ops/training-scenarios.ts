@@ -13,9 +13,14 @@ export type TrainingScenarioRow = {
   window_label: string;
   event_id: string | null;
   request_id: string | null;
+  acknowledged_at: string | null;
+  ack_request_id: string | null;
   meta: Record<string, any>;
   is_active: boolean;
 };
+
+const SCENARIO_SELECT_FIELDS =
+  "id,created_at,created_by,scenario_type,window_label,event_id,request_id,acknowledged_at,ack_request_id,meta,is_active";
 
 function sanitizeScenarioMeta(meta?: Record<string, any>) {
   return sanitizeMonetisationMeta(meta ?? {});
@@ -52,7 +57,7 @@ export async function createTrainingScenario({
   const { data, error } = await admin
     .from("ops_training_scenarios")
     .insert(payload)
-    .select("id,created_at,created_by,scenario_type,window_label,event_id,request_id,meta,is_active")
+    .select(SCENARIO_SELECT_FIELDS)
     .single();
   if (error || !data) {
     throw error ?? new Error("Unable to create training scenario");
@@ -74,7 +79,7 @@ export async function listTrainingScenarios({
   const admin = createServiceRoleClient();
   let query = admin
     .from("ops_training_scenarios")
-    .select("id,created_at,created_by,scenario_type,window_label,event_id,request_id,meta,is_active")
+    .select(SCENARIO_SELECT_FIELDS)
     .order("created_at", { ascending: false })
     .limit(limit);
   if (userId) {
@@ -99,10 +104,64 @@ export async function deactivateScenario({ id }: { id: string }) {
     .from("ops_training_scenarios")
     .update({ is_active: false })
     .eq("id", id)
-    .select("id,created_at,created_by,scenario_type,window_label,event_id,request_id,meta,is_active")
+    .select(SCENARIO_SELECT_FIELDS)
     .single();
   if (error || !data) {
     throw error ?? new Error("Unable to deactivate scenario");
   }
   return data as TrainingScenarioRow;
+}
+
+export async function markTrainingScenarioAcknowledged({
+  scenarioId,
+  eventId,
+  ackRequestId,
+  now = new Date(),
+}: {
+  scenarioId?: string | null;
+  eventId?: string | null;
+  ackRequestId?: string | null;
+  now?: Date;
+}) {
+  if (!scenarioId && !eventId) {
+    throw new Error("Missing scenario id or event id");
+  }
+  const admin = createServiceRoleClient();
+  let row: TrainingScenarioRow | null = null;
+  if (scenarioId) {
+    const { data, error } = await admin.from("ops_training_scenarios").select(SCENARIO_SELECT_FIELDS).eq("id", scenarioId).limit(1);
+    if (error) {
+      throw error;
+    }
+    row = (data ?? [])[0] ?? null;
+  } else if (eventId) {
+    const { data, error } = await admin
+      .from("ops_training_scenarios")
+      .select(SCENARIO_SELECT_FIELDS)
+      .eq("event_id", eventId)
+      .eq("is_active", true)
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error) {
+      throw error;
+    }
+    row = (data ?? [])[0] ?? null;
+  }
+  if (!row) {
+    throw new Error("Training scenario not found");
+  }
+  if (row.acknowledged_at) {
+    return row;
+  }
+
+  const { data: updated, error } = await admin
+    .from("ops_training_scenarios")
+    .update({ acknowledged_at: now.toISOString(), ack_request_id: ackRequestId ?? row.ack_request_id ?? null })
+    .eq("id", row.id)
+    .select(SCENARIO_SELECT_FIELDS)
+    .single();
+  if (error || !updated) {
+    throw error ?? new Error("Unable to mark training scenario");
+  }
+  return updated as TrainingScenarioRow;
 }

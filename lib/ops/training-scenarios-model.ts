@@ -6,6 +6,8 @@ export type TrainingScenario = {
   windowLabel: string;
   eventId: string | null;
   requestId: string | null;
+  acknowledgedAt: string | null;
+  ackRequestId: string | null;
   meta: Record<string, any>;
   isActive: boolean;
 };
@@ -22,6 +24,8 @@ export function coerceTrainingScenario(input: any): TrainingScenario | null {
     windowLabel: typeof (input as any).windowLabel === "string" ? (input as any).windowLabel : "15m",
     eventId: typeof (input as any).eventId === "string" ? (input as any).eventId : null,
     requestId: typeof (input as any).requestId === "string" ? (input as any).requestId : null,
+    acknowledgedAt: typeof (input as any).acknowledgedAt === "string" ? (input as any).acknowledgedAt : null,
+    ackRequestId: typeof (input as any).ackRequestId === "string" ? (input as any).ackRequestId : null,
     meta: (input as any).meta && typeof (input as any).meta === "object" ? (input as any).meta : {},
     isActive: typeof (input as any).isActive === "boolean" ? (input as any).isActive : true,
   };

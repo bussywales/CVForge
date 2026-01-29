@@ -196,8 +196,99 @@ describe("Ops alerts ack UI", () => {
     fireEvent.click(screen.getByText(/Firing/i));
     await waitFor(() => {
       const ackButton = screen.getByText(/Acknowledged/i);
-      expect(ackButton.closest("button")?.getAttribute("disabled")).not.toBeNull();
+    expect(ackButton.closest("button")?.getAttribute("disabled")).not.toBeNull();
+  });
+
+  it("marks training scenario after ack", async () => {
+    searchParamsValue = new URLSearchParams("from=ops_training&scenarioId=scn_1&eventId=evt_test");
+    let marked = false;
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ops/alerts/ack-token")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, token: "tok_test" }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/alerts/ack")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, eventId: "evt_test", handled: true }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/training/scenarios/mark")) {
+        marked = true;
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              ok: true,
+              scenario: {
+                id: "scn_1",
+                createdAt: "2024-01-01T00:00:00.000Z",
+                createdBy: "ops-user",
+                scenarioType: "alerts_test",
+                windowLabel: "15m",
+                eventId: "evt_test",
+                requestId: "req_train",
+                acknowledgedAt: "2024-01-01T00:10:00.000Z",
+                ackRequestId: "req_ack",
+                meta: {},
+                isActive: true,
+              },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        );
+      }
+      if (url.includes("/api/ops/alerts/workflow")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts/deliveries")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, deliveries: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              ok: true,
+              alerts: [],
+              recentEvents: [
+                {
+                  id: "evt_test",
+                  key: "ops_alert_test",
+                  state: "firing",
+                  at: "2024-01-01T00:00:00.000Z",
+                  summary: "Test alert fired",
+                  isTest: true,
+                  severity: "low",
+                  signals: {},
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        );
+      }
+      return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/plain" } }));
     });
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("navigator", { clipboard: { writeText: vi.fn() } } as any);
+    const initial = coerceOpsAlertsModel({
+      ok: true,
+      alerts: [],
+      recentEvents: [
+        {
+          id: "evt_test",
+          key: "ops_alert_test",
+          state: "firing",
+          at: "2024-01-01T00:00:00.000Z",
+          summary: "Test alert fired",
+          isTest: true,
+          severity: "low",
+          signals: {},
+        },
+      ],
+    });
+    render(<AlertsClient initial={initial} requestId="req_ui" />);
+    fireEvent.click(screen.getByText(/Recent/i));
+    fireEvent.click(screen.getByText(/Show/i));
+    fireEvent.click(screen.getByText(/Acknowledge/i));
+    await waitFor(() => expect(marked).toBe(true));
+  });
   });
 
   it("rehydrates acknowledged state in firing tab from recent handled events", async () => {
