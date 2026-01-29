@@ -54,6 +54,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Open a training deep link (from=ops_training with eventId) and confirm the Alerts page stays stable without history errors.
 - The training event is focused/highlighted once it appears (or after a short poll).
 
+## Quick prod checks (v0.8.55)
+- Open /app/ops/case → empty state prompts for requestId.
+- Paste a requestId and click Search → URL updates once and panels load.
+- Copy case snippet → clipboard works; Open Alerts/Incidents/Webhooks links include from=ops_case&window=15m.
+
 ## Quick prod checks (v0.8.54)
 - Generate a training scenario → open the Alerts deep link and confirm prefilled Audits/Incidents links work.
 - Acknowledge the training alert → return to Help and copy the training report → report shows ACK = Yes and includes all deep links.

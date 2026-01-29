@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.55
+- Ops Case View v1: new /app/ops/case requestId-first cockpit with search + window selector, summary strip, alerts/incidents/audits/webhooks/billing/outcomes/watch panels, copyable case snippet, and new ops preview APIs/logging.
+
 ## v0.8.54
 - Ops training sandbox adds copyable training reports with prefilled deep links (alerts/incidents/audits/status) and records acknowledgement state for scenarios after ACK.
 

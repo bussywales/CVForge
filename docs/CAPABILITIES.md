@@ -81,6 +81,7 @@ Close-out loop after acceptance helps withdraw from other applications and log o
 
 ## Ops Console
 Ops/admin/super_admin roles see an Ops Console entry and can access /app/ops (others get a premium Access denied view with reference/support snippet). Ops support links deep-link into Billing sections (plan/pack/portal flows) with scroll/highlight for guided handoff.
+Ops Case View: /app/ops/case provides a requestId-first cockpit with search + window selector, alerts/incidents/audits/webhooks/billing/resolution/watch panels, and copyable case snippets plus deep links into Ops surfaces.
 
 ## Outreach Autopilot
 Follow-up autopilot surfaces due/overdue follow-ups on Dashboard and Command Centre with one-tap send/log/schedule modal plus recovery cues.

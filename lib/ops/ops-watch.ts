@@ -58,11 +58,13 @@ export async function listWatch({
   windowHours = 24,
   now = new Date(),
   userId,
+  requestId,
 }: {
   activeOnly?: boolean;
   windowHours?: number;
   now?: Date;
   userId?: string | null;
+  requestId?: string | null;
 }): Promise<WatchRecord[]> {
   const admin = createServiceRoleClient();
   const since = new Date(now.getTime() - windowHours * 60 * 60 * 1000).toISOString();
@@ -75,6 +77,9 @@ export async function listWatch({
     .limit(100);
   if (userId) {
     query = query.like("meta->>userId", `%${userId}%`);
+  }
+  if (requestId) {
+    query = query.like("meta->>requestId", `%${requestId}%`);
   }
   const { data, error } = await query;
   if (error || !data) return [];

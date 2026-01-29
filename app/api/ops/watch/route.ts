@@ -68,7 +68,8 @@ export async function GET(request: Request) {
   const windowParam = url.searchParams.get("window");
   const windowHours = windowParam === "7d" ? 24 * 7 : 24;
   const userId = url.searchParams.get("userId");
+  const requestIdFilter = url.searchParams.get("requestId");
 
-  const records = await listWatch({ activeOnly, windowHours, userId: userId || undefined });
+  const records = await listWatch({ activeOnly, windowHours, userId: userId || undefined, requestId: requestIdFilter || undefined });
   return NextResponse.json({ ok: true, requestId, records }, { headers });
 }

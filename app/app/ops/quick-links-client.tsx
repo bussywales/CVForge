@@ -114,6 +114,13 @@ export default function QuickLinksClient() {
         <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">15m thresholds + webhook notify</p>
       </Link>
       <Link
+        href="/app/ops/case"
+        className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
+      >
+        Case View
+        <p className="mt-1 text-xs font-normal text-[rgb(var(--muted))]">RequestId-first support cockpit</p>
+      </Link>
+      <Link
         href="/app/ops/help"
         className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-sm font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
       >
