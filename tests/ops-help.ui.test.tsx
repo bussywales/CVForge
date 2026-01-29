@@ -14,6 +14,11 @@ vi.mock("@/lib/monetisation-client", () => ({
   logMonetisationClientEvent: (...args: any[]) => logMock(...args),
 }));
 
+const fetchMock = vi.fn();
+vi.mock("@/lib/http/safe-json", () => ({
+  fetchJsonSafe: (...args: any[]) => fetchMock(...args),
+}));
+
 const sections: RunbookSection[] = [
   {
     id: "training-drills",
@@ -96,6 +101,8 @@ const meta = {
 describe("ops help ui", () => {
   beforeEach(() => {
     logMock.mockReset();
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: { scenarios: [] } });
     Object.defineProperty(navigator, "clipboard", {
       value: { writeText: vi.fn().mockResolvedValue(undefined) },
       configurable: true,

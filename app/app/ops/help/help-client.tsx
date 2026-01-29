@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ChangeEvent } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import CopyIconButton from "@/components/CopyIconButton";
+import ErrorBanner from "@/components/ErrorBanner";
+import { fetchJsonSafe } from "@/lib/http/safe-json";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { buildSupportSnippet } from "@/lib/observability/support-snippet";
 import {
@@ -12,6 +14,8 @@ import {
   type RunbookCategory,
   type RunbookSection,
 } from "@/lib/ops/runbook-sections";
+import { coerceTrainingScenario, coerceTrainingScenarios, type TrainingScenario } from "@/lib/ops/training-scenarios-model";
+import { formatShortLocalTime } from "@/lib/time/format-short";
 
 type Props = {
   sections?: RunbookSection[];
@@ -58,6 +62,13 @@ const CATEGORY_ORDER: RunbookCategory[] = [
   "Security",
   "Escalation",
   "Glossary",
+];
+
+type TrainingScenarioKind = "alerts_test" | "mixed_basic";
+
+const TRAINING_SCENARIO_OPTIONS: Array<{ value: TrainingScenarioKind; label: string }> = [
+  { value: "alerts_test", label: "Alerts: Test alert" },
+  { value: "mixed_basic", label: "Mixed: Basic end-to-end" },
 ];
 
 function formatIsoDate(iso: string) {
@@ -149,6 +160,15 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState(sections[0]?.id ?? "");
   const [printView, setPrintView] = useState(false);
+  const [scenarioType, setScenarioType] = useState<TrainingScenarioKind>("alerts_test");
+  const [scenarios, setScenarios] = useState<TrainingScenario[]>([]);
+  const [scenariosError, setScenariosError] = useState<{ message: string; requestId?: string | null } | null>(null);
+  const [scenariosLoading, setScenariosLoading] = useState(false);
+  const [scenarioHint, setScenarioHint] = useState<string | null>(null);
+  const [scenarioCreating, setScenarioCreating] = useState(false);
+  const [scenarioHighlightId, setScenarioHighlightId] = useState<string | null>(null);
+  const scenariosViewLogged = useRef(false);
+  const scenarioHighlightTimer = useRef<number | null>(null);
 
   useEffect(() => {
     try {
@@ -233,6 +253,44 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
       code: null,
     });
   }, [templateTokens.requestId]);
+
+  const loadScenarios = useCallback(
+    async ({ silent }: { silent?: boolean } = {}) => {
+      if (!silent) setScenariosLoading(true);
+      try {
+        const res = await fetchJsonSafe<{ scenarios?: any[] }>("/api/ops/training/scenarios?active=1&limit=20", { method: "GET", cache: "no-store" });
+        if (!res.ok || !res.json) {
+          if (!silent) {
+            setScenariosError({ message: res.error?.message ?? "Unable to load scenarios", requestId: res.requestId ?? null });
+          }
+          return null;
+        }
+        const next = coerceTrainingScenarios(res.json.scenarios);
+        setScenarios(next);
+        if (!silent) setScenariosError(null);
+        if (!scenariosViewLogged.current) {
+          scenariosViewLogged.current = true;
+          logMonetisationClientEvent("ops_training_list_view", null, "ops", { meta: { count: next.length } });
+        }
+        return next;
+      } catch {
+        if (!silent) {
+          setScenariosError({ message: "Unable to load scenarios", requestId: null });
+        }
+        return null;
+      } finally {
+        if (!silent) setScenariosLoading(false);
+      }
+    },
+    [scenariosViewLogged]
+  );
+
+  useEffect(() => {
+    loadScenarios();
+    return () => {
+      if (scenarioHighlightTimer.current) window.clearTimeout(scenarioHighlightTimer.current);
+    };
+  }, [loadScenarios]);
 
   useEffect(() => {
     if (!filteredSections.length) {
@@ -357,6 +415,91 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
   const handleTemplateCopy = (templateId: string) => {
     try {
       logMonetisationClientEvent("ops_help_template_copy", null, "ops", { templateId });
+    } catch {
+      // ignore
+    }
+  };
+
+  const highlightScenario = (scenarioId: string) => {
+    setScenarioHighlightId(scenarioId);
+    if (scenarioHighlightTimer.current) {
+      window.clearTimeout(scenarioHighlightTimer.current);
+    }
+    scenarioHighlightTimer.current = window.setTimeout(() => setScenarioHighlightId(null), 3000);
+  };
+
+  const handleScenarioCreate = async () => {
+    if (scenarioCreating) return;
+    setScenarioHint(null);
+    setScenariosError(null);
+    setScenarioCreating(true);
+    try {
+      logMonetisationClientEvent("ops_training_scenario_create_click", null, "ops", { meta: { type: scenarioType } });
+    } catch {
+      // ignore
+    }
+    try {
+      const res = await fetchJsonSafe<{ scenario?: any }>("/api/ops/training/scenarios", {
+        method: "POST",
+        cache: "no-store",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ scenarioType }),
+      });
+      if (!res.ok || !res.json?.scenario) {
+        setScenariosError({ message: res.error?.message ?? "Unable to create scenario", requestId: res.requestId ?? null });
+        return;
+      }
+      const scenario = coerceTrainingScenario(res.json.scenario);
+      if (!scenario) {
+        setScenariosError({ message: "Unable to create scenario", requestId: res.requestId ?? null });
+        return;
+      }
+      setScenarios((prev) => [scenario, ...prev.filter((item) => item.id !== scenario.id)]);
+      setScenarioHint("Scenario created.");
+      highlightScenario(scenario.id);
+      try {
+        logMonetisationClientEvent("ops_training_scenario_created", null, "ops", {
+          meta: { type: scenario.scenarioType, hasEventId: Boolean(scenario.eventId) },
+        });
+      } catch {
+        // ignore
+      }
+    } catch {
+      setScenariosError({ message: "Unable to create scenario", requestId: null });
+    } finally {
+      setScenarioCreating(false);
+    }
+  };
+
+  const handleScenarioDeactivate = async (scenario: TrainingScenario) => {
+    try {
+      logMonetisationClientEvent("ops_training_scenario_deactivate_click", null, "ops", {
+        meta: { scenarioId: scenario.id.slice(0, 8), type: scenario.scenarioType },
+      });
+    } catch {
+      // ignore
+    }
+    try {
+      const res = await fetchJsonSafe<{ scenario?: any }>(`/api/ops/training/scenarios/${scenario.id}/deactivate`, {
+        method: "POST",
+        cache: "no-store",
+      });
+      if (!res.ok || !res.json?.scenario) {
+        setScenariosError({ message: res.error?.message ?? "Unable to deactivate scenario", requestId: res.requestId ?? null });
+        return;
+      }
+      setScenarios((prev) => prev.filter((item) => item.id !== scenario.id));
+      setScenarioHint("Scenario deactivated.");
+    } catch {
+      setScenariosError({ message: "Unable to deactivate scenario", requestId: null });
+    }
+  };
+
+  const handleScenarioLinkClick = (scenario: TrainingScenario, destination: string) => {
+    try {
+      logMonetisationClientEvent("ops_training_link_click", null, "ops", {
+        meta: { destination, type: scenario.scenarioType, scenarioId: scenario.id.slice(0, 8) },
+      });
     } catch {
       // ignore
     }
@@ -593,6 +736,139 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
     return null;
   };
 
+  const renderTrainingSandbox = () => {
+    const scenarioLabel = (scenario: TrainingScenario) => {
+      return scenario.scenarioType === "alerts_test" ? "Alerts: Test alert" : "Mixed: Basic end-to-end";
+    };
+    const buildLinks = (scenario: TrainingScenario) => {
+      const eventParam = scenario.eventId ? `&eventId=${encodeURIComponent(scenario.eventId)}` : "";
+      return {
+        alerts: `/app/ops/alerts?from=ops_training&tab=recent&window=15m${eventParam}`,
+        incidents: "/app/ops/incidents?from=ops_training&window=15m&surface=ops&signal=alert_test",
+        status: "/app/ops/status#alerts",
+      };
+    };
+    return (
+      <div className="rounded-2xl border border-black/10 bg-white/90 p-4">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-[rgb(var(--ink))]">Training sandbox</p>
+            <p className="text-[11px] text-[rgb(var(--muted))]">
+              Generate safe, labeled scenarios to practice ops workflows end-to-end.
+            </p>
+          </div>
+          {showControls ? (
+            <button
+              type="button"
+              onClick={() => loadScenarios()}
+              className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+            >
+              Refresh list
+            </button>
+          ) : null}
+        </div>
+        {showControls ? (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <select
+              value={scenarioType}
+              onChange={(event) => setScenarioType(event.target.value as TrainingScenarioKind)}
+              className="min-w-[220px] rounded-full border border-black/10 bg-white px-3 py-2 text-xs text-[rgb(var(--ink))]"
+            >
+              {TRAINING_SCENARIO_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <button
+              type="button"
+              onClick={handleScenarioCreate}
+              disabled={scenarioCreating}
+              className="rounded-full bg-[rgb(var(--ink))] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
+            >
+              {scenarioCreating ? "Generating..." : "Generate scenario"}
+            </button>
+          </div>
+        ) : null}
+        {scenarioHint ? <p className="mt-2 text-[11px] text-emerald-700">{scenarioHint}</p> : null}
+        {scenariosError ? (
+          <div className="mt-3">
+            <ErrorBanner title="Training sandbox unavailable" message={scenariosError.message} requestId={scenariosError.requestId ?? undefined} />
+          </div>
+        ) : null}
+        {scenariosLoading ? <p className="mt-3 text-[11px] text-[rgb(var(--muted))]">Loading scenarios...</p> : null}
+        {!scenariosLoading && !scenariosError ? (
+          scenarios.length ? (
+            <div className="mt-3 space-y-2">
+              {scenarios.map((scenario) => {
+                const links = buildLinks(scenario);
+                const highlight = scenarioHighlightId === scenario.id;
+                return (
+                  <div
+                    key={scenario.id}
+                    className={`rounded-lg border px-3 py-2 text-xs ${
+                      highlight ? "border-amber-200 bg-amber-50" : "border-black/5 bg-white"
+                    }`}
+                  >
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="text-sm font-semibold text-[rgb(var(--ink))]">{scenarioLabel(scenario)}</p>
+                        <p className="text-[11px] text-[rgb(var(--muted))]">
+                          Created {scenario.createdAt ? formatShortLocalTime(scenario.createdAt) : "--"} · Window {scenario.windowLabel}
+                        </p>
+                        <p className="text-[11px] text-[rgb(var(--muted))]">
+                          eventId: {scenario.eventId ? scenario.eventId.slice(0, 8) : "--"}
+                          {scenario.requestId ? ` · requestId: ${scenario.requestId}` : ""}
+                        </p>
+                      </div>
+                      {showControls ? (
+                        <button
+                          type="button"
+                          onClick={() => handleScenarioDeactivate(scenario)}
+                          className="text-[11px] font-semibold text-[rgb(var(--muted))] underline-offset-2 hover:underline"
+                        >
+                          Deactivate
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      <Link
+                        href={links.alerts}
+                        onClick={() => handleScenarioLinkClick(scenario, "alerts")}
+                        className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                      >
+                        Open Alerts
+                      </Link>
+                      <Link
+                        href={links.incidents}
+                        onClick={() => handleScenarioLinkClick(scenario, "incidents")}
+                        className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                      >
+                        Open Incidents
+                      </Link>
+                      <Link
+                        href={links.status}
+                        onClick={() => handleScenarioLinkClick(scenario, "status")}
+                        className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                      >
+                        Open System Status
+                      </Link>
+                    </div>
+                    {scenario.scenarioType === "mixed_basic" ? (
+                      <p className="mt-2 text-[11px] text-[rgb(var(--muted))]">No incidents generated for this scenario type yet.</p>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="mt-3 text-[11px] text-[rgb(var(--muted))]">No training scenarios yet.</p>
+          )
+        ) : null}
+      </div>
+    );
+  };
+
   const showNav = !printView;
   const showControls = !printView;
 
@@ -740,7 +1016,10 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
                     </button>
                   ) : null}
                 </div>
-                <div className="space-y-3">{section.body.map((block, index) => renderBlock(block, index))}</div>
+                <div className="space-y-3">
+                  {section.id === "training-drills" ? renderTrainingSandbox() : null}
+                  {section.body.map((block, index) => renderBlock(block, index))}
+                </div>
               </section>
             ))
           )}

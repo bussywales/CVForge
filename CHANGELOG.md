@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.52
+- Ops Training sandbox v1: ops-only scenario generator in /app/ops/help with create/list/deactivate flows, deep links into Alerts/Incidents/Status, and safe test alert creation with new storage, routes, and tests.
+
 ## v0.8.51
 - Ops Training v1: /app/ops/help adds training drills, quick cards, and escalation templates with deep links, print view, and search/tag matching plus new telemetry and tests.
 

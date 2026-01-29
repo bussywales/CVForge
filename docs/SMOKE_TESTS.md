@@ -50,6 +50,10 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Set ALERTS_ACK_SECRET (+ optional ALERTS_ACK_TTL_SECONDS 10–30m); mint ACK token and confirm exp ≈ now + ttlSeconds returned.
 - Use /api/alerts/ack?token=... → handled recorded; expired/invalid tokens return jsonError with x-request-id.
 
+## Quick prod checks (v0.8.52)
+- Go to /app/ops/help#training-drills → generate “Alerts: Test alert” → jump to Alerts and see it highlighted without manual refresh.
+- Generate “Mixed: Basic” → deep links work; UI explains if incidents are not generated.
+
 ## Quick prod checks (v0.8.51)
 - Open /app/ops/help and verify Training Drills, Quick Cards, and Templates are visible.
 - Search for a drill/tag and confirm results filter; Copy template works and logs without blocking.

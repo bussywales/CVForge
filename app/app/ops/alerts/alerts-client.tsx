@@ -104,10 +104,16 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const previousTabRef = useRef<"firing" | "recent">(tab);
   const tabInitializedRef = useRef(false);
   const initialLoadedRef = useRef(false);
+  const trainingInitRef = useRef(false);
+  const trainingHighlightTimerRef = useRef<number | null>(null);
+  const [trainingHighlightId, setTrainingHighlightId] = useState<string | null>(null);
 
   const resolveTab = (value: string | null) => (value === "recent" || value === "firing" ? (value as "recent" | "firing") : null);
   const tabParamRaw = searchParams?.get("tab");
   const tabParam = resolveTab(tabParamRaw === "deliveries" ? "recent" : tabParamRaw);
+  const fromParam = searchParams?.get("from");
+  const fromTraining = fromParam === "ops_training";
+  const trainingEventId = searchParams?.get("eventId");
   const deliveriesStatusParam = searchParams?.get("status") ?? searchParams?.get("deliveries");
   const deliveriesInitializedRef = useRef(false);
   const deliveriesFocusRef = useRef(false);
@@ -159,6 +165,13 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     if (stored && stored !== tab) setTab(stored);
     tabInitializedRef.current = true;
   }, [tabParam, tab]);
+
+  useEffect(() => {
+    if (!fromTraining || trainingInitRef.current) return;
+    trainingInitRef.current = true;
+    if (tab !== "recent") setTab("recent");
+    setTestEventsOpen(true);
+  }, [fromTraining, tab]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -568,42 +581,45 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     setDeliveryHint(null);
   }, []);
 
-  const startTestPoll = async (eventId: string) => {
-    stopTestPoll({ found: false, announce: false });
-    const maxAttempts = 6;
-    const intervalMs = 1500;
-    pollRef.current = { timer: null, attempts: 0, eventId, running: false };
-    setPollHint("Waiting for event to appear...");
-    logMonetisationClientEvent("ops_alerts_test_poll_start", null, "ops", {
-      meta: { window: windowLabel, maxAttempts, intervalMs },
-    });
+  const startTestPoll = useCallback(
+    async (eventId: string) => {
+      stopTestPoll({ found: false, announce: false });
+      const maxAttempts = 6;
+      const intervalMs = 1500;
+      pollRef.current = { timer: null, attempts: 0, eventId, running: false };
+      setPollHint("Waiting for event to appear...");
+      logMonetisationClientEvent("ops_alerts_test_poll_start", null, "ops", {
+        meta: { window: windowLabel, maxAttempts, intervalMs },
+      });
 
-    const runAttempt = async () => {
-      const current = pollRef.current;
-      if (!current || current.running) return;
-      current.running = true;
-      current.attempts += 1;
-      const attempt = current.attempts;
-      const nextData = await fetchLatestAlerts({ reason: "poll", targetTab: "recent", silent: true });
-      const match = nextData?.recentEvents?.find((ev) => ev?.id === eventId);
-      const found = Boolean(match);
-      current.running = false;
-      if (!pollRef.current) return;
-      if (found) {
-        const surface = match?.isTest ? "test_events" : "recent";
-        stopTestPoll({ found: true, attempts: attempt, surface });
-        return;
-      }
-      if (attempt >= maxAttempts) {
-        stopTestPoll({ found: false, attempts: attempt });
-      }
-    };
+      const runAttempt = async () => {
+        const current = pollRef.current;
+        if (!current || current.running) return;
+        current.running = true;
+        current.attempts += 1;
+        const attempt = current.attempts;
+        const nextData = await fetchLatestAlerts({ reason: "poll", targetTab: "recent", silent: true });
+        const match = nextData?.recentEvents?.find((ev) => ev?.id === eventId);
+        const found = Boolean(match);
+        current.running = false;
+        if (!pollRef.current) return;
+        if (found) {
+          const surface = match?.isTest ? "test_events" : "recent";
+          stopTestPoll({ found: true, attempts: attempt, surface });
+          return;
+        }
+        if (attempt >= maxAttempts) {
+          stopTestPoll({ found: false, attempts: attempt });
+        }
+      };
 
-    await runAttempt();
-    if (pollRef.current) {
-      pollRef.current.timer = window.setInterval(runAttempt, intervalMs);
-    }
-  };
+      await runAttempt();
+      if (pollRef.current) {
+        pollRef.current.timer = window.setInterval(runAttempt, intervalMs);
+      }
+    },
+    [fetchLatestAlerts, stopTestPoll, windowLabel]
+  );
 
   const startDeliveryPoll = useCallback(
     async (eventId: string) => {
@@ -645,6 +661,36 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     [fetchDeliveries, stopDeliveryPoll]
   );
 
+  const focusTrainingEvent = useCallback((eventId: string) => {
+    if (!eventId) return;
+    setTrainingHighlightId(eventId);
+    if (trainingHighlightTimerRef.current) {
+      window.clearTimeout(trainingHighlightTimerRef.current);
+    }
+    trainingHighlightTimerRef.current = window.setTimeout(() => setTrainingHighlightId(null), 3000);
+    window.setTimeout(() => {
+      const el = document.getElementById(`ops-training-event-${eventId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      } else if (testEventsRef.current) {
+        testEventsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    if (!fromTraining || !trainingEventId) return;
+    const match = (data?.recentEvents ?? []).find((ev) => ev?.id === trainingEventId);
+    if (match) {
+      if (match?.isTest) setTestEventsOpen(true);
+      focusTrainingEvent(trainingEventId);
+      return;
+    }
+    if (!pollRef.current) {
+      startTestPoll(trainingEventId);
+    }
+  }, [data?.recentEvents, focusTrainingEvent, fromTraining, startTestPoll, trainingEventId]);
+
   useEffect(() => {
     if (tab !== "recent") {
       stopTestPoll({ found: false, announce: false });
@@ -664,6 +710,9 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       stopDeliveryPoll({ found: false });
       if (deliveryHighlightTimerRef.current) {
         window.clearTimeout(deliveryHighlightTimerRef.current);
+      }
+      if (trainingHighlightTimerRef.current) {
+        window.clearTimeout(trainingHighlightTimerRef.current);
       }
     };
   }, [stopDeliveryPoll, stopTestPoll]);
@@ -1276,6 +1325,14 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
           <h1 className="text-lg font-semibold text-[rgb(var(--ink))]">Alerts</h1>
           <p className="text-xs text-[rgb(var(--muted))]">Thresholded 15m signals with actionable links.</p>
           <p className="text-[11px] text-[rgb(var(--muted))]">ACK marks an alert as seen/handled and prevents duplicate noise.</p>
+          {fromTraining ? (
+            <p className="text-[11px] text-[rgb(var(--muted))]">
+              Training scenario view.{" "}
+              <Link href="/app/ops/help#training-drills" className="underline">
+                Back to Help
+              </Link>
+            </p>
+          ) : null}
           {webhookConfig ? (
             <p className="text-[11px] text-[rgb(var(--muted))]">
               {webhookConfig.hint}{" "}
@@ -1415,8 +1472,9 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                 <tbody>
                   {normalEvents.map((ev) => {
                     const acknowledged = Boolean(ev?.handled?.at) || Boolean(ackState[ev.id]?.acknowledged);
+                    const highlight = trainingHighlightId === ev.id;
                     return (
-                    <tr key={ev.id} className="border-t">
+                    <tr id={`ops-training-event-${ev.id}`} key={ev.id} className={`border-t ${highlight ? "bg-amber-50" : ""}`}>
                       <td className="px-2 py-1">{formatShortLocalTime(ev.at)}</td>
                       <td className="px-2 py-1 font-mono text-[11px] text-[rgb(var(--muted))]">{ev.key}</td>
                       <td className="px-2 py-1">
@@ -1545,7 +1603,13 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                       ? `/app/ops/audits?requestId=${encodeURIComponent(ev.signals.requestId)}`
                       : `/app/ops/audits?q=${encodeURIComponent(ev.id ?? ev.key ?? "ops_alert_test")}`;
                     return (
-                      <li key={ev.id} className="rounded-lg border border-black/5 bg-white px-3 py-2 text-xs text-[rgb(var(--muted))]">
+                      <li
+                        id={`ops-training-event-${ev.id}`}
+                        key={ev.id}
+                        className={`rounded-lg border px-3 py-2 text-xs text-[rgb(var(--muted))] ${
+                          trainingHighlightId === ev.id ? "border-amber-200 bg-amber-50" : "border-black/5 bg-white"
+                        }`}
+                      >
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-semibold text-[rgb(var(--ink))]">

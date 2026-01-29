@@ -25,6 +25,9 @@ type BudgetKey =
   | "ops_alerts_unsnooze"
   | "ops_alerts_workflow_get"
   | "ops_alerts_deliveries_get"
+  | "ops_training_scenarios_get"
+  | "ops_training_scenarios_post"
+  | "ops_training_scenarios_deactivate"
   | "onboarding_model_get"
   | "onboarding_skip_post"
   | "invite_claim"
@@ -66,6 +69,9 @@ const ROUTE_BUDGETS: Record<BudgetKey, BudgetLevel> = {
   ops_alerts_unsnooze: "medium",
   ops_alerts_workflow_get: "medium",
   ops_alerts_deliveries_get: "medium",
+  ops_training_scenarios_get: "medium",
+  ops_training_scenarios_post: "medium",
+  ops_training_scenarios_deactivate: "medium",
   onboarding_model_get: "medium",
   onboarding_skip_post: "medium",
   invite_claim: "medium",
