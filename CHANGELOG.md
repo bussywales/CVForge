@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.50
+- Ops Help Page v1: new ops-only /app/ops/help runbook with sticky TOC, search, copyable section links, and release discipline tests tied to RUNBOOK_META.
+
 ## v0.8.49
 - Ops Status auto-triage actions: “Why this status” rows now expose context-aware actions (deliveries link, webhook test, incidents/audits deep links) with webhook-config gating and triage telemetry.
 

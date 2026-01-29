@@ -50,6 +50,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Set ALERTS_ACK_SECRET (+ optional ALERTS_ACK_TTL_SECONDS 10–30m); mint ACK token and confirm exp ≈ now + ttlSeconds returned.
 - Use /api/alerts/ack?token=... → handled recorded; expired/invalid tokens return jsonError with x-request-id.
 
+## Quick prod checks (v0.8.50)
+- Open /app/ops/help (ops-only) and verify the TOC renders with sticky navigation on desktop.
+- Use search to filter sections; no-results state shows and Clear search restores all content.
+- Click Copy link on a section → absolute URL with hash is copied and the Copied hint appears.
+
 ## Quick prod checks (v0.8.49)
 - In /app/ops/status, webhook failures/errors row shows View deliveries + Send webhook test + Open webhook config actions.
 - If webhook config missing → Send webhook test disabled with “Configure webhook first” hint.
