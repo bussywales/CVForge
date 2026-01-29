@@ -77,8 +77,8 @@ export type RunbookSection = {
 };
 
 export const RUNBOOK_META = {
-  lastUpdatedVersion: "v0.8.56",
-  lastUpdatedIso: "2026-02-25T00:00:00.000Z",
+  lastUpdatedVersion: "v0.8.57",
+  lastUpdatedIso: "2026-03-04T00:00:00.000Z",
   rulesVersion: "ops_runbook_v1",
 };
 
@@ -386,6 +386,7 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
         type: "actions",
         items: [
           "From the Training sandbox, click “Copy training report”.",
+          "Use the ID toolbar to copy requestId/eventId for quick cross-panel lookup.",
           "Paste the report into the handoff channel and add outcome notes.",
           "Use the filtered Audits/Incidents links to confirm requestId context.",
         ],

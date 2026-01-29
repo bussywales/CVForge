@@ -64,6 +64,10 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Attach user context (admin) and refresh → billing snapshot enables and context shows sources/last-seen.
 - Email is masked in the context strip and API responses.
 
+## Quick prod checks (v0.8.57)
+- In /app/ops/help Training sandbox, use Copy requestId/eventId/all IDs → clipboard values are trimmed (no trailing newlines).
+- Click Open Case View → link opens /app/ops/case with q=requestId and correct window.
+
 ## Quick prod checks (v0.8.54)
 - Generate a training scenario → open the Alerts deep link and confirm prefilled Audits/Incidents links work.
 - Acknowledge the training alert → return to Help and copy the training report → report shows ACK = Yes and includes all deep links.

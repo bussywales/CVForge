@@ -1,4 +1,5 @@
 import type { CaseWindow } from "@/lib/ops/ops-case-model";
+import { normaliseId } from "@/lib/ops/normalise-id";
 
 type QueryValue = string | null | undefined;
 
@@ -26,7 +27,13 @@ export function buildOpsCaseAlertsLink({
   from?: string;
   tab?: "firing" | "recent";
 }) {
-  return `/app/ops/alerts${buildQuery({ from, window, tab, requestId, eventId })}`;
+  return `/app/ops/alerts${buildQuery({
+    from,
+    window,
+    tab,
+    requestId: normaliseId(requestId),
+    eventId: normaliseId(eventId),
+  })}`;
 }
 
 export function buildOpsCaseIncidentsLink({
@@ -46,7 +53,15 @@ export function buildOpsCaseIncidentsLink({
   code?: string | null;
   from?: string;
 }) {
-  return `/app/ops/incidents${buildQuery({ from, window, requestId, userId, surface, signal, code })}`;
+  return `/app/ops/incidents${buildQuery({
+    from,
+    window,
+    requestId: normaliseId(requestId),
+    userId: normaliseId(userId),
+    surface,
+    signal,
+    code,
+  })}`;
 }
 
 export function buildOpsCaseAuditsLink({
@@ -60,7 +75,12 @@ export function buildOpsCaseAuditsLink({
   eventId?: string | null;
   from?: string;
 }) {
-  return `/app/ops/audits${buildQuery({ from, requestId, userId, eventId })}`;
+  return `/app/ops/audits${buildQuery({
+    from,
+    requestId: normaliseId(requestId),
+    userId: normaliseId(userId),
+    eventId: normaliseId(eventId),
+  })}`;
 }
 
 export function buildOpsCaseWebhooksLink({
@@ -72,7 +92,7 @@ export function buildOpsCaseWebhooksLink({
   q?: string | null;
   from?: string;
 }) {
-  return `/app/ops/webhooks${buildQuery({ from, window, q })}`;
+  return `/app/ops/webhooks${buildQuery({ from, window, q: normaliseId(q) })}`;
 }
 
 export function buildOpsCaseStatusLink({

@@ -9,6 +9,7 @@ import { fetchJsonSafe } from "@/lib/http/safe-json";
 import { coerceOpsAlertsModel, type OpsAlertsModel } from "@/lib/ops/alerts-model";
 import { formatShortLocalTime } from "@/lib/time/format-short";
 import { buildAckLink } from "@/lib/ops/alerts-ack-link";
+import { normaliseId } from "@/lib/ops/normalise-id";
 
 type Alert = {
   key: string;
@@ -430,8 +431,8 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   };
 
   const buildTrainingLinks = (event: any) => {
-    const requestId = typeof event?.signals?.requestId === "string" ? event.signals.requestId : null;
-    const eventId = typeof event?.id === "string" ? event.id : null;
+    const requestId = normaliseId(typeof event?.signals?.requestId === "string" ? event.signals.requestId : "");
+    const eventId = normaliseId(typeof event?.id === "string" ? event.id : "");
     const windowKey = typeof event?.window === "string" ? event.window : windowLabel;
     const auditsHref = requestId
       ? `/app/ops/audits?requestId=${encodeURIComponent(requestId)}`

@@ -16,6 +16,7 @@ import {
 } from "@/lib/ops/runbook-sections";
 import { coerceTrainingScenario, coerceTrainingScenarios, type TrainingScenario } from "@/lib/ops/training-scenarios-model";
 import { formatShortLocalTime } from "@/lib/time/format-short";
+import { normaliseId } from "@/lib/ops/normalise-id";
 
 type Props = {
   sections?: RunbookSection[];
@@ -168,6 +169,7 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
   const [scenarioCreating, setScenarioCreating] = useState(false);
   const [scenarioHighlightId, setScenarioHighlightId] = useState<string | null>(null);
   const [scenarioReportCopiedId, setScenarioReportCopiedId] = useState<string | null>(null);
+  const [scenarioCopiedKey, setScenarioCopiedKey] = useState<string | null>(null);
   const [scenariosRequestId, setScenariosRequestId] = useState<string | null>(null);
   const scenariosViewLogged = useRef(false);
   const scenarioHighlightTimer = useRef<number | null>(null);
@@ -501,8 +503,9 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
 
   const handleScenarioLinkClick = (scenario: TrainingScenario, destination: string) => {
     try {
+      const scenarioId = normaliseScenarioId(scenario.id);
       logMonetisationClientEvent("ops_training_link_click", null, "ops", {
-        meta: { destination, type: scenario.scenarioType, scenarioId: scenario.id.slice(0, 8) },
+        meta: { destination, type: scenario.scenarioType, scenarioId: scenarioId ? scenarioId.slice(0, 8) : null },
       });
       logMonetisationClientEvent("ops_training_prefilled_link_opened", null, "ops", {
         meta: { target: destination, type: scenario.scenarioType, hasEventId: Boolean(scenario.eventId) },
@@ -516,31 +519,44 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
     return scenario.scenarioType === "alerts_test" ? "Alerts: Test alert" : "Mixed: Basic end-to-end";
   };
 
+  const normaliseScenarioId = (value?: string | null) => {
+    const normalised = normaliseId(value);
+    return normalised || "";
+  };
+
   const buildScenarioLinks = (scenario: TrainingScenario) => {
-    const windowLabel = scenario.windowLabel || "15m";
-    const eventParam = scenario.eventId ? `&eventId=${encodeURIComponent(scenario.eventId)}` : "";
-    const scenarioParam = scenario.id ? `&scenarioId=${encodeURIComponent(scenario.id)}` : "";
-    const requestParam = scenario.requestId ? `&requestId=${encodeURIComponent(scenario.requestId)}` : "";
+    const windowLabel = normaliseScenarioId(scenario.windowLabel) || "15m";
+    const eventId = normaliseScenarioId(scenario.eventId);
+    const scenarioId = normaliseScenarioId(scenario.id);
+    const requestId = normaliseScenarioId(scenario.requestId);
+    const eventParam = eventId ? `&eventId=${encodeURIComponent(eventId)}` : "";
+    const scenarioParam = scenarioId ? `&scenarioId=${encodeURIComponent(scenarioId)}` : "";
+    const requestParam = requestId ? `&requestId=${encodeURIComponent(requestId)}` : "";
     const alertsPath = `/app/ops/alerts?from=ops_training&tab=recent&window=${encodeURIComponent(windowLabel)}${eventParam}${scenarioParam}`;
-    const incidentsPath = scenario.requestId
+    const incidentsPath = requestId
       ? `/app/ops/incidents?from=ops_training&window=${encodeURIComponent(windowLabel)}${requestParam}`
       : `/app/ops/incidents?from=ops_training&window=${encodeURIComponent(windowLabel)}&surface=ops&signal=alert_test`;
-    const auditsPath = scenario.requestId
-      ? `/app/ops/audits?requestId=${encodeURIComponent(scenario.requestId)}`
-      : scenario.eventId
-        ? `/app/ops/audits?eventId=${encodeURIComponent(scenario.eventId)}`
+    const auditsPath = requestId
+      ? `/app/ops/audits?requestId=${encodeURIComponent(requestId)}`
+      : eventId
+        ? `/app/ops/audits?eventId=${encodeURIComponent(eventId)}`
         : `/app/ops/audits?from=ops_training&q=alert_test`;
     const statusPath = `/app/ops/status?window=${encodeURIComponent(windowLabel)}&from=ops_training#alerts`;
+    const casePath = requestId
+      ? `/app/ops/case?q=${encodeURIComponent(requestId)}&window=${encodeURIComponent(windowLabel)}`
+      : `/app/ops/case?window=${encodeURIComponent(windowLabel)}`;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     return {
       alertsPath,
       incidentsPath,
       auditsPath,
       statusPath,
+      casePath,
       alerts: `${origin}${alertsPath}`,
       incidents: `${origin}${incidentsPath}`,
       audits: `${origin}${auditsPath}`,
       status: `${origin}${statusPath}`,
+      case: `${origin}${casePath}`,
     };
   };
 
@@ -549,31 +565,40 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
     const localStamp = typeof window !== "undefined" ? now.toLocaleString("sv-SE") : now.toISOString();
     const utcStamp = now.toISOString();
     const links = buildScenarioLinks(scenario);
+    const scenarioId = normaliseScenarioId(scenario.id) || "--";
+    const eventId = normaliseScenarioId(scenario.eventId) || "--";
+    const requestId = normaliseScenarioId(scenario.requestId) || "--";
+    const ackRequestId = normaliseScenarioId(scenario.ackRequestId) || "--";
+    const windowLabel = normaliseScenarioId(scenario.windowLabel) || "15m";
     const acknowledged = scenario.acknowledgedAt ? "Yes" : "Not yet";
     const lines = [
       "CVForge Ops Training Report",
       "",
-      `Scenario: ${scenarioLabel(scenario)} (${scenario.id})`,
-      `Generated at: ${localStamp} (UTC ${utcStamp})`,
-      `Window: ${scenario.windowLabel || "15m"}`,
       "IDs:",
-      `- eventId: ${scenario.eventId ?? "--"}`,
-      `- requestId: ${scenario.requestId ?? "--"}`,
-      `- ackRequestId: ${scenario.ackRequestId ?? "--"}`,
+      `- scenarioId: ${scenarioId}`,
+      `- requestId: ${requestId}`,
+      `- eventId: ${eventId}`,
+      `- ackRequestId: ${ackRequestId}`,
+      `- window: ${windowLabel}`,
+      "",
+      `Scenario: ${scenarioLabel(scenario)} (${scenarioId})`,
+      `Generated at: ${localStamp} (UTC ${utcStamp})`,
+      `Window: ${windowLabel}`,
       "Links:",
       `- Alerts: ${links.alerts}`,
       `- Incidents: ${links.incidents}`,
       `- Audits: ${links.audits}`,
       `- System Status: ${links.status}`,
+      `- Case View: ${links.case}`,
       "Checklist:",
       "- Opened Alerts and confirmed event visible",
       `- Acknowledged alert: ${acknowledged}`,
       "- Opened Audits/Incidents filtered by requestId",
       "Outcome/notes:",
       "",
-      `RequestId (last scenarios fetch): ${scenariosRequestId ?? "--"}`,
+      `RequestId (last scenarios fetch): ${normaliseScenarioId(scenariosRequestId) || "--"}`,
     ];
-    return lines.join("\\n");
+    return lines.join("\\n").trim();
   };
 
   const handleScenarioReportCopy = async (scenario: TrainingScenario) => {
@@ -588,6 +613,43 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
       });
     } catch {
       setScenarioReportCopiedId(null);
+    }
+  };
+
+  const markScenarioCopied = (scenarioId: string, kind: string) => {
+    setScenarioCopiedKey(`${scenarioId}:${kind}`);
+    window.setTimeout(() => setScenarioCopiedKey(null), 1500);
+  };
+
+  const handleScenarioIdCopy = async (scenario: TrainingScenario, kind: "requestId" | "eventId" | "all") => {
+    if (!navigator?.clipboard?.writeText) return;
+    try {
+      const scenarioId = normaliseScenarioId(scenario.id) || "--";
+      const requestId = normaliseScenarioId(scenario.requestId) || "--";
+      const eventId = normaliseScenarioId(scenario.eventId) || "--";
+      const ackRequestId = normaliseScenarioId(scenario.ackRequestId) || "--";
+      const windowLabel = normaliseScenarioId(scenario.windowLabel) || "15m";
+      let payload = "";
+      if (kind === "requestId") payload = requestId;
+      if (kind === "eventId") payload = eventId;
+      if (kind === "all") {
+        payload = [
+          `scenarioId: ${scenarioId}`,
+          `requestId: ${requestId}`,
+          `eventId: ${eventId}`,
+          `ackRequestId: ${ackRequestId}`,
+          `window: ${windowLabel}`,
+        ].join("\\n");
+      }
+      await navigator.clipboard.writeText(payload.trim());
+      markScenarioCopied(scenarioId, kind);
+      const eventName =
+        kind === "requestId" ? "ops_training_copy_request_id" : kind === "eventId" ? "ops_training_copy_event_id" : "ops_training_copy_all_ids";
+      logMonetisationClientEvent(eventName, null, "ops", {
+        meta: { scenarioType: scenario.scenarioType, hasRequestId: Boolean(scenario.requestId), hasEventId: Boolean(scenario.eventId) },
+      });
+    } catch {
+      setScenarioCopiedKey(null);
     }
   };
 
@@ -878,6 +940,13 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
               {scenarios.map((scenario) => {
                 const links = buildScenarioLinks(scenario);
                 const highlight = scenarioHighlightId === scenario.id;
+                const scenarioId = normaliseScenarioId(scenario.id) || "--";
+                const requestId = normaliseScenarioId(scenario.requestId);
+                const eventId = normaliseScenarioId(scenario.eventId);
+                const windowLabel = normaliseScenarioId(scenario.windowLabel) || "15m";
+                const copyRequestKey = `${scenarioId}:requestId`;
+                const copyEventKey = `${scenarioId}:eventId`;
+                const copyAllKey = `${scenarioId}:all`;
                 return (
                   <div
                     key={scenario.id}
@@ -889,11 +958,11 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
                       <div>
                         <p className="text-sm font-semibold text-[rgb(var(--ink))]">{scenarioLabel(scenario)}</p>
                         <p className="text-[11px] text-[rgb(var(--muted))]">
-                          Created {scenario.createdAt ? formatShortLocalTime(scenario.createdAt) : "--"} · Window {scenario.windowLabel}
+                          Created {scenario.createdAt ? formatShortLocalTime(scenario.createdAt) : "--"} · Window {windowLabel}
                         </p>
                         <p className="text-[11px] text-[rgb(var(--muted))]">
-                          eventId: {scenario.eventId ? scenario.eventId.slice(0, 8) : "--"}
-                          {scenario.requestId ? ` · requestId: ${scenario.requestId}` : ""}
+                          eventId: {eventId ? eventId.slice(0, 8) : "--"}
+                          {requestId ? ` · requestId: ${requestId}` : ""}
                         </p>
                       </div>
                       {showControls ? (
@@ -935,12 +1004,53 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
                       >
                         Open System Status
                       </Link>
+                      {requestId ? (
+                        <Link
+                          href={links.casePath}
+                          onClick={() =>
+                            logMonetisationClientEvent("ops_training_open_case", null, "ops", {
+                              meta: { scenarioType: scenario.scenarioType, hasRequestId: Boolean(requestId) },
+                            })
+                          }
+                          className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                        >
+                          Open Case View
+                        </Link>
+                      ) : null}
                       <button
                         type="button"
                         onClick={() => handleScenarioReportCopy(scenario)}
                         className="rounded-full bg-[rgb(var(--ink))] px-3 py-1 text-[11px] font-semibold text-white"
                       >
                         {scenarioReportCopiedId === scenario.id ? "Copied" : "Copy training report"}
+                      </button>
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">IDs</span>
+                      {requestId ? (
+                        <button
+                          type="button"
+                          onClick={() => handleScenarioIdCopy(scenario, "requestId")}
+                          className="rounded-full border border-black/10 bg-white px-2 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+                        >
+                          {scenarioCopiedKey === copyRequestKey ? "Copied" : "Copy requestId"}
+                        </button>
+                      ) : null}
+                      {eventId ? (
+                        <button
+                          type="button"
+                          onClick={() => handleScenarioIdCopy(scenario, "eventId")}
+                          className="rounded-full border border-black/10 bg-white px-2 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+                        >
+                          {scenarioCopiedKey === copyEventKey ? "Copied" : "Copy eventId"}
+                        </button>
+                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => handleScenarioIdCopy(scenario, "all")}
+                        className="rounded-full border border-black/10 bg-white px-2 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+                      >
+                        {scenarioCopiedKey === copyAllKey ? "Copied" : "Copy all IDs"}
                       </button>
                     </div>
                     {scenario.scenarioType === "mixed_basic" ? (

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 export default async function OpsCasePage({
   searchParams,
 }: {
-  searchParams?: { requestId?: string | null; userId?: string | null; email?: string | null; window?: string | null; from?: string | null };
+  searchParams?: { requestId?: string | null; userId?: string | null; email?: string | null; window?: string | null; from?: string | null; q?: string | null };
 }) {
   const { user } = await getSupabaseUser();
   const requestId = makeRequestId(headers().get("x-request-id"));
@@ -34,6 +34,7 @@ export default async function OpsCasePage({
           email: searchParams?.email ?? null,
           window: searchParams?.window ?? null,
           from: searchParams?.from ?? null,
+          q: searchParams?.q ?? null,
         }}
         requestId={requestId}
         viewerRole={roleInfo.role}

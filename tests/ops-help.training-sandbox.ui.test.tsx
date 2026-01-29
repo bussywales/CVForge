@@ -86,6 +86,9 @@ describe("ops help training sandbox ui", () => {
     expect(alertsLink.getAttribute("href")).toContain("eventId=evt_train");
     expect(alertsLink.getAttribute("href")).toContain("scenarioId=scn_1");
     expect(screen.getByText("Open Audits")).toBeTruthy();
+    const caseLink = screen.getByText("Open Case View");
+    expect(caseLink.getAttribute("href")).toContain("/app/ops/case?q=req_train");
+    expect(caseLink.getAttribute("href")).toContain("window=15m");
   });
 
   it("copies training report with deep links", async () => {
@@ -119,6 +122,8 @@ describe("ops help training sandbox ui", () => {
     await waitFor(() => expect(clipboardWrite).toHaveBeenCalled());
     const report = clipboardWrite.mock.calls[0][0] as string;
     expect(report).toContain("CVForge Ops Training Report");
+    expect(report).toContain("IDs:");
+    expect(report).toContain("scenarioId: scn_1");
     expect(report).toContain("Scenario: Alerts: Test alert (scn_1)");
     expect(report).toContain("eventId: evt_train");
     expect(report).toContain("requestId: req_train");
@@ -128,6 +133,40 @@ describe("ops help training sandbox ui", () => {
     expect(report).toContain("http://localhost/app/ops/incidents");
     expect(report).toContain("http://localhost/app/ops/audits");
     expect(report).toContain("http://localhost/app/ops/status");
+    expect(report).toContain("http://localhost/app/ops/case");
+  });
+
+  it("copies requestId without trailing whitespace", async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: {
+        scenarios: [
+          {
+            id: "scn_1",
+            createdAt: "2024-01-01T00:00:00.000Z",
+            createdBy: "ops-user",
+            scenarioType: "alerts_test",
+            windowLabel: "15m",
+            eventId: "evt_train",
+            requestId: "req_train\n",
+            acknowledgedAt: null,
+            ackRequestId: null,
+            meta: {},
+            isActive: true,
+          },
+        ],
+      },
+    });
+
+    render(<HelpClient sections={sections} meta={meta} />);
+    await waitFor(() => expect(screen.getByText("Alerts: Test alert")).toBeTruthy());
+    fireEvent.click(screen.getByText("Copy requestId"));
+
+    const clipboardWrite = (navigator.clipboard as any).writeText as any;
+    await waitFor(() => expect(clipboardWrite).toHaveBeenCalled());
+    const payload = clipboardWrite.mock.calls[0][0] as string;
+    expect(payload).toBe("req_train");
   });
 
   it("preserves last-good list on refresh failure", async () => {

@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.57
+- Ops training sandbox adds copyable requestId/eventId/all-IDs actions, a Case View shortcut, and requestId normalisation to prevent newline/whitespace bugs in deep links and Case View fetches.
+
 ## v0.8.56
 - Ops Case View now resolves requestId → user context via a canonical ops_request_context layer (auto-populated from ops audit/training/alert touchpoints), with admin attach + context strip to unlock billing and dossier panels.
 

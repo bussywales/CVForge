@@ -11,6 +11,7 @@ import { coerceOpsAlertsModel, type OpsAlertsModel } from "@/lib/ops/alerts-mode
 import { formatShortLocalTime } from "@/lib/time/format-short";
 import { parseOpsCaseInput, type OpsCaseSearchMode } from "@/lib/ops/ops-case-parse";
 import { buildCaseKey, resolveCaseWindow, type CaseWindow } from "@/lib/ops/ops-case-model";
+import { normaliseId } from "@/lib/ops/normalise-id";
 import {
   buildOpsCaseAlertsLink,
   buildOpsCaseAuditsLink,
@@ -22,7 +23,7 @@ import {
 import { groupIncidents, type IncidentRecord } from "@/lib/ops/incidents-shared";
 
 type Props = {
-  initialQuery: { requestId: string | null; userId: string | null; email: string | null; window: string | null; from: string | null };
+  initialQuery: { requestId: string | null; userId: string | null; email: string | null; window: string | null; from: string | null; q?: string | null };
   requestId: string | null;
   viewerRole: ViewerRole;
 };
@@ -162,14 +163,31 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
     }
   }, []);
 
-  const requestIdParam = searchParams?.get("requestId") ?? initialQuery.requestId ?? null;
-  const userIdParam = searchParams?.get("userId") ?? initialQuery.userId ?? null;
-  const emailParam = searchParams?.get("email") ?? initialQuery.email ?? null;
+  const requestIdRaw = searchParams?.get("requestId") ?? initialQuery.requestId ?? null;
+  const userIdRaw = searchParams?.get("userId") ?? initialQuery.userId ?? null;
+  const emailRaw = searchParams?.get("email") ?? initialQuery.email ?? null;
+  const qRaw = searchParams?.get("q") ?? initialQuery.q ?? null;
+  const requestIdParamRaw = normaliseId(requestIdRaw) || null;
+  const userIdParamRaw = normaliseId(userIdRaw) || null;
+  const emailParamRaw = normaliseId(emailRaw) || null;
   const fromParam = searchParams?.get("from") ?? initialQuery.from ?? null;
   const windowParam = resolveCaseWindow(searchParams?.get("window") ?? initialQuery.window);
+  const fallbackFromQ = qRaw ? parseOpsCaseInput(qRaw, "requestId") : null;
+  const qFallbackRequestId =
+    !requestIdParamRaw && !userIdParamRaw && !emailParamRaw && fallbackFromQ?.kind === "requestId" ? fallbackFromQ.value : null;
+  const qFallbackUserId =
+    !requestIdParamRaw && !userIdParamRaw && !emailParamRaw && fallbackFromQ?.kind === "userId" ? fallbackFromQ.value : null;
+  const qFallbackEmail =
+    !requestIdParamRaw && !userIdParamRaw && !emailParamRaw && fallbackFromQ?.kind === "email" ? fallbackFromQ.value : null;
+  const resolvedRequestIdParam = requestIdParamRaw ?? qFallbackRequestId;
+  const resolvedUserIdParam = userIdParamRaw ?? qFallbackUserId;
+  const resolvedEmailParam = emailParamRaw ?? qFallbackEmail;
+  const requestIdParam = resolvedRequestIdParam;
+  const userIdParam = resolvedUserIdParam;
+  const emailParam = resolvedEmailParam;
 
-  const [input, setInput] = useState(requestIdParam ?? userIdParam ?? emailParam ?? "");
-  const [searchMode, setSearchMode] = useState<OpsCaseSearchMode>(userIdParam ? "userId" : "requestId");
+  const [input, setInput] = useState(resolvedRequestIdParam ?? resolvedUserIdParam ?? resolvedEmailParam ?? "");
+  const [searchMode, setSearchMode] = useState<OpsCaseSearchMode>(resolvedUserIdParam ? "userId" : "requestId");
   const [windowValue, setWindowValue] = useState<CaseWindow>(windowParam);
   const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
@@ -214,10 +232,13 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
   const [watchError, setWatchError] = useState<{ message: string; requestId?: string | null } | null>(null);
   const [watchLoading, setWatchLoading] = useState(false);
 
-  const caseKey = useMemo(() => buildCaseKey({ requestId: requestIdParam, userId: userIdParam, email: emailParam }), [requestIdParam, userIdParam, emailParam]);
-  const hasQuery = Boolean(requestIdParam || userIdParam || emailParam);
-  const effectiveUserId = userIdParam ?? contextData?.userId ?? resolvedUserId;
-  const effectiveEmailMasked = contextData?.emailMasked ?? (emailParam ? maskEmail(emailParam) : null);
+  const caseKey = useMemo(
+    () => buildCaseKey({ requestId: resolvedRequestIdParam, userId: resolvedUserIdParam, email: resolvedEmailParam }),
+    [resolvedEmailParam, resolvedRequestIdParam, resolvedUserIdParam]
+  );
+  const hasQuery = Boolean(resolvedRequestIdParam || resolvedUserIdParam || resolvedEmailParam);
+  const effectiveUserId = resolvedUserIdParam ?? contextData?.userId ?? resolvedUserId;
+  const effectiveEmailMasked = contextData?.emailMasked ?? (resolvedEmailParam ? maskEmail(resolvedEmailParam) : null);
   const isAdminViewer = viewerRole === "admin" || viewerRole === "super_admin";
 
   const alertsViewLogged = useRef<string | null>(null);
@@ -228,17 +249,17 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
   const resolutionViewLogged = useRef<string | null>(null);
 
   useEffect(() => {
-    setInput(requestIdParam ?? userIdParam ?? emailParam ?? "");
-    if (userIdParam) {
+    setInput(resolvedRequestIdParam ?? resolvedUserIdParam ?? resolvedEmailParam ?? "");
+    if (resolvedUserIdParam) {
       setSearchMode("userId");
-    } else if (requestIdParam) {
+    } else if (resolvedRequestIdParam) {
       setSearchMode("requestId");
     }
     setWindowValue(windowParam);
-  }, [requestIdParam, userIdParam, emailParam, windowParam]);
+  }, [resolvedEmailParam, resolvedRequestIdParam, resolvedUserIdParam, windowParam]);
 
   useEffect(() => {
-    if (!emailParam || userIdParam) {
+    if (!resolvedEmailParam || resolvedUserIdParam) {
       setResolvedUserId(null);
       setResolveError(null);
       return;
@@ -246,8 +267,8 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
     let active = true;
     const lookup = async () => {
       setResolveError(null);
-      const params = new URLSearchParams({ q: emailParam });
-      if (requestIdParam) params.set("requestId", requestIdParam);
+      const params = new URLSearchParams({ q: resolvedEmailParam });
+      if (resolvedRequestIdParam) params.set("requestId", resolvedRequestIdParam);
       const res = await fetchJsonSafe<{ ok: boolean; users?: Array<{ id: string; email?: string | null }> }>(
         `/api/ops/users/search?${params.toString()}`,
         { method: "GET", cache: "no-store" }
@@ -257,17 +278,17 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
         setResolveError(res.error?.message ?? "Unable to resolve user id");
         return;
       }
-      const match = (res.json.users ?? []).find((u) => (u.email ?? "").toLowerCase() === emailParam.toLowerCase());
+      const match = (res.json.users ?? []).find((u) => (u.email ?? "").toLowerCase() === resolvedEmailParam.toLowerCase());
       setResolvedUserId(match?.id ?? null);
     };
     lookup();
     return () => {
       active = false;
     };
-  }, [emailParam, requestIdParam, userIdParam]);
+  }, [resolvedEmailParam, resolvedRequestIdParam, resolvedUserIdParam]);
 
   useEffect(() => {
-    if (!requestIdParam) {
+    if (!resolvedRequestIdParam) {
       setContextData(null);
       setContextError(null);
       setAttachSuccess(null);
@@ -279,7 +300,7 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
     setContextData(null);
     const load = async () => {
       const res = await fetchJsonSafe<{ ok: boolean; context?: CaseContext | null }>(
-        `/api/ops/case/context?requestId=${encodeURIComponent(requestIdParam)}`,
+        `/api/ops/case/context?requestId=${encodeURIComponent(resolvedRequestIdParam)}`,
         { method: "GET", cache: "no-store" }
       );
       if (!active) return;
@@ -295,16 +316,16 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
     return () => {
       active = false;
     };
-  }, [requestId, requestIdParam]);
+  }, [requestId, resolvedRequestIdParam]);
 
   const updateQuery = useCallback(
     (next: { requestId?: string | null; userId?: string | null; email?: string | null; window?: CaseWindow }) => {
       const params = new URLSearchParams();
       const windowNext = next.window ?? windowValue;
       if (windowNext) params.set("window", windowNext);
-      if (next.requestId) params.set("requestId", next.requestId);
-      if (next.userId) params.set("userId", next.userId);
-      if (next.email) params.set("email", next.email);
+      if (next.requestId) params.set("requestId", normaliseId(next.requestId));
+      if (next.userId) params.set("userId", normaliseId(next.userId));
+      if (next.email) params.set("email", normaliseId(next.email));
       if (fromParam) params.set("from", fromParam);
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });

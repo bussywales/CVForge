@@ -110,4 +110,15 @@ describe("Ops case view", () => {
     await waitFor(() => expect(screen.getByText(/Missing user context/i)).toBeTruthy());
     expect(screen.getByText(/Attach user context/i)).toBeTruthy();
   });
+
+  it("normalises requestId with newlines for fetches", async () => {
+    contextResponse = { ok: true, context: null };
+    searchParamsValue = new URLSearchParams("requestId=req_trim%0A&window=15m");
+    render(<CaseClient initialQuery={{ requestId: "req_trim\n", userId: null, email: null, window: "15m", from: null }} requestId="req_test" viewerRole="support" />);
+    await waitFor(() => expect((global.fetch as any).mock.calls.length).toBeGreaterThan(0));
+    const urls = (global.fetch as any).mock.calls.map((call: any[]) => call[0].toString());
+    const contextCall = urls.find((url: string) => url.includes("/api/ops/case/context")) ?? "";
+    expect(contextCall).toContain("requestId=req_trim");
+    expect(contextCall).not.toContain("%0A");
+  });
 });

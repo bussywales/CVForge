@@ -1,3 +1,5 @@
+import { normaliseId } from "@/lib/ops/normalise-id";
+
 export type OpsCaseSearchKind = "requestId" | "userId" | "email" | "unknown";
 export type OpsCaseSearchMode = "requestId" | "userId";
 
@@ -8,7 +10,7 @@ export function isUuid(value: string) {
 }
 
 export function parseOpsCaseInput(input: string, mode: OpsCaseSearchMode = "requestId"): { kind: OpsCaseSearchKind; value: string } {
-  const trimmed = input.trim();
+  const trimmed = normaliseId(input);
   if (!trimmed) return { kind: "unknown", value: "" };
 
   if (trimmed.includes("@")) {
