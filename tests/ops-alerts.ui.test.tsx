@@ -9,6 +9,15 @@ vi.mock("next/link", () => ({
   default: (props: any) => <a {...props} />,
 }));
 
+const replaceMock = vi.fn();
+let searchParamsValue = new URLSearchParams();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: replaceMock }),
+  usePathname: () => "/app/ops/alerts",
+  useSearchParams: () => searchParamsValue,
+}));
+
 const logMock = vi.fn();
 vi.mock("@/lib/monetisation-client", () => ({
   logMonetisationClientEvent: (...args: any[]) => logMock(...args),
@@ -17,6 +26,11 @@ vi.mock("@/lib/monetisation-client", () => ({
 describe("Ops alerts UI extras", () => {
   beforeEach(() => {
     logMock.mockReset();
+    replaceMock.mockReset();
+    searchParamsValue = new URLSearchParams();
+    if (typeof window !== "undefined") {
+      window.sessionStorage.clear();
+    }
   });
 
   afterEach(() => {
@@ -25,6 +39,37 @@ describe("Ops alerts UI extras", () => {
   });
 
   it("shows test events when expanded", () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ops/alerts/workflow")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              ok: true,
+              alerts: [],
+              recentEvents: [
+                {
+                  id: "evt_test",
+                  key: "ops_alert_test",
+                  state: "firing",
+                  at: "2024-01-01T00:00:00.000Z",
+                  summary: "Test alert fired",
+                  isTest: true,
+                  severity: "low",
+                  signals: {},
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        );
+      }
+      return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/plain" } }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
     const initial = coerceOpsAlertsModel({
       ok: true,
       headline: "ok",
@@ -47,6 +92,47 @@ describe("Ops alerts UI extras", () => {
     const showButton = screen.getByText(/Test events/i).closest("div")?.querySelector("button") ?? screen.getByText(/Show/i);
     fireEvent.click(showButton as Element);
     expect(screen.getByText(/Test alert fired/i)).toBeTruthy();
+  });
+
+  it("fetches latest alerts when switching to Recent", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ops/alerts/workflow")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              ok: true,
+              alerts: [],
+              recentEvents: [
+                {
+                  id: "evt_new",
+                  key: "ops_alert_test",
+                  state: "firing",
+                  at: "2024-01-01T00:00:00.000Z",
+                  summary: "New test event",
+                  isTest: true,
+                  severity: "low",
+                  signals: {},
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        );
+      }
+      return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/plain" } }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const initial = coerceOpsAlertsModel({ ok: true, alerts: [], recentEvents: [] });
+    render(<AlertsClient initial={initial} requestId="req_ui" />);
+    fireEvent.click(screen.getByText(/Recent/i));
+    await waitFor(() => expect(fetchMock.mock.calls.some((call) => String(call[0]).includes("/api/ops/alerts"))).toBe(true));
+    const showButton = screen.getByText(/Test events/i).closest("div")?.querySelector("button") ?? screen.getByText(/Show/i);
+    fireEvent.click(showButton as Element);
+    await waitFor(() => expect(screen.getByText(/New test event/i)).toBeTruthy());
   });
 
   it("auto-expands test events after sending a test alert", async () => {

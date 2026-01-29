@@ -3,6 +3,8 @@ import { beforeAll, describe, expect, it, vi } from "vitest";
 
 let GET: any;
 let role = "admin";
+let recentEventsMock: any[] = [];
+let handledEventsMock: Record<string, any> = {};
 
 beforeAll(async () => {
   class SimpleHeaders {
@@ -91,8 +93,8 @@ beforeAll(async () => {
   vi.doMock("@/lib/ops/ops-alerts-store", () => ({
     loadAlertStates: vi.fn().mockResolvedValue({}),
     saveAlertStatesAndEvents: vi.fn().mockResolvedValue({ transitions: [], updatedStates: {}, eventIdsByKey: {} }),
-    listRecentAlertEvents: vi.fn().mockResolvedValue([]),
-    listHandledAlertEvents: vi.fn().mockResolvedValue({}),
+    listRecentAlertEvents: vi.fn().mockImplementation(async () => recentEventsMock),
+    listHandledAlertEvents: vi.fn().mockImplementation(async () => handledEventsMock),
   }));
   vi.doMock("@/lib/ops/ops-alerts-notify", () => ({
     notifyAlertTransitions: vi.fn().mockResolvedValue([]),
@@ -141,5 +143,25 @@ describe("ops alerts route", () => {
     expect(res.status).toBe(200);
     expect(body.ok).toBe(true);
     expect(body.alerts).toBeDefined();
+  });
+
+  it("includes handled metadata on recent events", async () => {
+    role = "admin";
+    recentEventsMock = [
+      {
+        id: "evt_handled",
+        key: "ops_alert_test",
+        state: "firing",
+        at: "2024-01-01T00:00:00.000Z",
+        summary: "Test alert fired",
+        signals: {},
+        isTest: true,
+      },
+    ];
+    handledEventsMock = { evt_handled: { at: "2024-01-01T00:05:00.000Z", source: "token" } };
+    const res = await GET(new Request("http://localhost/api/ops/alerts"));
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.recentEvents[0]?.handled?.at).toBe("2024-01-01T00:05:00.000Z");
   });
 });

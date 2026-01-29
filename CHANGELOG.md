@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.46
+- Ops Alerts UI consistency: Recent tab selection persists via query params, switching to Recent auto-refreshes the latest alert events, Send test alert jumps to Recent with the Test events panel open, and ACKed rows stay acknowledged after refresh with server rehydration.
+
 ## v0.8.43
 - UI-first Alerts ACK: Ops Alerts page adds Acknowledge + Copy ACK link (curl optional) for firing/test events with badges and calm hints; ACK uses ops token mint + public ack flow with safe logging/guardrails and suppresses repeat ACKs.
 

@@ -1,12 +1,21 @@
 /// <reference types="vitest/globals" />
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import AlertsClient from "@/app/app/ops/alerts/alerts-client";
 import { coerceOpsAlertsModel } from "@/lib/ops/alerts-model";
 
 vi.mock("next/link", () => ({
   __esModule: true,
   default: (props: any) => <a {...props} />,
+}));
+
+const replaceMock = vi.fn();
+let searchParamsValue = new URLSearchParams();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: replaceMock }),
+  usePathname: () => "/app/ops/alerts",
+  useSearchParams: () => searchParamsValue,
 }));
 
 const logMock = vi.fn();
@@ -20,6 +29,22 @@ vi.mock("@/lib/http/safe-json", () => ({
 }));
 
 describe("Alerts workflow UI", () => {
+  beforeEach(() => {
+    replaceMock.mockReset();
+    searchParamsValue = new URLSearchParams();
+    if (typeof window !== "undefined") {
+      window.sessionStorage.clear();
+    }
+  });
+
+  afterEach(() => {
+    replaceMock.mockReset();
+    searchParamsValue = new URLSearchParams();
+    if (typeof window !== "undefined") {
+      window.sessionStorage.clear();
+    }
+  });
+
   it("shows claim button and handles snooze/unsnooze flows", async () => {
     const initial = coerceOpsAlertsModel({
       ok: true,

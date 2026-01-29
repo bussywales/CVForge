@@ -9,30 +9,75 @@ vi.mock("next/link", () => ({
   default: (props: any) => <a {...props} />,
 }));
 
+const replaceMock = vi.fn();
+let searchParamsValue = new URLSearchParams();
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: replaceMock }),
+  usePathname: () => "/app/ops/alerts",
+  useSearchParams: () => searchParamsValue,
+}));
+
 const logMock = vi.fn();
 vi.mock("@/lib/monetisation-client", () => ({
   logMonetisationClientEvent: (...args: any[]) => logMock(...args),
 }));
 
 describe("Ops alerts ack UI", () => {
+  beforeEach(() => {
+    replaceMock.mockReset();
+    searchParamsValue = new URLSearchParams();
+    if (typeof window !== "undefined") {
+      window.sessionStorage.clear();
+    }
+  });
+
   afterEach(() => {
     vi.unstubAllGlobals();
     logMock.mockReset();
   });
 
   it("acknowledges test event via token flow", async () => {
+    let alertsCalls = 0;
+    let handledAfterAck = false;
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = typeof input === "string" ? input : input.toString();
       if (url.includes("/api/ops/alerts/ack-token")) {
         return Promise.resolve(new Response(JSON.stringify({ ok: true, token: "tok_test" }), { status: 200, headers: { "content-type": "application/json" } }));
       }
       if (url.includes("/api/alerts/ack")) {
+        handledAfterAck = true;
         return Promise.resolve(new Response(JSON.stringify({ ok: true, eventId: "evt_test", handled: true }), { status: 200, headers: { "content-type": "application/json" } }));
       }
       if (url.includes("/api/ops/alerts/workflow")) {
         return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
       }
-      return Promise.resolve(new Response(JSON.stringify({ ok: true, alerts: [], recentEvents: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+      if (url.includes("/api/ops/alerts")) {
+        alertsCalls += 1;
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              ok: true,
+              alerts: [],
+              recentEvents: [
+                {
+                  id: "evt_test",
+                  key: "ops_alert_test",
+                  state: "firing",
+                  at: "2024-01-01T00:00:00.000Z",
+                  summary: "Test alert fired",
+                  isTest: true,
+                  severity: "low",
+                  signals: {},
+                  handled: handledAfterAck ? { at: "2024-01-01T00:05:00.000Z", source: "ui" } : null,
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } }
+          )
+        );
+      }
+      return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/plain" } }));
     });
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("navigator", { clipboard: { writeText: vi.fn() } } as any);
@@ -57,6 +102,7 @@ describe("Ops alerts ack UI", () => {
     fireEvent.click(screen.getByText(/Show/i));
     fireEvent.click(screen.getByText(/Acknowledge/i));
     await waitFor(() => expect(screen.getByText(/Acknowledged/i)).toBeTruthy());
+    await waitFor(() => expect(alertsCalls).toBeGreaterThan(1));
     fireEvent.click(screen.getByText(/Copy ACK link/i));
     expect((navigator as any).clipboard.writeText).toHaveBeenCalled();
   });
@@ -84,6 +130,6 @@ describe("Ops alerts ack UI", () => {
     fireEvent.click(screen.getByText(/Recent/i));
     fireEvent.click(screen.getByText(/Show/i));
     fireEvent.click(screen.getByText(/Acknowledge/i));
-    await waitFor(() => expect(screen.getByText(/Unable to copy ACK link|Unable to acknowledge alert/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Unexpected response format|Unable to acknowledge alert/i)).toBeTruthy());
   });
 });

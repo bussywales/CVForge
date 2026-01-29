@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import ErrorBanner from "@/components/ErrorBanner";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
 import { fetchJsonSafe } from "@/lib/http/safe-json";
@@ -32,6 +33,9 @@ const SNOOZE_OPTIONS = [
 ];
 
 export default function AlertsClient({ initial, initialError, requestId }: { initial: OpsAlertsModel | null; initialError?: { message?: string; requestId?: string | null; code?: string | null } | null; requestId: string | null }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [data, setData] = useState<OpsAlertsModel>(coerceOpsAlertsModel(initial));
   const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(
     initialError ? { message: initialError.message ?? "Unable to load alerts", requestId: initialError.requestId ?? requestId ?? null } : null
@@ -63,6 +67,11 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const ackViewLogged = useRef(false);
   const deliveryViewLogged = useRef(false);
   const [ackState, setAckState] = useState<Record<string, { acknowledged: boolean; requestId?: string | null }>>({});
+  const previousTabRef = useRef<"firing" | "recent">(tab);
+  const tabInitializedRef = useRef(false);
+
+  const resolveTab = (value: string | null) => (value === "recent" || value === "firing" ? (value as "recent" | "firing") : null);
+  const tabParam = resolveTab(searchParams?.get("tab"));
 
   const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a?.state === "firing"), [data?.alerts]);
   const recentEvents = useMemo(() => data?.recentEvents ?? [], [data?.recentEvents]);
@@ -85,6 +94,29 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       if (remaining > 0) setTestCooldownSeconds(remaining);
     }
   }, [windowLabel]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (tabParam) {
+      tabInitializedRef.current = true;
+      if (tabParam !== tab) setTab(tabParam);
+      return;
+    }
+    if (tabInitializedRef.current) return;
+    const stored = resolveTab(window.sessionStorage.getItem("ops_alerts_tab"));
+    if (stored && stored !== tab) setTab(stored);
+    tabInitializedRef.current = true;
+  }, [tabParam, tab]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.sessionStorage.setItem("ops_alerts_tab", tab);
+    if (tabParam !== tab) {
+      const params = new URLSearchParams(searchParams?.toString() ?? "");
+      params.set("tab", tab);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    }
+  }, [tab, tabParam, pathname, router, searchParams]);
 
   useEffect(() => {
     if (!initialError) return;
@@ -195,6 +227,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     }
   }, [data?.recentEvents, windowLabel]);
 
+
   useEffect(() => {
     if (testCooldownSeconds <= 0) {
       if (cooldownKeyRef.current && typeof window !== "undefined") {
@@ -246,10 +279,12 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       : { label: "Amber", className: "bg-amber-100 text-amber-800" };
   }, [data]);
 
-  const refresh = async () => {
+  const fetchLatestAlerts = async ({ reason }: { reason: "manual" | "tab" | "test" | "ack" }) => {
     setLoading(true);
-    setFlash(null);
-    logMonetisationClientEvent("ops_alerts_refresh_click", null, "ops");
+    if (reason === "manual") {
+      setFlash(null);
+      logMonetisationClientEvent("ops_alerts_refresh_click", null, "ops");
+    }
     try {
       const res = await fetchJsonSafe<OpsAlertsModel>("/api/ops/alerts", { method: "GET", cache: "no-store" });
       if (res.status === 429 || res.error?.code === "RATE_LIMITED") {
@@ -280,6 +315,16 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       setLastCheckedAtIso(new Date().toISOString());
     }
   };
+
+  const refresh = async () => fetchLatestAlerts({ reason: "manual" });
+
+  useEffect(() => {
+    const prev = previousTabRef.current;
+    if (tab === "recent" && prev !== "recent") {
+      fetchLatestAlerts({ reason: "tab" });
+    }
+    previousTabRef.current = tab;
+  }, [tab]);
 
   const sendTest = async () => {
     if (testSending || testCooldownSeconds > 0) return;
@@ -312,7 +357,8 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       if ((res.json as any)?.deduped) {
         logMonetisationClientEvent("ops_alerts_test_sent_deduped", null, "ops", { meta: { window: windowLabel, hasEventId } });
       }
-      setTab("recent");
+      const wasRecent = tab === "recent";
+      if (!wasRecent) setTab("recent");
       setTestEventsOpen(true);
       logMonetisationClientEvent("ops_alerts_test_events_auto_expand", null, "ops", { meta: { window: windowLabel, reason: "test_sent" } });
       window.setTimeout(() => {
@@ -325,7 +371,9 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       setTestCooldownSeconds(10);
       cooldownLoggedRef.current = false;
       logMonetisationClientEvent("ops_alerts_test_cooldown_started", null, "ops", { meta: { window: windowLabel, seconds: 10 } });
-      refresh();
+      if (wasRecent) {
+        fetchLatestAlerts({ reason: "test" });
+      }
     } catch {
       setError({ message: "Test alert failed", requestId: null });
       logMonetisationClientEvent("ops_alerts_test_error", null, "ops", { meta: { code: "NETWORK", status: 0, hasJson: false } });
@@ -425,6 +473,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
         meta: { deduped: Boolean(ackRes.json?.deduped) },
       });
       logMonetisationClientEvent("ops_alerts_ack_ui_state_change", null, "ops", { meta: { acknowledged: true } });
+      await fetchLatestAlerts({ reason: "ack" });
     } catch {
       setError({ message: "Unable to acknowledge alert", requestId: null });
     }
@@ -579,6 +628,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     const claimed = ownershipInfo && new Date(ownershipInfo.expiresAt).getTime() > now.getTime();
     const snoozed = snoozeInfo && new Date(snoozeInfo.untilAt).getTime() > now.getTime();
     const eventId = typeof (alert as any)?.signals?.eventId === "string" ? (alert as any).signals.eventId : null;
+    const eventAcknowledged = eventId ? Boolean(ackState[eventId]?.acknowledged) : false;
     return (
       <div key={alert.key} className="rounded-2xl border border-black/10 bg-white p-4 shadow-sm">
         <div className="flex items-center justify-between gap-2">
@@ -737,10 +787,10 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
               <button
                 type="button"
                 onClick={() => acknowledgeEvent({ ...alert, id: eventId, window: "15m", isTest: false })}
-                disabled={ackState[eventId]?.acknowledged}
+                disabled={eventAcknowledged}
                 className="rounded-full border border-black/10 px-2 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] disabled:opacity-50"
               >
-                {ackState[eventId]?.acknowledged ? "Acknowledged" : "Acknowledge"}
+                {eventAcknowledged ? "Acknowledged" : "Acknowledge"}
               </button>
               <button
                 type="button"
@@ -891,7 +941,9 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                   </tr>
                 </thead>
                 <tbody>
-                  {normalEvents.map((ev) => (
+                  {normalEvents.map((ev) => {
+                    const acknowledged = Boolean(ev?.handled?.at) || Boolean(ackState[ev.id]?.acknowledged);
+                    return (
                     <tr key={ev.id} className="border-t">
                       <td className="px-2 py-1">{formatShortLocalTime(ev.at)}</td>
                       <td className="px-2 py-1 font-mono text-[11px] text-[rgb(var(--muted))]">{ev.key}</td>
@@ -946,10 +998,10 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                             <button
                               type="button"
                               onClick={() => acknowledgeEvent(ev)}
-                              disabled={ackState[ev.id]?.acknowledged}
+                              disabled={acknowledged}
                               className="rounded-full border border-black/10 px-2 py-1 text-[11px] font-semibold text-[rgb(var(--ink))] disabled:opacity-50"
                             >
-                              {ackState[ev.id]?.acknowledged ? "Acknowledged" : "Acknowledge"}
+                              {acknowledged ? "Acknowledged" : "Acknowledge"}
                             </button>
                             <button
                               type="button"
@@ -992,7 +1044,8 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                         ) : null}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             ) : (
@@ -1015,6 +1068,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
               {testEventsOpen ? (
                 <ul className="mt-2 space-y-2">
                   {testEvents.map((ev) => {
+                    const acknowledged = Boolean(ev?.handled?.at) || Boolean(ackState[ev.id]?.acknowledged);
                     const auditsHref = ev.signals?.requestId
                       ? `/app/ops/audits?requestId=${encodeURIComponent(ev.signals.requestId)}`
                       : `/app/ops/audits?q=${encodeURIComponent(ev.id ?? ev.key ?? "ops_alert_test")}`;
@@ -1049,10 +1103,10 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
                               <button
                                 type="button"
                                 onClick={() => acknowledgeEvent(ev)}
-                                disabled={ackState[ev.id]?.acknowledged}
+                                disabled={acknowledged}
                                 className="text-[11px] font-semibold text-[rgb(var(--accent-strong))] underline-offset-2 hover:underline disabled:opacity-50"
                               >
-                                {ackState[ev.id]?.acknowledged ? "Acknowledged" : "Acknowledge"}
+                                {acknowledged ? "Acknowledged" : "Acknowledge"}
                               </button>
                               <button
                                 type="button"

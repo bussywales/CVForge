@@ -50,6 +50,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Set ALERTS_ACK_SECRET (+ optional ALERTS_ACK_TTL_SECONDS 10–30m); mint ACK token and confirm exp ≈ now + ttlSeconds returned.
 - Use /api/alerts/ack?token=... → handled recorded; expired/invalid tokens return jsonError with x-request-id.
 
+## Quick prod checks (v0.8.46)
+- Open /app/ops/alerts → switch to Recent → latest test events show without manual Refresh; tab selection persists on hard refresh (?tab=recent).
+- Send test alert → auto-navigates to Recent with Test events expanded and the new row visible.
+- Acknowledge a test event → badge shows; hard refresh keeps it acknowledged and the button stays disabled.
+
 ## Quick prod checks (v0.8.43)
 - Ops → Alerts → Send test alert → Acknowledge in UI; badge shows and button disables, no terminal needed.
 - Copy ACK link → paste into browser (fresh session OK) → handled state shows; duplicate ACKs dedupe.
