@@ -59,6 +59,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Paste a requestId and click Search → URL updates once and panels load.
 - Copy case snippet → clipboard works; Open Alerts/Incidents/Webhooks links include from=ops_case&window=15m.
 
+## Quick prod checks (v0.8.56)
+- Start with requestId-only Case View → User context shows missing.
+- Attach user context (admin) and refresh → billing snapshot enables and context shows sources/last-seen.
+- Email is masked in the context strip and API responses.
+
 ## Quick prod checks (v0.8.54)
 - Generate a training scenario → open the Alerts deep link and confirm prefilled Audits/Incidents links work.
 - Acknowledge the training alert → return to Help and copy the training report → report shows ACK = Yes and includes all deep links.

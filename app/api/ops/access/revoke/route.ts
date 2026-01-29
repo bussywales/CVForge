@@ -6,6 +6,7 @@ import { revokeEarlyAccess, hashEarlyAccessEmail } from "@/lib/early-access";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -54,9 +55,9 @@ export async function POST(request: Request) {
     const admin = createServiceRoleClient();
     const result = await revokeEarlyAccess({ userId: targetUser, email, note });
     const hashedEmail = hashEarlyAccessEmail(email);
-    await admin.from("ops_audit_log").insert({
-      actor_user_id: user.id,
-      target_user_id: targetUser,
+    await insertOpsAuditLog(admin, {
+      actorUserId: user.id,
+      targetUserId: targetUser,
       action: "early_access_revoke",
       meta: { status: result.status, requestId, source: "ops_ui", hashedEmailPrefix: hashedEmail ? hashedEmail.slice(0, 8) : null },
     });

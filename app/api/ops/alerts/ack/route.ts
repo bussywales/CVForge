@@ -5,8 +5,8 @@ import { getUserRole, isOpsRole } from "@/lib/rbac";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { createServiceRoleClient } from "@/lib/supabase/service";
-import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
 import { recordAlertHandled } from "@/lib/ops/alerts-handled";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -53,26 +53,26 @@ export async function POST(request: Request) {
   }
 
   const admin = createServiceRoleClient();
-  await admin.from("ops_audit_log").insert({
-    actor_user_id: user.id,
-    target_user_id: null,
+  await insertOpsAuditLog(admin, {
+    actorUserId: user.id,
+    targetUserId: null,
     action: "ops_alerts_ack_submit",
     meta: { eventId, source, requestId },
   });
   const result = await recordAlertHandled({ eventId, actorId: user.id, source, note });
   if (!result.ok) return jsonError({ code: result.code ?? "ACK_FAILED", message: "Unable to ack alert", requestId, status: 404 });
   if (result.deduped) {
-    await admin.from("ops_audit_log").insert({
-      actor_user_id: user.id,
-      target_user_id: null,
+    await insertOpsAuditLog(admin, {
+      actorUserId: user.id,
+      targetUserId: null,
       action: "ops_alerts_ack_submit_deduped",
       meta: { key: result.eventKey, eventId, source, requestId },
     });
     return NextResponse.json({ ok: true, requestId, eventId, handled: true, deduped: true }, { headers });
   }
-  await admin.from("ops_audit_log").insert({
-    actor_user_id: user.id,
-    target_user_id: null,
+  await insertOpsAuditLog(admin, {
+    actorUserId: user.id,
+    targetUserId: null,
     action: "ops_alerts_ack_submit_success",
     meta: { key: result.eventKey, eventId, source, requestId },
   });

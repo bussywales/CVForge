@@ -9,6 +9,7 @@ import { listWebhookFailures } from "@/lib/ops/webhook-failures";
 import { buildOpsAlerts } from "@/lib/ops/ops-alerts";
 import { loadAlertStates, saveAlertStatesAndEvents, listRecentAlertEvents, listHandledAlertEvents } from "@/lib/ops/ops-alerts-store";
 import { notifyAlertTransitions } from "@/lib/ops/ops-alerts-notify";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getAlertsWebhookConfig } from "@/lib/ops/alerts-webhook-config";
 import { signAckToken } from "@/lib/ops/alerts-ack-token";
@@ -104,13 +105,15 @@ export async function GET(request: Request) {
 
     if (transitions.length) {
       const admin = createServiceRoleClient();
-      await admin.from("ops_audit_log").insert(
-        transitions.map((t) => ({
-          actor_user_id: user.id,
-          target_user_id: null,
-          action: "ops_alert_transition",
-          meta: { key: t.key, to: t.to, severity: t.severity, requestId },
-        }))
+      await Promise.all(
+        transitions.map((t) =>
+          insertOpsAuditLog(admin, {
+            actorUserId: user.id,
+            targetUserId: null,
+            action: "ops_alert_transition",
+            meta: { key: t.key, to: t.to, severity: t.severity, requestId },
+          })
+        )
       );
       await notifyAlertTransitions({
         transitions: transitions.map((t) => ({ key: t.key, to: t.to } as any)),

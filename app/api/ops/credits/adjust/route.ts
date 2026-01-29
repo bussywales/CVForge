@@ -6,6 +6,7 @@ import { getUserRole, isOpsRole, isAdminRole } from "@/lib/rbac";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getUserCredits } from "@/lib/data/credits";
 import { normaliseReason, validateCreditPayload } from "@/lib/ops/credit-adjust";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -47,9 +48,9 @@ export async function POST(request: Request) {
     if (error) throw error;
 
     const balance = await getUserCredits(admin, targetUserId!);
-    await admin.from("ops_audit_log").insert({
-      actor_user_id: user.id,
-      target_user_id: targetUserId,
+    await insertOpsAuditLog(admin, {
+      actorUserId: user.id,
+      targetUserId,
       action: "credit_adjust",
       meta: {
         amount,

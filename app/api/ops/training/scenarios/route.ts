@@ -8,6 +8,8 @@ import { createOpsAlertTestEvent } from "@/lib/ops/ops-alerts-test-event";
 import { createTrainingScenario, listTrainingScenarios, type TrainingScenarioType } from "@/lib/ops/training-scenarios";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
+import { upsertRequestContext } from "@/lib/ops/ops-request-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -119,9 +121,9 @@ export async function POST(request: Request) {
 
   if (scenarioType === "mixed_basic") {
     const admin = createServiceRoleClient();
-    await admin.from("ops_audit_log").insert({
-      actor_user_id: user.id,
-      target_user_id: null,
+    await insertOpsAuditLog(admin, {
+      actorUserId: user.id,
+      targetUserId: null,
       action: "ops_training_scenario_mixed",
       meta: sanitizeMonetisationMeta({ requestId, eventId, scenarioType }),
     });
@@ -136,6 +138,20 @@ export async function POST(request: Request) {
     requestId,
     meta: {},
   });
+
+  if (requestId) {
+    try {
+      await upsertRequestContext({
+        requestId,
+        userId: user.id,
+        source: "training",
+        path: "/api/ops/training/scenarios",
+        meta: { scenarioType, eventId },
+      });
+    } catch {
+      // best-effort only
+    }
+  }
 
   return NextResponse.json({ ok: true, requestId, scenario: mapScenario(scenario) }, { headers });
 }

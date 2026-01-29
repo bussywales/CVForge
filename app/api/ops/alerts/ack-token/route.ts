@@ -7,6 +7,7 @@ import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { signAckToken } from "@/lib/ops/alerts-ack-token";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { logMonetisationEvent } from "@/lib/monetisation";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,9 +70,9 @@ export async function POST(request: Request) {
     return jsonError({ code: "TOKEN_MINT_FAILED", message: "Unable to mint ACK token", requestId, status: 500 });
   }
 
-  await admin.from("ops_audit_log").insert({
-    actor_user_id: user.id,
-    target_user_id: null,
+  await insertOpsAuditLog(admin, {
+    actorUserId: user.id,
+    targetUserId: null,
     action: "ops_alerts_ack_token_created",
     meta: { eventId, requestId },
   });

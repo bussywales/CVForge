@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 
 export type WatchRecord = {
   requestId: string;
@@ -43,12 +44,12 @@ export async function addWatch({
     expiresAt,
     actorId,
   });
-  await admin.from("ops_audit_log").insert({
-    actor_user_id: actorId,
-    target_user_id: userId ?? null,
+  await insertOpsAuditLog(admin, {
+    actorUserId: actorId,
+    targetUserId: userId ?? null,
     action: "resolution_watch",
     meta,
-    created_at: now.toISOString(),
+    createdAt: now.toISOString(),
   });
   return { expiresAt };
 }

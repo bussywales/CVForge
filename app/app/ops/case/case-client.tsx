@@ -24,7 +24,10 @@ import { groupIncidents, type IncidentRecord } from "@/lib/ops/incidents-shared"
 type Props = {
   initialQuery: { requestId: string | null; userId: string | null; email: string | null; window: string | null; from: string | null };
   requestId: string | null;
+  viewerRole: ViewerRole;
 };
+
+type ViewerRole = "user" | "support" | "admin" | "super_admin";
 
 type AuditItem = {
   id: string;
@@ -75,6 +78,16 @@ type WatchRecord = {
   createdBy?: string | null;
 };
 
+type CaseContext = {
+  requestId: string;
+  userId: string | null;
+  emailMasked: string | null;
+  sources: string[];
+  firstSeenAt: string;
+  lastSeenAt: string;
+  lastSeenPath?: string | null;
+};
+
 const WINDOW_OPTIONS: Array<{ value: CaseWindow; label: string }> = [
   { value: "15m", label: "15m" },
   { value: "24h", label: "24h" },
@@ -102,7 +115,9 @@ function maskId(value?: string | null) {
 function buildCaseSnippet({
   requestId,
   userId,
-  email,
+  emailMasked,
+  contextSources,
+  contextLastSeenAt,
   window,
   latestAlertEventId,
   latestWebhookRef,
@@ -110,7 +125,9 @@ function buildCaseSnippet({
 }: {
   requestId?: string | null;
   userId?: string | null;
-  email?: string | null;
+  emailMasked?: string | null;
+  contextSources?: string[] | null;
+  contextLastSeenAt?: string | null;
   window: CaseWindow;
   latestAlertEventId?: string | null;
   latestWebhookRef?: string | null;
@@ -119,7 +136,9 @@ function buildCaseSnippet({
   const lines = ["CVForge Ops Case", `Window: ${window}`];
   if (requestId) lines.push(`RequestId: ${requestId}`);
   if (userId) lines.push(`UserId: ${maskId(userId)}`);
-  if (email) lines.push(`Email: ${maskEmail(email)}`);
+  if (emailMasked) lines.push(`Email: ${emailMasked}`);
+  if (contextSources && contextSources.length) lines.push(`Context sources: ${contextSources.join(", ")}`);
+  if (contextLastSeenAt) lines.push(`Context last seen: ${formatShortLocalTime(contextLastSeenAt)}`);
   if (latestAlertEventId) lines.push(`Latest alert event: ${latestAlertEventId}`);
   if (latestWebhookRef) lines.push(`Webhook ref: ${latestWebhookRef}`);
   if (billingRequestId) lines.push(`Billing requestId: ${billingRequestId}`);
@@ -131,7 +150,7 @@ function buildCaseSnippet({
   return lines.join("\n");
 }
 
-export default function CaseClient({ initialQuery, requestId }: Props) {
+export default function CaseClient({ initialQuery, requestId, viewerRole }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -154,6 +173,14 @@ export default function CaseClient({ initialQuery, requestId }: Props) {
   const [windowValue, setWindowValue] = useState<CaseWindow>(windowParam);
   const [resolvedUserId, setResolvedUserId] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
+  const [contextData, setContextData] = useState<CaseContext | null>(null);
+  const [contextError, setContextError] = useState<{ message: string; requestId?: string | null } | null>(null);
+  const [contextLoading, setContextLoading] = useState(false);
+  const [attachValue, setAttachValue] = useState("");
+  const [attachNote, setAttachNote] = useState("");
+  const [attachLoading, setAttachLoading] = useState(false);
+  const [attachError, setAttachError] = useState<{ message: string; requestId?: string | null } | null>(null);
+  const [attachSuccess, setAttachSuccess] = useState<string | null>(null);
 
   const [alertsData, setAlertsData] = useState<OpsAlertsModel>(() => coerceOpsAlertsModel(null));
   const [alertsError, setAlertsError] = useState<{ message: string; requestId?: string | null } | null>(null);
@@ -189,7 +216,9 @@ export default function CaseClient({ initialQuery, requestId }: Props) {
 
   const caseKey = useMemo(() => buildCaseKey({ requestId: requestIdParam, userId: userIdParam, email: emailParam }), [requestIdParam, userIdParam, emailParam]);
   const hasQuery = Boolean(requestIdParam || userIdParam || emailParam);
-  const effectiveUserId = userIdParam ?? resolvedUserId;
+  const effectiveUserId = userIdParam ?? contextData?.userId ?? resolvedUserId;
+  const effectiveEmailMasked = contextData?.emailMasked ?? (emailParam ? maskEmail(emailParam) : null);
+  const isAdminViewer = viewerRole === "admin" || viewerRole === "super_admin";
 
   const alertsViewLogged = useRef<string | null>(null);
   const incidentsViewLogged = useRef<string | null>(null);
@@ -217,8 +246,10 @@ export default function CaseClient({ initialQuery, requestId }: Props) {
     let active = true;
     const lookup = async () => {
       setResolveError(null);
+      const params = new URLSearchParams({ q: emailParam });
+      if (requestIdParam) params.set("requestId", requestIdParam);
       const res = await fetchJsonSafe<{ ok: boolean; users?: Array<{ id: string; email?: string | null }> }>(
-        `/api/ops/users/search?q=${encodeURIComponent(emailParam)}`,
+        `/api/ops/users/search?${params.toString()}`,
         { method: "GET", cache: "no-store" }
       );
       if (!active) return;
@@ -233,7 +264,38 @@ export default function CaseClient({ initialQuery, requestId }: Props) {
     return () => {
       active = false;
     };
-  }, [emailParam, userIdParam]);
+  }, [emailParam, requestIdParam, userIdParam]);
+
+  useEffect(() => {
+    if (!requestIdParam) {
+      setContextData(null);
+      setContextError(null);
+      setAttachSuccess(null);
+      return;
+    }
+    let active = true;
+    setContextLoading(true);
+    setContextError(null);
+    setContextData(null);
+    const load = async () => {
+      const res = await fetchJsonSafe<{ ok: boolean; context?: CaseContext | null }>(
+        `/api/ops/case/context?requestId=${encodeURIComponent(requestIdParam)}`,
+        { method: "GET", cache: "no-store" }
+      );
+      if (!active) return;
+      if (res.ok && res.json?.ok) {
+        setContextData(res.json.context ?? null);
+        setContextError(null);
+      } else {
+        setContextError({ message: res.error?.message ?? "Unable to load user context", requestId: res.requestId ?? requestId });
+      }
+      setContextLoading(false);
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, [requestId, requestIdParam]);
 
   const updateQuery = useCallback(
     (next: { requestId?: string | null; userId?: string | null; email?: string | null; window?: CaseWindow }) => {
@@ -442,6 +504,55 @@ export default function CaseClient({ initialQuery, requestId }: Props) {
     setWatchLoading(false);
   }, [effectiveUserId, hasQuery, requestId, requestIdParam, windowValue]);
 
+  const handleAttach = useCallback(async () => {
+    if (!requestIdParam) return;
+    const value = attachValue.trim();
+    if (!value) return;
+    setAttachLoading(true);
+    setAttachError(null);
+    setAttachSuccess(null);
+    const payload: Record<string, any> = { requestId: requestIdParam };
+    if (value.includes("@")) {
+      payload.email = value;
+    } else {
+      payload.userId = value;
+    }
+    if (attachNote.trim()) {
+      payload.note = attachNote.trim();
+    }
+    const res = await fetchJsonSafe<{ ok: boolean; context?: CaseContext | null }>(`/api/ops/case/context/attach`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok && res.json?.ok) {
+      setContextData(res.json.context ?? null);
+      setAttachSuccess("Context attached.");
+      setAttachValue("");
+      setAttachNote("");
+      refreshIncidents();
+      refreshAudits();
+      refreshWebhooks();
+      refreshBilling();
+      refreshOutcomes();
+      refreshWatch();
+    } else {
+      setAttachError({ message: res.error?.message ?? "Unable to attach context", requestId: res.requestId ?? requestId });
+    }
+    setAttachLoading(false);
+  }, [
+    attachNote,
+    attachValue,
+    refreshAudits,
+    refreshBilling,
+    refreshIncidents,
+    refreshOutcomes,
+    refreshWatch,
+    refreshWebhooks,
+    requestId,
+    requestIdParam,
+  ]);
+
   useEffect(() => {
     if (!hasQuery) return;
     refreshAlerts();
@@ -487,13 +598,25 @@ export default function CaseClient({ initialQuery, requestId }: Props) {
       buildCaseSnippet({
         requestId: requestIdParam,
         userId: effectiveUserId,
-        email: emailParam,
+        emailMasked: effectiveEmailMasked,
+        contextSources: contextData?.sources ?? null,
+        contextLastSeenAt: contextData?.lastSeenAt ?? null,
         window: windowValue,
         latestAlertEventId: filteredAlertEvents[0]?.id ?? null,
         latestWebhookRef: webhooksData[0]?.eventIdHash ?? webhooksData[0]?.groupKeyHash ?? null,
         billingRequestId: billingData?.local?.lastBillingEvent?.requestId ?? null,
       }),
-    [billingData?.local?.lastBillingEvent?.requestId, emailParam, effectiveUserId, filteredAlertEvents, requestIdParam, webhooksData, windowValue]
+    [
+      billingData?.local?.lastBillingEvent?.requestId,
+      contextData?.lastSeenAt,
+      contextData?.sources,
+      effectiveEmailMasked,
+      effectiveUserId,
+      filteredAlertEvents,
+      requestIdParam,
+      webhooksData,
+      windowValue,
+    ]
   );
 
   const openAlertsLink = buildOpsCaseAlertsLink({
@@ -515,12 +638,17 @@ export default function CaseClient({ initialQuery, requestId }: Props) {
     q: requestIdParam ?? effectiveUserId ?? null,
   });
   const openStatusLink = buildOpsCaseStatusLink({ window: windowValue });
+  const userLookupHref = emailParam ? `/app/ops?q=${encodeURIComponent(emailParam)}` : "/app/ops";
+  const displayedUserId = contextData?.userId ?? effectiveUserId;
+  const displayedEmailMasked = contextData?.emailMasked ?? effectiveEmailMasked;
+  const contextSourcesLabel = contextData?.sources?.length ? contextData.sources.join(", ") : displayedUserId ? "manual" : "—";
+  const showMissingContext = Boolean(requestIdParam && !displayedUserId);
 
   const handleSnippetCopy = () => {
     safeLog("ops_case_snippet_copy", {
       hasRequestId: Boolean(requestIdParam),
       hasUserId: Boolean(effectiveUserId),
-      hasEmail: Boolean(emailParam),
+      hasEmail: Boolean(effectiveEmailMasked),
     });
   };
 
@@ -629,6 +757,82 @@ export default function CaseClient({ initialQuery, requestId }: Props) {
             </div>
             <CopyIconButton text={summarySnippet} label="Copy case snippet" onCopy={handleSnippetCopy} />
           </div>
+
+          {requestIdParam ? (
+            <div className="rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-xs text-[rgb(var(--muted))]">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">User context</p>
+                  {displayedUserId ? (
+                    <p className="text-sm font-semibold text-[rgb(var(--ink))]">
+                      User linked: {maskId(displayedUserId)} {displayedEmailMasked ? `· ${displayedEmailMasked}` : ""}
+                    </p>
+                  ) : (
+                    <p className="text-sm font-semibold text-[rgb(var(--ink))]">Missing user context</p>
+                  )}
+                </div>
+                {contextLoading ? <span className="text-[11px] text-[rgb(var(--muted))]">Loading…</span> : null}
+              </div>
+              {contextError ? (
+                <div className="mt-2">
+                  <ErrorBanner title="Context unavailable" message={contextError.message} requestId={contextError.requestId ?? undefined} />
+                </div>
+              ) : null}
+              <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-[rgb(var(--muted))]">
+                <span>Sources: {contextSourcesLabel}</span>
+                {contextData?.lastSeenAt ? <span>Last seen: {formatShortLocalTime(contextData.lastSeenAt)}</span> : null}
+                {contextData?.lastSeenPath ? <span>Path: {contextData.lastSeenPath}</span> : null}
+              </div>
+              {showMissingContext ? (
+                <div className="mt-3 rounded-2xl border border-dashed border-black/10 bg-white/70 px-3 py-2">
+                  <p className="text-[11px] text-[rgb(var(--muted))]">
+                    Link a user to unlock billing and dossier signals.
+                  </p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <Link
+                      href={userLookupHref}
+                      className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]"
+                    >
+                      Open user lookup
+                    </Link>
+                  </div>
+                </div>
+              ) : null}
+              {isAdminViewer && showMissingContext ? (
+                <div className="mt-3 rounded-2xl border border-black/10 bg-white/70 px-3 py-3">
+                  <p className="text-[11px] font-semibold text-[rgb(var(--ink))]">Attach user context (admin)</p>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <input
+                      value={attachValue}
+                      onChange={(e) => setAttachValue(e.target.value)}
+                      placeholder="userId or email"
+                      className="min-w-[220px] flex-1 rounded-2xl border border-black/10 bg-white px-3 py-2 text-xs"
+                    />
+                    <input
+                      value={attachNote}
+                      onChange={(e) => setAttachNote(e.target.value)}
+                      placeholder="Optional note"
+                      className="min-w-[200px] flex-1 rounded-2xl border border-black/10 bg-white px-3 py-2 text-xs"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleAttach}
+                      disabled={attachLoading || !attachValue.trim()}
+                      className="rounded-full bg-[rgb(var(--ink))] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/30"
+                    >
+                      {attachLoading ? "Attaching…" : "Attach"}
+                    </button>
+                  </div>
+                  {attachError ? (
+                    <div className="mt-2">
+                      <ErrorBanner title="Attach failed" message={attachError.message} requestId={attachError.requestId ?? undefined} />
+                    </div>
+                  ) : null}
+                  {attachSuccess ? <p className="mt-2 text-[11px] text-emerald-700">{attachSuccess}</p> : null}
+                </div>
+              ) : null}
+            </div>
+          ) : null}
 
           <div className="grid gap-4 lg:grid-cols-2">
             <div className="space-y-4">

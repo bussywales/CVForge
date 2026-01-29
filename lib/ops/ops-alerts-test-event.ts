@@ -3,6 +3,8 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { notifyAlertTransitions } from "@/lib/ops/ops-alerts-notify";
 import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
+import { upsertRequestContext } from "@/lib/ops/ops-request-context";
 
 export async function createOpsAlertTestEvent({
   actorUserId,
@@ -49,11 +51,24 @@ export async function createOpsAlertTestEvent({
     now,
     eventIdsByKey: { ops_alert_test: eventId ?? undefined } as any,
   });
-  await admin.from("ops_audit_log").insert({
-    actor_user_id: actorUserId,
-    target_user_id: null,
+  await insertOpsAuditLog(admin, {
+    actorUserId,
+    targetUserId: null,
     action: "ops_alert_test_fire",
     meta: { requestId },
   });
+  try {
+    if (requestId) {
+      await upsertRequestContext({
+        requestId,
+        userId: actorUserId,
+        source: "alerts_test",
+        path: "/api/ops/alerts/test",
+        meta: { eventId },
+      });
+    }
+  } catch {
+    // best-effort only
+  }
   return { eventId };
 }

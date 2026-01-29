@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.56
+- Ops Case View now resolves requestId → user context via a canonical ops_request_context layer (auto-populated from ops audit/training/alert touchpoints), with admin attach + context strip to unlock billing and dossier panels.
+
 ## v0.8.55
 - Ops Case View v1: new /app/ops/case requestId-first cockpit with search + window selector, summary strip, alerts/incidents/audits/webhooks/billing/outcomes/watch panels, copyable case snippet, and new ops preview APIs/logging.
 

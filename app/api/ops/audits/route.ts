@@ -5,6 +5,7 @@ import { captureServerError } from "@/lib/observability/sentry";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -202,9 +203,9 @@ export async function GET(request: Request) {
         ? Buffer.from(`${last.created_at}|${last.id}`).toString("base64")
         : undefined;
 
-    await admin.from("ops_audit_log").insert({
-      actor_user_id: user.id,
-      target_user_id: null,
+    await insertOpsAuditLog(admin, {
+      actorUserId: user.id,
+      targetUserId: null,
       action: "ops_audits_view",
       meta: {
         requestId,

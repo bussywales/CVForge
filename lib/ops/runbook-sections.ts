@@ -77,8 +77,8 @@ export type RunbookSection = {
 };
 
 export const RUNBOOK_META = {
-  lastUpdatedVersion: "v0.8.55",
-  lastUpdatedIso: "2026-02-18T00:00:00.000Z",
+  lastUpdatedVersion: "v0.8.56",
+  lastUpdatedIso: "2026-02-25T00:00:00.000Z",
   rulesVersion: "ops_runbook_v1",
 };
 
@@ -148,6 +148,66 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
           { label: "Ops Alerts", href: "/app/ops/alerts" },
           { label: "Ops Incidents", href: "/app/ops/incidents" },
         ],
+      },
+    ],
+  },
+  {
+    id: "case-view-user-context",
+    title: "Case View: request context mapping",
+    category: "Getting started",
+    ...BASE_SUPPORT,
+    owner: "Support",
+    lastUpdatedIso: LAST_UPDATED,
+    linkedSurfaces: ["alerts", "incidents", "webhooks", "billing", "users"],
+    tags: ["case-view", "requestId", "userId", "email", "ops_request_context"],
+    body: [
+      { type: "heading", text: "What this is / When to use" },
+      {
+        type: "paragraph",
+        text: "Case View resolves requestId → user context through the canonical ops_request_context mapping. Use this when a requestId-only case needs userId/email to unlock billing and dossier panels.",
+      },
+      { type: "heading", text: "Symptoms" },
+      {
+        type: "bullets",
+        items: [
+          "Case View shows a requestId but Billing panel says user id required.",
+          "User context strip shows Missing user context or no sources.",
+        ],
+      },
+      { type: "heading", text: "Likely causes" },
+      {
+        type: "bullets",
+        items: [
+          "Request context row not written yet for this requestId.",
+          "Upstream events were missing a reliable user_id.",
+          "Email lookup was run without attaching to the requestId.",
+        ],
+      },
+      {
+        type: "checks",
+        items: [
+          "Inspect the User context strip for sources and last-seen time.",
+          "Confirm requestId format and the selected window.",
+          "If email is known, run Ops user search and attach it to the requestId.",
+        ],
+      },
+      {
+        type: "actions",
+        items: [
+          "Use the admin Attach user context action to link userId/email to the requestId.",
+          "Refresh Case View panels after attach to rehydrate billing and dossier data.",
+        ],
+      },
+      {
+        type: "escalate",
+        items: [
+          "RequestId appears in audits/incidents but ops_request_context never populates.",
+          "Conflicting userIds are attached to the same requestId.",
+        ],
+      },
+      {
+        type: "send",
+        items: ["requestId, window, context sources + lastSeen, and evidence showing missing or conflicting user context."],
       },
     ],
   },

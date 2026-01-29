@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import AccessDenied from "@/components/AccessDenied";
 import { makeRequestId } from "@/lib/observability/request-id";
 import { getSupabaseUser } from "@/lib/data/supabase";
-import { requireOpsAccess } from "@/lib/rbac";
+import { getUserRole, requireOpsAccess, type UserRole } from "@/lib/rbac";
 import CaseClient from "./case-client";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +15,7 @@ export default async function OpsCasePage({
   const { user } = await getSupabaseUser();
   const requestId = makeRequestId(headers().get("x-request-id"));
   const canAccess = user && (await requireOpsAccess(user.id, user.email));
+  const roleInfo = user ? await getUserRole(user.id) : { role: "user" as UserRole, hasRow: false };
   if (!user || !canAccess) {
     return <AccessDenied requestId={requestId} code="ACCESS_DENIED" />;
   }
@@ -35,6 +36,7 @@ export default async function OpsCasePage({
           from: searchParams?.from ?? null,
         }}
         requestId={requestId}
+        viewerRole={roleInfo.role}
       />
     </div>
   );

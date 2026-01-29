@@ -5,6 +5,7 @@ import { recordAlertHandled } from "@/lib/ops/alerts-handled";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,9 +50,9 @@ export async function POST(request: Request) {
   const actorId = `token_${verification.payload.eventId.slice(0, 6)}`;
   const result = await recordAlertHandled({ eventId: verification.payload.eventId, actorId, source: "token", note: null });
   const admin = createServiceRoleClient();
-  await admin.from("ops_audit_log").insert({
-    actor_user_id: null,
-    target_user_id: null,
+  await insertOpsAuditLog(admin, {
+    actorUserId: null,
+    targetUserId: null,
     action: result.ok ? "alerts_ack_public_success" : "alerts_ack_public_failed",
     meta: { eventId: verification.payload.eventId, requestId },
   });

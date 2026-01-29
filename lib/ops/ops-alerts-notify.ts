@@ -5,6 +5,7 @@ import type { OpsAlert } from "@/lib/ops/ops-alerts";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { recordAlertDelivery } from "@/lib/ops/ops-alerts-delivery";
 import { getAlertsWebhookConfig } from "@/lib/ops/alerts-webhook-config";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 
 type Transition = { key: string; to: "ok" | "firing" };
 
@@ -77,9 +78,9 @@ export async function notifyAlertTransitions({
       continue;
     }
     try {
-      await admin.from("ops_audit_log").insert({
-        actor_user_id: null,
-        target_user_id: null,
+      await insertOpsAuditLog(admin, {
+        actorUserId: null,
+        targetUserId: null,
         action: "ops_alert_notify_attempt",
         meta: { key: transition.key, requestId: null },
       });
@@ -107,9 +108,9 @@ export async function notifyAlertTransitions({
       }
       clearTimeout(timer);
       await updateAlertNotificationMeta(transition.key, { lastNotifiedAt: nowIso, payloadHash });
-      await admin.from("ops_audit_log").insert({
-        actor_user_id: null,
-        target_user_id: null,
+      await insertOpsAuditLog(admin, {
+        actorUserId: null,
+        targetUserId: null,
         action: delivered ? "ops_alert_notify_success" : "ops_alert_notify_fail",
         meta: { key: transition.key, eventId, reason: maskedReason ?? null },
       });
@@ -121,17 +122,17 @@ export async function notifyAlertTransitions({
         maskedReason,
         windowLabel: "15m",
       });
-      await admin.from("ops_audit_log").insert({
-        actor_user_id: null,
-        target_user_id: null,
+      await insertOpsAuditLog(admin, {
+        actorUserId: null,
+        targetUserId: null,
         action: delivered ? "ops_alerts_notify_delivered" : "ops_alerts_notify_failed",
         meta: { key: transition.key, eventId, severity: alert.severity, windowMinutes: 15, reason: maskedReason ?? null },
       });
       results.push({ key: transition.key, sent: delivered });
     } catch (error) {
-      await admin.from("ops_audit_log").insert({
-        actor_user_id: null,
-        target_user_id: null,
+      await insertOpsAuditLog(admin, {
+        actorUserId: null,
+        targetUserId: null,
         action: "ops_alert_notify_fail",
         meta: { key: transition.key, error: (error as Error)?.message?.slice(0, 120) ?? "notify_fail" },
       });

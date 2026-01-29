@@ -5,6 +5,8 @@ import { captureServerError } from "@/lib/observability/sentry";
 import { getSupabaseUser } from "@/lib/data/supabase";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
+import { upsertRequestContext } from "@/lib/ops/ops-request-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -112,9 +114,9 @@ export async function GET(request: Request) {
       });
     }
 
-    await admin.from("ops_audit_log").insert({
-      actor_user_id: user.id,
-      target_user_id: null,
+    await insertOpsAuditLog(admin, {
+      actorUserId: user.id,
+      targetUserId: null,
       action: "ops_user_search",
       meta: {
         queryType,
@@ -123,6 +125,23 @@ export async function GET(request: Request) {
         requestId,
       },
     });
+
+    const requestIdParam = url.searchParams.get("requestId")?.trim() ?? "";
+    if (requestIdParam && users.length > 0) {
+      try {
+        const target = users[0];
+        await upsertRequestContext({
+          requestId: requestIdParam,
+          userId: target.id,
+          email: target.email ?? null,
+          source: "users_search",
+          path: "/api/ops/users/search",
+          meta: { queryType, resultCount: users.length },
+        });
+      } catch {
+        // best-effort only
+      }
+    }
 
     return NextResponse.json({ ok: true, users }, { headers });
   } catch (error) {

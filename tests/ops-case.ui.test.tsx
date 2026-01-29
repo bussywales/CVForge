@@ -10,6 +10,7 @@ vi.mock("next/link", () => ({
 
 const replaceMock = vi.fn();
 let searchParamsValue = new URLSearchParams();
+let contextResponse: any = { ok: true, context: null };
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock }),
@@ -25,10 +26,14 @@ describe("Ops case view", () => {
   beforeEach(() => {
     replaceMock.mockReset();
     searchParamsValue = new URLSearchParams();
+    contextResponse = { ok: true, context: null };
     vi.stubGlobal(
       "fetch",
       vi.fn((input: RequestInfo | URL) => {
         const url = typeof input === "string" ? input : input.toString();
+        if (url.includes("/api/ops/case/context")) {
+          return Promise.resolve(new Response(JSON.stringify(contextResponse), { status: 200, headers: { "content-type": "application/json" } }));
+        }
         if (url.includes("/api/ops/alerts")) {
           return Promise.resolve(
             new Response(JSON.stringify({ ok: true, alerts: [], recentEvents: [], firingCount: 0, handled: {} }), { status: 200, headers: { "content-type": "application/json" } })
@@ -49,6 +54,9 @@ describe("Ops case view", () => {
         if (url.includes("/api/ops/watch")) {
           return Promise.resolve(new Response(JSON.stringify({ ok: true, records: [] }), { status: 200, headers: { "content-type": "application/json" } }));
         }
+        if (url.includes("/api/ops/billing/snapshot")) {
+          return Promise.resolve(new Response(JSON.stringify({ ok: true, local: { subscriptionStatus: "active", creditsAvailable: 10 }, delayState: { state: "ok" }, webhookHealth: { status: "ok" } }), { status: 200, headers: { "content-type": "application/json" } }));
+        }
         return Promise.resolve(new Response(JSON.stringify({ ok: true }), { status: 200, headers: { "content-type": "application/json" } }));
       })
     );
@@ -59,12 +67,12 @@ describe("Ops case view", () => {
   });
 
   it("renders empty state when no query", () => {
-    render(<CaseClient initialQuery={{ requestId: null, userId: null, email: null, window: null, from: null }} requestId="req_test" />);
+    render(<CaseClient initialQuery={{ requestId: null, userId: null, email: null, window: null, from: null }} requestId="req_test" viewerRole="support" />);
     expect(screen.getByText(/Paste a requestId to begin/i)).toBeTruthy();
   });
 
   it("submits search and updates URL once", () => {
-    render(<CaseClient initialQuery={{ requestId: null, userId: null, email: null, window: null, from: null }} requestId="req_test" />);
+    render(<CaseClient initialQuery={{ requestId: null, userId: null, email: null, window: null, from: null }} requestId="req_test" viewerRole="support" />);
     const input = screen.getByPlaceholderText(/req_.../i);
     fireEvent.change(input, { target: { value: "req_123" } });
     fireEvent.click(screen.getByText("Search"));
@@ -74,7 +82,32 @@ describe("Ops case view", () => {
 
   it("shows snippet copy when query is present", async () => {
     searchParamsValue = new URLSearchParams("requestId=req_123&window=15m");
-    render(<CaseClient initialQuery={{ requestId: "req_123", userId: null, email: null, window: "15m", from: null }} requestId="req_test" />);
+    render(<CaseClient initialQuery={{ requestId: "req_123", userId: null, email: null, window: "15m", from: null }} requestId="req_test" viewerRole="support" />);
     await waitFor(() => expect(screen.getByText(/Copy case snippet/i)).toBeTruthy());
+  });
+
+  it("uses context userId to enable billing panel", async () => {
+    contextResponse = {
+      ok: true,
+      context: {
+        requestId: "req_ctx",
+        userId: "user_ctx",
+        emailMasked: "us***@example.com",
+        sources: ["ops_audit"],
+        firstSeenAt: "2024-01-01T00:00:00.000Z",
+        lastSeenAt: "2024-01-01T00:05:00.000Z",
+      },
+    };
+    searchParamsValue = new URLSearchParams("requestId=req_ctx&window=15m");
+    render(<CaseClient initialQuery={{ requestId: "req_ctx", userId: null, email: null, window: "15m", from: null }} requestId="req_test" viewerRole="support" />);
+    await waitFor(() => expect(screen.queryByText(/Billing: user id required/i)).toBeNull());
+  });
+
+  it("shows missing context guidance and admin attach controls", async () => {
+    contextResponse = { ok: true, context: null };
+    searchParamsValue = new URLSearchParams("requestId=req_missing&window=15m");
+    render(<CaseClient initialQuery={{ requestId: "req_missing", userId: null, email: null, window: "15m", from: null }} requestId="req_test" viewerRole="admin" />);
+    await waitFor(() => expect(screen.getByText(/Missing user context/i)).toBeTruthy());
+    expect(screen.getByText(/Attach user context/i)).toBeTruthy();
   });
 });

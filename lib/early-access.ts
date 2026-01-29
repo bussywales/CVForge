@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { getUserRole, isOpsRole } from "@/lib/rbac";
 import { claimInviteForUser } from "@/lib/early-access/invites";
 import { logMonetisationEvent } from "@/lib/monetisation";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 
 type EarlyAccessSource = "ops" | "db_user" | "db_email" | "env" | "blocked";
 
@@ -116,9 +117,9 @@ export async function getEarlyAccessDecision({ userId, email }: { userId: string
   const finalDecision: EarlyAccessDecision = decision ?? { allowed: false, source: "blocked", allowlistMeta: { source: "none" } };
   try {
     const admin = createServiceRoleClient();
-    await admin.from("ops_audit_log").insert({
-      actor_user_id: userId,
-      target_user_id: userId,
+    await insertOpsAuditLog(admin, {
+      actorUserId: userId,
+      targetUserId: userId,
       action: "early_access_gate",
       meta: { source: finalDecision.source, allowed: finalDecision.allowed, hashedEmailPrefix: emailHash ? `hash:${emailHash.slice(0, 8)}` : null },
     });

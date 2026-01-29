@@ -6,6 +6,7 @@ import { createInvite, buildInviteLink } from "@/lib/early-access/invites";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { createServiceRoleClient } from "@/lib/supabase/service";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 import { logMonetisationEvent } from "@/lib/monetisation";
 import { hashEarlyAccessEmail } from "@/lib/early-access";
 
@@ -53,8 +54,9 @@ export async function POST(request: Request) {
     const supabase = createServiceRoleClient();
     const hashedEmail = hashEarlyAccessEmail(email);
     try {
-      await supabase.from("ops_audit_log").insert({
-        actor_user_id: user.id,
+      await insertOpsAuditLog(supabase, {
+        actorUserId: user.id,
+        targetUserId: null,
         action: "early_access_invite_create",
         meta: { hashedEmailPrefix: hashedEmail ? hashedEmail.slice(0, 8) : null, requestId },
       });
