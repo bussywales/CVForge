@@ -50,6 +50,10 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Set ALERTS_ACK_SECRET (+ optional ALERTS_ACK_TTL_SECONDS 10–30m); mint ACK token and confirm exp ≈ now + ttlSeconds returned.
 - Use /api/alerts/ack?token=... → handled recorded; expired/invalid tokens return jsonError with x-request-id.
 
+## Quick prod checks (v0.8.53)
+- Open a training deep link (from=ops_training with eventId) and confirm the Alerts page stays stable without history errors.
+- The training event is focused/highlighted once it appears (or after a short poll).
+
 ## Quick prod checks (v0.8.52)
 - Go to /app/ops/help#training-drills → generate “Alerts: Test alert” → jump to Alerts and see it highlighted without manual refresh.
 - Generate “Mixed: Basic” → deep links work; UI explains if incidents are not generated.

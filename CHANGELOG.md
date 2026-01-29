@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.53
+- Ops Alerts training deep links are now stable: URL syncing is idempotent and guarded to avoid history API loops while keeping training focus and polling reliable.
+
 ## v0.8.52
 - Ops Training sandbox v1: ops-only scenario generator in /app/ops/help with create/list/deactivate flows, deep links into Alerts/Incidents/Status, and safe test alert creation with new storage, routes, and tests.
 

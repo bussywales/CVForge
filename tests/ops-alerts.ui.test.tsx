@@ -305,6 +305,36 @@ describe("Ops alerts UI extras", () => {
     });
   });
 
+  it("updates tab param once per click", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("/api/ops/alerts/workflow")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, ownership: {}, snoozes: {} }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts/deliveries")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, deliveries: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      if (url.includes("/api/ops/alerts")) {
+        return Promise.resolve(new Response(JSON.stringify({ ok: true, alerts: [], recentEvents: [] }), { status: 200, headers: { "content-type": "application/json" } }));
+      }
+      return Promise.resolve(new Response("ok", { status: 200, headers: { "content-type": "text/plain" } }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const initial = coerceOpsAlertsModel({ ok: true, alerts: [], recentEvents: [] });
+    render(<AlertsClient initial={initial} requestId="req_ui" />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Recent/i }));
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledTimes(1));
+    expect(replaceMock.mock.calls[0][0]).toContain("tab=recent");
+
+    fireEvent.click(screen.getByRole("button", { name: /Firing/i }));
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledTimes(2));
+    expect(replaceMock.mock.calls[1][0]).toContain("tab=firing");
+
+    fireEvent.click(screen.getByRole("button", { name: /Firing/i }));
+    await waitFor(() => expect(replaceMock).toHaveBeenCalledTimes(2));
+  });
+
   it("marks handled without request id and shows badge", async () => {
     const initial = coerceOpsAlertsModel({
       ok: true,

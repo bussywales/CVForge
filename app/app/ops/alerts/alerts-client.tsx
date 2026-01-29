@@ -104,9 +104,11 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const previousTabRef = useRef<"firing" | "recent">(tab);
   const tabInitializedRef = useRef(false);
   const initialLoadedRef = useRef(false);
-  const trainingInitRef = useRef(false);
   const trainingHighlightTimerRef = useRef<number | null>(null);
   const [trainingHighlightId, setTrainingHighlightId] = useState<string | null>(null);
+  const lastAppliedFocusRef = useRef<string | null>(null);
+  const lastUrlReadRef = useRef<string | null>(null);
+  const lastUrlWriteRef = useRef<string | null>(null);
 
   const resolveTab = (value: string | null) => (value === "recent" || value === "firing" ? (value as "recent" | "firing") : null);
   const tabParamRaw = searchParams?.get("tab");
@@ -114,6 +116,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const fromParam = searchParams?.get("from");
   const fromTraining = fromParam === "ops_training";
   const trainingEventId = searchParams?.get("eventId");
+  const searchKey = searchParams?.toString() ?? "";
   const deliveriesStatusParam = searchParams?.get("status") ?? searchParams?.get("deliveries");
   const deliveriesInitializedRef = useRef(false);
   const deliveriesFocusRef = useRef(false);
@@ -125,6 +128,32 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       setLastLoadedFiringAt(at);
     }
   }, []);
+
+  const syncTabInUrl = useCallback(
+    (nextTab: "firing" | "recent") => {
+      if (typeof window === "undefined") return;
+      const params = new URLSearchParams(searchKey);
+      params.set("tab", nextTab);
+      const nextSearch = params.toString();
+      if (nextSearch === searchKey) return;
+      const nextUrl = `${pathname}?${nextSearch}`;
+      if (lastUrlWriteRef.current === nextUrl) return;
+      lastUrlWriteRef.current = nextUrl;
+      router.replace(nextUrl, { scroll: false });
+    },
+    [pathname, router, searchKey]
+  );
+
+  const setTabAndSync = useCallback(
+    (nextTab: "firing" | "recent", syncUrl = true) => {
+      if (nextTab === tab) return;
+      setTab(nextTab);
+      if (syncUrl) {
+        syncTabInUrl(nextTab);
+      }
+    },
+    [syncTabInUrl, tab]
+  );
 
   const firingAlerts = useMemo(() => (data?.alerts ?? []).filter((a) => a?.state === "firing"), [data?.alerts]);
   const recentEvents = useMemo(() => data?.recentEvents ?? [], [data?.recentEvents]);
@@ -155,23 +184,33 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (searchKey === lastUrlReadRef.current) return;
+    lastUrlReadRef.current = searchKey;
+    lastUrlWriteRef.current = null;
+
     if (tabParam) {
-      tabInitializedRef.current = true;
       if (tabParam !== tab) setTab(tabParam);
+      tabInitializedRef.current = true;
       return;
     }
     if (tabInitializedRef.current) return;
     const stored = resolveTab(window.sessionStorage.getItem("ops_alerts_tab"));
-    if (stored && stored !== tab) setTab(stored);
+    if (stored && stored !== tab) {
+      setTab(stored);
+    }
     tabInitializedRef.current = true;
-  }, [tabParam, tab]);
+  }, [searchKey, tabParam, tab]);
 
   useEffect(() => {
-    if (!fromTraining || trainingInitRef.current) return;
-    trainingInitRef.current = true;
-    if (tab !== "recent") setTab("recent");
+    if (!fromTraining) return;
+    const focusKey = `${trainingEventId ?? ""}`;
+    if (lastAppliedFocusRef.current === focusKey) return;
+    lastAppliedFocusRef.current = focusKey;
     setTestEventsOpen(true);
-  }, [fromTraining, tab]);
+    if (tab !== "recent") {
+      setTabAndSync("recent", tabParam !== "recent");
+    }
+  }, [fromTraining, trainingEventId, setTabAndSync, tab, tabParam]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -199,12 +238,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   useEffect(() => {
     if (typeof window === "undefined") return;
     window.sessionStorage.setItem("ops_alerts_tab", tab);
-    if (tabParam !== tab) {
-      const params = new URLSearchParams(searchParams?.toString() ?? "");
-      params.set("tab", tab);
-      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-    }
-  }, [tab, tabParam, pathname, router, searchParams]);
+  }, [tab]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -744,7 +778,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       const eventId = (res.json as any).eventId ?? null;
       logMonetisationClientEvent("ops_alerts_webhook_test_queued", null, "ops", { meta: { window: windowLabel, hasEventId: Boolean(eventId) } });
       setFlash("Webhook test queued.");
-      if (tab !== "recent") setTab("recent");
+      if (tab !== "recent") setTabAndSync("recent");
       setDeliveriesFilter("all");
       if (eventId) {
         setDeliveryEventFilter(eventId);
@@ -801,7 +835,7 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
         logMonetisationClientEvent("ops_alerts_test_sent_deduped", null, "ops", { meta: { window: windowLabel, hasEventId } });
       }
       const wasRecent = tab === "recent";
-      if (!wasRecent) setTab("recent");
+      if (!wasRecent) setTabAndSync("recent");
       setTestEventsOpen(true);
       logMonetisationClientEvent("ops_alerts_test_events_auto_expand", null, "ops", { meta: { window: windowLabel, reason: "test_sent" } });
       window.setTimeout(() => {
@@ -1420,14 +1454,14 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => setTab("firing")}
+          onClick={() => setTabAndSync("firing")}
           className={`rounded-full px-3 py-1 text-[11px] font-semibold ${tab === "firing" ? "bg-[rgb(var(--ink))] text-white" : "bg-white text-[rgb(var(--ink))] border border-black/10"}`}
         >
           Firing
         </button>
         <button
           type="button"
-          onClick={() => setTab("recent")}
+          onClick={() => setTabAndSync("recent")}
           className={`rounded-full px-3 py-1 text-[11px] font-semibold ${tab === "recent" ? "bg-[rgb(var(--ink))] text-white" : "bg-white text-[rgb(var(--ink))] border border-black/10"}`}
         >
           Recent (24h)

@@ -84,10 +84,12 @@ describe("ops alerts training deep link", () => {
     render(<AlertsClient initial={initial} requestId="req_train" />);
 
     await waitFor(() => expect(screen.getByText(/Training scenario view/i)).toBeTruthy());
+    expect(replaceMock.mock.calls.length).toBeLessThanOrEqual(1);
     await waitFor(() => expect(screen.getByText(/Waiting for event to appear/i)).toBeTruthy());
     await vi.advanceTimersByTimeAsync(2000);
 
     await waitFor(() => expect(screen.getByText(/Test alert recorded/i)).toBeTruthy());
+    expect(replaceMock.mock.calls.length).toBeLessThanOrEqual(1);
     const highlighted = document.getElementById("ops-training-event-evt_train");
     expect(highlighted?.className).toContain("bg-amber-50");
   });
