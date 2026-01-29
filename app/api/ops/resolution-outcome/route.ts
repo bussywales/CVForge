@@ -8,6 +8,7 @@ import { captureServerError } from "@/lib/observability/sentry";
 import { buildOutcomeEvent, mapOutcomeRows, type ResolutionOutcomeCode } from "@/lib/ops/ops-resolution-outcomes";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
+import { upsertRequestContext } from "@/lib/ops/ops-request-context";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -72,6 +73,21 @@ export async function POST(request: Request) {
       meta,
     });
     const activity = await logMonetisationEvent(admin, user.id, "ops_resolution_outcome_set", payload);
+    try {
+      if (targetRequestId && targetUserId) {
+        await upsertRequestContext({
+          requestId: targetRequestId,
+          userId: targetUserId,
+          source: "ops_outcome",
+          confidence: "high",
+          path: "/api/ops/resolution-outcome",
+          meta: { code },
+          evidence: { code },
+        });
+      }
+    } catch {
+      // best-effort only
+    }
     const parsed = activity ? mapOutcomeRows([activity], new Date())[0] : null;
     return NextResponse.json({ ok: true, item: parsed ?? null }, { headers });
   } catch (error) {

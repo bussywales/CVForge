@@ -83,6 +83,10 @@ type CaseContext = {
   requestId: string;
   userId: string | null;
   emailMasked: string | null;
+  userRole?: string | null;
+  source?: string | null;
+  confidence?: string | null;
+  evidenceAt?: string | null;
   sources: string[];
   firstSeenAt: string;
   lastSeenAt: string;
@@ -119,6 +123,9 @@ function buildCaseSnippet({
   emailMasked,
   contextSources,
   contextLastSeenAt,
+  contextSource,
+  contextConfidence,
+  contextEvidenceAt,
   window,
   latestAlertEventId,
   latestWebhookRef,
@@ -129,6 +136,9 @@ function buildCaseSnippet({
   emailMasked?: string | null;
   contextSources?: string[] | null;
   contextLastSeenAt?: string | null;
+  contextSource?: string | null;
+  contextConfidence?: string | null;
+  contextEvidenceAt?: string | null;
   window: CaseWindow;
   latestAlertEventId?: string | null;
   latestWebhookRef?: string | null;
@@ -139,6 +149,9 @@ function buildCaseSnippet({
   if (userId) lines.push(`UserId: ${maskId(userId)}`);
   if (emailMasked) lines.push(`Email: ${emailMasked}`);
   if (contextSources && contextSources.length) lines.push(`Context sources: ${contextSources.join(", ")}`);
+  if (contextSource) lines.push(`Context source: ${contextSource}`);
+  if (contextConfidence) lines.push(`Context confidence: ${contextConfidence}`);
+  if (contextEvidenceAt) lines.push(`Context evidence at: ${formatShortLocalTime(contextEvidenceAt)}`);
   if (contextLastSeenAt) lines.push(`Context last seen: ${formatShortLocalTime(contextLastSeenAt)}`);
   if (latestAlertEventId) lines.push(`Latest alert event: ${latestAlertEventId}`);
   if (latestWebhookRef) lines.push(`Webhook ref: ${latestWebhookRef}`);
@@ -300,7 +313,7 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
     setContextData(null);
     const load = async () => {
       const res = await fetchJsonSafe<{ ok: boolean; context?: CaseContext | null }>(
-        `/api/ops/case/context?requestId=${encodeURIComponent(resolvedRequestIdParam)}`,
+        `/api/ops/case/context?requestId=${encodeURIComponent(resolvedRequestIdParam)}&window=${windowValue}`,
         { method: "GET", cache: "no-store" }
       );
       if (!active) return;
@@ -316,7 +329,7 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
     return () => {
       active = false;
     };
-  }, [requestId, resolvedRequestIdParam]);
+  }, [requestId, resolvedRequestIdParam, windowValue]);
 
   const updateQuery = useCallback(
     (next: { requestId?: string | null; userId?: string | null; email?: string | null; window?: CaseWindow }) => {
@@ -622,6 +635,9 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
         emailMasked: effectiveEmailMasked,
         contextSources: contextData?.sources ?? null,
         contextLastSeenAt: contextData?.lastSeenAt ?? null,
+        contextSource: contextData?.source ?? null,
+        contextConfidence: contextData?.confidence ?? null,
+        contextEvidenceAt: contextData?.evidenceAt ?? null,
         window: windowValue,
         latestAlertEventId: filteredAlertEvents[0]?.id ?? null,
         latestWebhookRef: webhooksData[0]?.eventIdHash ?? webhooksData[0]?.groupKeyHash ?? null,
@@ -630,6 +646,9 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
     [
       billingData?.local?.lastBillingEvent?.requestId,
       contextData?.lastSeenAt,
+      contextData?.source,
+      contextData?.confidence,
+      contextData?.evidenceAt,
       contextData?.sources,
       effectiveEmailMasked,
       effectiveUserId,
@@ -663,6 +682,15 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
   const displayedUserId = contextData?.userId ?? effectiveUserId;
   const displayedEmailMasked = contextData?.emailMasked ?? effectiveEmailMasked;
   const contextSourcesLabel = contextData?.sources?.length ? contextData.sources.join(", ") : displayedUserId ? "manual" : "—";
+  const contextConfidence = contextData?.confidence ?? null;
+  const contextSource = contextData?.source ?? null;
+  const contextEvidenceAt = contextData?.evidenceAt ?? null;
+  const missingContextHint =
+    windowValue === "15m"
+      ? "No touchpoints with userId in this window — try 24h."
+      : windowValue === "24h"
+        ? "No touchpoints with userId in this window — try 7d."
+        : "No touchpoints with userId in this window.";
   const showMissingContext = Boolean(requestIdParam && !displayedUserId);
 
   const handleSnippetCopy = () => {
@@ -787,12 +815,22 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
                   {displayedUserId ? (
                     <p className="text-sm font-semibold text-[rgb(var(--ink))]">
                       User linked: {maskId(displayedUserId)} {displayedEmailMasked ? `· ${displayedEmailMasked}` : ""}
+                      {contextData?.userRole ? ` · ${contextData.userRole}` : ""}
                     </p>
                   ) : (
                     <p className="text-sm font-semibold text-[rgb(var(--ink))]">Missing user context</p>
                   )}
                 </div>
-                {contextLoading ? <span className="text-[11px] text-[rgb(var(--muted))]">Loading…</span> : null}
+                <div className="flex items-center gap-2">
+                  {displayedUserId ? (
+                    <CopyIconButton
+                      text={displayedUserId}
+                      label="Copy userId"
+                      onCopy={() => safeLog("ops_case_context_copy_userId", { hasUserId: true })}
+                    />
+                  ) : null}
+                  {contextLoading ? <span className="text-[11px] text-[rgb(var(--muted))]">Loading…</span> : null}
+                </div>
               </div>
               {contextError ? (
                 <div className="mt-2">
@@ -801,13 +839,16 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
               ) : null}
               <div className="mt-2 flex flex-wrap gap-3 text-[11px] text-[rgb(var(--muted))]">
                 <span>Sources: {contextSourcesLabel}</span>
+                {contextSource ? <span>Source: {contextSource}</span> : null}
+                {contextConfidence ? <span>Confidence: {contextConfidence}</span> : null}
+                {contextEvidenceAt ? <span>Evidence: {formatShortLocalTime(contextEvidenceAt)}</span> : null}
                 {contextData?.lastSeenAt ? <span>Last seen: {formatShortLocalTime(contextData.lastSeenAt)}</span> : null}
                 {contextData?.lastSeenPath ? <span>Path: {contextData.lastSeenPath}</span> : null}
               </div>
               {showMissingContext ? (
                 <div className="mt-3 rounded-2xl border border-dashed border-black/10 bg-white/70 px-3 py-2">
                   <p className="text-[11px] text-[rgb(var(--muted))]">
-                    Link a user to unlock billing and dossier signals.
+                    Link a user to unlock billing and dossier signals. {missingContextHint}
                   </p>
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <Link

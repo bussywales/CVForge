@@ -42,8 +42,10 @@ export async function insertOpsAuditLog(admin: any, input: OpsAuditInsert) {
       requestId,
       userId,
       source: "ops_audit",
+      confidence: "high",
       path: typeof meta.path === "string" ? meta.path : null,
       meta: sanitizeMonetisationMeta({ action: input.action }),
+      evidence: sanitizeMonetisationMeta({ action: input.action }),
     });
   } catch {
     // best-effort only

@@ -145,8 +145,10 @@ export async function POST(request: Request) {
         requestId,
         userId: user.id,
         source: "training",
+        confidence: "high",
         path: "/api/ops/training/scenarios",
         meta: { scenarioType, eventId },
+        evidence: { scenarioType, eventId },
       });
     } catch {
       // best-effort only

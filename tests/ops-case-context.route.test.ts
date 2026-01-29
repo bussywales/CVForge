@@ -8,6 +8,7 @@ let rateAllowed = true;
 let contextRow: any = null;
 let upsertArgs: any = null;
 let listUsersMock: any;
+let roleRow: any = { role: "user" };
 
 beforeAll(async () => {
   class SimpleHeaders {
@@ -109,22 +110,38 @@ beforeAll(async () => {
           listUsers: listUsersMock,
         },
       },
+      from: (table: string) => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => ({ data: table === "user_roles" ? roleRow : null, error: null }),
+          }),
+        }),
+      }),
     }),
   }));
 
+  vi.doMock("@/lib/ops/ops-audit-log", () => ({
+    insertOpsAuditLog: async () => undefined,
+  }));
+
   vi.doMock("@/lib/ops/ops-request-context", () => ({
-    getRequestContext: async () => contextRow,
+    resolveRequestContext: async () => contextRow,
     upsertRequestContext: async (input: any) => {
       upsertArgs = input;
       return {
         request_id: input.requestId,
         user_id: input.userId ?? null,
         email_masked: input.email ? "pe***@example.com" : null,
+        source: input.source ?? null,
+        confidence: input.confidence ?? null,
+        evidence: {},
         sources: [input.source],
         first_seen_at: "2024-01-01T00:00:00.000Z",
         last_seen_at: "2024-01-01T00:10:00.000Z",
         last_seen_path: input.path ?? null,
         meta: {},
+        created_at: "2024-01-01T00:00:00.000Z",
+        updated_at: "2024-01-01T00:10:00.000Z",
       };
     },
   }));
@@ -148,11 +165,16 @@ describe("ops case context routes", () => {
       request_id: "req_ctx",
       user_id: "user_1",
       email_masked: "us***@example.com",
+      source: "ops_audit",
+      confidence: "high",
+      evidence: {},
       sources: ["ops_audit"],
       first_seen_at: "2024-01-01T00:00:00.000Z",
       last_seen_at: "2024-01-01T00:05:00.000Z",
       last_seen_path: "/api/ops/audits",
       meta: {},
+      created_at: "2024-01-01T00:00:00.000Z",
+      updated_at: "2024-01-01T00:05:00.000Z",
     };
     const res = await GET(new Request("http://localhost/api/ops/case/context?requestId=req_ctx"));
     const body = await res.json();
@@ -177,6 +199,8 @@ describe("ops case context routes", () => {
     expect(res.status).toBe(200);
     expect(body.context.emailMasked).toBe("pe***@example.com");
     expect(upsertArgs.userId).toBe("user_email");
+    expect(upsertArgs.source).toBe("manual_admin_attach");
+    expect(upsertArgs.confidence).toBe("high");
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 });

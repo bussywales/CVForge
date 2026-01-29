@@ -135,8 +135,10 @@ export async function GET(request: Request) {
           userId: target.id,
           email: target.email ?? null,
           source: "users_search",
+          confidence: "high",
           path: "/api/ops/users/search",
           meta: { queryType, resultCount: users.length },
+          evidence: { userId: target.id },
         });
       } catch {
         // best-effort only

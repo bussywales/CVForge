@@ -65,6 +65,7 @@ describe("ops request context helper", () => {
     });
     expect(first?.user_id).toBe("user_1");
     expect(first?.sources).toEqual(["ops_audit"]);
+    expect(first?.confidence).toBe("high");
 
     const second = await upsertRequestContext({
       requestId: "req_1",

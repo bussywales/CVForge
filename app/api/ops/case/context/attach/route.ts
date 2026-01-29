@@ -8,6 +8,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { logMonetisationEvent } from "@/lib/monetisation";
 import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
 import { upsertRequestContext } from "@/lib/ops/ops-request-context";
+import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 import { captureServerError } from "@/lib/observability/sentry";
 
 export const runtime = "nodejs";
@@ -95,10 +96,27 @@ export async function POST(request: Request) {
       requestId: requestIdInput,
       userId: resolvedUserId ?? null,
       email: resolvedEmail ?? null,
-      source: "manual_attach",
+      source: "manual_admin_attach",
+      confidence: "high",
       path: "/api/ops/case/context/attach",
       meta: { note: sanitizedNote ?? null, actorUserId: user.id },
+      evidence: { note: sanitizedNote ?? null, actorUserId: user.id },
     });
+
+    try {
+      await insertOpsAuditLog(createServiceRoleClient() as any, {
+        actorUserId: user.id,
+        targetUserId: resolvedUserId ?? null,
+        action: "ops_case_context_attach",
+        meta: sanitizeMonetisationMeta({
+          requestId: requestIdInput,
+          note: sanitizedNote ?? null,
+          hasEmail: Boolean(resolvedEmail),
+        }),
+      });
+    } catch {
+      // ignore audit failures
+    }
 
     try {
       const admin = createServiceRoleClient();
@@ -107,6 +125,16 @@ export async function POST(request: Request) {
       });
     } catch {
       // ignore
+    }
+
+    let userRole: string | null = null;
+    if (context?.user_id) {
+      const { data: roleRow } = await createServiceRoleClient()
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", context.user_id)
+        .maybeSingle();
+      userRole = roleRow?.role ?? null;
     }
 
     return NextResponse.json(
@@ -118,6 +146,10 @@ export async function POST(request: Request) {
               requestId: context.request_id,
               userId: context.user_id ?? null,
               emailMasked: context.email_masked ?? null,
+              userRole,
+              source: context.source ?? null,
+              confidence: context.confidence ?? null,
+              evidenceAt: context.updated_at ?? context.last_seen_at,
               sources: context.sources ?? [],
               firstSeenAt: context.first_seen_at,
               lastSeenAt: context.last_seen_at,

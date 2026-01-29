@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.58
+- Ops Case View auto-resolves requestId → user context from audits/outcomes/webhook touchpoints, persists confidence/source evidence in the canonical mapping, and exposes richer context + copyable userId.
+
 ## v0.8.57
 - Ops training sandbox adds copyable requestId/eventId/all-IDs actions, a Case View shortcut, and requestId normalisation to prevent newline/whitespace bugs in deep links and Case View fetches.
 

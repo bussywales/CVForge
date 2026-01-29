@@ -63,8 +63,10 @@ export async function createOpsAlertTestEvent({
         requestId,
         userId: actorUserId,
         source: "alerts_test",
+        confidence: "high",
         path: "/api/ops/alerts/test",
         meta: { eventId },
+        evidence: { eventId },
       });
     }
   } catch {

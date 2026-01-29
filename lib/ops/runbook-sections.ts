@@ -77,8 +77,8 @@ export type RunbookSection = {
 };
 
 export const RUNBOOK_META = {
-  lastUpdatedVersion: "v0.8.57",
-  lastUpdatedIso: "2026-03-04T00:00:00.000Z",
+  lastUpdatedVersion: "v0.8.58",
+  lastUpdatedIso: "2026-03-05T00:00:00.000Z",
   rulesVersion: "ops_runbook_v1",
 };
 
@@ -153,7 +153,7 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
   },
   {
     id: "case-view-user-context",
-    title: "Case View: request context mapping",
+    title: "Case View: auto-resolve user context",
     category: "Getting started",
     ...BASE_SUPPORT,
     owner: "Support",
@@ -164,7 +164,7 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
       { type: "heading", text: "What this is / When to use" },
       {
         type: "paragraph",
-        text: "Case View resolves requestId → user context through the canonical ops_request_context mapping. Use this when a requestId-only case needs userId/email to unlock billing and dossier panels.",
+        text: "Case View resolves requestId → user context through the canonical ops_request_context mapping. It auto-resolves from touchpoints (audits, outcomes, webhook failures) when requestId + userId appear together in the same row.",
       },
       { type: "heading", text: "Symptoms" },
       {
@@ -178,36 +178,44 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
       {
         type: "bullets",
         items: [
-          "Request context row not written yet for this requestId.",
-          "Upstream events were missing a reliable user_id.",
-          "Email lookup was run without attaching to the requestId.",
+          "No touchpoint contains requestId + userId in the selected window.",
+          "Upstream events were missing a reliable userId field.",
+          "Email lookup was run without attaching it to the requestId.",
         ],
       },
       {
         type: "checks",
         items: [
           "Inspect the User context strip for sources and last-seen time.",
-          "Confirm requestId format and the selected window.",
-          "If email is known, run Ops user search and attach it to the requestId.",
+          "Confirm requestId format and try widening the window to 24h or 7d.",
+          "Check recent audits/outcomes for matching requestId + userId evidence.",
+        ],
+      },
+      {
+        type: "bullets",
+        items: [
+          "Confidence high: requestId + userId appear in the same touchpoint row.",
+          "Confidence medium: requestId matches and userId is present in touchpoint meta.",
         ],
       },
       {
         type: "actions",
         items: [
-          "Use the admin Attach user context action to link userId/email to the requestId.",
+          "Use the admin Attach user context action to link userId/email when evidence exists.",
           "Refresh Case View panels after attach to rehydrate billing and dossier data.",
+          "Capture the source + confidence values when escalating context issues.",
         ],
       },
       {
         type: "escalate",
         items: [
-          "RequestId appears in audits/incidents but ops_request_context never populates.",
+          "RequestId appears in audits/outcomes but ops_request_context never populates.",
           "Conflicting userIds are attached to the same requestId.",
         ],
       },
       {
         type: "send",
-        items: ["requestId, window, context sources + lastSeen, and evidence showing missing or conflicting user context."],
+        items: ["requestId, window, source + confidence, last seen timestamp, and evidence showing missing or conflicting user context."],
       },
     ],
   },

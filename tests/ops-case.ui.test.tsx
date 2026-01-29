@@ -93,6 +93,10 @@ describe("Ops case view", () => {
         requestId: "req_ctx",
         userId: "user_ctx",
         emailMasked: "us***@example.com",
+        userRole: "user",
+        source: "ops_audit",
+        confidence: "high",
+        evidenceAt: "2024-01-01T00:05:00.000Z",
         sources: ["ops_audit"],
         firstSeenAt: "2024-01-01T00:00:00.000Z",
         lastSeenAt: "2024-01-01T00:05:00.000Z",
@@ -101,6 +105,7 @@ describe("Ops case view", () => {
     searchParamsValue = new URLSearchParams("requestId=req_ctx&window=15m");
     render(<CaseClient initialQuery={{ requestId: "req_ctx", userId: null, email: null, window: "15m", from: null }} requestId="req_test" viewerRole="support" />);
     await waitFor(() => expect(screen.queryByText(/Billing: user id required/i)).toBeNull());
+    expect(screen.getByText(/Copy userId/i)).toBeTruthy();
   });
 
   it("shows missing context guidance and admin attach controls", async () => {
@@ -109,6 +114,7 @@ describe("Ops case view", () => {
     render(<CaseClient initialQuery={{ requestId: "req_missing", userId: null, email: null, window: "15m", from: null }} requestId="req_test" viewerRole="admin" />);
     await waitFor(() => expect(screen.getByText(/Missing user context/i)).toBeTruthy());
     expect(screen.getByText(/Attach user context/i)).toBeTruthy();
+    expect(screen.getByText(/No touchpoints with userId/i)).toBeTruthy();
   });
 
   it("normalises requestId with newlines for fetches", async () => {
