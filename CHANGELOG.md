@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.49
+- Ops Status auto-triage actions: “Why this status” rows now expose context-aware actions (deliveries link, webhook test, incidents/audits deep links) with webhook-config gating and triage telemetry.
+
 ## v0.8.48
 - Ops Alerts webhook test + deliveries visibility: new webhook config truth panel (Alerts + Status), sendable webhook test from the UI, and a Deliveries section with filters and receipt polling/visibility.
 

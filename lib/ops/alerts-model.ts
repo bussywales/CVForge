@@ -7,7 +7,7 @@ export type OpsAlertsModel = {
   alerts: any[];
   recentEvents: any[];
   webhookConfigured?: boolean;
-  webhookConfig?: { configured: boolean; mode: string; hint: string; setupHref?: string; safeMeta?: { hasUrl: boolean; hasSecret: boolean } };
+  webhookConfig?: { configured: boolean; mode: string; hint: string; setupHref?: string; hasUrl?: boolean; hasSecret?: boolean; safeMeta?: { hasUrl: boolean; hasSecret: boolean } };
   jsonError?: any;
   requestId?: string | null;
   handled?: Record<string, { at: string; by?: string | null; source?: string | null }>;
@@ -118,6 +118,8 @@ export function coerceOpsAlertsModel(input: any): OpsAlertsModel {
             mode: typeof (input as any).webhookConfig.mode === "string" ? (input as any).webhookConfig.mode : "disabled",
             hint: typeof (input as any).webhookConfig.hint === "string" ? (input as any).webhookConfig.hint : "",
             setupHref: typeof (input as any).webhookConfig.setupHref === "string" ? (input as any).webhookConfig.setupHref : undefined,
+            hasUrl: typeof (input as any).webhookConfig.hasUrl === "boolean" ? Boolean((input as any).webhookConfig.hasUrl) : undefined,
+            hasSecret: typeof (input as any).webhookConfig.hasSecret === "boolean" ? Boolean((input as any).webhookConfig.hasSecret) : undefined,
             safeMeta:
               (input as any).webhookConfig.safeMeta && typeof (input as any).webhookConfig.safeMeta === "object"
                 ? {

@@ -3,6 +3,8 @@ export type AlertsWebhookConfig = {
   mode: "disabled" | "missing_url" | "missing_secret" | "misconfigured" | "enabled";
   hint: string;
   setupHref: string;
+  hasUrl: boolean;
+  hasSecret: boolean;
   safeMeta: { hasUrl: boolean; hasSecret: boolean };
 };
 
@@ -58,6 +60,8 @@ export function getAlertsWebhookConfig({
     mode,
     hint,
     setupHref: SETUP_HREF,
+    hasUrl,
+    hasSecret,
     safeMeta: { hasUrl, hasSecret },
   };
 }

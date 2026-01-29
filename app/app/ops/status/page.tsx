@@ -23,7 +23,7 @@ export default async function OpsStatusPage() {
       <div>
         <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Ops</p>
         <h1 className="text-lg font-semibold text-[rgb(var(--ink))]">System status</h1>
-        <p className="text-xs text-[rgb(var(--muted))]">Key billing/webhook signals for the last 24h (read-only).</p>
+        <p className="text-xs text-[rgb(var(--muted))]">Key billing/webhook signals for the last 24h with quick triage actions.</p>
         <p className="text-[11px] text-[rgb(var(--muted))]">
           Need push alerts? <Link href="/app/ops/alerts" className="font-semibold text-[rgb(var(--ink))] underline-offset-2 hover:underline">Open Ops Alerts</Link>.
         </p>

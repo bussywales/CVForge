@@ -33,5 +33,7 @@ describe("alerts webhook config helper", () => {
     expect(res.configured).toBe(true);
     expect(res.safeMeta.hasUrl).toBe(true);
     expect(res.safeMeta.hasSecret).toBe(true);
+    expect(res.hasUrl).toBe(true);
+    expect(res.hasSecret).toBe(true);
   });
 });

@@ -50,6 +50,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Set ALERTS_ACK_SECRET (+ optional ALERTS_ACK_TTL_SECONDS 10–30m); mint ACK token and confirm exp ≈ now + ttlSeconds returned.
 - Use /api/alerts/ack?token=... → handled recorded; expired/invalid tokens return jsonError with x-request-id.
 
+## Quick prod checks (v0.8.49)
+- In /app/ops/status, webhook failures/errors row shows View deliveries + Send webhook test + Open webhook config actions.
+- If webhook config missing → Send webhook test disabled with “Configure webhook first” hint.
+- Portal/Checkout/Rate limit rows open filtered incidents and audits in a 24h window.
+
 ## Quick prod checks (v0.8.48)
 - Open /app/ops/alerts → confirm webhook config panel shows correct state.
 - Click Send webhook test → Deliveries shows a receipt without manual refresh.

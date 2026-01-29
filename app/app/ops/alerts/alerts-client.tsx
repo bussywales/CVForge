@@ -106,7 +106,11 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
   const initialLoadedRef = useRef(false);
 
   const resolveTab = (value: string | null) => (value === "recent" || value === "firing" ? (value as "recent" | "firing") : null);
-  const tabParam = resolveTab(searchParams?.get("tab"));
+  const tabParamRaw = searchParams?.get("tab");
+  const tabParam = resolveTab(tabParamRaw === "deliveries" ? "recent" : tabParamRaw);
+  const deliveriesStatusParam = searchParams?.get("status") ?? searchParams?.get("deliveries");
+  const deliveriesInitializedRef = useRef(false);
+  const deliveriesFocusRef = useRef(false);
 
   const markLastLoaded = useCallback((target: "firing" | "recent", at: string) => {
     if (target === "recent") {
@@ -158,6 +162,29 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
 
   useEffect(() => {
     if (typeof window === "undefined") return;
+    if (deliveriesInitializedRef.current) return;
+    const filter =
+      deliveriesStatusParam === "failed"
+        ? "failed"
+        : deliveriesStatusParam === "tests"
+          ? "tests"
+          : deliveriesStatusParam === "all"
+            ? "all"
+            : null;
+    if (filter) {
+      setDeliveriesFilter(filter);
+      deliveriesInitializedRef.current = true;
+      deliveriesFocusRef.current = true;
+      return;
+    }
+    if (tabParamRaw === "deliveries") {
+      deliveriesInitializedRef.current = true;
+      deliveriesFocusRef.current = true;
+    }
+  }, [deliveriesStatusParam, tabParamRaw]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
     window.sessionStorage.setItem("ops_alerts_tab", tab);
     if (tabParam !== tab) {
       const params = new URLSearchParams(searchParams?.toString() ?? "");
@@ -165,6 +192,15 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     }
   }, [tab, tabParam, pathname, router, searchParams]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (tab !== "recent" || !deliveriesFocusRef.current) return;
+    deliveriesFocusRef.current = false;
+    window.setTimeout(() => {
+      if (deliveriesRef.current) deliveriesRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }, [tab]);
 
   useEffect(() => {
     if (!tabInitializedRef.current) return;

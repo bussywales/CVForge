@@ -178,6 +178,8 @@ export type MonetisationEventName =
   | "ops_system_status_view"
   | "ops_system_status_refresh_click"
   | "ops_system_status_link_click"
+  | "ops_status_triage_view"
+  | "ops_status_triage_action_click"
   | "ops_status_rag_view"
   | "ops_status_rag_fetch_error"
   | "ops_status_rag_action_click"

@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import ErrorBanner from "@/components/ErrorBanner";
 import { logMonetisationClientEvent } from "@/lib/monetisation-client";
-import { buildOpsIncidentsLink, buildOpsWebhooksLink } from "@/lib/ops/ops-links";
+import { fetchJsonSafe } from "@/lib/http/safe-json";
+import { buildOpsIncidentsLink } from "@/lib/ops/ops-links";
 import type { SystemStatus } from "@/lib/ops/system-status";
 import type { RagStatus } from "@/lib/ops/rag-status";
 
@@ -29,25 +30,60 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
   const [topRepeatsLogged, setTopRepeatsLogged] = useState(false);
   const [watchStatus, setWatchStatus] = useState<Record<string, string>>({});
   const [webhookConfigLogged, setWebhookConfigLogged] = useState(false);
-  const signalActions: Record<SignalKey, { primary: string; secondary?: string | null }> = {
-    webhook_failures: {
-      primary: buildOpsWebhooksLink({ window: "15m", signal: "webhook_failures" }),
-      secondary: buildOpsIncidentsLink({ window: "15m", surface: "webhook", signal: "webhook_failures" }),
-    },
-    webhook_errors: {
-      primary: buildOpsIncidentsLink({ window: "15m", surface: "webhook", signal: "webhook_errors" }),
-      secondary: buildOpsWebhooksLink({ window: "15m", signal: "webhook_errors" }),
-    },
-    portal_errors: {
-      primary: buildOpsIncidentsLink({ window: "15m", surface: "portal", signal: "portal_errors" }),
-    },
-    checkout_errors: {
-      primary: buildOpsIncidentsLink({ window: "15m", surface: "checkout", signal: "checkout_errors" }),
-    },
-    rate_limits: {
-      primary: "/app/ops/status#limits",
-      secondary: buildOpsIncidentsLink({ window: "15m", surface: "billing", code: "RATE_LIMIT", signal: "rate_limits" }),
-    },
+  const [triageNotice, setTriageNotice] = useState<string | null>(null);
+  const [triageError, setTriageError] = useState<{ message: string; requestId?: string | null } | null>(null);
+  const [triageSending, setTriageSending] = useState(false);
+  const triageViewLogged = useRef(false);
+  const webhookConfig = status.webhookConfig ?? null;
+  const webhookConfigured = Boolean(webhookConfig?.configured);
+  const triageWindow = "24h";
+  const triageWindowLabel = rag?.window?.minutes ? `${rag.window.minutes}m` : "15m";
+  const buildAuditsLink = (query: string) => {
+    const params = new URLSearchParams();
+    if (query) params.set("q", query);
+    params.set("range", triageWindow);
+    params.set("from", "ops_status");
+    return `/app/ops/audits?${params.toString()}`;
+  };
+  const buildDeliveriesLink = (statusParam: string) => {
+    const params = new URLSearchParams();
+    params.set("tab", "deliveries");
+    params.set("status", statusParam);
+    params.set("window", triageWindow);
+    params.set("from", "ops_status");
+    return `/app/ops/alerts?${params.toString()}`;
+  };
+  const logTriageAction = (reasonKey: SignalKey, action: string, destination: string) => {
+    logMonetisationClientEvent("ops_status_triage_action_click", null, "ops", {
+      reasonKey,
+      action,
+      window: triageWindowLabel,
+      destination,
+      hasWebhookConfig: webhookConfigured,
+    });
+  };
+  const sendWebhookTest = async (reasonKey: SignalKey) => {
+    if (triageSending || !webhookConfigured) return;
+    logTriageAction(reasonKey, "send_webhook_test", "/api/ops/alerts/webhook-test");
+    setTriageNotice(null);
+    setTriageError(null);
+    setTriageSending(true);
+    try {
+      const res = await fetchJsonSafe<{ eventId?: string }>("/api/ops/alerts/webhook-test", { method: "POST", cache: "no-store" });
+      if (res.status === 429 || res.error?.code === "RATE_LIMITED") {
+        setTriageError({ message: "Rate limited — try again shortly", requestId: res.requestId ?? null });
+        return;
+      }
+      if (!res.ok || !res.json) {
+        setTriageError({ message: res.error?.message ?? "Webhook test failed", requestId: res.requestId ?? null });
+        return;
+      }
+      setTriageNotice("Webhook test queued.");
+    } catch {
+      setTriageError({ message: "Webhook test failed", requestId: null });
+    } finally {
+      setTriageSending(false);
+    }
   };
 
   useEffect(() => {
@@ -61,11 +97,17 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
     logMonetisationClientEvent("ops_alerts_webhook_config_view", null, "ops", {
       meta: {
         mode: status.webhookConfig.mode,
-        hasUrl: status.webhookConfig.safeMeta?.hasUrl ?? false,
-        hasSecret: status.webhookConfig.safeMeta?.hasSecret ?? false,
+        hasUrl: status.webhookConfig.safeMeta?.hasUrl ?? status.webhookConfig.hasUrl ?? false,
+        hasSecret: status.webhookConfig.safeMeta?.hasSecret ?? status.webhookConfig.hasSecret ?? false,
       },
     });
   }, [status.webhookConfig, webhookConfigLogged]);
+
+  useEffect(() => {
+    if (!rag || triageViewLogged.current) return;
+    triageViewLogged.current = true;
+    logMonetisationClientEvent("ops_status_triage_view", null, "ops", { window: triageWindowLabel });
+  }, [rag, triageWindowLabel]);
 
   useEffect(() => {
     setRagLogged(false);
@@ -444,9 +486,74 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
                 <p className="text-[11px] font-semibold text-[rgb(var(--ink))]">Why this status</p>
                 <span className="text-[10px] text-[rgb(var(--muted))]">Window: {rag.window.minutes}m</span>
               </div>
+              {triageNotice ? <p className="mt-1 text-[11px] text-emerald-700">{triageNotice}</p> : null}
+              {triageError ? (
+                <div className="mt-1">
+                  <ErrorBanner title="Triage action failed" message={triageError.message} requestId={triageError.requestId ?? requestId ?? undefined} />
+                </div>
+              ) : null}
               <div className="mt-1 space-y-1">
                 {rag.signals.map((signal) => {
-                  const actions = signalActions[signal.key];
+                  const actions =
+                    signal.key === "webhook_failures" || signal.key === "webhook_errors"
+                      ? [
+                          {
+                            key: "view_deliveries_failed",
+                            label: "View deliveries (failed)",
+                            href: buildDeliveriesLink("failed"),
+                          },
+                          {
+                            key: "send_webhook_test",
+                            label: triageSending ? "Sending webhook..." : "Send webhook test",
+                            onClick: () => sendWebhookTest(signal.key),
+                            disabled: triageSending || !webhookConfigured,
+                          },
+                          {
+                            key: "open_webhook_config",
+                            label: "Open webhook config",
+                            href: "/app/ops/status#alerts",
+                          },
+                        ]
+                      : signal.key === "portal_errors"
+                        ? [
+                            {
+                              key: "open_incidents",
+                              label: "Open incidents",
+                              href: buildOpsIncidentsLink({ window: triageWindow, surface: "portal", signal: "portal_errors", from: "ops_status" }),
+                            },
+                            {
+                              key: "open_audits",
+                              label: "Open audits",
+                              href: buildAuditsLink("portal_error"),
+                            },
+                          ]
+                        : signal.key === "checkout_errors"
+                          ? [
+                              {
+                                key: "open_incidents",
+                                label: "Open incidents",
+                                href: buildOpsIncidentsLink({ window: triageWindow, surface: "checkout", signal: "checkout_errors", from: "ops_status" }),
+                              },
+                              {
+                                key: "open_audits",
+                                label: "Open audits",
+                                href: buildAuditsLink("checkout_error"),
+                              },
+                            ]
+                          : signal.key === "rate_limits"
+                            ? [
+                                {
+                                  key: "open_incidents",
+                                  label: "Open incidents",
+                                  href: buildOpsIncidentsLink({ window: triageWindow, surface: "billing", code: "RATE_LIMIT", signal: "rate_limits", from: "ops_status" }),
+                                },
+                                {
+                                  key: "open_audits",
+                                  label: "Open audits",
+                                  href: buildAuditsLink("rate_limited"),
+                                },
+                              ]
+                            : [];
                   const tone =
                     signal.severity === "red" ? "bg-rose-100 text-rose-800" : signal.severity === "amber" ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800";
                   return (
@@ -480,37 +587,37 @@ export default function SystemStatusClient({ initialStatus, requestId }: Props) 
                         ) : null}
                       </div>
                       <div className="flex flex-wrap items-center gap-2">
-                        {actions?.primary ? (
-                          <Link
-                            href={actions.primary}
-                            className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
-                            onClick={() =>
-                              logMonetisationClientEvent("ops_status_rag_signal_click", null, "ops", {
-                                signalKey: signal.key,
-                                destination: actions.primary,
-                                windowMinutes: rag.window.minutes,
-                              })
-                            }
-                          >
-                            Open
-                          </Link>
-                        ) : null}
-                        {actions?.secondary ? (
-                          <Link
-                            href={actions.secondary}
-                            className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
-                            onClick={() =>
-                              logMonetisationClientEvent("ops_status_rag_signal_click", null, "ops", {
-                                signalKey: signal.key,
-                                destination: actions.secondary ?? "",
-                                windowMinutes: rag.window.minutes,
-                              })
-                            }
-                          >
-                            Secondary
-                          </Link>
-                        ) : null}
+                        {actions.map((action) =>
+                          action.href ? (
+                            <Link
+                              key={action.key}
+                              href={action.href}
+                              className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50"
+                              onClick={() => logTriageAction(signal.key, action.key, action.href ?? "")}
+                            >
+                              {action.label}
+                            </Link>
+                          ) : (
+                            <button
+                              key={action.key}
+                              type="button"
+                              onClick={action.onClick}
+                              disabled={action.disabled}
+                              className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))] hover:bg-slate-50 disabled:opacity-50"
+                            >
+                              {action.label}
+                            </button>
+                          )
+                        )}
                       </div>
+                      {(signal.key === "webhook_failures" || signal.key === "webhook_errors") && !webhookConfigured ? (
+                        <div className="w-full text-[10px] text-[rgb(var(--muted))]">
+                          Configure webhook first.{" "}
+                          <Link href="/app/ops/status#alerts" className="underline" onClick={() => logTriageAction(signal.key, "open_webhook_config_hint", "/app/ops/status#alerts")}>
+                            Open config
+                          </Link>
+                        </div>
+                      ) : null}
                     </div>
                   );
                 })}
