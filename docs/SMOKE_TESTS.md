@@ -72,6 +72,12 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Generate a training scenario → open Case View → user context resolves automatically or shows a clear “no touchpoints in this window” hint.
 - Attach user context (admin) → refresh Case View → userId + source/confidence persist and billing panels unlock.
 
+## Quick prod checks (v0.8.62)
+- On /app/ops/cases, select each saved view (All/My/Unassigned/Waiting/P0–P1) → filters update and URL includes view=.
+- Verify SLA badge appears per case, “Show breached only” filters the list, and SLA sort orders soonest due cases first.
+- Open a case from the queue → Back to queue returns to the same filtered view; Copy case snippet includes queue link.
+- Leave the tab hidden and return → “Data stale” shows until the next refresh updates Last updated.
+
 ## Quick prod checks (v0.8.61)
 - Open /app/ops/cases → filters render, list loads, and Open case deep link works.
 - Apply Status/Assigned/Priority filters → URL updates once and list refreshes without errors.

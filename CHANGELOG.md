@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.62
+- Ops Case Queue v2 adds saved views, SLA badges/sorting/breach filtering with background freshness polling, and tight queue ↔ case view linking with returnTo and copyable queue links.
+
 ## v0.8.61
 - Ops Case Queue adds /app/ops/cases inbox with filters, quick actions, and My queue workload summary backed by new ops case list/summary APIs.
 

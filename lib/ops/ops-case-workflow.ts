@@ -52,6 +52,7 @@ export function normaliseCasePriority(value?: unknown): CasePriority | null {
   return null;
 }
 
+
 function coerceWorkflowRow(row: any, nowIso: string): OpsCaseWorkflowRow {
   return {
     request_id: row.request_id,

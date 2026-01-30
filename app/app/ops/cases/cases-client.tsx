@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import CopyIconButton from "@/components/CopyIconButton";
@@ -16,6 +16,7 @@ const STATUS_OPTIONS = [
   { value: "open", label: "Open" },
   { value: "investigating", label: "Investigating" },
   { value: "monitoring", label: "Monitoring" },
+  { value: "waiting", label: "Waiting" },
   { value: "waiting_on_user", label: "Waiting on user" },
   { value: "waiting_on_provider", label: "Waiting on provider" },
   { value: "resolved", label: "Resolved" },
@@ -24,6 +25,7 @@ const STATUS_OPTIONS = [
 
 const PRIORITY_OPTIONS = [
   { value: "all", label: "All" },
+  { value: "p0_p1", label: "P0–P1" },
   { value: "p0", label: "P0" },
   { value: "p1", label: "P1" },
   { value: "p2", label: "P2" },
@@ -47,6 +49,7 @@ const SORT_OPTIONS = [
   { value: "createdAt", label: "Created" },
   { value: "priority", label: "Priority" },
   { value: "status", label: "Status" },
+  { value: "sla", label: "SLA soonest" },
 ];
 
 type QueueItem = {
@@ -57,6 +60,9 @@ type QueueItem = {
   assignedToMe: boolean;
   lastTouchedAt: string;
   createdAt: string;
+  slaDueAt: string | null;
+  slaBreached: boolean;
+  slaRemainingMs: number | null;
   notesCount: number;
   evidenceCount: number;
   userContext: { userId: string | null; source: string | null; confidence: string | null } | null;
@@ -64,9 +70,11 @@ type QueueItem = {
 
 type Props = {
   initialQuery: {
+    view?: string | null;
     status?: string | null;
     assigned?: string | null;
     priority?: string | null;
+    breached?: string | null;
     window?: string | null;
     q?: string | null;
     sort?: string | null;
@@ -74,6 +82,8 @@ type Props = {
   viewerRole: "user" | "support" | "admin" | "super_admin";
   viewerId: string;
 };
+
+type SavedViewKey = "all" | "my" | "unassigned" | "waiting" | "p0_p1" | "custom";
 
 function maskId(value?: string | null) {
   if (!value) return "";
@@ -86,22 +96,90 @@ function normaliseSelect(value: string | null | undefined, allowed: string[], fa
   return allowed.includes(value) ? value : fallback;
 }
 
+const SAVED_VIEW_PRESETS: Record<SavedViewKey, { status: string; assigned: string; priority: string; breached: boolean }> = {
+  all: { status: "all", assigned: "any", priority: "all", breached: false },
+  my: { status: "all", assigned: "me", priority: "all", breached: false },
+  unassigned: { status: "all", assigned: "unassigned", priority: "all", breached: false },
+  waiting: { status: "waiting", assigned: "any", priority: "all", breached: false },
+  p0_p1: { status: "all", assigned: "any", priority: "p0_p1", breached: false },
+  custom: { status: "all", assigned: "any", priority: "all", breached: false },
+};
+
+const SAVED_VIEWS: Array<{ value: SavedViewKey; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "my", label: "My queue" },
+  { value: "unassigned", label: "Unassigned" },
+  { value: "waiting", label: "Waiting" },
+  { value: "p0_p1", label: "P0–P1" },
+];
+
+function normaliseView(value?: string | null): SavedViewKey {
+  if (value === "all" || value === "my" || value === "unassigned" || value === "waiting" || value === "p0_p1") return value;
+  if (value === "custom") return "custom";
+  return "all";
+}
+
+function resolveViewFromFilters({
+  status,
+  assigned,
+  priority,
+  breached,
+}: {
+  status: string;
+  assigned: string;
+  priority: string;
+  breached: boolean;
+}): SavedViewKey {
+  for (const view of SAVED_VIEWS) {
+    const preset = SAVED_VIEW_PRESETS[view.value];
+    if (preset.status === status && preset.assigned === assigned && preset.priority === priority && preset.breached === breached) {
+      return view.value;
+    }
+  }
+  return "custom";
+}
+
+function formatSlaLabel(remainingMs: number | null, breached: boolean) {
+  if (remainingMs === null) return "SLA: —";
+  const totalSeconds = Math.max(0, Math.floor(remainingMs / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  let label = "";
+  if (days > 0) label = `${days}d`;
+  else if (hours > 0) label = `${hours}h`;
+  else label = `${minutes}m`;
+  return breached ? `SLA breached: ${label}` : `SLA: ${label} left`;
+}
+
 export default function CasesClient({ initialQuery, viewerRole, viewerId }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isAdmin = viewerRole === "admin" || viewerRole === "super_admin";
 
+  const viewParam = searchParams?.get("view") ?? initialQuery.view ?? "all";
   const statusParam = searchParams?.get("status") ?? initialQuery.status ?? "all";
   const assignedParam = searchParams?.get("assigned") ?? initialQuery.assigned ?? "any";
   const priorityParam = searchParams?.get("priority") ?? initialQuery.priority ?? "all";
+  const breachedParam = searchParams?.get("breached") ?? initialQuery.breached ?? "0";
   const windowParam = searchParams?.get("window") ?? initialQuery.window ?? "24h";
   const sortParam = searchParams?.get("sort") ?? initialQuery.sort ?? "lastTouched";
   const queryParam = searchParams?.get("q") ?? initialQuery.q ?? "";
 
-  const [status, setStatus] = useState<string>(normaliseSelect(statusParam, STATUS_OPTIONS.map((o) => o.value), "all"));
-  const [assigned, setAssigned] = useState<string>(normaliseSelect(assignedParam, ASSIGNED_OPTIONS.map((o) => o.value), "any"));
-  const [priority, setPriority] = useState<string>(normaliseSelect(priorityParam, PRIORITY_OPTIONS.map((o) => o.value), "all"));
+  const viewValue = normaliseView(viewParam);
+  const viewPreset = viewValue !== "custom" ? SAVED_VIEW_PRESETS[viewValue] : null;
+  const breachedValue = breachedParam === "1" || breachedParam === "true";
+  const seedStatus = viewPreset?.status ?? statusParam;
+  const seedAssigned = viewPreset?.assigned ?? assignedParam;
+  const seedPriority = viewPreset?.priority ?? priorityParam;
+  const seedBreached = viewPreset?.breached ?? breachedValue;
+
+  const [view, setView] = useState<SavedViewKey>(viewValue);
+  const [status, setStatus] = useState<string>(normaliseSelect(seedStatus, STATUS_OPTIONS.map((o) => o.value), "all"));
+  const [assigned, setAssigned] = useState<string>(normaliseSelect(seedAssigned, ASSIGNED_OPTIONS.map((o) => o.value), "any"));
+  const [priority, setPriority] = useState<string>(normaliseSelect(seedPriority, PRIORITY_OPTIONS.map((o) => o.value), "all"));
+  const [breachedOnly, setBreachedOnly] = useState<boolean>(Boolean(seedBreached));
   const [windowValue, setWindowValue] = useState<string>(normaliseSelect(windowParam, WINDOW_OPTIONS.map((o) => o.value), "24h"));
   const [sort, setSort] = useState<string>(normaliseSelect(sortParam, SORT_OPTIONS.map((o) => o.value), "lastTouched"));
   const [query, setQuery] = useState<string>(queryParam ?? "");
@@ -111,47 +189,88 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ message: string; requestId?: string | null } | null>(null);
   const [actionError, setActionError] = useState<{ message: string; requestId?: string | null } | null>(null);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<string | null>(null);
+  const [stale, setStale] = useState(false);
 
   const viewLogged = useRef<string | null>(null);
+  const pollInFlight = useRef(false);
+
+  const queueHref = useMemo(() => {
+    const params = new URLSearchParams();
+    if (status && status !== "all") params.set("status", status);
+    if (assigned && assigned !== "any") params.set("assigned", assigned);
+    if (priority && priority !== "all") params.set("priority", priority);
+    if (breachedOnly) params.set("breached", "1");
+    if (windowValue) params.set("window", windowValue);
+    if (sort && sort !== "lastTouched") params.set("sort", sort);
+    if (query) params.set("q", normaliseId(query));
+    if (view && view !== "all") params.set("view", view);
+    const qs = params.toString();
+    return qs ? `${pathname}?${qs}` : pathname;
+  }, [assigned, breachedOnly, pathname, priority, query, sort, status, view, windowValue]);
+
+  const queueShareUrl = useMemo(() => {
+    if (typeof window === "undefined") return queueHref;
+    return `${window.location.origin}${queueHref}`;
+  }, [queueHref]);
 
   useEffect(() => {
-    setStatus(normaliseSelect(statusParam, STATUS_OPTIONS.map((o) => o.value), "all"));
-    setAssigned(normaliseSelect(assignedParam, ASSIGNED_OPTIONS.map((o) => o.value), "any"));
-    setPriority(normaliseSelect(priorityParam, PRIORITY_OPTIONS.map((o) => o.value), "all"));
+    const nextView = normaliseView(viewParam);
+    const nextPreset = nextView !== "custom" ? SAVED_VIEW_PRESETS[nextView] : null;
+    const nextBreached = nextPreset?.breached ?? (breachedParam === "1" || breachedParam === "true");
+    setView(nextView);
+    setStatus(normaliseSelect(nextPreset?.status ?? statusParam, STATUS_OPTIONS.map((o) => o.value), "all"));
+    setAssigned(normaliseSelect(nextPreset?.assigned ?? assignedParam, ASSIGNED_OPTIONS.map((o) => o.value), "any"));
+    setPriority(normaliseSelect(nextPreset?.priority ?? priorityParam, PRIORITY_OPTIONS.map((o) => o.value), "all"));
+    setBreachedOnly(Boolean(nextBreached));
     setWindowValue(normaliseSelect(windowParam, WINDOW_OPTIONS.map((o) => o.value), "24h"));
     setSort(normaliseSelect(sortParam, SORT_OPTIONS.map((o) => o.value), "lastTouched"));
     setQuery(queryParam ?? "");
-  }, [assignedParam, priorityParam, queryParam, sortParam, statusParam, windowParam]);
+  }, [assignedParam, breachedParam, priorityParam, queryParam, sortParam, statusParam, viewParam, windowParam]);
 
   const updateQuery = useCallback(
-    (next: { status?: string; assigned?: string; priority?: string; window?: string; q?: string; sort?: string }) => {
+    (next: {
+      status?: string;
+      assigned?: string;
+      priority?: string;
+      breached?: boolean;
+      window?: string;
+      q?: string;
+      sort?: string;
+      view?: SavedViewKey;
+    }) => {
       const params = new URLSearchParams();
       const nextStatus = next.status ?? status;
       const nextAssigned = next.assigned ?? assigned;
       const nextPriority = next.priority ?? priority;
+      const nextBreached = next.breached ?? breachedOnly;
       const nextWindow = next.window ?? windowValue;
       const nextSort = next.sort ?? sort;
       const nextQ = next.q ?? query;
+      const nextView = next.view ?? view;
       if (nextStatus && nextStatus !== "all") params.set("status", nextStatus);
       if (nextAssigned && nextAssigned !== "any") params.set("assigned", nextAssigned);
       if (nextPriority && nextPriority !== "all") params.set("priority", nextPriority);
+      if (nextBreached) params.set("breached", "1");
       if (nextWindow) params.set("window", nextWindow);
       if (nextSort && nextSort !== "lastTouched") params.set("sort", nextSort);
       if (nextQ) params.set("q", normaliseId(nextQ));
+      if (nextView && nextView !== "all") params.set("view", nextView);
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [assigned, pathname, priority, query, router, sort, status, windowValue]
+    [assigned, breachedOnly, pathname, priority, query, router, sort, status, view, windowValue]
   );
 
   const fetchCases = useCallback(
-    async (opts?: { cursor?: string | null; append?: boolean }) => {
-      setLoading(true);
+    async (opts?: { cursor?: string | null; append?: boolean; silent?: boolean }) => {
+      if (!opts?.silent) setLoading(true);
       if (!opts?.append) setError(null);
       const params = new URLSearchParams();
       if (status && status !== "all") params.set("status", status);
       if (assigned && assigned !== "any") params.set("assigned", assigned);
       if (priority && priority !== "all") params.set("priority", priority);
+      if (breachedOnly) params.set("breached", "1");
       if (windowValue) params.set("window", windowValue);
       if (sort && sort !== "lastTouched") params.set("sort", sort);
       if (query) params.set("q", normaliseId(query));
@@ -167,29 +286,63 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
         setItems((prev) => (opts?.append ? [...prev, ...nextItems] : nextItems));
         setNextCursor(res.json.nextCursor ?? null);
         setError(null);
+        setLastUpdatedAt(new Date().toISOString());
+        setStale(false);
       } else {
         const message = res.error?.message ?? "Unable to load cases";
         setError({ message, requestId: res.requestId ?? undefined });
         logMonetisationClientEvent("ops_cases_load_error", null, "ops", { code: res.error?.code ?? "unknown" });
+        setStale(true);
       }
-      setLoading(false);
+      if (!opts?.silent) setLoading(false);
     },
-    [assigned, priority, query, sort, status, windowValue]
+    [assigned, breachedOnly, priority, query, sort, status, windowValue]
   );
 
   useEffect(() => {
-    const viewKey = [status, assigned, priority, windowValue, sort, query].join("|");
+    const viewKey = [view, status, assigned, priority, breachedOnly ? "1" : "0", windowValue, sort, query].join("|");
     if (viewLogged.current !== viewKey) {
       logMonetisationClientEvent("ops_cases_view", null, "ops", { window: windowValue, hasQuery: Boolean(query) });
       viewLogged.current = viewKey;
     }
     fetchCases({ append: false });
-  }, [assigned, fetchCases, priority, query, sort, status, windowValue]);
+  }, [assigned, breachedOnly, fetchCases, priority, query, sort, status, view, windowValue]);
 
   const handleLoadMore = useCallback(() => {
     if (!nextCursor) return;
     fetchCases({ cursor: nextCursor, append: true });
   }, [fetchCases, nextCursor]);
+
+  useEffect(() => {
+    let active = true;
+    const runPoll = () => {
+      if (!active || document.visibilityState !== "visible") {
+        if (document.visibilityState !== "visible") setStale(true);
+        return;
+      }
+      if (pollInFlight.current) return;
+      pollInFlight.current = true;
+      fetchCases({ append: false, silent: true })
+        .catch(() => undefined)
+        .finally(() => {
+          pollInFlight.current = false;
+        });
+    };
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") {
+        setStale(true);
+        return;
+      }
+      runPoll();
+    };
+    const interval = window.setInterval(runPoll, 20000);
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, [fetchCases]);
 
   const handleClaim = useCallback(
     async (requestId: string) => {
@@ -307,24 +460,57 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
   }, [viewerId]);
 
   const handleFilterChange = useCallback(
-    (next: { status?: string; assigned?: string; priority?: string; window?: string }) => {
-      updateQuery(next);
+    (next: { status?: string; assigned?: string; priority?: string; breached?: boolean; window?: string }) => {
+      const nextStatus = next.status ?? status;
+      const nextAssigned = next.assigned ?? assigned;
+      const nextPriority = next.priority ?? priority;
+      const nextBreached = next.breached ?? breachedOnly;
+      const nextView = query ? "custom" : resolveViewFromFilters({
+        status: nextStatus,
+        assigned: nextAssigned,
+        priority: nextPriority,
+        breached: nextBreached,
+      });
+      setView(nextView);
+      updateQuery({ ...next, view: nextView });
       logMonetisationClientEvent("ops_cases_filter_change", null, "ops", {
-        status: next.status ?? status,
-        assigned: next.assigned ?? assigned,
-        priority: next.priority ?? priority,
+        status: nextStatus,
+        assigned: nextAssigned,
+        priority: nextPriority,
         window: next.window ?? windowValue,
         hasQuery: Boolean(query),
       });
     },
-    [assigned, priority, query, status, updateQuery, windowValue]
+    [assigned, breachedOnly, priority, query, status, updateQuery, windowValue]
   );
 
   const handleSortChange = useCallback(
     (nextSort: string) => {
       setSort(nextSort);
       updateQuery({ sort: nextSort });
-      logMonetisationClientEvent("ops_cases_sort_change", null, "ops", { sort: nextSort });
+      logMonetisationClientEvent("ops_cases_sort_changed", null, "ops", { sort: nextSort });
+    },
+    [updateQuery]
+  );
+
+  const handleViewSelect = useCallback(
+    (nextView: SavedViewKey) => {
+      const preset = SAVED_VIEW_PRESETS[nextView];
+      setView(nextView);
+      setStatus(preset.status);
+      setAssigned(preset.assigned);
+      setPriority(preset.priority);
+      setBreachedOnly(preset.breached);
+      setQuery("");
+      updateQuery({
+        status: preset.status,
+        assigned: preset.assigned,
+        priority: preset.priority,
+        breached: preset.breached,
+        q: "",
+        view: nextView,
+      });
+      logMonetisationClientEvent("ops_cases_view_selected", null, "ops", { view: nextView });
     },
     [updateQuery]
   );
@@ -345,7 +531,35 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
       </div>
 
       <div className="rounded-3xl border border-black/10 bg-white/80 p-4">
-        <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-[rgb(var(--ink))]">
+            {SAVED_VIEWS.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                onClick={() => handleViewSelect(item.value)}
+                className={`rounded-full px-3 py-1 ${
+                  view === item.value
+                    ? "bg-[rgb(var(--ink))] text-white"
+                    : "border border-black/10 bg-white text-[rgb(var(--ink))]"
+                }`}
+              >
+                {item.label}
+              </button>
+            ))}
+            {view === "custom" ? (
+              <span className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] text-[rgb(var(--muted))]">
+                Custom
+              </span>
+            ) : null}
+            <CopyIconButton text={queueShareUrl} label="Copy view link" />
+          </div>
+          <div className="text-[11px] text-[rgb(var(--muted))]">
+            <span>Last updated: {lastUpdatedAt ? formatShortLocalTime(lastUpdatedAt) : "—"}</span>
+            {stale ? <span className="ml-2 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-900">Data stale</span> : null}
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap items-end gap-3">
           <label className="text-xs font-semibold text-[rgb(var(--ink))]">
             Status
             <select
@@ -428,6 +642,19 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
               ))}
             </select>
           </label>
+          <label className="mt-5 flex items-center gap-2 text-xs font-semibold text-[rgb(var(--ink))]">
+            <input
+              type="checkbox"
+              checked={breachedOnly}
+              onChange={(event) => {
+                setBreachedOnly(event.target.checked);
+                handleFilterChange({ breached: event.target.checked });
+                logMonetisationClientEvent("ops_cases_sla_filter_used", null, "ops", { breachedOnly: event.target.checked });
+              }}
+              className="h-4 w-4 rounded border-black/20"
+            />
+            Show breached only
+          </label>
           <label className="flex-1 text-xs font-semibold text-[rgb(var(--ink))]">
             Search
             <div className="mt-1 flex items-center gap-2">
@@ -440,7 +667,9 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
               <button
                 type="button"
                 onClick={() => {
-                  updateQuery({ q: query });
+                  const nextView = query ? "custom" : resolveViewFromFilters({ status, assigned, priority, breached: breachedOnly });
+                  setView(nextView);
+                  updateQuery({ q: query, view: nextView });
                   logMonetisationClientEvent("ops_cases_filter_change", null, "ops", { hasQuery: Boolean(query) });
                 }}
                 className="rounded-full border border-black/10 bg-white px-3 py-2 text-xs font-semibold text-[rgb(var(--ink))]"
@@ -460,7 +689,26 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
           <p className="font-semibold text-[rgb(var(--ink))]">No cases match these filters.</p>
           <button
             type="button"
-            onClick={() => updateQuery({ status: "all", assigned: "any", priority: "all", window: "24h", q: "", sort: "lastTouched" })}
+            onClick={() => {
+              setStatus("all");
+              setAssigned("any");
+              setPriority("all");
+              setBreachedOnly(false);
+              setWindowValue("24h");
+              setSort("lastTouched");
+              setQuery("");
+              setView("all");
+              updateQuery({
+                status: "all",
+                assigned: "any",
+                priority: "all",
+                breached: false,
+                window: "24h",
+                q: "",
+                sort: "lastTouched",
+                view: "all",
+              });
+            }}
             className="mt-3 rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-[rgb(var(--ink))]"
           >
             Clear filters
@@ -472,8 +720,14 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
         <div className="space-y-3">
           {items.map((item) => {
             const canEdit = canEditItem(item);
+            const slaLabel = formatSlaLabel(item.slaRemainingMs, item.slaBreached);
             return (
-              <div key={item.requestId} className="rounded-3xl border border-black/10 bg-white/80 p-4">
+              <div
+                key={item.requestId}
+                className={`rounded-3xl border p-4 ${
+                  item.slaBreached ? "border-amber-200 bg-amber-50/70" : "border-black/10 bg-white/80"
+                }`}
+              >
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <div className="flex flex-wrap items-center gap-2">
@@ -491,14 +745,21 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
                       <span className="rounded-full border border-black/10 bg-white px-2 py-0.5 font-semibold text-[rgb(var(--ink))]">
                         {item.priority.toUpperCase()}
                       </span>
+                      <span
+                        className={`rounded-full border px-2 py-0.5 text-[11px] font-semibold ${
+                          item.slaBreached ? "border-amber-200 bg-amber-100 text-amber-900" : "border-black/10 bg-white text-[rgb(var(--ink))]"
+                        }`}
+                      >
+                        {slaLabel}
+                      </span>
                       <span>Last touched {formatRelativeTime(item.lastTouchedAt)}</span>
                       <span>· {formatShortLocalTime(item.lastTouchedAt)}</span>
                     </div>
                   </div>
                   <div className="flex flex-wrap items-center gap-2 text-xs">
                     <Link
-                      href={`/app/ops/case?requestId=${encodeURIComponent(item.requestId)}`}
-                      onClick={() => logMonetisationClientEvent("ops_cases_open_case", null, "ops", { status: item.status })}
+                      href={`/app/ops/case?requestId=${encodeURIComponent(item.requestId)}&returnTo=${encodeURIComponent(queueHref)}`}
+                      onClick={() => logMonetisationClientEvent("ops_cases_open_case_clicked", null, "ops", { status: item.status })}
                       className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
                     >
                       Open case

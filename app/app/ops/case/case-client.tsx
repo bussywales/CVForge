@@ -14,6 +14,7 @@ import { parseOpsCaseInput, type OpsCaseSearchMode } from "@/lib/ops/ops-case-pa
 import { buildCaseKey, resolveCaseWindow, type CaseWindow } from "@/lib/ops/ops-case-model";
 import { normaliseId } from "@/lib/ops/normalise-id";
 import { CASE_CHECKLIST_ITEMS, CASE_OUTCOME_CODES, type CaseChecklistEntry } from "@/lib/ops/ops-case-notes";
+import { formatCasePriority } from "@/lib/ops/ops-case-format";
 import {
   buildOpsCaseAlertsLink,
   buildOpsCaseAuditsLink,
@@ -37,6 +38,7 @@ type Props = {
     signal?: string | null;
     surface?: string | null;
     code?: string | null;
+    returnTo?: string | null;
   };
   requestId: string | null;
   viewerRole: ViewerRole;
@@ -176,6 +178,13 @@ function maskId(value?: string | null) {
   return `${value.slice(0, 4)}***${value.slice(-2)}`;
 }
 
+function normaliseReturnTo(value?: string | null) {
+  if (!value) return null;
+  const trimmed = value.trim();
+  if (!trimmed.startsWith("/app/ops/cases")) return null;
+  return trimmed;
+}
+
 function buildCaseSnippet({
   requestId,
   userId,
@@ -189,6 +198,8 @@ function buildCaseSnippet({
   latestAlertEventId,
   latestWebhookRef,
   billingRequestId,
+  caseLink,
+  queueLink,
 }: {
   requestId?: string | null;
   userId?: string | null;
@@ -202,6 +213,8 @@ function buildCaseSnippet({
   latestAlertEventId?: string | null;
   latestWebhookRef?: string | null;
   billingRequestId?: string | null;
+  caseLink?: string | null;
+  queueLink?: string | null;
 }) {
   const lines = ["CVForge Ops Case", `Window: ${window}`];
   if (requestId) lines.push(`RequestId: ${requestId}`);
@@ -215,6 +228,11 @@ function buildCaseSnippet({
   if (latestAlertEventId) lines.push(`Latest alert event: ${latestAlertEventId}`);
   if (latestWebhookRef) lines.push(`Webhook ref: ${latestWebhookRef}`);
   if (billingRequestId) lines.push(`Billing requestId: ${billingRequestId}`);
+  if (caseLink || queueLink) {
+    lines.push("Links:");
+    if (caseLink) lines.push(`- Case View: ${caseLink}`);
+    if (queueLink) lines.push(`- Queue View: ${queueLink}`);
+  }
   lines.push("Checklist:");
   lines.push("- Opened Alerts and confirmed event visible");
   lines.push("- Acknowledged alert (yes/no)");
@@ -341,7 +359,7 @@ function buildEscalationTemplate({
   if (userId) lines.push(`UserId: ${userId}`);
   if (emailMasked) lines.push(`Email: ${emailMasked}`);
   lines.push(`Status: ${status}`);
-  lines.push(`Priority: ${priority}`);
+  lines.push(`Priority: ${formatCasePriority(priority)}`);
   lines.push(`Window: ${window}`);
   if (trainingScenarioId) lines.push(`Training scenario: ${trainingScenarioId.slice(0, 8)}…`);
 
@@ -422,6 +440,7 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
   const signalRaw = searchParams?.get("signal") ?? initialQuery.signal ?? null;
   const surfaceRaw = searchParams?.get("surface") ?? initialQuery.surface ?? null;
   const codeRaw = searchParams?.get("code") ?? initialQuery.code ?? null;
+  const returnToRaw = searchParams?.get("returnTo") ?? initialQuery.returnTo ?? null;
   const requestIdParamRaw = normaliseId(requestIdRaw) || null;
   const userIdParamRaw = normaliseId(userIdRaw) || null;
   const emailParamRaw = normaliseId(emailRaw) || null;
@@ -447,6 +466,7 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
   const signalParam = normaliseId(signalRaw) || null;
   const surfaceParam = normaliseId(surfaceRaw) || null;
   const codeParam = normaliseId(codeRaw) || null;
+  const returnToParam = normaliseReturnTo(returnToRaw);
   const trainingMode = fromParam === "ops_training" || Boolean(scenarioIdParam);
   const fromAlerts = fromParam === "ops_alerts";
 
@@ -726,10 +746,11 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
       if (signalParam) params.set("signal", signalParam);
       if (surfaceParam) params.set("surface", surfaceParam);
       if (codeParam) params.set("code", codeParam);
+      if (returnToParam) params.set("returnTo", returnToParam);
       const qs = params.toString();
       router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
     },
-    [codeParam, eventIdParam, fromParam, pathname, router, scenarioIdParam, signalParam, surfaceParam, windowValue]
+    [codeParam, eventIdParam, fromParam, pathname, returnToParam, router, scenarioIdParam, signalParam, surfaceParam, windowValue]
   );
 
   const handleSearch = useCallback(() => {
@@ -1015,6 +1036,23 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
   const incidentGroups = useMemo(() => groupIncidents(incidentsData), [incidentsData]);
   const incidentsEmpty = hasQuery && incidentsData.length === 0 && !incidentsLoading;
 
+  const caseLink = useMemo(() => {
+    if (!requestIdParam) return null;
+    const params = new URLSearchParams();
+    params.set("requestId", requestIdParam);
+    if (windowValue) params.set("window", windowValue);
+    if (returnToParam) params.set("returnTo", returnToParam);
+    const path = `/app/ops/case?${params.toString()}`;
+    if (typeof window === "undefined") return path;
+    return `${window.location.origin}${path}`;
+  }, [requestIdParam, returnToParam, windowValue]);
+
+  const queueLink = useMemo(() => {
+    if (!returnToParam) return null;
+    if (typeof window === "undefined") return returnToParam;
+    return `${window.location.origin}${returnToParam}`;
+  }, [returnToParam]);
+
   const summarySnippet = useMemo(
     () =>
       buildCaseSnippet({
@@ -1030,9 +1068,12 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
         latestAlertEventId: filteredAlertEvents[0]?.id ?? null,
         latestWebhookRef: webhooksData[0]?.eventIdHash ?? webhooksData[0]?.groupKeyHash ?? null,
         billingRequestId: billingData?.local?.lastBillingEvent?.requestId ?? null,
+        caseLink,
+        queueLink,
       }),
     [
       billingData?.local?.lastBillingEvent?.requestId,
+      caseLink,
       contextData?.lastSeenAt,
       contextData?.source,
       contextData?.confidence,
@@ -1042,6 +1083,7 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
       effectiveUserId,
       filteredAlertEvents,
       requestIdParam,
+      queueLink,
       webhooksData,
       windowValue,
     ]
@@ -1629,6 +1671,15 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
                 </option>
               ))}
             </select>
+            {returnToParam ? (
+              <Link
+                href={returnToParam}
+                onClick={() => safeLog("ops_case_back_to_queue_clicked")}
+                className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
+              >
+                Back to queue
+              </Link>
+            ) : null}
           </div>
         </div>
 

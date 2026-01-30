@@ -22,6 +22,7 @@ export default async function OpsCasePage({
     signal?: string | null;
     surface?: string | null;
     code?: string | null;
+    returnTo?: string | null;
   };
 }) {
   const { user } = await getSupabaseUser();
@@ -52,6 +53,7 @@ export default async function OpsCasePage({
           signal: searchParams?.signal ?? null,
           surface: searchParams?.surface ?? null,
           code: searchParams?.code ?? null,
+          returnTo: searchParams?.returnTo ?? null,
         }}
         requestId={requestId}
         viewerRole={roleInfo.role}

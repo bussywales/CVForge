@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   decodeCaseQueueCursor,
   encodeCaseQueueCursor,
+  normaliseCaseQueueBreached,
+  normaliseCaseQueuePriority,
   normaliseCaseQueueQuery,
+  normaliseCaseQueueStatus,
   resolveCaseLastTouched,
 } from "@/lib/ops/ops-case-queue";
 
@@ -23,6 +26,17 @@ describe("ops case queue helpers", () => {
       kind: "userId",
       value: "0b5a3a50-3f6e-4b79-8c4e-48b8d8a7c111",
     });
+  });
+
+  it("handles waiting and p0_p1 filters", () => {
+    expect(normaliseCaseQueueStatus("waiting")).toBe("waiting");
+    expect(normaliseCaseQueuePriority("p0_p1")).toBe("p0_p1");
+  });
+
+  it("normalises breached filter", () => {
+    expect(normaliseCaseQueueBreached("1")).toBe(true);
+    expect(normaliseCaseQueueBreached("true")).toBe(true);
+    expect(normaliseCaseQueueBreached("0")).toBe(false);
   });
 
   it("resolves latest touched timestamp", () => {

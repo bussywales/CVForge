@@ -8,15 +8,15 @@ import {
   type CaseWorkflowStatus,
 } from "@/lib/ops/ops-case-workflow";
 
-export type CaseQueueSort = "lastTouched" | "createdAt" | "priority" | "status";
+export type CaseQueueSort = "lastTouched" | "createdAt" | "priority" | "status" | "sla";
 export type CaseQueueAssignedFilter = "any" | "me" | "unassigned";
-export type CaseQueueStatusFilter = "all" | CaseWorkflowStatus;
-export type CaseQueuePriorityFilter = "all" | CasePriority;
+export type CaseQueueStatusFilter = "all" | CaseWorkflowStatus | "waiting";
+export type CaseQueuePriorityFilter = "all" | CasePriority | "p0_p1";
 
 export type CaseQueueCursor = { ts: string; id: string };
 
 export function normaliseCaseQueueSort(value?: string | null): CaseQueueSort {
-  if (value === "createdAt" || value === "priority" || value === "status") return value;
+  if (value === "createdAt" || value === "priority" || value === "status" || value === "sla") return value;
   return "lastTouched";
 }
 
@@ -28,14 +28,21 @@ export function normaliseCaseQueueAssigned(value?: string | null): CaseQueueAssi
 
 export function normaliseCaseQueueStatus(value?: string | null): CaseQueueStatusFilter | null {
   if (!value || value === "all") return "all";
+  if (value === "waiting") return "waiting";
   const parsed = normaliseCaseStatus(value);
   return parsed ?? null;
 }
 
 export function normaliseCaseQueuePriority(value?: string | null): CaseQueuePriorityFilter | null {
   if (!value || value === "all") return "all";
+  if (value === "p0_p1") return "p0_p1";
   const parsed = normaliseCasePriority(value);
   return parsed ?? null;
+}
+
+export function normaliseCaseQueueBreached(value?: string | null) {
+  if (!value) return false;
+  return value === "1" || value === "true";
 }
 
 export function normaliseCaseQueueWindow(input?: string | null): CaseWindow {

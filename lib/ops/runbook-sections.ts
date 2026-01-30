@@ -77,8 +77,8 @@ export type RunbookSection = {
 };
 
 export const RUNBOOK_META = {
-  lastUpdatedVersion: "v0.8.61",
-  lastUpdatedIso: "2026-03-26T00:00:00.000Z",
+  lastUpdatedVersion: "v0.8.62",
+  lastUpdatedIso: "2026-03-27T00:00:00.000Z",
   rulesVersion: "ops_runbook_v1",
 };
 
@@ -383,7 +383,7 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
     owner: "Support",
     lastUpdatedIso: LAST_UPDATED,
     linkedSurfaces: ["alerts", "incidents", "webhooks", "billing", "status"],
-    tags: ["case-queue", "workflow", "triage", "assignment"],
+    tags: ["case-queue", "workflow", "triage", "assignment", "sla", "saved-views"],
     body: [
       { type: "heading", text: "What this is / When to use" },
       {
@@ -411,7 +411,9 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
       {
         type: "checks",
         items: [
-          "Confirm the queue filters (status/assigned/priority/window) match the task at hand.",
+          "Confirm the saved view and filters (status/assigned/priority/window) match the task at hand.",
+          "SLA targets: P0=15m, P1=60m, P2=4h, P3=24h (based on created_at).",
+          "SLA badges use created_at for timing; verify breached cases are surfaced with the breached-only toggle.",
           "Review ageing buckets for cases older than 1h/6h/24h.",
           "Open the Case View before making status or priority changes.",
         ],
@@ -421,7 +423,8 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
         items: [
           "Claim unassigned cases before starting investigation.",
           "Update status/priority directly in the queue when appropriate.",
-          "Use Open case to capture evidence and escalation templates.",
+          "Use saved views (All/My/Unassigned/Waiting/P0–P1); manual filters flip the view to Custom.",
+          "Use Open case to capture evidence and escalation templates, then return via Back to queue.",
         ],
       },
       {

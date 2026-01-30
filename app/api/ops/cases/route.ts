@@ -11,6 +11,7 @@ import {
   encodeCaseQueueCursor,
   getWindowFromIso,
   normaliseCaseQueueAssigned,
+  normaliseCaseQueueBreached,
   normaliseCaseQueuePriority,
   normaliseCaseQueueQuery,
   normaliseCaseQueueSort,
@@ -18,6 +19,8 @@ import {
   normaliseCaseQueueWindow,
   resolveCaseLastTouched,
 } from "@/lib/ops/ops-case-queue";
+import { computeCaseSla } from "@/lib/ops/ops-case-sla";
+import { normaliseCasePriority } from "@/lib/ops/ops-case-workflow";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -65,6 +68,7 @@ export async function GET(request: Request) {
     const sort = normaliseCaseQueueSort(url.searchParams.get("sort"));
     const window = normaliseCaseQueueWindow(url.searchParams.get("window"));
     const { fromIso } = getWindowFromIso(window);
+    const breachedOnly = normaliseCaseQueueBreached(url.searchParams.get("breached"));
     const search = normaliseCaseQueueQuery(url.searchParams.get("q"));
     let requestIdsFilter: string[] | null = null;
     const cursorRaw = url.searchParams.get("cursor");
@@ -79,6 +83,8 @@ export async function GET(request: Request) {
     limit = Math.min(limit, 100);
 
     const admin = createServiceRoleClient();
+    const now = new Date();
+    const nowIso = now.toISOString();
 
     if (search.kind === "userId" && search.value) {
       const { data: contextRows, error: contextError } = await admin
@@ -96,14 +102,23 @@ export async function GET(request: Request) {
 
     let query = admin
       .from("ops_case_workflow")
-      .select("request_id,status,priority,assigned_to_user_id,last_touched_at,created_at,updated_at")
+      .select("request_id,status,priority,assigned_to_user_id,last_touched_at,created_at,updated_at,sla_due_at")
       .gte("last_touched_at", fromIso)
       .limit(limit + 1);
 
-    if (statusParam !== "all") query = query.eq("status", statusParam);
-    if (priorityParam !== "all") query = query.eq("priority", priorityParam);
+    if (statusParam === "waiting") {
+      query = query.in("status", ["waiting_on_user", "waiting_on_provider"]);
+    } else if (statusParam !== "all") {
+      query = query.eq("status", statusParam);
+    }
+    if (priorityParam === "p0_p1") {
+      query = query.in("priority", ["p0", "p1"]);
+    } else if (priorityParam !== "all") {
+      query = query.eq("priority", priorityParam);
+    }
     if (assignedParam === "me") query = query.eq("assigned_to_user_id", user.id);
     if (assignedParam === "unassigned") query = query.is("assigned_to_user_id", null);
+    if (breachedOnly) query = query.lt("sla_due_at", nowIso);
 
     if (requestIdsFilter?.length) {
       query = query.in("request_id", requestIdsFilter);
@@ -125,6 +140,8 @@ export async function GET(request: Request) {
       query = query.order("priority", { ascending: true }).order("last_touched_at", { ascending: false });
     } else if (sort === "status") {
       query = query.order("status", { ascending: true }).order("last_touched_at", { ascending: false });
+    } else if (sort === "sla") {
+      query = query.order("sla_due_at", { ascending: true }).order("request_id", { ascending: false });
     } else {
       query = query.order("last_touched_at", { ascending: false }).order("request_id", { ascending: false });
     }
@@ -191,10 +208,12 @@ export async function GET(request: Request) {
       const noteInfo = notesMap.get(row.request_id);
       const evidenceInfo = evidenceStats.get(row.request_id);
       const contextInfo = contextMap.get(row.request_id);
+      const priorityValue = normaliseCasePriority(row.priority) ?? "p2";
+      const slaInfo = computeCaseSla({ priority: priorityValue, createdAt: row.created_at, now });
       return {
         requestId: row.request_id,
         status: row.status,
-        priority: row.priority,
+        priority: priorityValue,
         assignedUserId: row.assigned_to_user_id ?? null,
         assignedToMe: row.assigned_to_user_id === user.id,
         lastTouchedAt: resolveCaseLastTouched({
@@ -204,6 +223,9 @@ export async function GET(request: Request) {
           evidenceUpdated: evidenceInfo?.lastAt ?? null,
         }),
         createdAt: row.created_at,
+        slaDueAt: slaInfo?.dueAt ?? row.sla_due_at ?? null,
+        slaBreached: slaInfo?.breached ?? false,
+        slaRemainingMs: slaInfo?.remainingMs ?? null,
         notesCount: noteInfo ? 1 : 0,
         evidenceCount: evidenceInfo?.count ?? 0,
         userContext: contextInfo

@@ -82,7 +82,7 @@ Close-out loop after acceptance helps withdraw from other applications and log o
 ## Ops Console
 Ops/admin/super_admin roles see an Ops Console entry and can access /app/ops (others get a premium Access denied view with reference/support snippet). Ops support links deep-link into Billing sections (plan/pack/portal flows) with scroll/highlight for guided handoff.
 Ops Case View: /app/ops/case provides a requestId-first cockpit with search + window selector, alerts/incidents/audits/webhooks/billing/resolution/watch panels, workflow controls (status/priority/claim/assign), evidence capture, escalation templates, copyable case + handoff snippets, persistent checklist/notes/outcome tracking, training evidence copy, and canonical request context mapping (requestId → userId/email) with auto-resolve + confidence to unlock billing/dossier panels.
-Ops Case Queue: /app/ops/cases provides a requestId-first inbox with filters, quick actions (claim/status/priority), and a My queue workload summary for managing assigned vs unassigned cases.
+Ops Case Queue: /app/ops/cases provides a requestId-first inbox with saved views, SLA badges + breach filtering/sort, quick actions (claim/status/priority), return-to-queue links, and a My queue workload summary for managing assigned vs unassigned cases.
 Ops Training sandbox includes ID copy actions (requestId/eventId/all) and Case View shortcuts for drill follow-through.
 
 ## Outreach Autopilot

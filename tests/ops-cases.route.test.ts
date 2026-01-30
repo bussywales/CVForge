@@ -18,6 +18,7 @@ const workflowRows = [
     last_touched_at: "2024-01-01T01:00:00.000Z",
     created_at: "2024-01-01T00:00:00.000Z",
     updated_at: "2024-01-01T01:00:00.000Z",
+    sla_due_at: "2024-01-01T01:00:00.000Z",
   },
   {
     request_id: "req_b",
@@ -27,6 +28,7 @@ const workflowRows = [
     last_touched_at: "2024-01-01T02:00:00.000Z",
     created_at: "2024-01-01T01:00:00.000Z",
     updated_at: "2024-01-01T02:00:00.000Z",
+    sla_due_at: "2024-01-01T05:00:00.000Z",
   },
 ];
 
@@ -178,6 +180,10 @@ beforeAll(async () => {
             rows = rows.filter((row: any) => row[col] >= value);
             return query;
           },
+          lt: (col: string, value: string) => {
+            rows = rows.filter((row: any) => row[col] < value);
+            return query;
+          },
           eq: (col: string, value: string) => {
             rows = rows.filter((row: any) => row[col] === value);
             return query;
@@ -274,6 +280,14 @@ describe("ops cases routes", () => {
     const body = await res.json();
     expect(body.items.length).toBe(1);
     expect(body.nextCursor).toBeTruthy();
+  });
+
+  it("sorts by SLA due soonest", async () => {
+    role = "support";
+    const res = await LIST_GET(new Request("http://localhost/api/ops/cases?window=24h&sort=sla"));
+    const body = await res.json();
+    expect(body.items[0].requestId).toBe("req_a");
+    expect(body.items[0].slaDueAt).toBe("2024-01-01T01:00:00.000Z");
   });
 
   it("returns summary counts", async () => {

@@ -1,11 +1,3 @@
-update public.ops_case_workflow
-set priority = case
-  when priority = 'high' then 'p1'
-  when priority = 'medium' then 'p2'
-  when priority = 'low' then 'p3'
-  else priority
-end;
-
 do $$
 begin
   if exists (
@@ -25,6 +17,14 @@ begin
       drop constraint ops_case_workflow_status_chk;
   end if;
 end $$;
+
+update public.ops_case_workflow
+set priority = case
+  when priority = 'high' then 'p1'
+  when priority = 'medium' then 'p2'
+  when priority = 'low' then 'p3'
+  else priority
+end;
 
 alter table public.ops_case_workflow
   alter column priority set default 'p2';

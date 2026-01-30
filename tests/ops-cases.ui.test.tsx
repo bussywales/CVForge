@@ -37,6 +37,9 @@ describe("Ops cases queue", () => {
           assignedToMe: false,
           lastTouchedAt: "2024-01-01T02:00:00.000Z",
           createdAt: "2024-01-01T00:00:00.000Z",
+          slaDueAt: "2024-01-01T04:00:00.000Z",
+          slaBreached: false,
+          slaRemainingMs: 3600000,
           notesCount: 1,
           evidenceCount: 2,
           userContext: { userId: "user_ctx", source: "ops_audit", confidence: "high" },
@@ -94,6 +97,7 @@ describe("Ops cases queue", () => {
     render(<CasesClient initialQuery={{}} viewerRole="support" viewerId="user_ops" />);
     await waitFor(() => expect(screen.getByText("req_123")).toBeTruthy());
     expect(screen.getByText(/Open case/i)).toBeTruthy();
+    expect(screen.getByText(/SLA:/i)).toBeTruthy();
   });
 
   it("updates URL when status filter changes", async () => {
@@ -101,6 +105,31 @@ describe("Ops cases queue", () => {
     const statusSelect = await screen.findByLabelText("Status");
     fireEvent.change(statusSelect, { target: { value: "open" } });
     expect(replaceMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("opens a case with returnTo", async () => {
+    render(<CasesClient initialQuery={{}} viewerRole="support" viewerId="user_ops" />);
+    const link = await screen.findByText("Open case");
+    expect(link.getAttribute("href")).toContain("returnTo=");
+  });
+
+  it("selects a saved view and updates URL", async () => {
+    render(<CasesClient initialQuery={{}} viewerRole="support" viewerId="user_ops" />);
+    fireEvent.click(await screen.findByText("My queue"));
+    expect(replaceMock).toHaveBeenCalled();
+    const call = replaceMock.mock.calls[replaceMock.mock.calls.length - 1][0];
+    expect(call).toContain("view=my");
+    expect(call).toContain("assigned=me");
+  });
+
+  it("switches to custom view on manual filter change", async () => {
+    render(<CasesClient initialQuery={{}} viewerRole="support" viewerId="user_ops" />);
+    fireEvent.click(await screen.findByText("My queue"));
+    replaceMock.mockClear();
+    const statusSelect = await screen.findByLabelText("Status");
+    fireEvent.change(statusSelect, { target: { value: "open" } });
+    const call = replaceMock.mock.calls[replaceMock.mock.calls.length - 1][0];
+    expect(call).toContain("view=custom");
   });
 
   it("claims and releases a case", async () => {
@@ -116,5 +145,18 @@ describe("Ops cases queue", () => {
     casesResponse = { ok: true, items: [], nextCursor: null };
     render(<CasesClient initialQuery={{}} viewerRole="support" viewerId="user_ops" />);
     await waitFor(() => expect(screen.getByText(/No cases match/i)).toBeTruthy());
+  });
+
+  it("polls without updating history", async () => {
+    vi.useFakeTimers();
+    const fetchMock = global.fetch as any;
+    render(<CasesClient initialQuery={{}} viewerRole="support" viewerId="user_ops" />);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    fetchMock.mockClear();
+    replaceMock.mockClear();
+    vi.advanceTimersByTime(20000);
+    await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+    expect(replaceMock).not.toHaveBeenCalled();
+    vi.useRealTimers();
   });
 });

@@ -14,6 +14,8 @@ export default async function OpsCasesPage({
     status?: string | null;
     assigned?: string | null;
     priority?: string | null;
+    view?: string | null;
+    breached?: string | null;
     window?: string | null;
     q?: string | null;
     sort?: string | null;
@@ -33,6 +35,8 @@ export default async function OpsCasesPage({
         status: searchParams?.status ?? null,
         assigned: searchParams?.assigned ?? null,
         priority: searchParams?.priority ?? null,
+        view: searchParams?.view ?? null,
+        breached: searchParams?.breached ?? null,
         window: searchParams?.window ?? null,
         q: searchParams?.q ?? null,
         sort: searchParams?.sort ?? null,

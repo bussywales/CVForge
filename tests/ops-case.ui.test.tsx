@@ -126,6 +126,19 @@ describe("Ops case view", () => {
     expect(screen.getByText(/Paste a requestId to begin/i)).toBeTruthy();
   });
 
+  it("shows back to queue link when returnTo is present", async () => {
+    searchParamsValue = new URLSearchParams("requestId=req_123&returnTo=/app/ops/cases?assigned=me");
+    render(
+      <CaseClient
+        initialQuery={{ requestId: "req_123", userId: null, email: null, window: "24h", from: null, returnTo: "/app/ops/cases?assigned=me" }}
+        requestId="req_test"
+        viewerRole="support"
+        viewerId="user_ops"
+      />
+    );
+    await waitFor(() => expect(screen.getByText(/Back to queue/i)).toBeTruthy());
+  });
+
   it("submits search and updates URL once", () => {
     render(
       <CaseClient
