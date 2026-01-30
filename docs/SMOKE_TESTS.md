@@ -72,6 +72,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Generate a training scenario → open Case View → user context resolves automatically or shows a clear “no touchpoints in this window” hint.
 - Attach user context (admin) → refresh Case View → userId + source/confidence persist and billing panels unlock.
 
+## Quick prod checks (v0.8.60)
+- Open /app/ops/case with requestId → claim the case, set status/priority, and confirm time-in-state updates.
+- Add an Evidence note → entry appears immediately and shows in the Escalation template copy.
+- Copy Escalation template → includes masked identifiers, outcomes/watch context, and deep links.
+
 ## Quick prod checks (v0.8.59)
 - Open /app/ops/case with requestId → toggle checklist items and confirm they persist after refresh.
 - Set outcome + notes, Save, and Copy handoff snippet (clipboard populated).

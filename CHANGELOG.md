@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.60
+- Ops Case View v2 adds case workflow controls (status/priority/claim/assign), evidence capture, and escalation templates with masked context and deep links.
+
 ## v0.8.59
 - Ops Case View now includes persistent case notes + checklist tracking, outcome capture with last-handled metadata, and training evidence copy blocks for ops drills.
 

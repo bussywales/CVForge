@@ -77,8 +77,8 @@ export type RunbookSection = {
 };
 
 export const RUNBOOK_META = {
-  lastUpdatedVersion: "v0.8.59",
-  lastUpdatedIso: "2026-03-12T00:00:00.000Z",
+  lastUpdatedVersion: "v0.8.60",
+  lastUpdatedIso: "2026-03-19T00:00:00.000Z",
   rulesVersion: "ops_runbook_v1",
 };
 
@@ -280,6 +280,93 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
         type: "send",
         items: [
           "requestId, outcome code, note length, last handled timestamp, and any ErrorBanner requestId values.",
+        ],
+      },
+      {
+        type: "links",
+        items: [{ label: "Case View", href: "/app/ops/case" }],
+      },
+    ],
+  },
+  {
+    id: "case-view-workflow",
+    title: "Case View workflow: claim → investigate → resolve → close",
+    category: "Getting started",
+    ...BASE_SUPPORT,
+    owner: "Support",
+    lastUpdatedIso: LAST_UPDATED,
+    linkedSurfaces: ["alerts", "incidents", "webhooks", "billing", "status"],
+    tags: ["case-view", "workflow", "claim", "priority", "escalation", "evidence"],
+    body: [
+      { type: "heading", text: "What this is / When to use" },
+      {
+        type: "paragraph",
+        text: "Use the Case View workflow controls to claim ownership, set status/priority, and keep ops work coordinated without duplicate effort.",
+      },
+      { type: "heading", text: "Symptoms" },
+      {
+        type: "bullets",
+        items: [
+          "Cases are claimed by multiple responders or not owned at all.",
+          "Status is stale even though investigation has moved on.",
+          "Escalations lack consistent context or evidence.",
+        ],
+      },
+      { type: "heading", text: "Likely causes" },
+      {
+        type: "bullets",
+        items: [
+          "Case was never claimed or released after handoff.",
+          "Status/priority was not updated after key actions.",
+          "Evidence was captured outside the Case View.",
+        ],
+      },
+      {
+        type: "checks",
+        items: [
+          "Confirm the Case workflow section shows the correct owner.",
+          "Review time in state and time since opened for escalation urgency.",
+          "Verify evidence items and latest outcomes before copying templates.",
+        ],
+      },
+      {
+        type: "actions",
+        items: [
+          "Claim the case when you begin active investigation.",
+          "Update status as you move from open → investigating → monitoring → resolved.",
+          "Set priority (low/medium/high) for visibility and triage.",
+          "Admin only: assign ownership to another ops user when handing off.",
+        ],
+      },
+      { type: "heading", text: "Escalation templates: what's included" },
+      {
+        type: "bullets",
+        items: [
+          "RequestId, userId (masked), status, priority, window, and deep links.",
+          "Latest outcomes and active watch items (if any).",
+          "Up to the last 3 evidence items.",
+        ],
+      },
+      { type: "heading", text: "Evidence: what to store / what not to store" },
+      {
+        type: "bullets",
+        items: [
+          "Store short notes, decisions, or links that help the next responder.",
+          "Do not store raw emails, webhook URLs, or tokens.",
+          "Use masked identifiers and keep evidence concise.",
+        ],
+      },
+      {
+        type: "escalate",
+        items: [
+          "Case claim conflicts persist across multiple attempts.",
+          "Status cannot be updated or reverts after refresh.",
+        ],
+      },
+      {
+        type: "send",
+        items: [
+          "requestId, current status/priority, owner, time in state, and the escalation template output.",
         ],
       },
       {

@@ -17,6 +17,7 @@ import {
   sanitizeCaseNotesMeta,
   upsertCaseNotes,
 } from "@/lib/ops/ops-case-notes";
+import { getOrCreateCaseWorkflow, touchCaseWorkflow } from "@/lib/ops/ops-case-workflow";
 import { captureServerError } from "@/lib/observability/sentry";
 import crypto from "crypto";
 
@@ -129,6 +130,15 @@ export async function POST(request: Request) {
       actorId: user.id,
       windowLabel,
     });
+
+    if (caseType === "request" && caseKey) {
+      try {
+        await getOrCreateCaseWorkflow({ requestId: caseKey });
+        await touchCaseWorkflow({ requestId: caseKey });
+      } catch {
+        // best-effort only
+      }
+    }
 
     const caseKeyHash = hashCaseKey(caseKey);
     const safeMeta = sanitizeCaseNotesMeta({

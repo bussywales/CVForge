@@ -19,6 +19,9 @@ export default async function OpsCasePage({
     q?: string | null;
     scenarioId?: string | null;
     eventId?: string | null;
+    signal?: string | null;
+    surface?: string | null;
+    code?: string | null;
   };
 }) {
   const { user } = await getSupabaseUser();
@@ -46,9 +49,13 @@ export default async function OpsCasePage({
           q: searchParams?.q ?? null,
           scenarioId: searchParams?.scenarioId ?? null,
           eventId: searchParams?.eventId ?? null,
+          signal: searchParams?.signal ?? null,
+          surface: searchParams?.surface ?? null,
+          code: searchParams?.code ?? null,
         }}
         requestId={requestId}
         viewerRole={roleInfo.role}
+        viewerId={user.id}
       />
     </div>
   );
