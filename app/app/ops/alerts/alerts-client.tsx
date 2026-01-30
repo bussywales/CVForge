@@ -991,6 +991,26 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
     });
   };
 
+  const tickCaseChecklist = async (requestId: string | null) => {
+    const cleanRequestId = normaliseId(requestId ?? "");
+    if (!cleanRequestId) return;
+    try {
+      await fetchJsonSafe(`/api/ops/case/notes/upsert`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          caseType: "request",
+          caseKey: cleanRequestId,
+          patch: { checklist: { ack_alert: true } },
+          source: "ops_alerts_ack",
+        }),
+      });
+    } catch {
+      // best-effort only
+    }
+  };
+
   const acknowledgeEvent = async (event: any) => {
     if (!event?.id) return;
     logMonetisationClientEvent("ops_alerts_ack_click", null, "ops", {
@@ -1034,6 +1054,8 @@ export default function AlertsClient({ initial, initialError, requestId }: { ini
       if (ackRes.json?.deduped) {
         setFlash("Already acknowledged.");
       }
+      const requestIdFromEvent = event?.signals?.requestId ?? event?.signals?.request_id ?? null;
+      void tickCaseChecklist(typeof requestIdFromEvent === "string" ? requestIdFromEvent : null);
       if (fromTraining || trainingScenarioId || event?.isTest) {
         void (async () => {
           try {

@@ -77,8 +77,8 @@ export type RunbookSection = {
 };
 
 export const RUNBOOK_META = {
-  lastUpdatedVersion: "v0.8.58",
-  lastUpdatedIso: "2026-03-05T00:00:00.000Z",
+  lastUpdatedVersion: "v0.8.59",
+  lastUpdatedIso: "2026-03-12T00:00:00.000Z",
   rulesVersion: "ops_runbook_v1",
 };
 
@@ -216,6 +216,75 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
       {
         type: "send",
         items: ["requestId, window, source + confidence, last seen timestamp, and evidence showing missing or conflicting user context."],
+      },
+    ],
+  },
+  {
+    id: "case-view-working-case",
+    title: "Case View: working a case",
+    category: "Getting started",
+    ...BASE_SUPPORT,
+    owner: "Support",
+    lastUpdatedIso: LAST_UPDATED,
+    linkedSurfaces: ["alerts", "incidents", "webhooks", "billing", "status"],
+    tags: ["case-view", "checklist", "outcome", "handoff", "training"],
+    body: [
+      { type: "heading", text: "What this is / When to use" },
+      {
+        type: "paragraph",
+        text: "Case View includes a persistent checklist and notes panel to track ops progress, capture outcomes, and produce a training evidence summary when opened from a drill.",
+      },
+      { type: "heading", text: "Symptoms" },
+      {
+        type: "bullets",
+        items: [
+          "Multiple responders are unsure which steps have already been completed.",
+          "Handoff notes are missing or out of date during escalation.",
+          "Training drills need a paste-ready evidence summary.",
+        ],
+      },
+      { type: "heading", text: "Likely causes" },
+      {
+        type: "bullets",
+        items: [
+          "Checklist items were not ticked as actions completed.",
+          "Outcome and notes were never saved before handoff.",
+          "Case was closed without recording an outcome.",
+        ],
+      },
+      {
+        type: "checks",
+        items: [
+          "Verify checklist items reflect the latest actions (Alerts/Incidents/Audits/Webhooks/Billing).",
+          "Confirm Outcome and Notes are saved and show a recent Last handled timestamp.",
+          "In training mode, confirm the Training evidence block is visible.",
+        ],
+      },
+      {
+        type: "actions",
+        items: [
+          "Update the Outcome dropdown and add a concise note, then Save.",
+          "Tick checklist items as each ops step is completed.",
+          "Copy the handoff snippet for support or escalation.",
+          "Admin only: Close case once resolution is confirmed.",
+        ],
+      },
+      {
+        type: "escalate",
+        items: [
+          "Checklist/outcome saves fail or revert after refresh.",
+          "Cases are closed without sufficient evidence or notes.",
+        ],
+      },
+      {
+        type: "send",
+        items: [
+          "requestId, outcome code, note length, last handled timestamp, and any ErrorBanner requestId values.",
+        ],
+      },
+      {
+        type: "links",
+        items: [{ label: "Case View", href: "/app/ops/case" }],
       },
     ],
   },

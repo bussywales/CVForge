@@ -87,8 +87,10 @@ describe("ops help training sandbox ui", () => {
     expect(alertsLink.getAttribute("href")).toContain("scenarioId=scn_1");
     expect(screen.getByText("Open Audits")).toBeTruthy();
     const caseLink = screen.getByText("Open Case View");
-    expect(caseLink.getAttribute("href")).toContain("/app/ops/case?q=req_train");
+    expect(caseLink.getAttribute("href")).toContain("/app/ops/case?requestId=req_train");
     expect(caseLink.getAttribute("href")).toContain("window=15m");
+    expect(caseLink.getAttribute("href")).toContain("from=ops_training");
+    expect(caseLink.getAttribute("href")).toContain("scenarioId=scn_1");
   });
 
   it("copies training report with deep links", async () => {

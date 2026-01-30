@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.59
+- Ops Case View now includes persistent case notes + checklist tracking, outcome capture with last-handled metadata, and training evidence copy blocks for ops drills.
+
 ## v0.8.58
 - Ops Case View auto-resolves requestId → user context from audits/outcomes/webhook touchpoints, persists confidence/source evidence in the canonical mapping, and exposes richer context + copyable userId.
 

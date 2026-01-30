@@ -96,6 +96,10 @@ beforeAll(async () => {
     deactivateScenario: (...args: any[]) => deactivateMock(...args),
     markTrainingScenarioAcknowledged: (...args: any[]) => markMock(...args),
   }));
+  vi.doMock("@/lib/ops/ops-case-notes", () => ({
+    getCaseNotes: async () => null,
+    upsertCaseNotes: async () => ({ row: null, toggledKeys: [], changed: false }),
+  }));
   vi.doMock("@/lib/supabase/service", () => ({
     createServiceRoleClient: () => ({
       from: () => ({ insert: vi.fn().mockResolvedValue({}) }),

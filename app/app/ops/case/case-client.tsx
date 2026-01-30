@@ -12,6 +12,7 @@ import { formatShortLocalTime } from "@/lib/time/format-short";
 import { parseOpsCaseInput, type OpsCaseSearchMode } from "@/lib/ops/ops-case-parse";
 import { buildCaseKey, resolveCaseWindow, type CaseWindow } from "@/lib/ops/ops-case-model";
 import { normaliseId } from "@/lib/ops/normalise-id";
+import { CASE_CHECKLIST_ITEMS, CASE_OUTCOME_CODES, type CaseChecklistEntry } from "@/lib/ops/ops-case-notes";
 import {
   buildOpsCaseAlertsLink,
   buildOpsCaseAuditsLink,
@@ -23,7 +24,16 @@ import {
 import { groupIncidents, type IncidentRecord } from "@/lib/ops/incidents-shared";
 
 type Props = {
-  initialQuery: { requestId: string | null; userId: string | null; email: string | null; window: string | null; from: string | null; q?: string | null };
+  initialQuery: {
+    requestId: string | null;
+    userId: string | null;
+    email: string | null;
+    window: string | null;
+    from: string | null;
+    q?: string | null;
+    scenarioId?: string | null;
+    eventId?: string | null;
+  };
   requestId: string | null;
   viewerRole: ViewerRole;
 };
@@ -91,6 +101,20 @@ type CaseContext = {
   firstSeenAt: string;
   lastSeenAt: string;
   lastSeenPath?: string | null;
+};
+
+type CaseNotesRecord = {
+  caseType: string;
+  caseKey: string;
+  windowLabel?: string | null;
+  checklist?: Record<string, CaseChecklistEntry>;
+  outcomeCode?: string | null;
+  notes?: string | null;
+  status?: string | null;
+  lastHandledAt?: string | null;
+  lastHandledBy?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 };
 
 const WINDOW_OPTIONS: Array<{ value: CaseWindow; label: string }> = [
@@ -164,6 +188,83 @@ function buildCaseSnippet({
   return lines.join("\n");
 }
 
+function buildCaseHandoffSnippet({
+  requestId,
+  userId,
+  outcome,
+  notes,
+  window,
+  alertsCount,
+  incidentsCount,
+  webhooksCount,
+  billingSummary,
+}: {
+  requestId?: string | null;
+  userId?: string | null;
+  outcome?: string | null;
+  notes?: string | null;
+  window: CaseWindow;
+  alertsCount: number;
+  incidentsCount: number;
+  webhooksCount: number;
+  billingSummary: string;
+}) {
+  const lines = ["CVForge Ops Handoff", `Window: ${window}`];
+  if (requestId) lines.push(`RequestId: ${requestId}`);
+  if (userId) lines.push(`UserId: ${userId}`);
+  if (outcome) lines.push(`Outcome: ${outcome}`);
+  if (notes) lines.push(`Notes: ${notes}`);
+  lines.push(`Alerts: ${alertsCount} firing`);
+  lines.push(`Incidents: ${incidentsCount}`);
+  lines.push(`Webhooks: ${webhooksCount}`);
+  lines.push(`Billing: ${billingSummary}`);
+  return lines.join("\n");
+}
+
+function buildTrainingEvidenceSnippet({
+  scenarioId,
+  requestId,
+  eventId,
+  checklist,
+  outcome,
+  notes,
+  links,
+}: {
+  scenarioId?: string | null;
+  requestId?: string | null;
+  eventId?: string | null;
+  checklist: Record<string, CaseChecklistEntry> | null;
+  outcome?: string | null;
+  notes?: string | null;
+  links: { alerts: string; incidents: string; audits: string; webhooks: string; status: string; caseView: string };
+}) {
+  const lines = ["CVForge Ops Training Evidence"];
+  if (scenarioId) lines.push(`ScenarioId: ${scenarioId}`);
+  if (requestId) lines.push(`RequestId: ${requestId}`);
+  if (eventId) lines.push(`EventId: ${eventId}`);
+  if (outcome) lines.push(`Outcome: ${outcome}`);
+  if (notes) lines.push(`Notes: ${notes}`);
+  lines.push("Checklist:");
+  CASE_CHECKLIST_ITEMS.forEach((item) => {
+    const done = Boolean(checklist?.[item.key]?.done);
+    lines.push(`- ${item.label}: ${done ? "yes" : "no"}`);
+  });
+  lines.push("Links:");
+  lines.push(`- Alerts: ${links.alerts}`);
+  lines.push(`- Incidents: ${links.incidents}`);
+  lines.push(`- Audits: ${links.audits}`);
+  lines.push(`- Webhooks: ${links.webhooks}`);
+  lines.push(`- Status: ${links.status}`);
+  lines.push(`- Case View: ${links.caseView}`);
+  return lines.join("\n");
+}
+
+function withQueryParam(href: string, key: string, value?: string | null) {
+  if (!value) return href;
+  const separator = href.includes("?") ? "&" : "?";
+  return `${href}${separator}${key}=${encodeURIComponent(value)}`;
+}
+
 export default function CaseClient({ initialQuery, requestId, viewerRole }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -180,9 +281,13 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
   const userIdRaw = searchParams?.get("userId") ?? initialQuery.userId ?? null;
   const emailRaw = searchParams?.get("email") ?? initialQuery.email ?? null;
   const qRaw = searchParams?.get("q") ?? initialQuery.q ?? null;
+  const scenarioIdRaw = searchParams?.get("scenarioId") ?? initialQuery.scenarioId ?? null;
+  const eventIdRaw = searchParams?.get("eventId") ?? initialQuery.eventId ?? null;
   const requestIdParamRaw = normaliseId(requestIdRaw) || null;
   const userIdParamRaw = normaliseId(userIdRaw) || null;
   const emailParamRaw = normaliseId(emailRaw) || null;
+  const scenarioIdParamRaw = normaliseId(scenarioIdRaw) || null;
+  const eventIdParamRaw = normaliseId(eventIdRaw) || null;
   const fromParam = searchParams?.get("from") ?? initialQuery.from ?? null;
   const windowParam = resolveCaseWindow(searchParams?.get("window") ?? initialQuery.window);
   const fallbackFromQ = qRaw ? parseOpsCaseInput(qRaw, "requestId") : null;
@@ -198,6 +303,9 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
   const requestIdParam = resolvedRequestIdParam;
   const userIdParam = resolvedUserIdParam;
   const emailParam = resolvedEmailParam;
+  const scenarioIdParam = scenarioIdParamRaw ?? null;
+  const eventIdParam = eventIdParamRaw ?? null;
+  const trainingMode = fromParam === "ops_training" || Boolean(scenarioIdParam);
 
   const [input, setInput] = useState(resolvedRequestIdParam ?? resolvedUserIdParam ?? resolvedEmailParam ?? "");
   const [searchMode, setSearchMode] = useState<OpsCaseSearchMode>(resolvedUserIdParam ? "userId" : "requestId");
@@ -207,6 +315,15 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
   const [contextData, setContextData] = useState<CaseContext | null>(null);
   const [contextError, setContextError] = useState<{ message: string; requestId?: string | null } | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
+  const [caseNotes, setCaseNotes] = useState<CaseNotesRecord | null>(null);
+  const [caseNotesError, setCaseNotesError] = useState<{ message: string; requestId?: string | null } | null>(null);
+  const [caseNotesLoading, setCaseNotesLoading] = useState(false);
+  const [notesDraft, setNotesDraft] = useState("");
+  const [outcomeDraft, setOutcomeDraft] = useState<string>("");
+  const [notesSaving, setNotesSaving] = useState(false);
+  const [notesSavedAt, setNotesSavedAt] = useState<string | null>(null);
+  const [checklistSaving, setChecklistSaving] = useState<Record<string, boolean>>({});
+  const [closeSaving, setCloseSaving] = useState(false);
   const [attachValue, setAttachValue] = useState("");
   const [attachNote, setAttachNote] = useState("");
   const [attachLoading, setAttachLoading] = useState(false);
@@ -260,6 +377,7 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
   const webhooksViewLogged = useRef<string | null>(null);
   const billingViewLogged = useRef<string | null>(null);
   const resolutionViewLogged = useRef<string | null>(null);
+  const caseViewLogged = useRef<string | null>(null);
 
   useEffect(() => {
     setInput(resolvedRequestIdParam ?? resolvedUserIdParam ?? resolvedEmailParam ?? "");
@@ -270,6 +388,14 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
     }
     setWindowValue(windowParam);
   }, [resolvedEmailParam, resolvedRequestIdParam, resolvedUserIdParam, windowParam]);
+
+  useEffect(() => {
+    if (!resolvedRequestIdParam) return;
+    const viewKey = `${resolvedRequestIdParam}:${windowValue}`;
+    if (caseViewLogged.current === viewKey) return;
+    safeLog("ops_case_view", { window: windowValue });
+    caseViewLogged.current = viewKey;
+  }, [resolvedRequestIdParam, safeLog, windowValue]);
 
   useEffect(() => {
     if (!resolvedEmailParam || resolvedUserIdParam) {
@@ -324,6 +450,39 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
         setContextError({ message: res.error?.message ?? "Unable to load user context", requestId: res.requestId ?? requestId });
       }
       setContextLoading(false);
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, [requestId, resolvedRequestIdParam, windowValue]);
+
+  useEffect(() => {
+    if (!resolvedRequestIdParam) {
+      setCaseNotes(null);
+      setCaseNotesError(null);
+      setNotesDraft("");
+      setOutcomeDraft("");
+      setNotesSavedAt(null);
+      return;
+    }
+    let active = true;
+    setCaseNotesLoading(true);
+    setCaseNotesError(null);
+    const load = async () => {
+      const res = await fetchJsonSafe<{ ok: boolean; notes?: CaseNotesRecord | null }>(
+        `/api/ops/case/notes?caseType=request&caseKey=${encodeURIComponent(resolvedRequestIdParam)}&window=${windowValue}`,
+        { method: "GET", cache: "no-store" }
+      );
+      if (!active) return;
+      if (res.ok && res.json?.ok) {
+        setCaseNotes(res.json.notes ?? null);
+        setNotesDraft(res.json.notes?.notes ?? "");
+        setOutcomeDraft(res.json.notes?.outcomeCode ?? "");
+      } else {
+        setCaseNotesError({ message: res.error?.message ?? "Unable to load case notes", requestId: res.requestId ?? requestId });
+      }
+      setCaseNotesLoading(false);
     };
     load();
     return () => {
@@ -692,6 +851,7 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
         ? "No touchpoints with userId in this window — try 7d."
         : "No touchpoints with userId in this window.";
   const showMissingContext = Boolean(requestIdParam && !displayedUserId);
+  const billingSummary = !effectiveUserId ? "user id required" : billingLoading ? "loading" : billingData?.local?.subscriptionStatus ?? "unavailable";
 
   const handleSnippetCopy = () => {
     safeLog("ops_case_snippet_copy", {
@@ -701,12 +861,226 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
     });
   };
 
+  const checklistEntries = useMemo(() => caseNotes?.checklist ?? {}, [caseNotes?.checklist]);
+  const notesStatus = caseNotes?.status ?? "open";
+  const notesUpdatedAt = caseNotes?.updatedAt ?? null;
+  const notesLastHandled = caseNotes?.lastHandledAt ?? null;
+  const notesLastHandledBy = caseNotes?.lastHandledBy ?? null;
+  const notesOutcomeValue = outcomeDraft;
+  const notesHasChanges =
+    (notesDraft ?? "") !== (caseNotes?.notes ?? "") || (notesOutcomeValue ?? "") !== (caseNotes?.outcomeCode ?? "");
+
+  const trainingLinks = useMemo(() => {
+    const from = trainingMode ? "ops_training" : "ops_case";
+    const alertsLink = withQueryParam(
+      buildOpsCaseAlertsLink({
+        window: windowValue,
+        requestId: requestIdParam,
+        eventId: eventIdParam ?? filteredAlertEvents[0]?.id ?? null,
+        from,
+        tab: "recent",
+      }),
+      "scenarioId",
+      scenarioIdParam
+    );
+    const incidentsLink = withQueryParam(
+      buildOpsCaseIncidentsLink({
+        window: windowValue,
+        requestId: requestIdParam,
+        userId: effectiveUserId,
+        from,
+      }),
+      "scenarioId",
+      scenarioIdParam
+    );
+    const auditsLink = withQueryParam(
+      buildOpsCaseAuditsLink({
+        requestId: requestIdParam,
+        userId: effectiveUserId,
+        eventId: eventIdParam ?? null,
+        from,
+      }),
+      "scenarioId",
+      scenarioIdParam
+    );
+    const webhooksLink = withQueryParam(
+      buildOpsCaseWebhooksLink({
+        window: windowValue,
+        q: requestIdParam ?? effectiveUserId ?? null,
+        from,
+      }),
+      "scenarioId",
+      scenarioIdParam
+    );
+    const statusLink = withQueryParam(buildOpsCaseStatusLink({ window: windowValue, from }), "scenarioId", scenarioIdParam);
+    const caseParams = new URLSearchParams();
+    caseParams.set("window", windowValue);
+    caseParams.set("from", from);
+    if (requestIdParam) caseParams.set("requestId", requestIdParam);
+    if (!requestIdParam && effectiveUserId) caseParams.set("userId", effectiveUserId);
+    const caseBase = `/app/ops/case?${caseParams.toString()}`;
+    const caseLink = withQueryParam(withQueryParam(caseBase, "scenarioId", scenarioIdParam), "eventId", eventIdParam);
+    const origin = typeof window !== "undefined" ? window.location.origin : "";
+    return {
+      alerts: origin ? `${origin}${alertsLink}` : alertsLink,
+      incidents: origin ? `${origin}${incidentsLink}` : incidentsLink,
+      audits: origin ? `${origin}${auditsLink}` : auditsLink,
+      webhooks: origin ? `${origin}${webhooksLink}` : webhooksLink,
+      status: origin ? `${origin}${statusLink}` : statusLink,
+      caseView: origin ? `${origin}${caseLink}` : caseLink,
+    };
+  }, [
+    effectiveUserId,
+    eventIdParam,
+    filteredAlertEvents,
+    requestIdParam,
+    scenarioIdParam,
+    trainingMode,
+    windowValue,
+  ]);
+
+  const trainingEvidenceSnippet = useMemo(
+    () =>
+      buildTrainingEvidenceSnippet({
+        scenarioId: scenarioIdParam,
+        requestId: requestIdParam,
+        eventId: eventIdParam ?? filteredAlertEvents[0]?.id ?? null,
+        checklist: checklistEntries ?? null,
+        outcome: caseNotes?.outcomeCode ?? null,
+        notes: caseNotes?.notes ?? null,
+        links: trainingLinks,
+      }),
+    [
+      caseNotes?.notes,
+      caseNotes?.outcomeCode,
+      checklistEntries,
+      eventIdParam,
+      filteredAlertEvents,
+      requestIdParam,
+      scenarioIdParam,
+      trainingLinks,
+    ]
+  );
+
+  const handoffSnippet = useMemo(
+    () =>
+      buildCaseHandoffSnippet({
+        requestId: requestIdParam,
+        userId: effectiveUserId,
+        outcome: caseNotes?.outcomeCode ?? null,
+        notes: caseNotes?.notes ?? null,
+        window: windowValue,
+        alertsCount: alertsData.firingCount ?? firingAlerts.length,
+        incidentsCount,
+        webhooksCount: webhooksData.length,
+        billingSummary,
+      }),
+    [
+      alertsData.firingCount,
+      billingSummary,
+      caseNotes?.notes,
+      caseNotes?.outcomeCode,
+      effectiveUserId,
+      firingAlerts.length,
+      incidentsCount,
+      requestIdParam,
+      webhooksData.length,
+      windowValue,
+    ]
+  );
+
+  const handleNotesSave = useCallback(async () => {
+    if (!requestIdParam) return;
+    setNotesSaving(true);
+    setCaseNotesError(null);
+    const payload = {
+      caseType: "request",
+      caseKey: requestIdParam,
+      patch: {
+        notes: notesDraft || null,
+        outcome_code: notesOutcomeValue || null,
+      },
+      windowLabel: windowValue,
+      source: trainingMode ? "ops_case_training" : "ops_case",
+    };
+    const res = await fetchJsonSafe<{ ok: boolean; notes?: CaseNotesRecord | null }>(`/api/ops/case/notes/upsert`, {
+      method: "POST",
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok && res.json?.ok) {
+      setCaseNotes(res.json.notes ?? null);
+      setNotesDraft(res.json.notes?.notes ?? "");
+      setOutcomeDraft(res.json.notes?.outcomeCode ?? "");
+      setNotesSavedAt(res.json.notes?.updatedAt ?? new Date().toISOString());
+      safeLog("ops_case_notes_save", { window: windowValue });
+    } else {
+      setCaseNotesError({ message: res.error?.message ?? "Unable to save case notes", requestId: res.requestId ?? requestId });
+    }
+    setNotesSaving(false);
+  }, [notesDraft, notesOutcomeValue, requestId, requestIdParam, safeLog, trainingMode, windowValue]);
+
+  const handleChecklistToggle = useCallback(
+    async (key: string) => {
+      if (!requestIdParam) return;
+      const nextValue = !Boolean(caseNotes?.checklist?.[key]?.done);
+      setChecklistSaving((prev) => ({ ...prev, [key]: true }));
+      setCaseNotesError(null);
+      const res = await fetchJsonSafe<{ ok: boolean; notes?: CaseNotesRecord | null }>(`/api/ops/case/notes/upsert`, {
+        method: "POST",
+        cache: "no-store",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          caseType: "request",
+          caseKey: requestIdParam,
+          patch: { checklist: { [key]: nextValue } },
+          windowLabel: windowValue,
+          source: trainingMode ? "ops_case_training" : "ops_case",
+        }),
+      });
+      if (res.ok && res.json?.ok) {
+        setCaseNotes(res.json.notes ?? null);
+        setNotesSavedAt(res.json.notes?.updatedAt ?? new Date().toISOString());
+        safeLog("ops_case_checklist_toggle", { window: windowValue });
+      } else {
+        setCaseNotesError({ message: res.error?.message ?? "Unable to update checklist", requestId: res.requestId ?? requestId });
+      }
+      setChecklistSaving((prev) => ({ ...prev, [key]: false }));
+    },
+    [caseNotes?.checklist, requestId, requestIdParam, safeLog, trainingMode, windowValue]
+  );
+
+  const handleCloseCase = useCallback(async () => {
+    if (!requestIdParam || !isAdminViewer) return;
+    setCloseSaving(true);
+    setCaseNotesError(null);
+    const res = await fetchJsonSafe<{ ok: boolean; notes?: CaseNotesRecord | null }>(`/api/ops/case/notes/upsert`, {
+      method: "POST",
+      cache: "no-store",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        caseType: "request",
+        caseKey: requestIdParam,
+        patch: { status: "closed" },
+        windowLabel: windowValue,
+        source: "ops_case",
+      }),
+    });
+    if (res.ok && res.json?.ok) {
+      setCaseNotes(res.json.notes ?? null);
+      setNotesSavedAt(res.json.notes?.updatedAt ?? new Date().toISOString());
+      safeLog("ops_case_close", { window: windowValue });
+    } else {
+      setCaseNotesError({ message: res.error?.message ?? "Unable to close case", requestId: res.requestId ?? requestId });
+    }
+    setCloseSaving(false);
+  }, [isAdminViewer, requestId, requestIdParam, safeLog, windowValue]);
+
   const handleIncidentsWiden = (removed: string, href: string) => {
     safeLog("ops_case_incidents_widen_click", { removed, window: windowValue });
     window.open(href, "_blank");
   };
-
-  const billingSummary = !effectiveUserId ? "user id required" : billingLoading ? "loading" : billingData?.local?.subscriptionStatus ?? "unavailable";
 
   return (
     <div className="space-y-4">
@@ -894,6 +1268,137 @@ export default function CaseClient({ initialQuery, requestId, viewerRole }: Prop
                 </div>
               ) : null}
             </div>
+          ) : null}
+
+          {requestIdParam ? (
+            <section className="rounded-3xl border border-black/10 bg-white/80 p-4">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Case Notes</p>
+                  <p className="text-sm font-semibold text-[rgb(var(--ink))]">Outcome, checklist, and handoff context</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 text-xs">
+                  <span className="rounded-full border border-black/10 bg-white px-3 py-1 text-[11px] font-semibold text-[rgb(var(--ink))]">
+                    {notesStatus === "closed" ? "Closed" : "Open"}
+                  </span>
+                  <CopyIconButton
+                    text={handoffSnippet}
+                    label="Copy handoff snippet"
+                    onCopy={() => safeLog("ops_case_snippet_copy", { kind: "handoff" })}
+                  />
+                </div>
+              </div>
+              {caseNotesError ? (
+                <div className="mt-3">
+                  <ErrorBanner title="Case notes unavailable" message={caseNotesError.message} requestId={caseNotesError.requestId ?? undefined} />
+                </div>
+              ) : null}
+              {caseNotesLoading ? <p className="mt-2 text-[11px] text-[rgb(var(--muted))]">Loading case notes…</p> : null}
+              <div className="mt-3 grid gap-4 lg:grid-cols-2">
+                <div className="space-y-3">
+                  <label className="block text-xs font-semibold text-[rgb(var(--ink))]">
+                    Outcome
+                    <select
+                      value={notesOutcomeValue}
+                      onChange={(e) => setOutcomeDraft(e.target.value)}
+                      className="mt-1 w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
+                    >
+                      <option value="">Select outcome</option>
+                      {CASE_OUTCOME_CODES.map((code) => (
+                        <option key={code} value={code}>
+                          {code.replace(/_/g, " ")}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="block text-xs font-semibold text-[rgb(var(--ink))]">
+                    Notes
+                    <textarea
+                      value={notesDraft}
+                      onChange={(e) => setNotesDraft(e.target.value)}
+                      rows={4}
+                      placeholder="Short handoff note (masked, no URLs/emails)."
+                      className="mt-1 w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
+                    />
+                  </label>
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[rgb(var(--muted))]">
+                    <span>{notesDraft.length}/800</span>
+                    <span>
+                      Last handled:{" "}
+                      {notesLastHandled
+                        ? `${formatShortLocalTime(notesLastHandled)} by ${notesLastHandledBy ? maskId(notesLastHandledBy) : "Ops"}`
+                        : "—"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleNotesSave}
+                      disabled={notesSaving || !notesHasChanges}
+                      className="rounded-full bg-[rgb(var(--ink))] px-4 py-2 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-black/30"
+                    >
+                      {notesSaving ? "Saving…" : "Save notes"}
+                    </button>
+                    {isAdminViewer && notesStatus !== "closed" ? (
+                      <button
+                        type="button"
+                        onClick={handleCloseCase}
+                        disabled={closeSaving}
+                        className="rounded-full border border-black/10 bg-white px-4 py-2 text-xs font-semibold text-[rgb(var(--ink))] disabled:cursor-not-allowed"
+                      >
+                        {closeSaving ? "Closing…" : "Close case"}
+                      </button>
+                    ) : null}
+                    {notesSavedAt || notesUpdatedAt ? (
+                      <span className="text-[11px] text-[rgb(var(--muted))]">
+                        Saved {formatShortLocalTime(notesSavedAt ?? notesUpdatedAt)}
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-[rgb(var(--ink))]">Checklist</p>
+                  <div className="mt-2 space-y-2 text-xs text-[rgb(var(--muted))]">
+                    {CASE_CHECKLIST_ITEMS.map((item) => {
+                      const entry = checklistEntries?.[item.key];
+                      const done = Boolean(entry?.done);
+                      return (
+                        <label key={item.key} className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={done}
+                            onChange={() => handleChecklistToggle(item.key)}
+                            disabled={Boolean(checklistSaving[item.key])}
+                            className="h-4 w-4 rounded border-black/20"
+                          />
+                          <span className={done ? "text-[rgb(var(--ink))]" : ""}>{item.label}</span>
+                          {entry?.at ? <span className="text-[10px] text-[rgb(var(--muted))]">{formatShortLocalTime(entry.at)}</span> : null}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+              {trainingMode ? (
+                <div className="mt-4 rounded-2xl border border-black/10 bg-white/70 px-4 py-3 text-xs text-[rgb(var(--muted))]">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Training evidence</p>
+                      <p className="text-sm font-semibold text-[rgb(var(--ink))]">Paste-ready summary for drills</p>
+                    </div>
+                    <CopyIconButton
+                      text={trainingEvidenceSnippet}
+                      label="Copy training evidence"
+                      onCopy={() => safeLog("ops_case_training_evidence_copy", { window: windowValue })}
+                    />
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] text-[rgb(var(--muted))]">
+                    {scenarioIdParam ? <span>Scenario: {scenarioIdParam.slice(0, 8)}…</span> : null}
+                    {eventIdParam ? <span>Event: {eventIdParam.slice(0, 8)}…</span> : null}
+                  </div>
+                </div>
+              ) : null}
+            </section>
           ) : null}
 
           <div className="grid gap-4 lg:grid-cols-2">

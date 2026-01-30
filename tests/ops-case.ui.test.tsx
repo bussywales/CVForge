@@ -11,6 +11,8 @@ vi.mock("next/link", () => ({
 const replaceMock = vi.fn();
 let searchParamsValue = new URLSearchParams();
 let contextResponse: any = { ok: true, context: null };
+let caseNotesResponse: any = { ok: true, notes: null };
+let caseNotesUpsertResponse: any = { ok: true, notes: null };
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock }),
@@ -27,12 +29,22 @@ describe("Ops case view", () => {
     replaceMock.mockReset();
     searchParamsValue = new URLSearchParams();
     contextResponse = { ok: true, context: null };
+    caseNotesResponse = { ok: true, notes: null };
+    caseNotesUpsertResponse = { ok: true, notes: null };
     vi.stubGlobal(
       "fetch",
       vi.fn((input: RequestInfo | URL) => {
         const url = typeof input === "string" ? input : input.toString();
         if (url.includes("/api/ops/case/context")) {
           return Promise.resolve(new Response(JSON.stringify(contextResponse), { status: 200, headers: { "content-type": "application/json" } }));
+        }
+        if (url.includes("/api/ops/case/notes/upsert")) {
+          return Promise.resolve(
+            new Response(JSON.stringify(caseNotesUpsertResponse), { status: 200, headers: { "content-type": "application/json" } })
+          );
+        }
+        if (url.includes("/api/ops/case/notes")) {
+          return Promise.resolve(new Response(JSON.stringify(caseNotesResponse), { status: 200, headers: { "content-type": "application/json" } }));
         }
         if (url.includes("/api/ops/alerts")) {
           return Promise.resolve(
@@ -126,5 +138,116 @@ describe("Ops case view", () => {
     const contextCall = urls.find((url: string) => url.includes("/api/ops/case/context")) ?? "";
     expect(contextCall).toContain("requestId=req_trim");
     expect(contextCall).not.toContain("%0A");
+  });
+
+  it("toggles checklist items", async () => {
+    caseNotesResponse = {
+      ok: true,
+      notes: {
+        caseType: "request",
+        caseKey: "req_123",
+        windowLabel: "15m",
+        checklist: { open_alerts: { done: false, at: null, by: null } },
+        outcomeCode: null,
+        notes: null,
+        status: "open",
+        lastHandledAt: null,
+        lastHandledBy: null,
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:00:00.000Z",
+      },
+    };
+    caseNotesUpsertResponse = {
+      ok: true,
+      notes: {
+        caseType: "request",
+        caseKey: "req_123",
+        windowLabel: "15m",
+        checklist: { open_alerts: { done: true, at: "2024-01-01T00:05:00.000Z", by: "user_ops" } },
+        outcomeCode: null,
+        notes: null,
+        status: "open",
+        lastHandledAt: "2024-01-01T00:05:00.000Z",
+        lastHandledBy: "user_ops",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:05:00.000Z",
+      },
+    };
+    searchParamsValue = new URLSearchParams("requestId=req_123&window=15m");
+    render(<CaseClient initialQuery={{ requestId: "req_123", userId: null, email: null, window: "15m", from: null }} requestId="req_test" viewerRole="support" />);
+    const checklistItem = await screen.findByLabelText("Open Alerts");
+    fireEvent.click(checklistItem);
+    await waitFor(() => expect((global.fetch as any).mock.calls.some((call: any[]) => call[0].toString().includes("/api/ops/case/notes/upsert"))).toBeTruthy());
+  });
+
+  it("saves notes and outcome", async () => {
+    caseNotesResponse = {
+      ok: true,
+      notes: {
+        caseType: "request",
+        caseKey: "req_123",
+        windowLabel: "15m",
+        checklist: {},
+        outcomeCode: null,
+        notes: null,
+        status: "open",
+        lastHandledAt: null,
+        lastHandledBy: null,
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:00:00.000Z",
+      },
+    };
+    caseNotesUpsertResponse = {
+      ok: true,
+      notes: {
+        caseType: "request",
+        caseKey: "req_123",
+        windowLabel: "15m",
+        checklist: { outcome_recorded: { done: true, at: "2024-01-01T00:05:00.000Z", by: "user_ops" } },
+        outcomeCode: "resolved",
+        notes: "All good",
+        status: "open",
+        lastHandledAt: "2024-01-01T00:05:00.000Z",
+        lastHandledBy: "user_ops",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:05:00.000Z",
+      },
+    };
+    searchParamsValue = new URLSearchParams("requestId=req_123&window=15m");
+    render(<CaseClient initialQuery={{ requestId: "req_123", userId: null, email: null, window: "15m", from: null }} requestId="req_test" viewerRole="support" />);
+    const outcomeSelect = await screen.findByDisplayValue("Select outcome");
+    fireEvent.change(outcomeSelect, { target: { value: "resolved" } });
+    fireEvent.change(screen.getByPlaceholderText(/Short handoff note/i), { target: { value: "All good" } });
+    fireEvent.click(screen.getByText("Save notes"));
+    await waitFor(() => expect(screen.getByText(/Saved/i)).toBeTruthy());
+  });
+
+  it("copies training evidence when scenarioId is present", async () => {
+    caseNotesResponse = {
+      ok: true,
+      notes: {
+        caseType: "request",
+        caseKey: "req_train",
+        windowLabel: "15m",
+        checklist: {},
+        outcomeCode: null,
+        notes: null,
+        status: "open",
+        lastHandledAt: null,
+        lastHandledBy: null,
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:00:00.000Z",
+      },
+    };
+    searchParamsValue = new URLSearchParams("requestId=req_train&window=15m&from=ops_training&scenarioId=scn_123&eventId=evt_456");
+    const clipboardWrite = vi.fn().mockResolvedValue(undefined);
+    Object.assign(global.navigator, { clipboard: { writeText: clipboardWrite } });
+    render(<CaseClient initialQuery={{ requestId: "req_train", userId: null, email: null, window: "15m", from: "ops_training", scenarioId: "scn_123", eventId: "evt_456" }} requestId="req_test" viewerRole="support" />);
+    const copyButton = await screen.findByRole("button", { name: /Copy training evidence/i });
+    fireEvent.click(copyButton);
+    expect(clipboardWrite).toHaveBeenCalled();
+    const copied = clipboardWrite.mock.calls[0][0] as string;
+    expect(copied).toContain("ScenarioId: scn_123");
+    expect(copied).toContain("RequestId: req_train");
   });
 });

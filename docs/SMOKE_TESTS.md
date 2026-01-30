@@ -66,11 +66,16 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 
 ## Quick prod checks (v0.8.57)
 - In /app/ops/help Training sandbox, use Copy requestId/eventId/all IDs → clipboard values are trimmed (no trailing newlines).
-- Click Open Case View → link opens /app/ops/case with q=requestId and correct window.
+- Click Open Case View → link opens /app/ops/case with requestId and correct window.
 
 ## Quick prod checks (v0.8.58)
 - Generate a training scenario → open Case View → user context resolves automatically or shows a clear “no touchpoints in this window” hint.
 - Attach user context (admin) → refresh Case View → userId + source/confidence persist and billing panels unlock.
+
+## Quick prod checks (v0.8.59)
+- Open /app/ops/case with requestId → toggle checklist items and confirm they persist after refresh.
+- Set outcome + notes, Save, and Copy handoff snippet (clipboard populated).
+- Open Case View from a training scenario → Copy training evidence includes scenarioId/requestId/eventId and deep links.
 
 ## Quick prod checks (v0.8.54)
 - Generate a training scenario → open the Alerts deep link and confirm prefilled Audits/Incidents links work.

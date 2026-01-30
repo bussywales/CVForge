@@ -542,9 +542,10 @@ export default function HelpClient({ sections = RUNBOOK_SECTIONS, meta = RUNBOOK
         ? `/app/ops/audits?eventId=${encodeURIComponent(eventId)}`
         : `/app/ops/audits?from=ops_training&q=alert_test`;
     const statusPath = `/app/ops/status?window=${encodeURIComponent(windowLabel)}&from=ops_training#alerts`;
-    const casePath = requestId
-      ? `/app/ops/case?q=${encodeURIComponent(requestId)}&window=${encodeURIComponent(windowLabel)}`
-      : `/app/ops/case?window=${encodeURIComponent(windowLabel)}`;
+    const caseBase = requestId
+      ? `/app/ops/case?requestId=${encodeURIComponent(requestId)}&window=${encodeURIComponent(windowLabel)}&from=ops_training`
+      : `/app/ops/case?window=${encodeURIComponent(windowLabel)}&from=ops_training`;
+    const casePath = `${caseBase}${scenarioId ? `&scenarioId=${encodeURIComponent(scenarioId)}` : ""}${eventId ? `&eventId=${encodeURIComponent(eventId)}` : ""}`;
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     return {
       alertsPath,

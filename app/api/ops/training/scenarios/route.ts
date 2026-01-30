@@ -10,6 +10,7 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
 import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 import { upsertRequestContext } from "@/lib/ops/ops-request-context";
+import { getCaseNotes, upsertCaseNotes } from "@/lib/ops/ops-case-notes";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -149,6 +150,18 @@ export async function POST(request: Request) {
         path: "/api/ops/training/scenarios",
         meta: { scenarioType, eventId },
         evidence: { scenarioType, eventId },
+      });
+    } catch {
+      // best-effort only
+    }
+    try {
+      const existingNotes = await getCaseNotes({ caseType: "request", caseKey: requestId });
+      await upsertCaseNotes({
+        caseType: "request",
+        caseKey: requestId,
+        patch: { outcome_code: existingNotes?.outcome_code ?? "training_only" },
+        actorId: user.id,
+        windowLabel: "15m",
       });
     } catch {
       // best-effort only
