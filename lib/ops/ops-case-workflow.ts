@@ -3,8 +3,15 @@ import "server-only";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
 
-export type CaseWorkflowStatus = "open" | "investigating" | "monitoring" | "resolved" | "closed";
-export type CasePriority = "low" | "medium" | "high";
+export type CaseWorkflowStatus =
+  | "open"
+  | "investigating"
+  | "monitoring"
+  | "waiting_on_user"
+  | "waiting_on_provider"
+  | "resolved"
+  | "closed";
+export type CasePriority = "p0" | "p1" | "p2" | "p3";
 
 export type OpsCaseWorkflowRow = {
   request_id: string;
@@ -23,11 +30,13 @@ export const CASE_WORKFLOW_STATUSES: CaseWorkflowStatus[] = [
   "open",
   "investigating",
   "monitoring",
+  "waiting_on_user",
+  "waiting_on_provider",
   "resolved",
   "closed",
 ];
 
-export const CASE_PRIORITY_LEVELS: CasePriority[] = ["low", "medium", "high"];
+export const CASE_PRIORITY_LEVELS: CasePriority[] = ["p0", "p1", "p2", "p3"];
 
 export function normaliseCaseStatus(value?: unknown): CaseWorkflowStatus | null {
   if (typeof value !== "string") return null;
@@ -36,14 +45,18 @@ export function normaliseCaseStatus(value?: unknown): CaseWorkflowStatus | null 
 
 export function normaliseCasePriority(value?: unknown): CasePriority | null {
   if (typeof value !== "string") return null;
-  return CASE_PRIORITY_LEVELS.includes(value as CasePriority) ? (value as CasePriority) : null;
+  if (CASE_PRIORITY_LEVELS.includes(value as CasePriority)) return value as CasePriority;
+  if (value === "high") return "p1";
+  if (value === "medium") return "p2";
+  if (value === "low") return "p3";
+  return null;
 }
 
 function coerceWorkflowRow(row: any, nowIso: string): OpsCaseWorkflowRow {
   return {
     request_id: row.request_id,
     status: normaliseCaseStatus(row.status) ?? "open",
-    priority: normaliseCasePriority(row.priority) ?? "medium",
+    priority: normaliseCasePriority(row.priority) ?? "p2",
     assigned_to_user_id: row.assigned_to_user_id ?? null,
     claimed_at: row.claimed_at ?? null,
     resolved_at: row.resolved_at ?? null,
@@ -83,7 +96,7 @@ export async function getOrCreateCaseWorkflow({
   const payload = {
     request_id: requestId,
     status: "open",
-    priority: "medium",
+    priority: "p2",
     assigned_to_user_id: null,
     claimed_at: null,
     resolved_at: null,

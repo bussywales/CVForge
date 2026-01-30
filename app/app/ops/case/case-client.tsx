@@ -529,7 +529,7 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
   const effectiveEmailMasked = contextData?.emailMasked ?? (resolvedEmailParam ? maskEmail(resolvedEmailParam) : null);
   const isAdminViewer = viewerRole === "admin" || viewerRole === "super_admin";
   const workflowStatus = workflowData?.status ?? "open";
-  const workflowPriority = workflowData?.priority ?? "medium";
+  const workflowPriority = workflowData?.priority ?? "p2";
   const assignedToUserId = workflowData?.assignedToUserId ?? null;
   const isAssignedToMe = Boolean(assignedToUserId && assignedToUserId === viewerId);
 
@@ -1837,9 +1837,17 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
                     onChange={(e) => handleStatusChange(e.target.value)}
                     className="mt-1 w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
                   >
-                    {["open", "investigating", "monitoring", "resolved", "closed"].map((status) => (
+                    {[
+                      "open",
+                      "investigating",
+                      "monitoring",
+                      "waiting_on_user",
+                      "waiting_on_provider",
+                      "resolved",
+                      "closed",
+                    ].map((status) => (
                       <option key={status} value={status} disabled={!isAdminViewer && status === "closed"}>
-                        {status}
+                        {status.replace(/_/g, " ")}
                       </option>
                     ))}
                   </select>
@@ -1851,9 +1859,9 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
                     onChange={(e) => handlePriorityChange(e.target.value)}
                     className="mt-1 w-full rounded-2xl border border-black/10 bg-white px-3 py-2 text-sm"
                   >
-                    {["low", "medium", "high"].map((priority) => (
+                    {["p0", "p1", "p2", "p3"].map((priority) => (
                       <option key={priority} value={priority}>
-                        {priority}
+                        {priority.toUpperCase()}
                       </option>
                     ))}
                   </select>

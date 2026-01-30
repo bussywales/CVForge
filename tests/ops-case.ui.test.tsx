@@ -161,7 +161,7 @@ describe("Ops case view", () => {
       workflow: {
         requestId: "req_ctx",
         status: "open",
-        priority: "medium",
+        priority: "p2",
         assignedToUserId: null,
         claimedAt: null,
         resolvedAt: null,
@@ -386,7 +386,7 @@ describe("Ops case view", () => {
       workflow: {
         requestId: "req_1",
         status: "open",
-        priority: "medium",
+        priority: "p2",
         assignedToUserId: null,
         claimedAt: null,
         resolvedAt: null,
@@ -435,7 +435,7 @@ describe("Ops case view", () => {
       workflow: {
         requestId: "req_123",
         status: "open",
-        priority: "medium",
+        priority: "p2",
         assignedToUserId: null,
         claimedAt: null,
         resolvedAt: null,
@@ -452,7 +452,7 @@ describe("Ops case view", () => {
       workflow: {
         requestId: "req_123",
         status: "open",
-        priority: "medium",
+        priority: "p2",
         assignedToUserId: "user_ops",
         claimedAt: "2024-01-01T00:10:00.000Z",
         resolvedAt: null,
@@ -467,7 +467,7 @@ describe("Ops case view", () => {
       workflow: {
         requestId: "req_123",
         status: "open",
-        priority: "medium",
+        priority: "p2",
         assignedToUserId: null,
         claimedAt: null,
         resolvedAt: null,

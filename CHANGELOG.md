@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.61
+- Ops Case Queue adds /app/ops/cases inbox with filters, quick actions, and My queue workload summary backed by new ops case list/summary APIs.
+
 ## v0.8.60
 - Ops Case View v2 adds case workflow controls (status/priority/claim/assign), evidence capture, and escalation templates with masked context and deep links.
 

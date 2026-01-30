@@ -12,7 +12,7 @@ let claimConflict = false;
 const workflowRow = {
   request_id: "req_case",
   status: "open",
-  priority: "medium",
+  priority: "p2",
   assigned_to_user_id: null,
   claimed_at: null,
   resolved_at: null,

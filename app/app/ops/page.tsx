@@ -4,6 +4,7 @@ import { requireOpsAccess } from "@/lib/rbac";
 import AccessDenied from "@/components/AccessDenied";
 import { makeRequestId } from "@/lib/observability/request-id";
 import QuickLinksClient from "./quick-links-client";
+import CasesQueueCard from "./cases-queue-card";
 import UserLookupClient from "./user-lookup-client";
 import FunnelPanel from "./funnel-panel";
 
@@ -29,6 +30,8 @@ export default async function OpsPage({ searchParams }: { searchParams?: { q?: s
       </div>
 
       <QuickLinksClient />
+
+      <CasesQueueCard />
 
       <FunnelPanel />
 

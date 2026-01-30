@@ -72,6 +72,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Generate a training scenario → open Case View → user context resolves automatically or shows a clear “no touchpoints in this window” hint.
 - Attach user context (admin) → refresh Case View → userId + source/confidence persist and billing panels unlock.
 
+## Quick prod checks (v0.8.61)
+- Open /app/ops/cases → filters render, list loads, and Open case deep link works.
+- Apply Status/Assigned/Priority filters → URL updates once and list refreshes without errors.
+- On Ops Command Centre, My queue card shows assigned/unassigned counts and ageing buckets.
+
 ## Quick prod checks (v0.8.60)
 - Open /app/ops/case with requestId → claim the case, set status/priority, and confirm time-in-state updates.
 - Add an Evidence note → entry appears immediately and shows in the Escalation template copy.

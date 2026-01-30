@@ -42,6 +42,11 @@ type BudgetKey =
   | "ops_case_assign"
   | "ops_case_evidence"
   | "ops_case_close"
+  | "ops_cases_list"
+  | "ops_cases_summary"
+  | "ops_cases_claim"
+  | "ops_cases_release"
+  | "ops_cases_update"
   | "onboarding_model_get"
   | "onboarding_skip_post"
   | "invite_claim"
@@ -100,6 +105,11 @@ const ROUTE_BUDGETS: Record<BudgetKey, BudgetLevel> = {
   ops_case_assign: "low",
   ops_case_evidence: "medium",
   ops_case_close: "low",
+  ops_cases_list: "medium",
+  ops_cases_summary: "medium",
+  ops_cases_claim: "medium",
+  ops_cases_release: "medium",
+  ops_cases_update: "medium",
   onboarding_model_get: "medium",
   onboarding_skip_post: "medium",
   invite_claim: "medium",

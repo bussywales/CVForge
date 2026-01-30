@@ -77,8 +77,8 @@ export type RunbookSection = {
 };
 
 export const RUNBOOK_META = {
-  lastUpdatedVersion: "v0.8.60",
-  lastUpdatedIso: "2026-03-19T00:00:00.000Z",
+  lastUpdatedVersion: "v0.8.61",
+  lastUpdatedIso: "2026-03-26T00:00:00.000Z",
   rulesVersion: "ops_runbook_v1",
 };
 
@@ -334,7 +334,7 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
         items: [
           "Claim the case when you begin active investigation.",
           "Update status as you move from open → investigating → monitoring → resolved.",
-          "Set priority (low/medium/high) for visibility and triage.",
+          "Set priority (P0/P1/P2/P3) for visibility and triage.",
           "Admin only: assign ownership to another ops user when handing off.",
         ],
       },
@@ -372,6 +372,75 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
       {
         type: "links",
         items: [{ label: "Case View", href: "/app/ops/case" }],
+      },
+    ],
+  },
+  {
+    id: "case-queue-inbox",
+    title: "Case Queue: how to work the inbox",
+    category: "Getting started",
+    ...BASE_SUPPORT,
+    owner: "Support",
+    lastUpdatedIso: LAST_UPDATED,
+    linkedSurfaces: ["alerts", "incidents", "webhooks", "billing", "status"],
+    tags: ["case-queue", "workflow", "triage", "assignment"],
+    body: [
+      { type: "heading", text: "What this is / When to use" },
+      {
+        type: "paragraph",
+        text: "Use the Case Queue to triage new work, claim unassigned cases, and keep response time visible across the team.",
+      },
+      { type: "heading", text: "Symptoms" },
+      {
+        type: "bullets",
+        items: [
+          "Unassigned cases are idle or aging without an owner.",
+          "Cases are duplicated across responders without clear priority.",
+          "Queue filters are unclear or not reflected in links.",
+        ],
+      },
+      { type: "heading", text: "Likely causes" },
+      {
+        type: "bullets",
+        items: [
+          "My queue view is not being checked at shift start.",
+          "Status/priority updates are not kept in sync with work.",
+          "Filters were applied but not reset after a focused search.",
+        ],
+      },
+      {
+        type: "checks",
+        items: [
+          "Confirm the queue filters (status/assigned/priority/window) match the task at hand.",
+          "Review ageing buckets for cases older than 1h/6h/24h.",
+          "Open the Case View before making status or priority changes.",
+        ],
+      },
+      {
+        type: "actions",
+        items: [
+          "Claim unassigned cases before starting investigation.",
+          "Update status/priority directly in the queue when appropriate.",
+          "Use Open case to capture evidence and escalation templates.",
+        ],
+      },
+      {
+        type: "escalate",
+        items: [
+          "Queue actions fail to persist or revert after refresh.",
+          "Ageing buckets keep increasing without assignment.",
+        ],
+      },
+      {
+        type: "send",
+        items: ["requestId, filter selections, queue sort, and any ErrorBanner requestId values."],
+      },
+      {
+        type: "links",
+        items: [
+          { label: "Case Queue", href: "/app/ops/cases" },
+          { label: "Case View", href: "/app/ops/case" },
+        ],
       },
     ],
   },
