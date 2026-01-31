@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.63
+- Ops Case Queue v2 refines SLA semantics (due/breached/paused), adds per-user saved views with save/manage/default, and tightens filter sync with auto-refresh backoff and stale indicators.
+
 ## v0.8.62
 - Ops Case Queue v2 adds saved views, SLA badges/sorting/breach filtering with background freshness polling, and tight queue ↔ case view linking with returnTo and copyable queue links.
 

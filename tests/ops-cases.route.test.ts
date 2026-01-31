@@ -290,6 +290,14 @@ describe("ops cases routes", () => {
     expect(body.items[0].slaDueAt).toBe("2024-01-01T01:00:00.000Z");
   });
 
+  it("filters breached cases", async () => {
+    role = "support";
+    const res = await LIST_GET(new Request("http://localhost/api/ops/cases?window=24h&breached=1"));
+    const body = await res.json();
+    expect(body.items.length).toBe(1);
+    expect(body.items[0].requestId).toBe("req_a");
+  });
+
   it("returns summary counts", async () => {
     role = "support";
     const res = await SUMMARY_GET(new Request("http://localhost/api/ops/cases/summary"));

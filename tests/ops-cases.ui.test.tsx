@@ -11,6 +11,7 @@ vi.mock("next/link", () => ({
 const replaceMock = vi.fn();
 let searchParamsValue = new URLSearchParams();
 let casesResponse: any = { ok: true, items: [], nextCursor: null };
+let viewsResponse: any = { ok: true, views: [] };
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: replaceMock }),
@@ -47,6 +48,27 @@ describe("Ops cases queue", () => {
       ],
       nextCursor: null,
     };
+    viewsResponse = {
+      ok: true,
+      views: [
+        {
+          id: "view_1",
+          name: "On call",
+          isDefault: false,
+          view: {
+            status: "waiting",
+            assigned: "any",
+            priority: "all",
+            breached: false,
+            window: "24h",
+            sort: "lastTouched",
+            q: "",
+          },
+          createdAt: "2024-01-01T00:00:00.000Z",
+          updatedAt: "2024-01-01T00:00:00.000Z",
+        },
+      ],
+    };
 
     vi.stubGlobal(
       "fetch",
@@ -54,6 +76,9 @@ describe("Ops cases queue", () => {
         const url = typeof input === "string" ? input : input.toString();
         if (url.includes("/api/ops/cases?")) {
           return Promise.resolve(new Response(JSON.stringify(casesResponse), { status: 200, headers: { "content-type": "application/json" } }));
+        }
+        if (url.includes("/api/ops/cases/views")) {
+          return Promise.resolve(new Response(JSON.stringify(viewsResponse), { status: 200, headers: { "content-type": "application/json" } }));
         }
         if (url.includes("/api/ops/cases/claim")) {
           return Promise.resolve(
@@ -97,13 +122,26 @@ describe("Ops cases queue", () => {
     render(<CasesClient initialQuery={{}} viewerRole="support" viewerId="user_ops" />);
     await waitFor(() => expect(screen.getByText("req_123")).toBeTruthy());
     expect(screen.getByText(/Open case/i)).toBeTruthy();
-    expect(screen.getByText(/SLA:/i)).toBeTruthy();
+    expect(screen.getByText(/SLA due in:/i)).toBeTruthy();
+    expect(screen.getByText("P2", { selector: "span" })).toBeTruthy();
+  });
+
+  it("syncs waiting chip with status filter", async () => {
+    render(<CasesClient initialQuery={{}} viewerRole="support" viewerId="user_ops" />);
+    const waitingChip = await screen.findByRole("button", { name: "Waiting" });
+    fireEvent.click(waitingChip);
+    const [statusSelect] = await screen.findAllByLabelText("Status");
+    const statusSelectEl = statusSelect as HTMLSelectElement;
+    expect(statusSelectEl.value).toBe("waiting");
+    fireEvent.change(statusSelectEl, { target: { value: "waiting" } });
+    expect(waitingChip.className).toContain("bg-[rgb(var(--ink))]");
   });
 
   it("updates URL when status filter changes", async () => {
     render(<CasesClient initialQuery={{}} viewerRole="support" viewerId="user_ops" />);
-    const statusSelect = await screen.findByLabelText("Status");
-    fireEvent.change(statusSelect, { target: { value: "open" } });
+    const [statusSelect] = await screen.findAllByLabelText("Status");
+    const statusSelectEl = statusSelect as HTMLSelectElement;
+    fireEvent.change(statusSelectEl, { target: { value: "open" } });
     expect(replaceMock).toHaveBeenCalledTimes(1);
   });
 
@@ -115,19 +153,24 @@ describe("Ops cases queue", () => {
 
   it("selects a saved view and updates URL", async () => {
     render(<CasesClient initialQuery={{}} viewerRole="support" viewerId="user_ops" />);
-    fireEvent.click(await screen.findByText("My queue"));
+    await waitFor(() => expect(screen.getByText("On call")).toBeTruthy());
+    const viewSelect = await screen.findByLabelText("View");
+    fireEvent.change(viewSelect, { target: { value: "view_1" } });
     expect(replaceMock).toHaveBeenCalled();
     const call = replaceMock.mock.calls[replaceMock.mock.calls.length - 1][0];
-    expect(call).toContain("view=my");
-    expect(call).toContain("assigned=me");
+    expect(call).toContain("view=view_1");
+    expect(call).toContain("status=waiting");
   });
 
   it("switches to custom view on manual filter change", async () => {
     render(<CasesClient initialQuery={{}} viewerRole="support" viewerId="user_ops" />);
-    fireEvent.click(await screen.findByText("My queue"));
+    await waitFor(() => expect(screen.getByText("On call")).toBeTruthy());
+    const viewSelect = await screen.findByLabelText("View");
+    fireEvent.change(viewSelect, { target: { value: "view_1" } });
     replaceMock.mockClear();
-    const statusSelect = await screen.findByLabelText("Status");
-    fireEvent.change(statusSelect, { target: { value: "open" } });
+    const [statusSelect] = await screen.findAllByLabelText("Status");
+    const statusSelectEl = statusSelect as HTMLSelectElement;
+    fireEvent.change(statusSelectEl, { target: { value: "open" } });
     const call = replaceMock.mock.calls[replaceMock.mock.calls.length - 1][0];
     expect(call).toContain("view=custom");
   });

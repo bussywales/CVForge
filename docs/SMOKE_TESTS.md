@@ -72,6 +72,12 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - Generate a training scenario → open Case View → user context resolves automatically or shows a clear “no touchpoints in this window” hint.
 - Attach user context (admin) → refresh Case View → userId + source/confidence persist and billing panels unlock.
 
+## Quick prod checks (v0.8.63)
+- On /app/ops/cases, use View selector → Saved view filters load and URL updates once; Save as... + Manage views rename/default/delete work.
+- Change filters on a saved view → view flips to Custom and Save view updates the original.
+- SLA badges read “SLA due in” / “SLA breached by”; waiting statuses show paused; breached-only filter works.
+- Auto-refresh indicator appears on poll, and tab-hide → Data stale until refresh resumes.
+
 ## Quick prod checks (v0.8.62)
 - On /app/ops/cases, select each saved view (All/My/Unassigned/Waiting/P0–P1) → filters update and URL includes view=.
 - Verify SLA badge appears per case, “Show breached only” filters the list, and SLA sort orders soonest due cases first.

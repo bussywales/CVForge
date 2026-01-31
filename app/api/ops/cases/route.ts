@@ -209,7 +209,13 @@ export async function GET(request: Request) {
       const evidenceInfo = evidenceStats.get(row.request_id);
       const contextInfo = contextMap.get(row.request_id);
       const priorityValue = normaliseCasePriority(row.priority) ?? "p2";
-      const slaInfo = computeCaseSla({ priority: priorityValue, createdAt: row.created_at, now });
+      const slaInfo = computeCaseSla({
+        priority: priorityValue,
+        createdAt: row.created_at,
+        dueAt: row.sla_due_at,
+        status: row.status,
+        now,
+      });
       return {
         requestId: row.request_id,
         status: row.status,
