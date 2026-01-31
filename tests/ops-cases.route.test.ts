@@ -8,6 +8,7 @@ let RELEASE_POST: any;
 let UPDATE_POST: any;
 let role = "support";
 let rateAllowed = true;
+const insertCaseAuditMock = vi.fn(async () => null);
 
 const workflowRows = [
   {
@@ -130,6 +131,14 @@ beforeAll(async () => {
 
   vi.doMock("@/lib/monetisation", () => ({
     logMonetisationEvent: async () => undefined,
+  }));
+
+  vi.doMock("@/lib/ops/ops-case-queue-store", () => ({
+    upsertCaseQueueSources: async () => null,
+  }));
+
+  vi.doMock("@/lib/ops/ops-case-audit", () => ({
+    insertCaseAudit: insertCaseAuditMock,
   }));
 
   vi.doMock("@/lib/ops/ops-audit-log", () => ({
@@ -272,6 +281,7 @@ describe("ops cases routes", () => {
     expect(body.items[0].evidenceCount).toBe(2);
     expect(body.items[0].notesCount).toBe(1);
     expect(body.items[0].userContext.userId).toBe("user_ctx");
+    expect(body.items[0].reason.code).toBe("MANUAL");
   });
 
   it("returns cursor for paging", async () => {
@@ -321,6 +331,7 @@ describe("ops cases routes", () => {
 
   it("allows claim and release", async () => {
     role = "support";
+    insertCaseAuditMock.mockClear();
     const claimRes = await CLAIM_POST(
       new Request("http://localhost/api/ops/cases/claim", { method: "POST", body: JSON.stringify({ requestId: "req_a" }) })
     );
@@ -329,5 +340,6 @@ describe("ops cases routes", () => {
     );
     expect(claimRes.status).toBe(200);
     expect(releaseRes.status).toBe(200);
+    expect(insertCaseAuditMock).toHaveBeenCalled();
   });
 });

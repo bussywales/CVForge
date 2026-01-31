@@ -9,6 +9,8 @@ import { createServiceRoleClient } from "@/lib/supabase/service";
 import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 import { logMonetisationEvent } from "@/lib/monetisation";
 import { captureServerError } from "@/lib/observability/sentry";
+import { upsertCaseQueueSource } from "@/lib/ops/ops-case-queue-store";
+import { insertCaseAudit } from "@/lib/ops/ops-case-audit";
 import {
   insertCaseEvidence,
   normaliseEvidenceType,
@@ -71,12 +73,29 @@ export async function POST(request: Request) {
     });
     await touchCaseWorkflow({ requestId: caseRequestId });
 
+    try {
+      await upsertCaseQueueSource({
+        requestId: caseRequestId,
+        code: "MANUAL",
+        primarySource: "ops_case_evidence",
+        detail: `Evidence added: ${type}`,
+      });
+    } catch {
+      // best-effort only
+    }
+
     const admin = createServiceRoleClient();
     await insertOpsAuditLog(admin, {
       actorUserId: user.id,
       targetUserId: null,
       action: "ops_case_evidence_add",
       meta: sanitizeEvidenceMeta({ requestId: caseRequestId, type }),
+    });
+    await insertCaseAudit({
+      requestId: caseRequestId,
+      actorUserId: user.id,
+      action: "ADD_EVIDENCE",
+      meta: { type },
     });
 
     try {

@@ -9,6 +9,8 @@ import { logMonetisationEvent } from "@/lib/monetisation";
 import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
 import { upsertRequestContext } from "@/lib/ops/ops-request-context";
 import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
+import { upsertCaseQueueSource } from "@/lib/ops/ops-case-queue-store";
+import { insertCaseAudit } from "@/lib/ops/ops-case-audit";
 import { captureServerError } from "@/lib/observability/sentry";
 
 export const runtime = "nodejs";
@@ -104,6 +106,17 @@ export async function POST(request: Request) {
     });
 
     try {
+      await upsertCaseQueueSource({
+        requestId: requestIdInput,
+        code: "MANUAL",
+        primarySource: "manual_attach",
+        detail: "Manual user context attached",
+      });
+    } catch {
+      // best-effort only
+    }
+
+    try {
       await insertOpsAuditLog(createServiceRoleClient() as any, {
         actorUserId: user.id,
         targetUserId: resolvedUserId ?? null,
@@ -117,6 +130,13 @@ export async function POST(request: Request) {
     } catch {
       // ignore audit failures
     }
+
+    await insertCaseAudit({
+      requestId: requestIdInput,
+      actorUserId: user.id,
+      action: "ATTACH_USER",
+      meta: { hasEmail: Boolean(resolvedEmail), hasUserId: Boolean(resolvedUserId) },
+    });
 
     try {
       const admin = createServiceRoleClient();

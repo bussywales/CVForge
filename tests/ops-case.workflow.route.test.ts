@@ -161,12 +161,21 @@ beforeAll(async () => {
     insertOpsAuditLog: async () => undefined,
   }));
 
+  vi.doMock("@/lib/ops/ops-case-audit", () => ({
+    insertCaseAudit: async () => null,
+    listCaseAudit: async () => [],
+  }));
+
   vi.doMock("@/lib/ops/ops-case-evidence", () => ({
     listCaseEvidence: async () => evidenceRows,
   }));
 
   vi.doMock("@/lib/ops/ops-request-context", () => ({
     resolveRequestContext: async () => contextRow,
+  }));
+
+  vi.doMock("@/lib/ops/ops-case-queue-store", () => ({
+    getCaseQueueRow: async () => null,
   }));
 
   vi.doMock("@/lib/ops/ops-case-workflow", async () => {

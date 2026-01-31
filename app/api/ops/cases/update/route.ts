@@ -17,6 +17,7 @@ import {
 } from "@/lib/ops/ops-case-workflow";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
+import { insertCaseAudit } from "@/lib/ops/ops-case-audit";
 import { logMonetisationEvent } from "@/lib/monetisation";
 import { captureServerError } from "@/lib/observability/sentry";
 
@@ -106,13 +107,46 @@ export async function POST(request: Request) {
     }
 
     const admin = createServiceRoleClient();
-    const meta = sanitizeCaseWorkflowMeta({ requestId: caseRequestId, status: workflow.status, priority: workflow.priority });
+    const meta = sanitizeCaseWorkflowMeta({
+      requestId: caseRequestId,
+      status: workflow.status,
+      priority: workflow.priority,
+      assignedToUserId: workflow.assigned_to_user_id ?? null,
+    });
     await insertOpsAuditLog(admin, {
       actorUserId: user.id,
       targetUserId: workflow.assigned_to_user_id ?? null,
       action: "ops_case_status_change",
       meta,
     });
+
+    const wasResolved = existing?.status === "resolved" || existing?.status === "closed";
+    const isResolved = workflow.status === "resolved" || workflow.status === "closed";
+    if (status) {
+      const action = !wasResolved && isResolved ? "RESOLVE" : wasResolved && !isResolved ? "REOPEN" : "SET_STATUS";
+      await insertCaseAudit({
+        requestId: caseRequestId,
+        actorUserId: user.id,
+        action,
+        meta: { status: workflow.status },
+      });
+    }
+    if (priority) {
+      await insertCaseAudit({
+        requestId: caseRequestId,
+        actorUserId: user.id,
+        action: "SET_PRIORITY",
+        meta: { priority: workflow.priority },
+      });
+    }
+    if (body?.assignedUserId !== undefined) {
+      await insertCaseAudit({
+        requestId: caseRequestId,
+        actorUserId: user.id,
+        action: "SET_STATUS",
+        meta: { assignedToUserId: workflow.assigned_to_user_id ?? null },
+      });
+    }
 
     try {
       if (status) {

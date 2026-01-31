@@ -101,6 +101,14 @@ beforeAll(async () => {
     insertOpsAuditLog: async () => undefined,
   }));
 
+  vi.doMock("@/lib/ops/ops-case-audit", () => ({
+    insertCaseAudit: async () => null,
+  }));
+
+  vi.doMock("@/lib/ops/ops-case-queue-store", () => ({
+    upsertCaseQueueSource: async () => null,
+  }));
+
   vi.doMock("@/lib/ops/ops-case-evidence", async () => {
     const actual = await vi.importActual<typeof import("@/lib/ops/ops-case-evidence")>("@/lib/ops/ops-case-evidence");
     return {

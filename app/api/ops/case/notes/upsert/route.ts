@@ -7,6 +7,7 @@ import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { logMonetisationEvent } from "@/lib/monetisation";
 import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
+import { insertCaseAudit } from "@/lib/ops/ops-case-audit";
 import { normaliseId } from "@/lib/ops/normalise-id";
 import {
   CaseNotesPatch,
@@ -18,6 +19,7 @@ import {
   upsertCaseNotes,
 } from "@/lib/ops/ops-case-notes";
 import { getOrCreateCaseWorkflow, touchCaseWorkflow } from "@/lib/ops/ops-case-workflow";
+import { upsertCaseQueueSource } from "@/lib/ops/ops-case-queue-store";
 import { captureServerError } from "@/lib/observability/sentry";
 import crypto from "crypto";
 
@@ -138,6 +140,16 @@ export async function POST(request: Request) {
       } catch {
         // best-effort only
       }
+      try {
+        await upsertCaseQueueSource({
+          requestId: caseKey,
+          code: "MANUAL",
+          primarySource: "ops_case_notes",
+          detail: "Case notes updated",
+        });
+      } catch {
+        // best-effort only
+      }
     }
 
     const caseKeyHash = hashCaseKey(caseKey);
@@ -160,6 +172,27 @@ export async function POST(request: Request) {
       action,
       meta: safeMeta,
     });
+    if (caseType === "request" && caseKey) {
+      await insertCaseAudit({
+        requestId: caseKey,
+        actorUserId: user.id,
+        action: "ADD_NOTE",
+        meta: {
+          noteLength: row?.notes ? row.notes.length : 0,
+          outcomeCode: row?.outcome_code ?? null,
+          toggledKeys,
+          status: row?.status ?? null,
+        },
+      });
+      if (statusInput === "closed") {
+        await insertCaseAudit({
+          requestId: caseKey,
+          actorUserId: user.id,
+          action: "RESOLVE",
+          meta: { status: row?.status ?? null },
+        });
+      }
+    }
 
     try {
       await logMonetisationEvent(admin as any, user.id, "ops_case_notes_save", {

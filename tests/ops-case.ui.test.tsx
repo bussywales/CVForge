@@ -168,6 +168,54 @@ describe("Ops case view", () => {
     await waitFor(() => expect(screen.getByText(/Copy case snippet/i)).toBeTruthy());
   });
 
+  it("renders case reason and sources", async () => {
+    caseResponse = {
+      ok: true,
+      workflow: {
+        requestId: "req_reason",
+        status: "open",
+        priority: "p2",
+        assignedToUserId: null,
+        claimedAt: null,
+        resolvedAt: null,
+        closedAt: null,
+        lastTouchedAt: "2024-01-01T00:00:00.000Z",
+        createdAt: "2024-01-01T00:00:00.000Z",
+        updatedAt: "2024-01-01T00:00:00.000Z",
+      },
+      evidence: [],
+      context: null,
+      reason: {
+        code: "WEBHOOK_FAILURE",
+        title: "Webhook failure",
+        detail: "Webhook failures: 2 in last 24h",
+        primarySource: "application_activities",
+        computedAt: "2024-01-01T00:10:00.000Z",
+      },
+      sources: [
+        {
+          code: "WEBHOOK_FAILURE",
+          title: "Webhook failure",
+          detail: "Webhook failures: 2 in last 24h",
+          primarySource: "application_activities",
+          count: 2,
+          lastSeenAt: "2024-01-01T00:09:00.000Z",
+        },
+      ],
+    };
+    searchParamsValue = new URLSearchParams("requestId=req_reason&window=24h");
+    render(
+      <CaseClient
+        initialQuery={{ requestId: "req_reason", userId: null, email: null, window: "24h", from: null }}
+        requestId="req_test"
+        viewerRole="support"
+        viewerId="user_ops"
+      />
+    );
+    await waitFor(() => expect(screen.getByText(/Webhook failure/i)).toBeTruthy());
+    expect(screen.getByText("WEBHOOK_FAILURE")).toBeTruthy();
+  });
+
   it("uses context userId to enable billing panel", async () => {
     caseResponse = {
       ok: true,

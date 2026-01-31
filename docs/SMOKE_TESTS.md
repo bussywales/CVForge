@@ -78,6 +78,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - SLA badges read “SLA due in” / “SLA breached by”; waiting statuses show paused; breached-only filter works.
 - Auto-refresh indicator appears on poll, and tab-hide → Data stale until refresh resumes.
 
+## Quick prod checks (v0.8.64)
+- On /app/ops/cases, confirm Reason badge + detail renders and Sources roll-up expands; Copy reason works.
+- Click Why on a case → Case View opens to Reason + Sources strip.
+- Change status/priority/claim/release → case audit trail shows recent actions.
+
 ## Quick prod checks (v0.8.62)
 - On /app/ops/cases, select each saved view (All/My/Unassigned/Waiting/P0–P1) → filters update and URL includes view=.
 - Verify SLA badge appears per case, “Show breached only” filters the list, and SLA sort orders soonest due cases first.

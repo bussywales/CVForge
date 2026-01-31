@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.64
+- Ops Case Queue adds canonical reason codes with sources roll-up, dedupes requestId entries, and records a case audit trail for lifecycle actions.
+
 ## v0.8.63
 - Ops Case Queue v2 refines SLA semantics (due/breached/paused), adds per-user saved views with save/manage/default, and tightens filter sync with auto-refresh backoff and stale indicators.
 

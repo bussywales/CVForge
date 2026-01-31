@@ -8,6 +8,7 @@ import { normaliseId } from "@/lib/ops/normalise-id";
 import { claimCaseWorkflow, sanitizeCaseWorkflowMeta } from "@/lib/ops/ops-case-workflow";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
+import { insertCaseAudit } from "@/lib/ops/ops-case-audit";
 import { logMonetisationEvent } from "@/lib/monetisation";
 import { captureServerError } from "@/lib/observability/sentry";
 
@@ -76,6 +77,12 @@ export async function POST(request: Request) {
       targetUserId: row.assigned_to_user_id ?? null,
       action: "ops_case_claim",
       meta,
+    });
+    await insertCaseAudit({
+      requestId: caseRequestId,
+      actorUserId: user.id,
+      action: "CLAIM",
+      meta: { status: row.status, priority: row.priority },
     });
     try {
       await logMonetisationEvent(admin as any, user.id, "ops_cases_claim", {

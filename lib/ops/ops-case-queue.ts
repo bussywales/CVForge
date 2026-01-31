@@ -83,13 +83,15 @@ export function resolveCaseLastTouched({
   workflowUpdated,
   notesUpdated,
   evidenceUpdated,
+  queueTouched,
 }: {
   workflowTouched?: string | null;
   workflowUpdated?: string | null;
   notesUpdated?: string | null;
   evidenceUpdated?: string | null;
+  queueTouched?: string | null;
 }) {
-  const values = [workflowTouched, workflowUpdated, notesUpdated, evidenceUpdated]
+  const values = [workflowTouched, workflowUpdated, notesUpdated, evidenceUpdated, queueTouched]
     .filter(Boolean)
     .map((value) => new Date(value as string).getTime())
     .filter((value) => !Number.isNaN(value));

@@ -15,6 +15,7 @@ import { buildCaseKey, resolveCaseWindow, type CaseWindow } from "@/lib/ops/ops-
 import { normaliseId } from "@/lib/ops/normalise-id";
 import { CASE_CHECKLIST_ITEMS, CASE_OUTCOME_CODES, type CaseChecklistEntry } from "@/lib/ops/ops-case-notes";
 import { formatCasePriority } from "@/lib/ops/ops-case-format";
+import { type CaseReason, type CaseReasonSource } from "@/lib/ops/ops-case-reason";
 import {
   buildOpsCaseAlertsLink,
   buildOpsCaseAuditsLink,
@@ -133,6 +134,14 @@ type CaseEvidence = {
   createdAt: string;
 };
 
+type CaseAuditItem = {
+  id: string;
+  action: string;
+  createdAt: string;
+  actorUserId: string | null;
+  meta?: Record<string, any> | null;
+};
+
 type CaseNotesRecord = {
   caseType: string;
   caseKey: string;
@@ -189,6 +198,8 @@ function buildCaseSnippet({
   requestId,
   userId,
   emailMasked,
+  caseReason,
+  caseSources,
   contextSources,
   contextLastSeenAt,
   contextSource,
@@ -204,6 +215,8 @@ function buildCaseSnippet({
   requestId?: string | null;
   userId?: string | null;
   emailMasked?: string | null;
+  caseReason?: CaseReason | null;
+  caseSources?: CaseReasonSource[] | null;
   contextSources?: string[] | null;
   contextLastSeenAt?: string | null;
   contextSource?: string | null;
@@ -220,6 +233,14 @@ function buildCaseSnippet({
   if (requestId) lines.push(`RequestId: ${requestId}`);
   if (userId) lines.push(`UserId: ${maskId(userId)}`);
   if (emailMasked) lines.push(`Email: ${emailMasked}`);
+  if (caseReason) lines.push(`Reason: ${caseReason.code} - ${caseReason.detail}`);
+  if (caseSources && caseSources.length) {
+    const sourcesLine = caseSources
+      .slice(0, 4)
+      .map((source) => `${source.code} (${source.count})`)
+      .join(", ");
+    lines.push(`Sources: ${sourcesLine}`);
+  }
   if (contextSources && contextSources.length) lines.push(`Context sources: ${contextSources.join(", ")}`);
   if (contextSource) lines.push(`Context source: ${contextSource}`);
   if (contextConfidence) lines.push(`Context confidence: ${contextConfidence}`);
@@ -484,6 +505,11 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
   const [evidenceItems, setEvidenceItems] = useState<CaseEvidence[]>([]);
   const [evidenceError, setEvidenceError] = useState<{ message: string; requestId?: string | null } | null>(null);
   const [evidenceSaving, setEvidenceSaving] = useState(false);
+  const [caseReason, setCaseReason] = useState<CaseReason | null>(null);
+  const [caseSources, setCaseSources] = useState<CaseReasonSource[]>([]);
+  const [caseAuditItems, setCaseAuditItems] = useState<CaseAuditItem[]>([]);
+  const [caseAuditError, setCaseAuditError] = useState<{ message: string; requestId?: string | null } | null>(null);
+  const [caseAuditLoading, setCaseAuditLoading] = useState(false);
   const [evidenceType, setEvidenceType] = useState("note");
   const [evidenceBody, setEvidenceBody] = useState("");
   const [assignQuery, setAssignQuery] = useState("");
@@ -560,6 +586,7 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
   const billingViewLogged = useRef<string | null>(null);
   const resolutionViewLogged = useRef<string | null>(null);
   const caseViewLogged = useRef<string | null>(null);
+  const caseAuditLogged = useRef<string | null>(null);
   const trainingEvidenceRef = useRef<string | null>(null);
 
   const refreshCaseSummary = useCallback(
@@ -576,11 +603,15 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
         workflow?: CaseWorkflow | null;
         evidence?: CaseEvidence[];
         context?: CaseContext | null;
+        reason?: CaseReason | null;
+        sources?: CaseReasonSource[];
       }>(`/api/ops/case?requestId=${encodeURIComponent(resolvedRequestIdParam)}&window=${windowValue}`, { method: "GET", cache: "no-store" });
       if (res.ok && res.json?.ok) {
         setWorkflowData(res.json.workflow ?? null);
         setEvidenceItems(res.json.evidence ?? []);
         setContextData(res.json.context ?? null);
+        setCaseReason(res.json.reason ?? null);
+        setCaseSources(res.json.sources ?? []);
         setContextError(null);
       } else {
         const message = res.error?.message ?? "Unable to load case workflow";
@@ -588,12 +619,36 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
         setEvidenceError({ message, requestId: res.requestId ?? requestId });
         setContextError({ message, requestId: res.requestId ?? requestId });
         safeLog("ops_case_load_error", { window: windowValue });
+        setCaseReason(null);
+        setCaseSources([]);
       }
       setWorkflowLoading(false);
       setContextLoading(false);
     },
     [requestId, resolvedRequestIdParam, safeLog, windowValue]
   );
+
+  const refreshCaseAudit = useCallback(async () => {
+    if (!resolvedRequestIdParam) return;
+    setCaseAuditLoading(true);
+    setCaseAuditError(null);
+    const res = await fetchJsonSafe<{ ok: boolean; items?: CaseAuditItem[] }>(
+      `/api/ops/case/audit?requestId=${encodeURIComponent(resolvedRequestIdParam)}`,
+      { method: "GET", cache: "no-store" }
+    );
+    if (res.ok && res.json?.ok) {
+      setCaseAuditItems(res.json.items ?? []);
+      const key = `${resolvedRequestIdParam}:${windowValue}`;
+      if (caseAuditLogged.current !== key) {
+        safeLog("ops_case_audit_view", { window: windowValue });
+        caseAuditLogged.current = key;
+      }
+    } else {
+      const message = res.error?.message ?? "Unable to load audit trail";
+      setCaseAuditError({ message, requestId: res.requestId ?? requestId });
+    }
+    setCaseAuditLoading(false);
+  }, [requestId, resolvedRequestIdParam, safeLog, windowValue]);
 
   useEffect(() => {
     setInput(resolvedRequestIdParam ?? resolvedUserIdParam ?? resolvedEmailParam ?? "");
@@ -651,6 +706,10 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
       setWorkflowError(null);
       setEvidenceItems([]);
       setEvidenceError(null);
+      setCaseReason(null);
+      setCaseSources([]);
+      setCaseAuditItems([]);
+      setCaseAuditError(null);
       setAttachSuccess(null);
       return;
     }
@@ -658,12 +717,13 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
     const load = async () => {
       if (!active) return;
       await refreshCaseSummary();
+      await refreshCaseAudit();
     };
     load();
     return () => {
       active = false;
     };
-  }, [refreshCaseSummary, resolvedRequestIdParam]);
+  }, [refreshCaseAudit, refreshCaseSummary, resolvedRequestIdParam]);
 
   useEffect(() => {
     if (!trainingMode || !scenarioIdParam || !requestIdParam) return;
@@ -1059,6 +1119,8 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
         requestId: requestIdParam,
         userId: effectiveUserId,
         emailMasked: effectiveEmailMasked,
+        caseReason,
+        caseSources,
         contextSources: contextData?.sources ?? null,
         contextLastSeenAt: contextData?.lastSeenAt ?? null,
         contextSource: contextData?.source ?? null,
@@ -1073,6 +1135,8 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
       }),
     [
       billingData?.local?.lastBillingEvent?.requestId,
+      caseReason,
+      caseSources,
       caseLink,
       contextData?.lastSeenAt,
       contextData?.source,
@@ -1854,6 +1918,69 @@ export default function CaseClient({ initialQuery, requestId, viewerRole, viewer
                   {attachSuccess ? <p className="mt-2 text-[11px] text-emerald-700">{attachSuccess}</p> : null}
                 </div>
               ) : null}
+            </div>
+          ) : null}
+
+          {requestIdParam ? (
+            <div id="case-reason" className="mt-3 rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-xs text-[rgb(var(--muted))]">
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Reason</p>
+                  <p className="text-sm font-semibold text-[rgb(var(--ink))]">{caseReason?.title ?? "Unknown"}</p>
+                  <p className="text-[11px] text-[rgb(var(--muted))]">{caseReason?.detail ?? "No recent signals."}</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))]">
+                    {caseReason?.code ?? "UNKNOWN"}
+                  </span>
+                  {caseReason?.computedAt ? (
+                    <span className="text-[11px] text-[rgb(var(--muted))]">Computed {formatRelativeTime(caseReason.computedAt)}</span>
+                  ) : null}
+                </div>
+              </div>
+              {caseSources.length ? (
+                <div className="mt-2 grid gap-2 md:grid-cols-2">
+                  {caseSources.map((source) => (
+                    <div key={`${source.code}-${source.lastSeenAt}`} className="rounded-2xl border border-black/10 bg-white/70 px-3 py-2">
+                      <p className="text-[11px] font-semibold text-[rgb(var(--ink))]">{source.code}</p>
+                      <p className="text-[11px] text-[rgb(var(--muted))]">{source.detail ?? "Signal observed."}</p>
+                      <p className="text-[11px] text-[rgb(var(--muted))]">
+                        {source.count} · last seen {formatRelativeTime(source.lastSeenAt)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="mt-2 text-[11px] text-[rgb(var(--muted))]">No sources captured yet.</p>
+              )}
+            </div>
+          ) : null}
+
+          {requestIdParam ? (
+            <div className="mt-3 rounded-2xl border border-black/10 bg-white/80 px-4 py-3 text-xs text-[rgb(var(--muted))]">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="text-xs uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Case audit</p>
+                {caseAuditLoading ? <span className="text-[11px] text-[rgb(var(--muted))]">Loading…</span> : null}
+              </div>
+              {caseAuditError ? (
+                <div className="mt-2">
+                  <ErrorBanner title="Audit unavailable" message={caseAuditError.message} requestId={caseAuditError.requestId ?? undefined} />
+                </div>
+              ) : null}
+              {caseAuditItems.length ? (
+                <ul className="mt-2 space-y-2">
+                  {caseAuditItems.slice(0, 8).map((item) => (
+                    <li key={item.id} className="rounded-2xl border border-black/10 bg-white/70 px-3 py-2">
+                      <p className="text-[11px] font-semibold text-[rgb(var(--ink))]">{item.action}</p>
+                      <p className="text-[11px] text-[rgb(var(--muted))]">
+                        {item.actorUserId ? maskId(item.actorUserId) : "Unknown"} · {formatRelativeTime(item.createdAt)}
+                      </p>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-2 text-[11px] text-[rgb(var(--muted))]">No audit entries yet.</p>
+              )}
             </div>
           ) : null}
 

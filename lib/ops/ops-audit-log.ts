@@ -1,6 +1,7 @@
 import "server-only";
 
 import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
+import { upsertCaseQueueSource } from "@/lib/ops/ops-case-queue-store";
 import { isLikelyRequestId, upsertRequestContext } from "@/lib/ops/ops-request-context";
 
 type OpsAuditInsert = {
@@ -46,6 +47,17 @@ export async function insertOpsAuditLog(admin: any, input: OpsAuditInsert) {
       path: typeof meta.path === "string" ? meta.path : null,
       meta: sanitizeMonetisationMeta({ action: input.action }),
       evidence: sanitizeMonetisationMeta({ action: input.action }),
+    });
+  } catch {
+    // best-effort only
+  }
+
+  try {
+    await upsertCaseQueueSource({
+      requestId,
+      code: "MANUAL",
+      primarySource: "ops_audit",
+      detail: `Audit activity: ${input.action}`,
     });
   } catch {
     // best-effort only

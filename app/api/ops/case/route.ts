@@ -5,10 +5,12 @@ import { getUserRole, isOpsRole } from "@/lib/rbac";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { getRateLimitBudget } from "@/lib/rate-limit-budgets";
 import { normaliseId } from "@/lib/ops/normalise-id";
-import { resolveCaseWindow } from "@/lib/ops/ops-case-model";
+import { buildCaseRange, resolveCaseWindow } from "@/lib/ops/ops-case-model";
 import { getOrCreateCaseWorkflow } from "@/lib/ops/ops-case-workflow";
 import { listCaseEvidence } from "@/lib/ops/ops-case-evidence";
 import { resolveRequestContext } from "@/lib/ops/ops-request-context";
+import { getCaseQueueRow } from "@/lib/ops/ops-case-queue-store";
+import { resolveCaseReason } from "@/lib/ops/ops-case-reason";
 import { captureServerError } from "@/lib/observability/sentry";
 
 export const runtime = "nodejs";
@@ -48,11 +50,20 @@ export async function GET(request: Request) {
   }
 
   try {
-    const [workflow, evidence, context] = await Promise.all([
+    const [workflow, evidence, context, queueRow] = await Promise.all([
       getOrCreateCaseWorkflow({ requestId: requestIdParam }),
       listCaseEvidence({ requestId: requestIdParam, limit: 20 }),
       resolveRequestContext({ requestId: requestIdParam, window, actorUserId: user.id }),
+      getCaseQueueRow(requestIdParam),
     ]);
+
+    const { fromIso } = buildCaseRange({ window, now: new Date() });
+    const reasonPayload = resolveCaseReason({
+      sources: queueRow?.sources ?? [],
+      windowFromIso: fromIso,
+      windowLabel: window,
+      now: new Date(),
+    });
 
     return NextResponse.json(
       {
@@ -80,6 +91,8 @@ export async function GET(request: Request) {
           createdByUserId: item.created_by_user_id,
           createdAt: item.created_at,
         })),
+        reason: reasonPayload.reason,
+        sources: reasonPayload.sources,
         context: context
           ? {
               requestId: context.request_id,

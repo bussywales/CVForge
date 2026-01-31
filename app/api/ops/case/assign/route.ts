@@ -8,6 +8,7 @@ import { normaliseId } from "@/lib/ops/normalise-id";
 import { assignCaseWorkflow, sanitizeCaseWorkflowMeta } from "@/lib/ops/ops-case-workflow";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
+import { insertCaseAudit } from "@/lib/ops/ops-case-audit";
 import { logMonetisationEvent } from "@/lib/monetisation";
 import { captureServerError } from "@/lib/observability/sentry";
 
@@ -63,6 +64,12 @@ export async function POST(request: Request) {
       targetUserId: assignedToUserId,
       action: "ops_case_assign",
       meta,
+    });
+    await insertCaseAudit({
+      requestId: caseRequestId,
+      actorUserId: user.id,
+      action: "SET_STATUS",
+      meta: { assignedToUserId },
     });
 
     try {

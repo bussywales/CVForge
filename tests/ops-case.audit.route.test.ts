@@ -1,12 +1,9 @@
 /// <reference types="vitest/globals" />
 import { beforeAll, describe, expect, it, vi } from "vitest";
 
-let GET: any;
-let POST: any;
+let AUDIT_GET: any;
 let role = "support";
 let rateAllowed = true;
-let notesRow: any = null;
-let upsertResult: any = null;
 
 beforeAll(async () => {
   class SimpleHeaders {
@@ -32,9 +29,6 @@ beforeAll(async () => {
       this.headers = new SimpleHeaders(init?.headers ?? {});
       this.body = init?.body;
     }
-    async json() {
-      return JSON.parse(this.body ?? "{}");
-    }
   }
   (globalThis as any).Headers = SimpleHeaders as any;
   (globalThis as any).Request = SimpleRequest as any;
@@ -53,9 +47,9 @@ beforeAll(async () => {
   vi.doMock("@/lib/observability/request-id", () => ({
     withRequestIdHeaders: (_?: HeadersInit, __?: string, opts?: { noStore?: boolean }) => {
       const headers = new SimpleHeaders();
-      headers.set("x-request-id", "req_notes");
+      headers.set("x-request-id", "req_audit");
       if (opts?.noStore ?? true) headers.set("cache-control", "no-store");
-      return { headers, requestId: "req_notes" };
+      return { headers, requestId: "req_audit" };
     },
     applyRequestIdHeaders: (res: any, requestId: string, opts?: { noStore?: boolean; retryAfterSeconds?: number }) => {
       res.headers.set("x-request-id", requestId);
@@ -76,13 +70,12 @@ beforeAll(async () => {
   }));
 
   vi.doMock("@/lib/data/supabase", () => ({
-    getSupabaseUser: async () => ({ user: { id: "ops-user", email: "ops@example.com" } }),
+    getSupabaseUser: async () => ({ user: { id: "user_ops", email: "ops@example.com" } }),
   }));
 
   vi.doMock("@/lib/rbac", () => ({
     getUserRole: async () => ({ role }),
     isOpsRole: (r: string) => r !== "user",
-    isAdminRole: (r: string) => r === "admin" || r === "super_admin",
   }));
 
   vi.doMock("@/lib/rate-limit-budgets", () => ({
@@ -92,93 +85,37 @@ beforeAll(async () => {
     checkRateLimit: () => ({ allowed: rateAllowed, retryAfterSeconds: 7 }),
   }));
 
-  vi.doMock("@/lib/monetisation", () => ({
-    logMonetisationEvent: async () => undefined,
-  }));
-
-  vi.doMock("@/lib/supabase/service", () => ({
-    createServiceRoleClient: () => ({}),
-  }));
-
-  vi.doMock("@/lib/ops/ops-audit-log", () => ({
-    insertOpsAuditLog: async () => undefined,
-  }));
-
   vi.doMock("@/lib/ops/ops-case-audit", () => ({
-    insertCaseAudit: async () => null,
+    listCaseAudit: async () => [
+      {
+        id: "audit_1",
+        created_at: "2024-01-01T00:00:00.000Z",
+        actor_user_id: "user_ops",
+        request_id: "req_audit",
+        action: "CLAIM",
+        meta: { status: "open" },
+      },
+    ],
   }));
 
-  vi.doMock("@/lib/ops/ops-case-queue-store", () => ({
-    upsertCaseQueueSource: async () => null,
-  }));
-
-  vi.doMock("@/lib/ops/ops-case-workflow", () => ({
-    getOrCreateCaseWorkflow: async () => ({ request_id: "req_1" }),
-    touchCaseWorkflow: async () => null,
-  }));
-
-  vi.doMock("@/lib/ops/ops-case-notes", async () => {
-    const actual = await vi.importActual<typeof import("@/lib/ops/ops-case-notes")>("@/lib/ops/ops-case-notes");
-    return {
-      ...actual,
-      getCaseNotes: async () => notesRow,
-      upsertCaseNotes: async () => upsertResult,
-    };
-  });
-
-  const getMod = await import("@/app/api/ops/case/notes/route");
-  GET = getMod.GET;
-  const postMod = await import("@/app/api/ops/case/notes/upsert/route");
-  POST = postMod.POST;
+  const auditMod = await import("@/app/api/ops/case/audit/route");
+  AUDIT_GET = auditMod.GET;
 });
 
-describe("ops case notes routes", () => {
-  it("forbids non-ops on GET", async () => {
+describe("ops case audit route", () => {
+  it("forbids non-ops", async () => {
     role = "user";
-    const res = await GET(new Request("http://localhost/api/ops/case/notes?caseType=request&caseKey=req_1"));
+    const res = await AUDIT_GET(new Request("http://localhost/api/ops/case/audit?requestId=req_audit"));
     expect(res.status).toBe(403);
   });
 
-  it("returns notes for ops", async () => {
+  it("returns audit items for ops", async () => {
     role = "support";
-    notesRow = {
-      case_type: "request",
-      case_key: "req_1",
-      window_label: "15m",
-      checklist: {},
-      outcome_code: null,
-      notes: null,
-      status: "open",
-      last_handled_at: null,
-      last_handled_by: null,
-      created_at: "2024-01-01T00:00:00.000Z",
-      updated_at: "2024-01-01T00:00:00.000Z",
-    };
-    const res = await GET(new Request("http://localhost/api/ops/case/notes?caseType=request&caseKey=req_1"));
+    const res = await AUDIT_GET(new Request("http://localhost/api/ops/case/audit?requestId=req_audit"));
     const body = await res.json();
     expect(res.status).toBe(200);
-    expect(body.notes.caseKey).toBe("req_1");
+    expect(body.items.length).toBe(1);
+    expect(body.items[0].action).toBe("CLAIM");
     expect(res.headers.get("cache-control")).toBe("no-store");
-  });
-
-  it("requires admin to close case", async () => {
-    role = "support";
-    upsertResult = { row: null, toggledKeys: [], changed: false };
-    const res = await POST(
-      new Request("http://localhost/api/ops/case/notes/upsert", {
-        method: "POST",
-        body: JSON.stringify({ caseType: "request", caseKey: "req_1", patch: { status: "closed" } }),
-      })
-    );
-    expect(res.status).toBe(403);
-  });
-
-  it("returns retry-after when rate limited", async () => {
-    role = "admin";
-    rateAllowed = false;
-    const res = await GET(new Request("http://localhost/api/ops/case/notes?caseType=request&caseKey=req_1"));
-    expect(res.status).toBe(429);
-    expect(res.headers.get("retry-after")).toBe("7");
-    rateAllowed = true;
   });
 });

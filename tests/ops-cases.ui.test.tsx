@@ -43,6 +43,23 @@ describe("Ops cases queue", () => {
           slaRemainingMs: 3600000,
           notesCount: 1,
           evidenceCount: 2,
+          reason: {
+            code: "WEBHOOK_FAILURE",
+            title: "Webhook failure",
+            detail: "Webhook failures: 2 in last 24h",
+            primarySource: "application_activities",
+            computedAt: "2024-01-01T02:00:00.000Z",
+          },
+          sources: [
+            {
+              code: "WEBHOOK_FAILURE",
+              title: "Webhook failure",
+              detail: "Webhook failures: 2 in last 24h",
+              primarySource: "application_activities",
+              count: 2,
+              lastSeenAt: "2024-01-01T01:59:00.000Z",
+            },
+          ],
           userContext: { userId: "user_ctx", source: "ops_audit", confidence: "high" },
         },
       ],
@@ -124,6 +141,14 @@ describe("Ops cases queue", () => {
     expect(screen.getByText(/Open case/i)).toBeTruthy();
     expect(screen.getByText(/SLA due in:/i)).toBeTruthy();
     expect(screen.getByText("P2", { selector: "span" })).toBeTruthy();
+  });
+
+  it("renders reason badge and why link", async () => {
+    render(<CasesClient initialQuery={{}} viewerRole="support" viewerId="user_ops" />);
+    await waitFor(() => expect(screen.getByText("WEBHOOK_FAILURE")).toBeTruthy());
+    const whyLink = screen.getByText("Why");
+    expect(whyLink.getAttribute("href")).toContain("#case-reason");
+    expect(screen.getByLabelText("Copy reason")).toBeTruthy();
   });
 
   it("syncs waiting chip with status filter", async () => {

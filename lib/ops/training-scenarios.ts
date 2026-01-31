@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
+import { upsertCaseQueueSource } from "@/lib/ops/ops-case-queue-store";
 
 export type TrainingScenarioType = "alerts_test" | "mixed_basic";
 
@@ -61,6 +62,20 @@ export async function createTrainingScenario({
     .single();
   if (error || !data) {
     throw error ?? new Error("Unable to create training scenario");
+  }
+  if (data.request_id) {
+    try {
+      await upsertCaseQueueSource({
+        requestId: data.request_id,
+        code: "TRAINING",
+        primarySource: "ops_training_scenarios",
+        detail: `Training scenario: ${data.scenario_type}`,
+        windowLabel,
+        now,
+      });
+    } catch {
+      // best-effort only
+    }
   }
   return data as TrainingScenarioRow;
 }

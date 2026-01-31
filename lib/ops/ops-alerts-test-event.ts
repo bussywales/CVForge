@@ -5,6 +5,7 @@ import { notifyAlertTransitions } from "@/lib/ops/ops-alerts-notify";
 import { sanitizeMonetisationMeta } from "@/lib/monetisation-guardrails";
 import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
 import { upsertRequestContext } from "@/lib/ops/ops-request-context";
+import { upsertCaseQueueSource } from "@/lib/ops/ops-case-queue-store";
 
 export async function createOpsAlertTestEvent({
   actorUserId,
@@ -67,6 +68,12 @@ export async function createOpsAlertTestEvent({
         path: "/api/ops/alerts/test",
         meta: { eventId },
         evidence: { eventId },
+      });
+      await upsertCaseQueueSource({
+        requestId,
+        code: "TRAINING",
+        primarySource: "ops_alert_events",
+        detail: "Alert test fired",
       });
     }
   } catch {

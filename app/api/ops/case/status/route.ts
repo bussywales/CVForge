@@ -14,6 +14,7 @@ import {
 } from "@/lib/ops/ops-case-workflow";
 import { createServiceRoleClient } from "@/lib/supabase/service";
 import { insertOpsAuditLog } from "@/lib/ops/ops-audit-log";
+import { insertCaseAudit } from "@/lib/ops/ops-case-audit";
 import { logMonetisationEvent } from "@/lib/monetisation";
 import { captureServerError } from "@/lib/observability/sentry";
 
@@ -85,6 +86,23 @@ export async function POST(request: Request) {
       action: "ops_case_status_change",
       meta,
     });
+    const wasResolved = existing?.status === "resolved" || existing?.status === "closed";
+    const isResolved = finalRow.status === "resolved" || finalRow.status === "closed";
+    const action = !wasResolved && isResolved ? "RESOLVE" : wasResolved && !isResolved ? "REOPEN" : "SET_STATUS";
+    await insertCaseAudit({
+      requestId: caseRequestId,
+      actorUserId: user.id,
+      action,
+      meta: { status: finalRow.status },
+    });
+    if (priority) {
+      await insertCaseAudit({
+        requestId: caseRequestId,
+        actorUserId: user.id,
+        action: "SET_PRIORITY",
+        meta: { priority },
+      });
+    }
 
     try {
       await logMonetisationEvent(admin as any, user.id, "ops_case_status_change", {

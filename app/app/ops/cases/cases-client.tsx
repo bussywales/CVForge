@@ -11,6 +11,7 @@ import { normaliseId } from "@/lib/ops/normalise-id";
 import { formatCaseSlaLabel } from "@/lib/ops/ops-case-sla";
 import { formatShortLocalTime } from "@/lib/time/format-short";
 import { formatRelativeTime } from "@/lib/tracking-utils";
+import { type CaseReason, type CaseReasonSource } from "@/lib/ops/ops-case-reason";
 
 const STATUS_OPTIONS = [
   { value: "all", label: "All" },
@@ -75,6 +76,8 @@ type QueueItem = {
   slaRemainingMs: number | null;
   notesCount: number;
   evidenceCount: number;
+  reason?: CaseReason | null;
+  sources?: CaseReasonSource[];
   userContext: { userId: string | null; source: string | null; confidence: string | null } | null;
 };
 
@@ -119,6 +122,13 @@ function maskId(value?: string | null) {
   if (!value) return "";
   if (value.length <= 6) return `${value[0] ?? ""}***`;
   return `${value.slice(0, 4)}***${value.slice(-2)}`;
+}
+
+function buildReasonCopy(item: QueueItem) {
+  const reason = item.reason;
+  const detail = reason?.detail ?? "No recent signals";
+  const code = reason?.code ?? "UNKNOWN";
+  return [`RequestId: ${item.requestId}`, `Reason: ${code} - ${detail}`].join("\n");
 }
 
 function normaliseSelect(value: string | null | undefined, allowed: string[], fallback: string) {
@@ -275,6 +285,7 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
   const pollRunRef = useRef<(() => void) | null>(null);
   const lastPollLogRef = useRef(0);
   const lastSignatureRef = useRef<string>("");
+  const reasonLogRef = useRef<string>("");
   const defaultApplied = useRef(false);
 
   const queueHref = useMemo(() => {
@@ -518,6 +529,15 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
           const signature = buildQueueSignature(nextItems);
           const changed = signature !== lastSignatureRef.current;
           lastSignatureRef.current = signature;
+          const reasonSignature = `${signature}|${nextItems.length}`;
+          if (reasonLogRef.current !== reasonSignature) {
+            const reasonCount = nextItems.filter((item) => Boolean(item.reason?.code)).length;
+            logMonetisationClientEvent("ops_cases_reason_render", null, "ops", {
+              count: reasonCount,
+              window: windowValue,
+            });
+            reasonLogRef.current = reasonSignature;
+          }
           result = { ok: true, changed };
         } else {
           result = { ok: true, changed: false };
@@ -1339,6 +1359,13 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
                     >
                       Open case
                     </Link>
+                    <Link
+                      href={`/app/ops/case?requestId=${encodeURIComponent(item.requestId)}&returnTo=${encodeURIComponent(queueHref)}#case-reason`}
+                      onClick={() => logMonetisationClientEvent("ops_cases_open_why", null, "ops", { status: item.status })}
+                      className="rounded-full border border-black/10 bg-white px-3 py-1 text-xs font-semibold text-[rgb(var(--ink))]"
+                    >
+                      Why
+                    </Link>
                     {!item.assignedUserId ? (
                       <button
                         type="button"
@@ -1361,7 +1388,7 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
                   </div>
                 </div>
 
-                <div className="mt-3 grid gap-3 md:grid-cols-3">
+                <div className="mt-3 grid gap-3 md:grid-cols-4">
                   <div className="text-xs text-[rgb(var(--muted))]">
                     <p className="text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Assigned</p>
                     {item.assignedUserId ? (
@@ -1391,6 +1418,39 @@ export default function CasesClient({ initialQuery, viewerRole, viewerId }: Prop
                         {item.userContext.source} | {item.userContext.confidence ?? "unknown"}
                       </p>
                     ) : null}
+                  </div>
+                  <div className="text-xs text-[rgb(var(--muted))]">
+                    <p className="text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Reason</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <span className="rounded-full border border-black/10 bg-white px-2 py-0.5 text-[11px] font-semibold text-[rgb(var(--ink))]">
+                        {item.reason?.code ?? "UNKNOWN"}
+                      </span>
+                      <span className="text-sm text-[rgb(var(--ink))]">{item.reason?.detail ?? "No recent signals"}</span>
+                      <CopyIconButton
+                        text={buildReasonCopy(item)}
+                        label="Copy reason"
+                        onCopy={() => logMonetisationClientEvent("ops_cases_copy_reason", null, "ops", { status: item.status })}
+                      />
+                    </div>
+                    {item.sources?.length ? (
+                      <details className="mt-2 text-[11px] text-[rgb(var(--muted))]">
+                        <summary className="cursor-pointer text-[11px] font-semibold text-[rgb(var(--ink))]">
+                          Sources ({item.sources.length})
+                        </summary>
+                        <ul className="mt-1 space-y-1">
+                          {item.sources.map((source) => (
+                            <li key={`${item.requestId}-${source.code}-${source.lastSeenAt}`}>
+                              <span className="font-semibold text-[rgb(var(--ink))]">{source.code}</span>{" "}
+                              <span>
+                                · {source.count} · {formatRelativeTime(source.lastSeenAt)}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    ) : (
+                      <p className="mt-1 text-[11px] text-[rgb(var(--muted))]">No sources yet.</p>
+                    )}
                   </div>
                   <div className="text-xs text-[rgb(var(--muted))]">
                     <p className="text-[11px] uppercase tracking-[0.2em] text-[rgb(var(--muted))]">Notes / Evidence</p>

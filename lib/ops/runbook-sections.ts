@@ -77,8 +77,8 @@ export type RunbookSection = {
 };
 
 export const RUNBOOK_META = {
-  lastUpdatedVersion: "v0.8.63",
-  lastUpdatedIso: "2026-04-03T00:00:00.000Z",
+  lastUpdatedVersion: "v0.8.64",
+  lastUpdatedIso: "2026-04-10T00:00:00.000Z",
   rulesVersion: "ops_runbook_v1",
 };
 
@@ -383,7 +383,7 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
     owner: "Support",
     lastUpdatedIso: LAST_UPDATED,
     linkedSurfaces: ["alerts", "incidents", "webhooks", "billing", "status"],
-    tags: ["case-queue", "workflow", "triage", "assignment", "sla", "saved-views"],
+    tags: ["case-queue", "workflow", "triage", "assignment", "sla", "saved-views", "reason", "audit"],
     body: [
       { type: "heading", text: "What this is / When to use" },
       {
@@ -412,6 +412,7 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
         type: "checks",
         items: [
           "Confirm the saved view and filters (status/assigned/priority/window/sort) match the task at hand.",
+          "Reason badge shows the strongest signal in the selected window; expand Sources to review contributing signals.",
           "SLA targets: P0=15m, P1=60m, P2=4h, P3=24h (based on created_at).",
           "SLA labels read as due in / breached by; waiting statuses pause the clock.",
           "Use breached-only to surface overdue work; SLA sort ranks soonest due cases first.",
@@ -426,7 +427,7 @@ export const RUNBOOK_SECTIONS: RunbookSection[] = [
           "Update status/priority directly in the queue when appropriate.",
           "Use saved views (All/My/Unassigned/Waiting/P0–P1); Save as... for personal presets and Manage views to set a default.",
           "Manual filter changes flip the view to Custom; use Save view to update the last saved preset.",
-          "Use Open case to capture evidence and escalation templates, then return via Back to queue.",
+          "Use Open case or Why to capture reason + evidence and escalation templates, then return via Back to queue.",
         ],
       },
       {

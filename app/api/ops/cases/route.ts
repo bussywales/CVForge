@@ -21,6 +21,14 @@ import {
 } from "@/lib/ops/ops-case-queue";
 import { computeCaseSla } from "@/lib/ops/ops-case-sla";
 import { normaliseCasePriority } from "@/lib/ops/ops-case-workflow";
+import {
+  buildCaseReasonSource,
+  coerceCaseReasonSources,
+  resolveCaseReason,
+  type CaseReasonCode,
+  type CaseReasonSource,
+} from "@/lib/ops/ops-case-reason";
+import { upsertCaseQueueSources } from "@/lib/ops/ops-case-queue-store";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -162,7 +170,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: true, requestId, window, items: [], nextCursor: null }, { headers });
     }
 
-    const [notesRows, evidenceRows, contextRows] = await Promise.all([
+    const [notesRows, evidenceRows, contextRows, queueRows, trainingRows, activityRows] = await Promise.all([
       admin
         .from("ops_case_notes")
         .select("case_key,updated_at")
@@ -176,11 +184,33 @@ export async function GET(request: Request) {
         .from("ops_request_context")
         .select("request_id,user_id,source,confidence")
         .in("request_id", requestIds),
+      admin
+        .from("ops_case_queue")
+        .select(
+          "request_id,last_touched_at,reason_code,reason_title,reason_detail,reason_primary_source,reason_computed_at,sources"
+        )
+        .in("request_id", requestIds),
+      admin
+        .from("ops_training_scenarios")
+        .select("request_id,scenario_type,created_at,is_active")
+        .in("request_id", requestIds),
+      requestIds.length
+        ? admin
+            .from("application_activities")
+            .select("id,type,body,occurred_at,created_at")
+            .gte("occurred_at", fromIso)
+            .or(requestIds.map((id) => `body.ilike.%${id}%`).join(","))
+            .order("occurred_at", { ascending: false })
+            .limit(500)
+        : Promise.resolve({ data: [] as any[], error: null }),
     ]);
 
     if (notesRows.error) throw notesRows.error;
     if (evidenceRows.error) throw evidenceRows.error;
     if (contextRows.error) throw contextRows.error;
+    if (queueRows.error) throw queueRows.error;
+    if (trainingRows.error) throw trainingRows.error;
+    if (activityRows.error) throw activityRows.error;
 
     const notesMap = new Map<string, { updatedAt: string }>();
     (notesRows.data ?? []).forEach((row) => {
@@ -204,10 +234,88 @@ export async function GET(request: Request) {
       });
     });
 
+    const queueMap = new Map<
+      string,
+      {
+        sources: CaseReasonSource[];
+        lastTouchedAt: string | null;
+      }
+    >();
+    (queueRows.data ?? []).forEach((row: any) => {
+      queueMap.set(row.request_id, {
+        sources: coerceCaseReasonSources(row.sources),
+        lastTouchedAt: row.last_touched_at ?? null,
+      });
+    });
+
+    const trainingMap = new Map<string, { count: number; lastSeenAt: string; detail: string }>();
+    (trainingRows.data ?? []).forEach((row: any) => {
+      if (!row?.request_id) return;
+      const current = trainingMap.get(row.request_id) ?? {
+        count: 0,
+        lastSeenAt: row.created_at,
+        detail: "",
+      };
+      const nextCount = current.count + 1;
+      const lastSeenAt =
+        current.lastSeenAt && current.lastSeenAt > row.created_at ? current.lastSeenAt : row.created_at;
+      const detail = row.scenario_type ? `Training scenario: ${row.scenario_type}` : "Training scenario";
+      trainingMap.set(row.request_id, { count: nextCount, lastSeenAt, detail });
+    });
+
+    const activitySignals = new Map<
+      string,
+      Map<
+        CaseReasonCode,
+        {
+          count: number;
+          lastSeenAt: string;
+        }
+      >
+    >();
+    const requestIdSet = new Set(requestIds);
+    (activityRows.data ?? []).forEach((row: any) => {
+      let meta: any = {};
+      if (row.body && typeof row.body === "object") {
+        meta = row.body;
+      } else if (typeof row.body === "string") {
+        try {
+          meta = JSON.parse(row.body);
+        } catch {
+          meta = {};
+        }
+      }
+      const requestId = meta.requestId ?? meta.req ?? meta.request_id ?? null;
+      if (!requestId || !requestIdSet.has(requestId)) return;
+      const type = typeof row.type === "string" ? row.type : "";
+      let code: CaseReasonCode | null = null;
+      if (type.startsWith("monetisation.webhook_error") || type.startsWith("monetisation.webhook_failure")) {
+        code = "WEBHOOK_FAILURE";
+      } else if (type.startsWith("monetisation.billing_recheck_rate_limited")) {
+        code = "RATE_LIMIT";
+      } else if (type.startsWith("monetisation.billing_recheck_") || type.startsWith("monetisation.billing_recheck")) {
+        code = "BILLING_RECHECK";
+      } else if (type.startsWith("monetisation.billing_portal_error")) {
+        code = "PORTAL_ERROR";
+      } else if (type.startsWith("monetisation.rate_limit")) {
+        code = "RATE_LIMIT";
+      }
+      if (!code) return;
+      const at = row.occurred_at ?? row.created_at ?? nowIso;
+      const mapForRequest = activitySignals.get(requestId) ?? new Map<CaseReasonCode, { count: number; lastSeenAt: string }>();
+      const existing = mapForRequest.get(code) ?? { count: 0, lastSeenAt: at };
+      const nextCount = existing.count + 1;
+      const lastSeenAt = existing.lastSeenAt > at ? existing.lastSeenAt : at;
+      mapForRequest.set(code, { count: nextCount, lastSeenAt });
+      activitySignals.set(requestId, mapForRequest);
+    });
+
+    const queueUpdates: Promise<any>[] = [];
     const items = pageRows.map((row) => {
       const noteInfo = notesMap.get(row.request_id);
       const evidenceInfo = evidenceStats.get(row.request_id);
       const contextInfo = contextMap.get(row.request_id);
+      const queueInfo = queueMap.get(row.request_id);
       const priorityValue = normaliseCasePriority(row.priority) ?? "p2";
       const slaInfo = computeCaseSla({
         priority: priorityValue,
@@ -216,24 +324,100 @@ export async function GET(request: Request) {
         status: row.status,
         now,
       });
+
+      const sources: CaseReasonSource[] = [...(queueInfo?.sources ?? [])];
+      if (noteInfo?.updatedAt) {
+        sources.push(
+          buildCaseReasonSource({
+            code: "MANUAL",
+            primarySource: "ops_case_notes",
+            count: 1,
+            lastSeenAt: noteInfo.updatedAt,
+            detail: "Case notes updated",
+            windowLabel: window,
+          })
+        );
+      }
+      if (evidenceInfo?.count && evidenceInfo.lastAt) {
+        sources.push(
+          buildCaseReasonSource({
+            code: "MANUAL",
+            primarySource: "ops_case_evidence",
+            count: evidenceInfo.count,
+            lastSeenAt: evidenceInfo.lastAt,
+            detail: "Evidence captured",
+            windowLabel: window,
+          })
+        );
+      }
+      const trainingInfo = trainingMap.get(row.request_id);
+      if (trainingInfo) {
+        sources.push(
+          buildCaseReasonSource({
+            code: "TRAINING",
+            primarySource: "ops_training_scenarios",
+            count: trainingInfo.count,
+            lastSeenAt: trainingInfo.lastSeenAt,
+            detail: trainingInfo.detail,
+            windowLabel: window,
+          })
+        );
+      }
+      const activityInfo = activitySignals.get(row.request_id);
+      if (activityInfo) {
+        activityInfo.forEach((info, code) => {
+          sources.push(
+            buildCaseReasonSource({
+              code,
+              primarySource: "application_activities",
+              count: info.count,
+              lastSeenAt: info.lastSeenAt,
+              windowLabel: window,
+            })
+          );
+        });
+      }
+
+      const { reason, sources: mergedSources } = resolveCaseReason({
+        sources,
+        windowFromIso: fromIso,
+        windowLabel: window,
+        now,
+      });
+
+      const lastTouchedAt = resolveCaseLastTouched({
+        workflowTouched: row.last_touched_at,
+        workflowUpdated: row.updated_at,
+        notesUpdated: noteInfo?.updatedAt ?? null,
+        evidenceUpdated: evidenceInfo?.lastAt ?? null,
+        queueTouched: queueInfo?.lastTouchedAt ?? null,
+      });
+
+      queueUpdates.push(
+        upsertCaseQueueSources({
+          requestId: row.request_id,
+          sources: mergedSources,
+          lastTouchedAt,
+          now,
+          windowLabel: window,
+        }).catch(() => null)
+      );
+
       return {
         requestId: row.request_id,
         status: row.status,
         priority: priorityValue,
         assignedUserId: row.assigned_to_user_id ?? null,
         assignedToMe: row.assigned_to_user_id === user.id,
-        lastTouchedAt: resolveCaseLastTouched({
-          workflowTouched: row.last_touched_at,
-          workflowUpdated: row.updated_at,
-          notesUpdated: noteInfo?.updatedAt ?? null,
-          evidenceUpdated: evidenceInfo?.lastAt ?? null,
-        }),
+        lastTouchedAt,
         createdAt: row.created_at,
         slaDueAt: slaInfo?.dueAt ?? row.sla_due_at ?? null,
         slaBreached: slaInfo?.breached ?? false,
         slaRemainingMs: slaInfo?.remainingMs ?? null,
         notesCount: noteInfo ? 1 : 0,
         evidenceCount: evidenceInfo?.count ?? 0,
+        reason,
+        sources: mergedSources,
         userContext: contextInfo
           ? {
               userId: contextInfo.userId,
@@ -244,6 +428,31 @@ export async function GET(request: Request) {
       };
     });
 
+    await Promise.all(queueUpdates);
+
+    const dedupedMap = new Map<string, (typeof items)[number]>();
+    items.forEach((item) => {
+      const existing = dedupedMap.get(item.requestId);
+      if (!existing) {
+        dedupedMap.set(item.requestId, item);
+        return;
+      }
+      const sources = [...(existing.sources ?? []), ...(item.sources ?? [])];
+      const merged = resolveCaseReason({ sources, windowFromIso: fromIso, windowLabel: window, now });
+      const lastTouchedAt =
+        new Date(existing.lastTouchedAt).getTime() >= new Date(item.lastTouchedAt).getTime()
+          ? existing.lastTouchedAt
+          : item.lastTouchedAt;
+      dedupedMap.set(item.requestId, {
+        ...existing,
+        ...item,
+        lastTouchedAt,
+        reason: merged.reason,
+        sources: merged.sources,
+      });
+    });
+    const finalItems = Array.from(dedupedMap.values());
+
     let nextCursor: string | null = null;
     if (hasNext && (sort === "lastTouched" || sort === "createdAt")) {
       const lastRow = pageRows[pageRows.length - 1];
@@ -251,7 +460,7 @@ export async function GET(request: Request) {
       nextCursor = encodeCaseQueueCursor({ ts: cursorValue, id: lastRow.request_id });
     }
 
-    return NextResponse.json({ ok: true, requestId, window, items, nextCursor }, { headers });
+    return NextResponse.json({ ok: true, requestId, window, items: finalItems, nextCursor }, { headers });
   } catch (error) {
     captureServerError(error, { requestId, route: "/api/ops/cases", code: "OPS_CASES_LIST_FAIL" });
     return jsonError({ code: "OPS_CASES_LIST_FAIL", message: "Unable to load cases", requestId });
