@@ -166,6 +166,22 @@ export default async function ApplicationsPage({
           />
         )}
       </Section>
+      <Section
+        title="Application Packs"
+        description="Generate tailored CV + cover letter bundles with STAR and fit mapping."
+        action={
+          <Link
+            href="/app/packs"
+            className="rounded-2xl border border-black/10 bg-white/80 px-4 py-2 text-sm font-semibold text-[rgb(var(--ink))] transition hover:border-black/20"
+          >
+            View packs
+          </Link>
+        }
+      >
+        <div className="rounded-2xl border border-dashed border-black/10 bg-white/70 p-6 text-sm text-[rgb(var(--muted))]">
+          Start a pack from any job description to create tailored CV and cover letter content you can export.
+        </div>
+      </Section>
     </>
   );
 }

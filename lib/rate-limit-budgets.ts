@@ -50,6 +50,12 @@ type BudgetKey =
   | "ops_cases_update"
   | "ops_cases_views_list"
   | "ops_cases_views_write"
+  | "packs_list"
+  | "packs_create"
+  | "packs_get"
+  | "packs_update"
+  | "packs_generate"
+  | "packs_export"
   | "onboarding_model_get"
   | "onboarding_skip_post"
   | "invite_claim"
@@ -116,6 +122,12 @@ const ROUTE_BUDGETS: Record<BudgetKey, BudgetLevel> = {
   ops_cases_update: "medium",
   ops_cases_views_list: "medium",
   ops_cases_views_write: "medium",
+  packs_list: "medium",
+  packs_create: "medium",
+  packs_get: "medium",
+  packs_update: "medium",
+  packs_generate: "low",
+  packs_export: "medium",
   onboarding_model_get: "medium",
   onboarding_skip_post: "medium",
   invite_claim: "medium",

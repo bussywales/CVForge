@@ -77,8 +77,8 @@ export type RunbookSection = {
 };
 
 export const RUNBOOK_META = {
-  lastUpdatedVersion: "v0.8.64",
-  lastUpdatedIso: "2026-04-10T00:00:00.000Z",
+  lastUpdatedVersion: "v0.8.65",
+  lastUpdatedIso: "2026-04-17T00:00:00.000Z",
   rulesVersion: "ops_runbook_v1",
 };
 

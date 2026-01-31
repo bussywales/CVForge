@@ -3,6 +3,9 @@
 # Changelog
 # Changelog
 
+## v0.8.65
+- Application Packs v1: create packs from JD + CV/notes, generate CV/cover/STAR/fit map outputs, version history, and DOCX export (Standard + ATS clean).
+
 ## v0.8.64
 - Ops Case Queue adds canonical reason codes with sources roll-up, dedupes requestId entries, and records a case audit trail for lifecycle actions.
 

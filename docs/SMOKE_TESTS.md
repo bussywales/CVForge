@@ -20,6 +20,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - If activation is incomplete, Keep Momentum still renders without stealing focus.
 - Ops Activation Funnel reflects keep-momentum aggregates (views/clicks/skips) after interactions.
 
+## Application Packs (v0.8.65)
+- Open /app/packs → create a new pack with title/company/role.
+- Open the pack → paste a JD and generate → outputs populate (CV, cover, STAR, fit map, rationale) with “Last saved” updated.
+- Export DOCX (Standard + ATS clean) → files download; export disabled until a version exists.
+
 ## Quick prod checks (v0.8.36)
 - From /app/ops/alerts, click an alert action → Incidents opens with window=15m, from=ops_alerts, and signal/surface/code params; if empty, widen chips appear to broaden results.
 - Click Send test alert → API returns ok+eventId, Recent tab shows Test events section with audits/incidents links for the new is_test event.

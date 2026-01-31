@@ -22,6 +22,9 @@ Some sites such as Indeed and LinkedIn block automated fetches, so the UI now su
 ## Autopacks
 Autopacks generate CVs, cover letters, and STAR answers from profile and achievements. Users can edit and version outputs in-app.
 
+## Application Packs v1
+Application Packs let users create a job-specific bundle from a JD plus optional CV/notes. Each pack stores version history, produces tailored CV and cover letter content, STAR suggestions, a fit map with gaps, and a “what changed” explanation, with DOCX export in Standard and ATS-clean formats.
+
 ## Role Fit and Interview Lift
 Role Fit uses deterministic taxonomies, domain packs, and fallback JD terms to score coverage and suggest gaps. Interview Lift uses deterministic checks to recommend next actions and STAR drafts.
 
