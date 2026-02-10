@@ -3,6 +3,10 @@
 # Changelog
 # Changelog
 
+## v0.8.66
+
+- Application Packs UX v2: guided generation state, version selector with v1/v2 labels, copy-per-tab, safe export gating (no exports until a version exists), and a clearer empty state.
+
 ## v0.8.65
 - Application Packs v1: create packs from JD + CV/notes, generate CV/cover/STAR/fit map outputs, version history, and DOCX export (Standard + ATS clean).
 

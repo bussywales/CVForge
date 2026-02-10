@@ -86,7 +86,7 @@ export default function PacksClient({ initialPacks }: PacksClientProps) {
     if (!pack.latestVersionId) return;
     setExportingId(pack.id);
     setError(null);
-    logMonetisationClientEvent("pack_export_clicked", null, "packs", { variant, hasVersion: true });
+    logMonetisationClientEvent("packs_export_clicked", null, "packs", { packId: pack.id, variant, hasVersion: true });
     const response = await fetch(`/api/packs/${pack.id}/export`, {
       method: "POST",
       headers: { "content-type": "application/json" },

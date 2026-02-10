@@ -14,6 +14,16 @@ import { logMonetisationEvent } from "@/lib/monetisation";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function hasMeaningfulOutputs(outputs: ReturnType<typeof coercePackOutputs>) {
+  if (outputs.cv.summary.trim()) return true;
+  if (outputs.cv.sections.some((s) => s.bullets.some((b) => b.trim()))) return true;
+  if (outputs.coverLetter.trim()) return true;
+  if (outputs.starStories.length > 0) return true;
+  if (outputs.fitMap.length > 0) return true;
+  if (outputs.rationale.trim()) return true;
+  return false;
+}
+
 export async function POST(request: Request, { params }: { params: { id: string } }) {
   const { requestId } = withRequestIdHeaders(request.headers, undefined, { noStore: true });
   const { supabase, user } = await getSupabaseUser();
@@ -80,6 +90,9 @@ export async function POST(request: Request, { params }: { params: { id: string 
     }
 
     const outputs = coercePackOutputs(versionRow.outputs);
+    if (!hasMeaningfulOutputs(outputs)) {
+      return jsonError({ code: "NO_OUTPUTS", message: "Nothing to export yet", requestId, status: 400 });
+    }
     const doc = buildPackDocx({
       title: pack.title,
       outputs,

@@ -101,7 +101,7 @@ beforeAll(async () => {
                   id: "version_1",
                   pack_id: "pack_1",
                   user_id: "user_pack",
-                  outputs: {},
+                  outputs: { cv: { summary: "Summary", sections: [] }, coverLetter: "Cover", starStories: [], fitMap: [], rationale: "Why" },
                   created_at: "2024-01-01T00:00:00.000Z",
                 },
                 error: null,

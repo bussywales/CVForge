@@ -20,9 +20,11 @@ Tests: run `npm test` locally; use `npm run test:ci` for sandbox/CI.
 - If activation is incomplete, Keep Momentum still renders without stealing focus.
 - Ops Activation Funnel reflects keep-momentum aggregates (views/clicks/skips) after interactions.
 
-## Application Packs (v0.8.65)
+## Application Packs (v0.8.66)
 - Open /app/packs → create a new pack with title/company/role.
-- Open the pack → paste a JD and generate → outputs populate (CV, cover, STAR, fit map, rationale) with “Last saved” updated.
+- Open the pack → paste a JD and click Generate pack → progress panel shows, then success banner “Pack generated: vN”.
+- Switch versions via the version dropdown and confirm outputs change.
+- Use Copy on each output tab.
 - Export DOCX (Standard + ATS clean) → files download; export disabled until a version exists.
 
 ## Quick prod checks (v0.8.36)
